@@ -4,7 +4,10 @@
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-feature android:name="android.hardware.camera" android:required="false" />
+    <!-- Cleartext HTTP is allowed so the app can reach a local model server
+         (Ollama, LM Studio) on the user's own network, which serves plain HTTP. -->
     <application
+        android:usesCleartextTraffic="true"
         android:label="SpawnAlpha"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">

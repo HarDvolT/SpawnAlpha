@@ -12,8 +12,8 @@ void main() {
         style: CoachingStyle.presentation,
       ).copyWith(marks: marks);
 
-  const pending = Mark(id: 's', kind: MarkKind.stress, start: 1, end: 1, origin: MarkOrigin.local, accepted: false);
-  const pause = Mark.gap(id: 'p', kind: MarkKind.pauseShort, after: 2, origin: MarkOrigin.local, accepted: false);
+  const pending = Mark(id: 's', kind: MarkKind.stress, start: 1, end: 1, origin: MarkOrigin.rules, accepted: false);
+  const pause = Mark.gap(id: 'p', kind: MarkKind.pauseShort, after: 2, origin: MarkOrigin.rules, accepted: false);
 
   test('marksAt finds spans over a word and the gap after it', () {
     final s = script([pending, pause]);

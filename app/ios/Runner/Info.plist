@@ -6,6 +6,13 @@
 	<string>SpawnAlpha records you on camera while you read your script.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>SpawnAlpha records your voice with the video.</string>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>SpawnAlpha can use an AI model running on a computer on your network, such as Ollama or LM Studio.</string>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
 	<key>CFBundleDevelopmentRegion</key>

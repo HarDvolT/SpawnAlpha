@@ -4,15 +4,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 
 import '../app.dart';
-import '../markup/claude_markup_engine.dart';
-import '../markup/local_markup_engine.dart';
 import '../markup/markup_engine.dart';
+import '../markup/providers.dart';
 import '../model/coaching_style.dart';
 import '../model/mark_editing.dart';
 import '../model/script_document.dart';
 import '../model/script_language.dart';
 import '../prompter/marked_text.dart';
-import '../storage/settings.dart';
 import 'format.dart';
 import 'mark_sheet.dart';
 import 'prompter_screen.dart';
@@ -104,21 +102,16 @@ class _EditorScreenState extends State<EditorScreen> with SingleTickerProviderSt
       return;
     }
     final settings = _services.settings;
-    final wantsClaude = settings.markupSource == MarkupSource.claude && !forceLocal;
-    ClaudeMarkupEngine? claude;
-    final MarkupEngine engine;
-    if (wantsClaude && settings.hasApiKey) {
-      claude = ClaudeMarkupEngine(
-        apiKey: settings.apiKey!,
-        model: settings.claudeModel,
-        onProgress: (n) {
-          if (mounted) setState(() => _received = n);
-        },
-      );
-      engine = claude;
-    } else {
-      engine = const LocalMarkupEngine();
-    }
+    final chosen = forceLocal ? MarkupProvider.onDevice : settings.provider;
+    // A provider that isn't set up yet falls back to the on-device rules.
+    final problem = chosen.isRemote ? settings.setupProblemForProvider : null;
+    final engine = settings.engine(
+      use: problem == null ? chosen : MarkupProvider.onDevice,
+      onProgress: (n) {
+        if (mounted) setState(() => _received = n);
+      },
+    );
+    final remote = engine is RemoteMarkupEngine ? engine : null;
 
     setState(() {
       _marking = true;
@@ -135,27 +128,23 @@ class _EditorScreenState extends State<EditorScreen> with SingleTickerProviderSt
       _update(applyMarkup(_script, result));
       final suggestions = result.suggestions.isEmpty ? '' : ' and ${result.suggestions.length} suggestions';
       var message = '${engine.name} proposed ${result.marks.length} marks$suggestions. Tap a word to review.';
-      if (wantsClaude && claude == null) {
-        message = 'No Claude API key yet, so the on-device markup ran. $message';
-      }
+      if (problem != null) message = '${chosen.label} isn\'t set up yet ($problem), so the on-device markup ran. $message';
       showMessage(
         context,
         message,
-        action: wantsClaude && claude == null
-            ? SnackBarAction(label: 'Add key', onPressed: _openSettings)
-            : null,
+        action: problem != null ? SnackBarAction(label: 'Settings', onPressed: _openSettings) : null,
       );
     } on MarkupException catch (e) {
       if (!mounted) return;
       showMessage(
         context,
         e.message,
-        action: claude == null
+        action: remote == null
             ? null
             : SnackBarAction(label: 'Use on-device', onPressed: () => _runMarkup(forceLocal: true)),
       );
     } finally {
-      claude?.close();
+      remote?.close();
       if (mounted) setState(() => _marking = false);
     }
   }
@@ -317,7 +306,9 @@ class _EditorScreenState extends State<EditorScreen> with SingleTickerProviderSt
       colors: colors,
     );
     final settings = _services.settings;
-    final engineName = settings.useClaude ? 'Claude' : 'on-device coach';
+    final engineName = settings.provider.isRemote && settings.setupProblemForProvider == null
+        ? '${settings.provider.label} (${settings.configOf(settings.provider).model})'
+        : 'on-device coach';
     final pending = _script.pendingCount;
 
     return ListView(

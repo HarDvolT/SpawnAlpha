@@ -15,6 +15,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:spawnalpha/src/app.dart';
 import 'package:spawnalpha/src/markup/local_markup_engine.dart';
 import 'package:spawnalpha/src/markup/markup_engine.dart';
+import 'package:spawnalpha/src/markup/providers.dart';
 import 'package:spawnalpha/src/model/mark_editing.dart';
 import 'package:spawnalpha/src/model/samples.dart';
 import 'package:spawnalpha/src/model/script_document.dart';
@@ -23,6 +24,7 @@ import 'package:spawnalpha/src/storage/script_store.dart';
 import 'package:spawnalpha/src/storage/settings.dart';
 import 'package:spawnalpha/src/ui/editor_screen.dart';
 import 'package:spawnalpha/src/ui/library_screen.dart';
+import 'package:spawnalpha/src/ui/settings_screen.dart';
 import 'package:spawnalpha/src/ui/prompter_screen.dart';
 
 Future<void> _loadFonts() async {
@@ -92,6 +94,15 @@ void main() {
   testWidgets('library', (tester) async {
     await shoot(tester, 'library', phone, (_) => const LibraryScreen(), sampleScripts());
   });
+
+  for (final provider in [MarkupProvider.ollama, MarkupProvider.gemini]) {
+    testWidgets('settings ${provider.name}', (tester) async {
+      await shoot(tester, 'settings-${provider.name}', phone, (app) {
+        app.settings.provider = provider;
+        return const SettingsScreen();
+      }, []);
+    });
+  }
 
   for (final (i, name) in ['en-presentation', 'fr-tutorial', 'ar-social'].indexed) {
     testWidgets('editor $name, marks pending', (tester) async {

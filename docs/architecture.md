@@ -28,7 +28,8 @@ only `model/`.
   - *Gap marks* (`pauseShort`, `pauseLong`, `breath`) sit after token `end`; `start == end`.
   - *Span marks* (`stress`, `slower`, `faster`, `energy`) cover tokens `start..end` inclusive.
   - `accepted == false` means the markup proposed the mark and the user hasn't reviewed it.
-  - `origin` is `local`, `cloud` or `user`.
+  - `origin` is `rules` (the on-device engine), `ai` (any language model, cloud or local) or
+    `user`. Older files that say `local` or `cloud` still load.
 - **Invariants.** `normalizeMarks` enforces these, so call it on every new mark list:
   - Every index is in range, and no gap mark sits after the last token.
   - There is at most one gap mark per position. An accepted mark beats a pending one; otherwise
@@ -45,17 +46,27 @@ only `model/`.
 
 ## Markup engines (`lib/src/markup/`)
 
-Both implement `MarkupEngine.markup(ScriptDocument) -> MarkupResult`, which returns pending marks
-and suggestions. `applyMarkup` merges a result into a script: it keeps accepted and user marks,
-replaces the old pending proposals, and replaces the suggestions.
+Every engine implements `MarkupEngine.markup(ScriptDocument) -> MarkupResult`, which returns
+pending marks and suggestions. `applyMarkup` merges a result into a script: it keeps accepted and
+user marks, replaces the old pending proposals, and replaces the suggestions.
+
+The user picks the engine in Settings (`MarkupProvider` in `providers.dart`):
+
+| Provider | Engine | Server | Key |
+|---|---|---|---|
+| On-device (default) | `LocalMarkupEngine` | none | none |
+| Claude | `ClaudeMarkupEngine` (Anthropic Messages API) | api.anthropic.com | required |
+| OpenAI, Google Gemini, Mistral | `OpenAiCompatibleEngine` | the provider's OpenAI-compatible API | required |
+| Ollama, LM Studio | `OpenAiCompatibleEngine` | `localhost:11434` or `localhost:1234`, or a LAN address | optional |
+| Other | `OpenAiCompatibleEngine` | any OpenAI-compatible server (OpenRouter, Groq, llama.cpp, vLLM…) | optional |
 
 - **`LocalMarkupEngine`**: free, offline, deterministic apart from mark ids. It reads
   punctuation, line breaks and `Lexicon` word lists (steps, actions, emphasis, conclusions,
   calls to action, conjunctions, numbers, units, wordy phrases) for each language, and applies
   the rules of each style:
   - **Presentation:** a long pause after paragraphs, questions and sentences with numbers;
-    stress on numbers and claims; slower pace on sentences with numbers; an energy lift on
-    conclusions and the close.
+    stress on numbers and claims; slower pace on sentences with figures written in digits; an
+    energy lift on conclusions and the close.
   - **Tutorial:** a long pause before each step (first, then, ensuite, ثم...); stress on the
     action verb; slower pace on technical terms (camelCase, file.ext, acronyms, mixed digits).
   - **Short social video:** a short pause after the hook; heavy stress, with a punch word in
@@ -63,13 +74,31 @@ replaces the old pending proposals, and replaces the suggestions.
   - **All styles:** breaths once a stretch passes the style's `wordsPerBreath` (at a comma, or
     before a conjunction); a short pause after a mid-sentence colon; "tighten" suggestions for
     wordy phrases; hook advice when the opening line is long.
-- **`ClaudeMarkupEngine`**: sends the script as `[index]word` pairs, with a system prompt built
-  from the style and language, and requests JSON that matches `responseSchema` (structured
-  outputs), streamed over SSE. Each returned mark repeats its words; `locateWords` checks them
-  and moves a mark up to 6 tokens to the nearest match, or drops it. Suggestions must quote the
-  exact original text. It retries 429 and 5xx responses twice, honouring `retry-after`, and
-  turns refusals, `max_tokens` stops and HTTP errors into `MarkupException` messages fit to show
-  the user.
+- **`MarkupPrompt`** (`markup_prompt.dart`) is shared by the language-model engines. It sends
+  the script as `[index]word` pairs, with a system prompt built from the style and language, and
+  defines `responseSchema`. `parseReply` is forgiving, because local models are weaker:
+  - it strips `<think>` blocks, code fences and chatter;
+  - it accepts kind aliases (`emphasis`, `long-pause`, `slow down`) and numbers sent as strings;
+  - it checks every anchor: `locateWords` moves a mark up to 6 tokens to where its quoted words
+    are, or drops it, and a suggestion must quote the exact original text.
+- **`ClaudeMarkupEngine`** uses structured outputs (`output_config.format`), streaming, effort
+  `medium` and `fallbacks: "default"` on models that support it.
+- **`OpenAiCompatibleEngine`** posts to `{baseUrl}/chat/completions` with `stream: true`.
+  - It asks for `response_format: json_schema` first. If the server rejects that (400 or 422),
+    it retries with `json_object`, then with no format at all; the prompt spells out the JSON
+    either way.
+  - It reads SSE, or a plain JSON reply from servers that ignore `stream`.
+  - Local servers get a 5-minute timeout, because loading a model is slow, and error messages
+    about starting the server and about context length.
+- Both remote engines implement `RemoteMarkupEngine.listModels()`, which Settings uses for the
+  model picker and "Test connection". `remote_http.dart` holds the shared retry (429 and 5xx,
+  twice, honouring `retry-after`), timeouts and error-message parsing.
+- Keys: one per provider, in secure storage under `api_key_<provider>`, never in the settings
+  file. When the chosen provider isn't set up (no key, no model), the editor runs the on-device
+  engine and says why.
+- Local servers over plain HTTP: Android sets `usesCleartextTraffic`, and iOS sets
+  `NSAllowsLocalNetworking` and `NSLocalNetworkUsageDescription`, so a phone can reach
+  Ollama or LM Studio on a computer on the same Wi-Fi.
 
 ## Prompter (`lib/src/prompter/`)
 

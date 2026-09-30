@@ -63,7 +63,7 @@ class _Pass {
   void _gap(MarkKind kind, int after, String note) {
     if (after >= tokens.length - 1) return;
     _gapAfter.add(after);
-    marks.add(Mark.gap(id: newId(), kind: kind, after: after, origin: MarkOrigin.local, accepted: false, note: note));
+    marks.add(Mark.gap(id: newId(), kind: kind, after: after, origin: MarkOrigin.rules, accepted: false, note: note));
   }
 
   void _span(MarkKind kind, int start, int end, String note) {
@@ -72,7 +72,7 @@ class _Pass {
       kind: kind,
       start: start,
       end: end,
-      origin: MarkOrigin.local,
+      origin: MarkOrigin.rules,
       accepted: false,
       note: note,
     ));

@@ -102,8 +102,8 @@ class _MarkRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final source = switch (mark.origin) {
-      MarkOrigin.local => 'on-device coach',
-      MarkOrigin.cloud => 'Claude',
+      MarkOrigin.rules => 'on-device coach',
+      MarkOrigin.ai => 'AI model',
       MarkOrigin.user => 'you',
     };
     return Card(

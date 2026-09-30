@@ -67,10 +67,14 @@ app/                   the Flutter app (package name: spawnalpha)
   `lib/src/markup/lexicon.dart` and are normalized on load, so write entries naturally, with
   accents or hamza.
 - **Right to left:** set `Directionality` from `ScriptLanguage.isRtl` wherever script text shows.
-- **Claude API:** `markup/claude_markup_engine.dart` calls the Messages API over raw HTTP
-  (there is no Dart SDK). Default model `claude-opus-5-5`, with structured outputs
-  (`output_config.format`), streaming, and `fallbacks: "default"`. Keep the request shape in line
-  with the current API docs, and never put model names in commit messages.
+- **AI providers:** the markup prompt, reply schema and parser live in
+  `markup/markup_prompt.dart` and are shared by every language-model engine. Claude uses its
+  native Messages API over raw HTTP (`claude_markup_engine.dart`; there is no Dart SDK), with
+  default model `claude-opus-5-5`, structured outputs, streaming and `fallbacks: "default"`.
+  Every other provider goes through `openai_compatible_engine.dart`. Add a new provider as a
+  preset in `markup/providers.dart`; write a new engine only if it can't speak either protocol.
+  Keep request shapes in line with each provider's current docs, and never put model names in
+  commit messages.
 - Tests sit under `app/test/`, mirroring `lib/src/`. Add or update tests with every change.
 - Lints: `flutter_lints` plus the rules in `app/analysis_options.yaml`.
 

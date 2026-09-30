@@ -4,28 +4,12 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
-import '../markup/claude_markup_engine.dart';
+import '../markup/markup_engine.dart';
+import '../markup/providers.dart';
 import '../model/coaching_style.dart';
 
-/// Which engine marks up scripts.
-enum MarkupSource {
-  /// Rule-based, on the device. Free and offline.
-  local('On-device', 'Free and works offline'),
-
-  /// Claude, with the user's own API key, until the subscription exists.
-  claude('Claude (cloud)', 'Better markup and rewrite suggestions; needs an API key');
-
-  const MarkupSource(this.label, this.description);
-
-  final String label;
-  final String description;
-
-  static MarkupSource fromName(String? name) =>
-      MarkupSource.values.firstWhere((s) => s.name == name, orElse: () => MarkupSource.local);
-}
-
-/// Somewhere to keep the API key out of plain files: the Keychain on iOS,
-/// the Keystore on Android and the Credential Manager on Windows.
+/// Somewhere to keep API keys out of plain files: the Keychain on iOS, the
+/// Keystore on Android and the Credential Manager on Windows.
 abstract interface class SecretStore {
   Future<String?> read(String key);
 
@@ -56,52 +40,100 @@ class MemorySecretStore implements SecretStore {
       value == null ? values.remove(key) : values[key] = value;
 }
 
-/// The user's preferences. Plain settings go in a JSON file; the API key
-/// goes in the [SecretStore].
+/// The user's preferences. Plain settings go in a JSON file; API keys go
+/// in the [SecretStore], one per provider.
 class Settings extends ChangeNotifier {
   Settings({this._file, this._secrets = const PlatformSecretStore()});
-
-  static const _apiKeyName = 'anthropic_api_key';
 
   final File? _file;
   final SecretStore _secrets;
 
-  MarkupSource markupSource = MarkupSource.local;
-  String claudeModel = ClaudeMarkupEngine.defaultModel;
+  /// The engine that marks up scripts.
+  MarkupProvider provider = MarkupProvider.onDevice;
+  final Map<MarkupProvider, ProviderConfig> _configs = {};
+  final Map<MarkupProvider, String> _keys = {};
+
   CoachingStyle defaultStyle = CoachingStyle.presentation;
   double fontSize = 44;
   bool mirror = false;
-  String? _apiKey;
 
-  String? get apiKey => _apiKey;
-  bool get hasApiKey => (_apiKey ?? '').isNotEmpty;
+  static String _keyName(MarkupProvider p) => 'api_key_${p.name}';
 
-  /// True when the cloud engine is chosen and can run.
-  bool get useClaude => markupSource == MarkupSource.claude && hasApiKey;
+  ProviderConfig configOf(MarkupProvider p) => _configs[p] ?? ProviderConfig.defaults(p);
+
+  String? apiKeyOf(MarkupProvider p) => _keys[p];
+
+  bool hasApiKey(MarkupProvider p) => (_keys[p] ?? '').isNotEmpty;
+
+  /// Why the chosen provider can't run yet, or null when it can.
+  String? get setupProblemForProvider => setupProblem(provider, configOf(provider), apiKeyOf(provider));
+
+  /// The engine to mark up with: the chosen provider when it is set up,
+  /// else the on-device rules. Remote engines must be closed after use.
+  MarkupEngine engine({MarkupProvider? use, void Function(int received)? onProgress}) {
+    final p = use ?? provider;
+    if (setupProblem(p, configOf(p), apiKeyOf(p)) != null) return buildEngine(MarkupProvider.onDevice, configOf(p), null);
+    return buildEngine(p, configOf(p), apiKeyOf(p), onProgress: onProgress);
+  }
+
+  /// The engine for [p] as configured, for listing models in Settings even
+  /// before a model is chosen. Null for the on-device engine.
+  RemoteMarkupEngine? remoteEngine(MarkupProvider p) {
+    if (!p.isRemote) return null;
+    final config = configOf(p);
+    // A placeholder model lets the engine be built; listing ignores it.
+    final engine = buildEngine(p, config.model.isEmpty ? config.copyWith(model: '-') : config, apiKeyOf(p));
+    return engine is RemoteMarkupEngine ? engine : null;
+  }
 
   Future<void> load() async {
     final file = _file;
     if (file != null && await file.exists()) {
       try {
         final json = jsonDecode(await file.readAsString());
-        if (json is Map<String, Object?>) {
-          markupSource = MarkupSource.fromName(json['markupSource'] as String?);
-          claudeModel = json['claudeModel'] as String? ?? claudeModel;
-          defaultStyle = CoachingStyle.fromName(json['defaultStyle'] as String?);
-          fontSize = (json['fontSize'] as num?)?.toDouble() ?? fontSize;
-          mirror = json['mirror'] as bool? ?? mirror;
-        }
+        if (json is Map<String, Object?>) _read(json);
       } on FormatException catch (e) {
         debugPrint('Ignoring unreadable settings: $e');
       }
     }
-    try {
-      _apiKey = await _secrets.read(_apiKeyName);
-    } on Exception catch (e) {
-      debugPrint('Could not read the API key: $e');
+    for (final p in MarkupProvider.values.where((p) => p.isRemote)) {
+      try {
+        var key = await _secrets.read(_keyName(p));
+        // Before providers existed, the Claude key had its own name.
+        if ((key ?? '').isEmpty && p == MarkupProvider.claude) key = await _secrets.read('anthropic_api_key');
+        if (key != null && key.isNotEmpty) _keys[p] = key;
+      } on Exception catch (e) {
+        debugPrint('Could not read the ${p.label} API key: $e');
+      }
     }
     notifyListeners();
   }
+
+  void _read(Map<String, Object?> json) {
+    provider = MarkupProvider.fromName((json['markupProvider'] ?? json['markupSource']) as String?);
+    final providers = json['providers'];
+    if (providers is Map) {
+      for (final p in MarkupProvider.values.where((p) => p.isRemote)) {
+        if (providers.containsKey(p.name)) _configs[p] = ProviderConfig.fromJson(p, providers[p.name]);
+      }
+    }
+    // Settings written before providers existed kept only a Claude model.
+    final claudeModel = json['claudeModel'];
+    if (claudeModel is String && !_configs.containsKey(MarkupProvider.claude)) {
+      _configs[MarkupProvider.claude] = configOf(MarkupProvider.claude).copyWith(model: claudeModel);
+    }
+    defaultStyle = CoachingStyle.fromName(json['defaultStyle'] as String?);
+    fontSize = (json['fontSize'] as num?)?.toDouble() ?? fontSize;
+    mirror = json['mirror'] as bool? ?? mirror;
+  }
+
+  Map<String, Object?> toJson() => {
+        'markupProvider': provider.name,
+        'providers': {for (final e in _configs.entries) e.key.name: e.value.toJson()},
+        'defaultStyle': defaultStyle.name,
+        'fontSize': fontSize,
+        'mirror': mirror,
+      };
 
   Future<void> update(void Function(Settings s) change) async {
     change(this);
@@ -109,19 +141,19 @@ class Settings extends ChangeNotifier {
     final file = _file;
     if (file == null) return;
     await file.parent.create(recursive: true);
-    await file.writeAsString(jsonEncode({
-      'markupSource': markupSource.name,
-      'claudeModel': claudeModel,
-      'defaultStyle': defaultStyle.name,
-      'fontSize': fontSize,
-      'mirror': mirror,
-    }));
+    await file.writeAsString(jsonEncode(toJson()));
   }
 
-  Future<void> setApiKey(String? key) async {
-    final trimmed = key?.trim();
-    _apiKey = (trimmed?.isEmpty ?? true) ? null : trimmed;
+  Future<void> setConfig(MarkupProvider p, ProviderConfig config) => update((s) => s._configs[p] = config);
+
+  Future<void> setApiKey(MarkupProvider p, String? key) async {
+    final trimmed = key?.trim() ?? '';
+    if (trimmed.isEmpty) {
+      _keys.remove(p);
+    } else {
+      _keys[p] = trimmed;
+    }
     notifyListeners();
-    await _secrets.write(_apiKeyName, _apiKey);
+    await _secrets.write(_keyName(p), trimmed.isEmpty ? null : trimmed);
   }
 }

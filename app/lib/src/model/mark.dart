@@ -61,16 +61,19 @@ enum MarkKind {
 /// Who created a mark.
 enum MarkOrigin {
   /// The on-device rule-based markup.
-  local,
+  rules,
 
-  /// A cloud model.
-  cloud,
+  /// A language model: in the cloud or running locally (Ollama, LM Studio).
+  ai,
 
   /// The user, in the editor.
   user;
 
-  static MarkOrigin fromName(String? name) =>
-      MarkOrigin.values.firstWhere((o) => o.name == name, orElse: () => MarkOrigin.user);
+  static MarkOrigin fromName(String? name) => switch (name) {
+        'rules' || 'local' => MarkOrigin.rules,
+        'ai' || 'cloud' => MarkOrigin.ai,
+        _ => MarkOrigin.user,
+      };
 }
 
 /// One delivery cue, anchored to token indices rather than to the text, so

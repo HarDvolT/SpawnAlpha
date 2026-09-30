@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:spawnalpha/src/markup/claude_markup_engine.dart';
 import 'package:spawnalpha/src/markup/markup_engine.dart';
+import 'package:spawnalpha/src/markup/markup_prompt.dart';
 import 'package:spawnalpha/src/model/coaching_style.dart';
 import 'package:spawnalpha/src/model/mark.dart';
 import 'package:spawnalpha/src/model/script_document.dart';
@@ -68,7 +69,7 @@ http.StreamedResponse status(int code, [Map<String, String> headers = const {}])
 void main() {
   test('numbers the words and keeps line breaks', () {
     expect(
-      ClaudeMarkupEngine.numberedScript(script.tokens),
+      MarkupPrompt.numberedScript(script.tokens),
       '[0]We [1]grew [2]forty [3]percent.\n[4]Thanks [5]for [6]listening.',
     );
   });
@@ -132,7 +133,7 @@ void main() {
       (MarkKind.pauseLong, 3, 3),
       (MarkKind.stress, 6, 6),
     ]);
-    expect(result.marks.every((m) => m.origin == MarkOrigin.cloud && !m.accepted), isTrue);
+    expect(result.marks.every((m) => m.origin == MarkOrigin.ai && !m.accepted), isTrue);
     expect(result.suggestions.single.replacement, 'Thank you.');
     expect(result.suggestions.single.start, 4);
   });

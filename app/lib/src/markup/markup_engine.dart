@@ -18,6 +18,17 @@ abstract interface class MarkupEngine {
   Future<MarkupResult> markup(ScriptDocument script);
 }
 
+/// An engine that calls a language model over HTTP, in the cloud or on a
+/// local server.
+abstract interface class RemoteMarkupEngine implements MarkupEngine {
+  /// The model ids the server offers, for the model picker. Also serves as
+  /// a connection test.
+  Future<List<String>> listModels();
+
+  /// Releases the HTTP client if the engine created it.
+  void close();
+}
+
 /// A markup failure with a message fit to show the user.
 class MarkupException implements Exception {
   const MarkupException(this.message);

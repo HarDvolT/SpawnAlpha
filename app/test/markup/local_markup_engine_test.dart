@@ -25,7 +25,7 @@ void main() {
     final s = await markedUp('Sales grew 40% this year. That is the story.', ScriptLanguage.en,
         CoachingStyle.presentation);
     expect(s.marks, isNotEmpty);
-    expect(s.marks.every((m) => !m.accepted && m.origin == MarkOrigin.local && m.note != null), isTrue);
+    expect(s.marks.every((m) => !m.accepted && m.origin == MarkOrigin.rules && m.note != null), isTrue);
   });
 
   group('presentation', () {

@@ -12,7 +12,8 @@ device.** (The build order is in [product-brief.md](product-brief.md#build-order
 | Flutter app scaffold (`app/`: Android, iOS, Windows) | Done |
 | Data model: tokens, marks, script document, marks remapped through edits | Done, tested |
 | On-device markup engine (EN, FR, AR; three coaching styles) | Done, tested |
-| Cloud markup engine (Claude, Messages API, structured outputs, streaming) | Done, tested against a mock HTTP client. **Not yet run against the live API.** |
+| AI markup engines: Claude (native API) plus one OpenAI-compatible engine for OpenAI, Gemini, Mistral, Ollama, LM Studio and custom servers | Done, tested against mock HTTP servers. **Not yet run against any live API or local server.** |
+| Settings: provider picker, server address, per-provider keys, model list, connection test | Done, checked in screenshots |
 | Delivery timeline, prompter controller, scroll maths | Done, tested |
 | Prompter widget: cues, reading line, pause badge, pace bars, mirror, RTL | Done, tested (widget tests plus rendered screenshots) |
 | Editor: write, style and language, markup, review marks and suggestions | Done, tested (widget test of the main flow) |
@@ -20,7 +21,7 @@ device.** (The build order is in [product-brief.md](product-brief.md#build-order
 | Camera recording screen (countdown, prompter overlay, saves takes) | Written. **Untested: no camera in CI; needs a real Windows and Android run.** |
 | Storage: scripts as JSON files, settings, API key in secure storage | Done |
 
-67 tests pass (`cd app && flutter test`), and `flutter analyze` is clean.
+85 tests pass (`cd app && flutter test`), and `flutter analyze` is clean.
 
 ## Next steps
 
@@ -30,9 +31,12 @@ device.** (The build order is in [product-brief.md](product-brief.md#build-order
    - Android phone: check the camera and microphone permission prompts, the
      front camera preview with the prompter overlay, and the recording files.
    - iOS: the same checks as Android (needs a Mac).
-2. **Try the Claude markup with a real API key** in Settings. Check the
-   structured output against `ClaudeMarkupEngine.responseSchema`, the marks'
-   quality on the three samples, and the error messages (bad key, offline).
+2. **Try the AI engines for real.** Use Claude and at least one other cloud
+   provider with real keys, and Ollama or LM Studio with a small local model
+   (for example a 7B or 8B instruct model). Compare the markup on the three
+   samples, and note which local models follow the JSON format reliably. Check
+   the phone-to-computer case (LAN address) and the error messages (bad key,
+   server off, context too small).
 3. Polish found while testing: an in-app list of takes with playback (needs a
    video player that supports Windows), and an easier way to extend a pace or
    energy span beyond one sentence.
@@ -51,6 +55,11 @@ device.** (The build order is in [product-brief.md](product-brief.md#build-order
   API key, which is kept in the platform's secure storage. The default model is
   `claude-opus-5-5`, and the model id is a setting. The brief's open question about which cloud
   model to use is still open.
+- 2026-09-30: Users can pick any AI provider for markup: Claude, OpenAI, Gemini, Mistral, a
+  local model through Ollama or LM Studio, or any OpenAI-compatible server. Claude uses its
+  native API; everything else shares one OpenAI-compatible engine. The on-device rules stay the
+  default and the fallback. A subscription backend (the brief's business model) can later be
+  added as one more provider.
 - 2026-09-30: Markup proposals arrive as *pending* marks; the prompter shows only accepted marks,
   and the editor offers "Accept all" before prompting.
 - 2026-09-30: Cue icons are drawn as icon-font glyphs in the text, not as `WidgetSpan`s, because
@@ -81,3 +90,5 @@ device.** (The build order is in [product-brief.md](product-brief.md#build-order
   - Found and worked around the right-to-left `WidgetSpan` problem.
   - Added `tool/screenshots_test.dart` for visual checks without a device.
   - 67 tests pass.
+- 2026-09-30, session 1 (continued): Added provider choice for the AI markup (the table above),
+  with a shared prompt and a forgiving parser for local models. 85 tests pass.
