@@ -10,7 +10,9 @@ import '../model/script_document.dart';
 import '../prompter/prompter_controller.dart';
 import '../prompter/prompter_view.dart';
 import 'format.dart';
+import '../theme/theme.dart';
 import 'prompter_controls.dart';
+import 'recording_widgets.dart';
 
 /// Records the camera with the coached prompter over the preview. The
 /// prompter starts when the recording starts, after a countdown. Each
@@ -264,7 +266,11 @@ class _RecordScreenState extends State<RecordScreen> with WidgetsBindingObserver
     final settings = AppScope.of(context).settings;
     void changeFont(int delta) => settings.update((s) => s.fontSize = (s.fontSize + delta).clamp(24, 96));
     void toggleMirror() => settings.update((s) => s.mirror = !s.mirror);
+    final reduceMotion = MediaQuery.disableAnimationsOf(context);
+    void setKinetic(bool v) => settings.update((s) => s.kinetic = v);
     final camera = _camera;
+    final stage = SaPalette.dark;
+    final size = MediaQuery.sizeOf(context);
 
     return PopScope(
       canPop: !_recording,
@@ -272,7 +278,7 @@ class _RecordScreenState extends State<RecordScreen> with WidgetsBindingObserver
         if (!didPop) showMessage(context, 'Stop the recording first.');
       },
       child: Scaffold(
-        backgroundColor: Colors.black,
+        backgroundColor: stage.stage,
         body: ListenableBuilder(
           listenable: settings,
           builder: (context, _) => PrompterShortcuts(
@@ -281,6 +287,7 @@ class _RecordScreenState extends State<RecordScreen> with WidgetsBindingObserver
             onMirror: toggleMirror,
             onFontSize: changeFont,
             onPlayPause: _toggleRecording,
+            onKinetic: reduceMotion ? null : () => setKinetic(!settings.kinetic),
             child: SafeArea(
               child: Column(children: [
                 Expanded(
@@ -288,89 +295,115 @@ class _RecordScreenState extends State<RecordScreen> with WidgetsBindingObserver
                     if (camera != null && camera.value.isInitialized)
                       Center(child: CameraPreview(camera))
                     else
-                      Center(
+                      // Below the prompter panel, so it stays readable.
+                      Align(
+                        alignment: const Alignment(0, 0.5),
                         child: Padding(
                           padding: const EdgeInsets.all(24),
                           child: _error == null
                               ? const CircularProgressIndicator()
-                              : Text(_error!, textAlign: TextAlign.center, style: const TextStyle(color: Colors.white)),
+                              : Text(_error!, textAlign: TextAlign.center, style: SaType.body.copyWith(color: stage.stageText)),
                         ),
                       ),
-                    // The prompter sits at the top, close to the lens.
+                    // The prompter: a glass panel right under the lens, top centre.
+                    // On wide screens it keeps to a narrow column, so the eyes
+                    // don't sweep across the screen.
                     Positioned(
-                      top: 0,
+                      top: SaSpace.s2,
                       left: 0,
                       right: 0,
-                      height: MediaQuery.sizeOf(context).height * 0.45,
-                      child: PrompterView(
-                        key: _view,
-                        controller: _prompter,
-                        fontSize: settings.fontSize * 0.8,
-                        mirror: settings.mirror,
-                        readingLine: 0.35,
-                        backgroundOpacity: 0.6,
+                      height: size.height * 0.42,
+                      child: Center(
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 720),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: SaSpace.s2),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(SaRadius.lg),
+                              child: PrompterView(
+                                key: _view,
+                                controller: _prompter,
+                                fontSize: settings.fontSize * 0.8,
+                                mirror: settings.mirror,
+                                readingLine: 0.3,
+                                glass: true,
+                                kinetic: settings.kinetic && !reduceMotion,
+                              ),
+                            ),
+                          ),
+                        ),
                       ),
                     ),
                     Positioned(
-                      top: 4,
-                      left: 4,
+                      top: SaSpace.s2,
+                      left: SaSpace.s2,
                       child: IconButton(
                         tooltip: 'Close',
-                        color: Colors.white70,
+                        color: stage.stageChromeText,
                         icon: const Icon(Icons.close_rounded),
                         onPressed: _recording ? null : () => Navigator.pop(context, _script),
                       ),
                     ),
-                    if (_recording)
-                      Positioned(
-                        top: 12,
-                        right: 12,
-                        child: _RecordingBadge(elapsed: _stopwatch.elapsed),
+                    // The timecode sits under the prompter, on glass.
+                    Positioned(
+                      top: size.height * 0.42 + SaSpace.s4,
+                      left: 0,
+                      right: 0,
+                      child: Center(
+                        child: TimecodePill(elapsed: _recording ? _stopwatch.elapsed : Duration.zero, recording: _recording),
                       ),
-                    if (_countdown != null)
-                      Center(
-                        child: Text(
-                          '$_countdown',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 120,
-                            fontWeight: FontWeight.w800,
-                            shadows: [Shadow(blurRadius: 24)],
-                          ),
-                        ),
-                      ),
+                    ),
+                    if (_countdown != null) Center(child: CountdownNumeral(value: _countdown!)),
                   ]),
                 ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(8, 8, 8, 12),
-                  child: Wrap(
-                    alignment: WrapAlignment.center,
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    spacing: 12,
-                    runSpacing: 8,
-                    children: [
-                      if (_cameras.length > 1)
-                        IconButton(
-                          tooltip: 'Switch camera',
-                          color: Colors.white,
-                          icon: const Icon(Icons.cameraswitch_outlined),
-                          onPressed: _recording || _countdown != null
-                              ? null
-                              : () => _openCamera((_cameraIndex + 1) % _cameras.length),
-                        ),
-                      _RecordButton(
-                        recording: _recording || _countdown != null,
-                        enabled: camera != null && !_saving,
-                        onPressed: _toggleRecording,
-                      ),
+                ColoredBox(
+                  color: stage.stageChrome,
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(SaSpace.s2, SaSpace.s2, SaSpace.s2, SaSpace.s3),
+                    child: Column(mainAxisSize: MainAxisSize.min, children: [
                       PrompterControls(
                         controller: _prompter,
                         mirror: settings.mirror,
                         onMirror: toggleMirror,
                         onFontSize: changeFont,
                         showPlay: false,
+                        kinetic: reduceMotion ? null : settings.kinetic,
+                        onKinetic: setKinetic,
                       ),
-                    ],
+                      const SizedBox(height: SaSpace.s2),
+                      // Take number, record, camera flip: one thumb's reach.
+                      Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
+                        SizedBox(
+                          width: 56,
+                          child: Text(
+                            'T${_script.takes.length + 1}',
+                            textAlign: TextAlign.center,
+                            style: atWidth(SaType.title.copyWith(fontFamily: SaFonts.display, fontWeight: FontWeight.w800), 118)
+                                .copyWith(color: stage.stageText),
+                            semanticsLabel: 'Take ${_script.takes.length + 1}',
+                          ),
+                        ),
+                        RecordButton(
+                          recording: _recording || _countdown != null,
+                          saving: _saving,
+                          enabled: camera != null && !_saving,
+                          onPressed: _toggleRecording,
+                        ),
+                        SizedBox(
+                          width: 56,
+                          child: _cameras.length > 1
+                              ? IconButton(
+                                  tooltip: 'Switch camera',
+                                  color: stage.stageText,
+                                  icon: const Icon(Icons.cameraswitch_rounded),
+                                  onPressed: _recording || _countdown != null
+                                      ? null
+                                      : () => _openCamera((_cameraIndex + 1) % _cameras.length),
+                                )
+                              : null,
+                        ),
+                      ]),
+                    ]),
                   ),
                 ),
               ]),
@@ -378,59 +411,6 @@ class _RecordScreenState extends State<RecordScreen> with WidgetsBindingObserver
           ),
         ),
       ),
-    );
-  }
-}
-
-class _RecordButton extends StatelessWidget {
-  const _RecordButton({required this.recording, required this.enabled, required this.onPressed});
-
-  final bool recording;
-  final bool enabled;
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    return Tooltip(
-      message: recording ? 'Stop (Space)' : 'Record (Space)',
-      child: InkResponse(
-        onTap: enabled ? onPressed : null,
-        radius: 40,
-        child: Container(
-          width: 68,
-          height: 68,
-          decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: Colors.white, width: 4)),
-          alignment: Alignment.center,
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 180),
-            width: recording ? 26 : 52,
-            height: recording ? 26 : 52,
-            decoration: BoxDecoration(
-              color: enabled ? Colors.redAccent : Colors.grey,
-              borderRadius: BorderRadius.circular(recording ? 6 : 26),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _RecordingBadge extends StatelessWidget {
-  const _RecordingBadge({required this.elapsed});
-
-  final Duration elapsed;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(color: Colors.redAccent, borderRadius: BorderRadius.circular(12)),
-      child: Row(mainAxisSize: MainAxisSize.min, children: [
-        const Icon(Icons.fiber_manual_record, color: Colors.white, size: 14),
-        const SizedBox(width: 4),
-        Text(formatDuration(elapsed), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
-      ]),
     );
   }
 }

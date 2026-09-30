@@ -57,6 +57,10 @@ class Settings extends ChangeNotifier {
   double fontSize = 44;
   bool mirror = false;
 
+  /// Kinetic text on the prompter (words wake up near the reading line);
+  /// off is Still. Reduced motion forces Still whatever this says.
+  bool kinetic = true;
+
   static String _keyName(MarkupProvider p) => 'api_key_${p.name}';
 
   ProviderConfig configOf(MarkupProvider p) => _configs[p] ?? ProviderConfig.defaults(p);
@@ -125,6 +129,7 @@ class Settings extends ChangeNotifier {
     defaultStyle = CoachingStyle.fromName(json['defaultStyle'] as String?);
     fontSize = (json['fontSize'] as num?)?.toDouble() ?? fontSize;
     mirror = json['mirror'] as bool? ?? mirror;
+    kinetic = json['kinetic'] as bool? ?? kinetic;
   }
 
   Map<String, Object?> toJson() => {
@@ -133,6 +138,7 @@ class Settings extends ChangeNotifier {
         'defaultStyle': defaultStyle.name,
         'fontSize': fontSize,
         'mirror': mirror,
+        'kinetic': kinetic,
       };
 
   Future<void> update(void Function(Settings s) change) async {

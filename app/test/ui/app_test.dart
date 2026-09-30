@@ -1,12 +1,14 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:spawnalpha/src/app.dart';
 import 'package:spawnalpha/src/model/coaching_style.dart';
 import 'package:spawnalpha/src/model/mark.dart';
 import 'package:spawnalpha/src/model/script_document.dart';
 import 'package:spawnalpha/src/model/script_language.dart';
+import 'package:spawnalpha/src/prompter/marked_text.dart';
 import 'package:spawnalpha/src/prompter/prompter_controller.dart';
 import 'package:spawnalpha/src/prompter/prompter_view.dart';
 import 'package:spawnalpha/src/storage/script_store.dart';
@@ -78,6 +80,53 @@ void main() {
       await tester.pump();
       return tester.state<ScrollableState>(find.byType(Scrollable)).position;
     }
+
+    testWidgets('kinetic and still text lay out the same, so switching never reflows', (tester) async {
+      final words = List.generate(40, (i) => 'word$i').join(' ');
+      final c = PrompterController(script(ScriptLanguage.en, 'Hello there, $words.'));
+      Future<List<Rect>> boxes(bool kinetic) async {
+        await tester.pumpWidget(MaterialApp(
+          home: SizedBox(width: 400, height: 600, child: PrompterView(controller: c, fontSize: 32, kinetic: kinetic)),
+        ));
+        await tester.pump();
+        final paragraph = tester.renderObject<RenderParagraph>(find.byType(RichText).first);
+        final text = paragraph.text.toPlainText();
+        final probes = ['Hello', 'there', 'word7', 'word39'];
+        return [
+          for (final w in probes)
+            paragraph
+                .getBoxesForSelection(TextSelection(baseOffset: text.indexOf(w), extentOffset: text.indexOf(w) + w.length))
+                .first
+                .toRect(),
+        ];
+      }
+
+      final kinetic = await boxes(true);
+      final still = await boxes(false);
+      expect(kinetic, still);
+    });
+
+    testWidgets('kinetic leaves stressed words to the overlay, still draws them in amber', (tester) async {
+      final c = PrompterController(script(ScriptLanguage.en, 'Hello there, friends.'));
+      Color? stressColor(bool kinetic) {
+        final marked = MarkedText.build(
+          tokens: c.tokens,
+          marks: c.marks,
+          style: const TextStyle(fontSize: 32),
+          colors: CueColors.stage,
+          stressStyle: kinetic ? StressStyle.stageOverlay : StressStyle.stage,
+        );
+        Color? found;
+        marked.span.visitChildren((span) {
+          if (span is TextSpan && span.text == 'Hello') found = span.style?.color;
+          return found == null;
+        });
+        return found;
+      }
+
+      expect(stressColor(false), CueColors.stage.stress);
+      expect(stressColor(true)!.a, 0);
+    });
 
     testWidgets('scrolls while playing and holds at a long pause', (tester) async {
       final words = List.generate(80, (i) => 'word$i').join(' ');

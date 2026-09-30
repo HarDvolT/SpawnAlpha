@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../model/mark.dart';
 import '../model/token.dart';
 import '../theme/theme.dart';
+import 'kinetic.dart';
 
 /// Colours for the delivery cues: the stage set (always dark, whatever
 /// the device theme) and a Studio set per theme. All come from the design
@@ -143,6 +144,10 @@ enum StressStyle {
   /// On the stage: `stage-stress` amber, heavier and 1.15× larger.
   stage,
 
+  /// The stage's layout, with the stressed words left transparent: the
+  /// kinetic prompter paints them itself, so they can grow and pop.
+  stageOverlay,
+
   /// In the Studio: ink at weight 700, with an amber marker swipe painted
   /// behind it by the page (see [MarkedText.stressRanges]). The text itself
   /// carries no colour, so the marker can animate without re-laying out.
@@ -218,6 +223,7 @@ class MarkedText {
     StressStyle stressStyle = StressStyle.stage,
   }) {
     final marker = stressStyle == StressStyle.marker;
+    final overlay = stressStyle == StressStyle.stageOverlay;
     final n = tokens.length;
     final stress = List<Mark?>.filled(n, null);
     final energy = List<Mark?>.filled(n, null);
@@ -264,7 +270,14 @@ class MarkedText {
         final separator = t.lineBreaksBefore > 0 ? '\n' * t.lineBreaksBefore.clamp(1, 2) : ' ';
         // Keep a pace tint unbroken across the spaces inside a run.
         final inRun = t.lineBreaksBefore == 0 && paceMark != null && identical(paceMark, pace[i - 1]);
-        add(TextSpan(text: separator, style: inRun ? paceTint : null));
+        // On the stage, the spaces beside a stressed word are widened so it
+        // has room to grow (the same in Kinetic and Still, so switching
+        // never reflows).
+        final room = !marker && (stress[i] != null || stress[i - 1] != null)
+            ? TextStyle(letterSpacing: fontSize * Kinetic.stressRoom)
+            : null;
+        final spaceStyle = inRun ? paceTint!.merge(room) : room;
+        add(TextSpan(text: separator, style: spaceStyle));
       }
 
       for (final m in opening[i]) {
@@ -280,7 +293,9 @@ class MarkedText {
       final stressMark = stress[i];
       final energyMark = energy[i];
       Color? color;
-      if (stressMark != null && !marker) {
+      if (stressMark != null && overlay) {
+        color = const Color(0x00000000);
+      } else if (stressMark != null && !marker) {
         color = _fade(colors.stress, stressMark);
       } else if (energyMark != null) {
         color = _fade(colors.energy, energyMark);

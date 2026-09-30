@@ -7,6 +7,9 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
 
 import '../model/mark.dart';
+import '../model/token.dart';
+import '../theme/theme.dart';
+import 'kinetic.dart';
 import 'marked_text.dart';
 import 'prompter_controller.dart';
 import 'prompter_layout.dart';
@@ -24,8 +27,10 @@ class PrompterView extends StatefulWidget {
     required this.controller,
     this.fontSize = 44,
     this.mirror = false,
-    this.readingLine = 0.3,
+    this.readingLine = SaPrompter.readingLine,
     this.backgroundOpacity = 1,
+    this.kinetic = true,
+    this.glass = false,
   });
 
   final PrompterController controller;
@@ -41,14 +46,30 @@ class PrompterView extends StatefulWidget {
   /// Below 1 the camera preview shows through.
   final double backgroundOpacity;
 
+  /// Glass instead of black: over a camera preview, the prompter blurs
+  /// what is behind it (`stage-glass`), so the speaker still sees their
+  /// framing. Overrides [backgroundOpacity].
+  final bool glass;
+
+  /// Kinetic text: words wake up as they near the reading line, stressed
+  /// words grow and pop, gap cues hit as their hold starts. Off is Still:
+  /// only the scroll and the holds move.
+  final bool kinetic;
+
   @override
   State<PrompterView> createState() => PrompterViewState();
 }
 
 class PrompterViewState extends State<PrompterView> with SingleTickerProviderStateMixin {
   static final _colors = CueColors.stage;
+  static final _stage = SaPalette.dark;
 
   final _scroll = ScrollController();
+
+  /// Ticks every frame the read-through moves, to repaint the kinetic
+  /// effects and the hold ring without rebuilding.
+  final _frame = ValueNotifier<int>(0);
+  _KineticLayout? _kineticLayout;
   final _textKey = GlobalKey();
   late final Ticker _ticker;
   Duration _lastTick = Duration.zero;
@@ -85,12 +106,15 @@ class PrompterViewState extends State<PrompterView> with SingleTickerProviderSta
     _c.removeListener(_onController);
     _ticker.dispose();
     _scroll.dispose();
+    _frame.dispose();
+    _kineticLayout?.dispose();
     super.dispose();
   }
 
   // ---- driving the scroll -------------------------------------------------
 
   void _onController() {
+    _frame.value++;
     _syncTicker();
     if (!_ticker.isActive && !_followingUser) _scrollToController(animate: true);
     setState(() {});
@@ -111,6 +135,7 @@ class PrompterViewState extends State<PrompterView> with SingleTickerProviderSta
     _lastTick = elapsed;
     _c.advance(delta);
     _scrollToController();
+    _frame.value++;
   }
 
   void _scrollToController({bool animate = false}) {
@@ -164,15 +189,23 @@ class PrompterViewState extends State<PrompterView> with SingleTickerProviderSta
 
   // ---- layout -------------------------------------------------------------
 
+  TextStyle get _style {
+    final base = _c.script.language.isRtl ? SaType.stageMAr : SaType.stageM;
+    return base.copyWith(fontSize: widget.fontSize, color: _stage.stageText);
+  }
+
   MarkedText _markedText() {
-    final key = (_c.script, widget.fontSize);
+    final key = (_c.script, widget.fontSize, widget.kinetic);
     if (_markedKey != key || _marked == null) {
       _markedKey = key;
       _marked = MarkedText.build(
         tokens: _c.tokens,
         marks: _c.marks,
-        style: TextStyle(fontSize: widget.fontSize, height: 1.45, fontWeight: FontWeight.w500),
+        style: _style,
         colors: _colors,
+        // Kinetic: the stressed words are painted by the overlay, so they
+        // can grow. Their room on the line is the same either way.
+        stressStyle: widget.kinetic ? StressStyle.stageOverlay : StressStyle.stage,
       );
     }
     return _marked!;
@@ -206,9 +239,20 @@ class PrompterViewState extends State<PrompterView> with SingleTickerProviderSta
       lineOfToken[i] = tops.isEmpty ? 0 : tops.length - 1;
     }
     if (tops.isEmpty) return;
+    final kinetic = _KineticLayout.measure(
+      paragraph: paragraph,
+      marked: marked,
+      tokens: _c.tokens,
+      marks: _c.marks,
+      style: _style,
+      colors: _colors,
+      textScaler: MediaQuery.textScalerOf(context),
+    );
     setState(() {
       _layoutKey = key;
       _layout = PrompterLayout(lineOfToken: lineOfToken, lineTops: tops, lineBottoms: bottoms);
+      _kineticLayout?.dispose();
+      _kineticLayout = kinetic;
     });
     WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToController());
   }
@@ -231,20 +275,36 @@ class PrompterViewState extends State<PrompterView> with SingleTickerProviderSta
         });
       }
 
+      final measured = _layoutKey == layoutKey;
+      final kineticPainter = _KineticPainter(
+        layout: measured ? _layout : null,
+        kinetic: measured && widget.kinetic ? _kineticLayout : null,
+        controller: _c,
+        scroll: _scroll,
+        origin: Offset(gutter, readingY),
+        colors: _colors,
+        repaint: Listenable.merge([_frame, _scroll]),
+      );
       final text = CustomPaint(
         painter: _PaceBarPainter(
-          layout: _layoutKey == layoutKey ? _layout : null,
+          layout: measured ? _layout : null,
           marks: _c.marks,
           colors: _colors,
           rtl: isRtl,
           gutter: gutter,
           top: readingY,
         ),
-        child: Padding(
-          padding: EdgeInsets.fromLTRB(gutter, readingY, gutter, height - readingY),
-          child: Text.rich(key: _textKey, marked.span, textDirection: direction),
+        child: CustomPaint(
+          painter: kineticPainter.under,
+          foregroundPainter: kineticPainter.over,
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(gutter, readingY, gutter, height - readingY),
+            child: Text.rich(key: _textKey, marked.span, textDirection: direction),
+          ),
         ),
       );
+      final lineHeight = widget.fontSize * (_style.height ?? 1.45);
+      final fadeStrength = widget.glass ? 0.7 : widget.backgroundOpacity;
 
       final prompter = Stack(children: [
         Positioned.fill(
@@ -256,6 +316,28 @@ class PrompterViewState extends State<PrompterView> with SingleTickerProviderSta
             ),
           ),
         ),
+        // Kinetic: text more than a few lines ahead sits back.
+        if (widget.kinetic)
+          Positioned(
+            left: 0,
+            right: 0,
+            top: math.min(height, readingY + lineHeight * Kinetic.sitBackLines),
+            bottom: 0,
+            child: IgnorePointer(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      _stage.stage.withValues(alpha: 0),
+                      _stage.stage.withValues(alpha: 0.5 * fadeStrength),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
         // Fade what has already been read.
         Positioned(
           left: 0,
@@ -269,8 +351,8 @@ class PrompterViewState extends State<PrompterView> with SingleTickerProviderSta
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                   colors: [
-                    Colors.black.withValues(alpha: 0.85 * widget.backgroundOpacity),
-                    Colors.black.withValues(alpha: 0.35 * widget.backgroundOpacity),
+                    _stage.stage.withValues(alpha: 0.9 * fadeStrength),
+                    _stage.stage.withValues(alpha: 0.35 * fadeStrength),
                   ],
                 ),
               ),
@@ -287,16 +369,20 @@ class PrompterViewState extends State<PrompterView> with SingleTickerProviderSta
           top: readingY - widget.fontSize * 1.6,
           left: 0,
           right: 0,
-          child: IgnorePointer(child: Center(child: _HoldBadge(kind: _c.holding, fontSize: widget.fontSize))),
+          child: IgnorePointer(
+            child: Center(child: _HoldBadge(kind: _c.holding, fontSize: widget.fontSize, controller: _c, frame: _frame)),
+          ),
         ),
       ]);
 
-      return ColoredBox(
-        color: Colors.black.withValues(alpha: widget.backgroundOpacity),
+      final surface = ColoredBox(
+        color: widget.glass ? _stage.stageGlass : _stage.stage.withValues(alpha: widget.backgroundOpacity),
         child: widget.mirror
             ? Transform(alignment: Alignment.center, transform: Matrix4.diagonal3Values(-1, 1, 1), child: prompter)
             : prompter,
       );
+      if (!widget.glass) return surface;
+      return ClipRect(child: BackdropFilter(filter: ui.ImageFilter.blur(sigmaX: 16, sigmaY: 16), child: surface));
     });
   }
 }
@@ -310,57 +396,95 @@ class _ReadingLine extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final arrow = Icon(rtl ? Icons.arrow_left_rounded : Icons.arrow_right_rounded, color: Colors.white70, size: 32);
+    final stage = SaPalette.dark;
+    final arrow = Icon(rtl ? Icons.arrow_left_rounded : Icons.arrow_right_rounded, color: stage.stageChromeText, size: 32);
     return SizedBox(
       height: 4,
       child: Stack(clipBehavior: Clip.none, children: [
-        Positioned.fill(child: ColoredBox(color: Colors.white.withValues(alpha: 0.08))),
+        Positioned.fill(child: ColoredBox(color: stage.stageLine)),
         Positioned(top: -14, left: rtl ? null : gutter * 0.5 - 20, right: rtl ? gutter * 0.5 - 20 : null, child: arrow),
       ]),
     );
   }
 }
 
-/// A badge that shows while the prompter holds at a pause or a breath.
+/// The badge that shows while the prompter holds at a pause or a breath:
+/// glass, the cue's colour, its name in the signal face, and a ring that
+/// empties linearly over exactly the hold's length.
 class _HoldBadge extends StatelessWidget {
-  const _HoldBadge({required this.kind, required this.fontSize});
+  const _HoldBadge({required this.kind, required this.fontSize, required this.controller, required this.frame});
 
   final MarkKind? kind;
   final double fontSize;
+  final PrompterController controller;
+  final Listenable frame;
 
   @override
   Widget build(BuildContext context) {
     final k = kind;
-    final (label, icon) = switch (k) {
-      MarkKind.pauseLong => ('LONG PAUSE', Icons.pause_circle_filled_rounded),
-      MarkKind.breath => ('BREATHE', Icons.air_rounded),
-      _ => ('PAUSE', Icons.pause_circle_filled_rounded),
+    final label = switch (k) {
+      MarkKind.pauseLong => 'LONG PAUSE',
+      MarkKind.breath => 'BREATHE',
+      _ => 'PAUSE',
     };
-    final color = k == null ? Colors.transparent : CueColors.stage.of(k);
+    final stage = SaPalette.dark;
+    final color = k == null ? stage.stageChromeText : CueColors.stage.of(k);
+    final scale = (fontSize / 44).clamp(0.75, 1.6) * (k == MarkKind.pauseLong ? 1.15 : 1);
     return AnimatedOpacity(
       opacity: k == null ? 0 : 1,
-      duration: const Duration(milliseconds: 120),
-      child: Container(
-        padding: EdgeInsets.symmetric(horizontal: fontSize * 0.4, vertical: fontSize * 0.12),
-        decoration: BoxDecoration(
-          color: Colors.black.withValues(alpha: 0.7),
-          border: Border.all(color: color, width: 2),
-          borderRadius: BorderRadius.circular(fontSize),
+      duration: SaDurations.quick,
+      child: AnimatedSlide(
+        offset: k == null ? const Offset(0, 0.15) : Offset.zero,
+        duration: SaDurations.base,
+        curve: SaEasing.standard,
+        child: Container(
+          height: 32 * scale,
+          padding: EdgeInsets.fromLTRB(6 * scale, 0, 14 * scale, 0),
+          decoration: BoxDecoration(
+            color: stage.stageGlass,
+            border: Border.all(color: color, width: 2),
+            borderRadius: BorderRadius.circular(SaRadius.full),
+          ),
+          child: Row(mainAxisSize: MainAxisSize.min, children: [
+            SizedBox.square(
+              dimension: 22 * scale,
+              child: CustomPaint(painter: _HoldRingPainter(controller: controller, color: color, repaint: frame)),
+            ),
+            SizedBox(width: 8 * scale),
+            Text(label, style: SaType.signalLabel.copyWith(color: color, fontSize: 11 * scale)),
+          ]),
         ),
-        child: Row(mainAxisSize: MainAxisSize.min, children: [
-          Icon(icon, color: color, size: fontSize * 0.5),
-          SizedBox(width: fontSize * 0.15),
-          Text(label,
-              style: TextStyle(
-                color: color,
-                fontSize: fontSize * 0.34,
-                fontWeight: FontWeight.w800,
-                letterSpacing: 2,
-              )),
-        ]),
       ),
     );
   }
+}
+
+/// The hold badge's ring: full as the hold starts, empty as it ends.
+class _HoldRingPainter extends CustomPainter {
+  _HoldRingPainter({required this.controller, required this.color, required Listenable repaint}) : super(repaint: repaint);
+
+  final PrompterController controller;
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final hold = controller.timeline.holdAt(controller.position);
+    final left = hold == null
+        ? 0.0
+        : 1 - ((controller.position - hold.$1).inMicroseconds / (hold.$2 - hold.$1).inMicroseconds).clamp(0.0, 1.0);
+    final rect = Offset.zero & size;
+    final stroke = size.width * 0.14;
+    final ring = rect.deflate(stroke);
+    final paint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = stroke
+      ..strokeCap = StrokeCap.round;
+    canvas.drawCircle(ring.center, ring.width / 2, paint..color = color.withValues(alpha: 0.25));
+    if (left > 0) canvas.drawArc(ring, -math.pi / 2, 2 * math.pi * left, false, paint..color = color);
+  }
+
+  @override
+  bool shouldRepaint(_HoldRingPainter old) => old.color != color || old.controller != controller;
 }
 
 /// Paints a pace bar in the gutter beside each slower or faster run.
@@ -401,4 +525,271 @@ class _PaceBarPainter extends CustomPainter {
   @override
   bool shouldRepaint(_PaceBarPainter old) =>
       old.layout != layout || old.marks != marks || old.rtl != rtl || old.gutter != gutter || old.top != top;
+}
+
+/// A stressed word the kinetic prompter paints itself: where it sits in
+/// the paragraph, and a painter that draws it at that spot.
+class _StressWord {
+  _StressWord(this.token, this.box, this.painter, this.paintAt);
+
+  final int token;
+  final Rect box;
+  final TextPainter painter;
+
+  /// Where to paint [painter] so its glyphs land exactly on [box].
+  final Offset paintAt;
+}
+
+/// What the kinetic effects need to know about the laid-out script, in the
+/// paragraph's coordinates. Measured once per layout, not per frame.
+class _KineticLayout {
+  _KineticLayout({
+    required this.stressWords,
+    required this.energy,
+    required this.faster,
+    required this.slower,
+    required this.gapGlyphs,
+    required this.lineHeight,
+  });
+
+  factory _KineticLayout.measure({
+    required RenderParagraph paragraph,
+    required MarkedText marked,
+    required List<Token> tokens,
+    required List<Mark> marks,
+    required TextStyle style,
+    required CueColors colors,
+    required TextScaler textScaler,
+  }) {
+    List<Rect> boxes(int start, int end) => [
+          for (final b in paragraph.getBoxesForSelection(TextSelection(baseOffset: start, extentOffset: end))) b.toRect(),
+        ];
+    int startOf(int token) => marked.tokenOffsets[token];
+    int endOf(int token) => marked.tokenOffsets[token] + tokens[token].text.length;
+
+    final fontSize = style.fontSize ?? 44;
+    // The same look the stage gives stressed words (see MarkedText.build).
+    final stressStyle = style.merge(TextStyle(color: colors.stress, fontWeight: FontWeight.w700, fontSize: fontSize * 1.15));
+    final direction = paragraph.textDirection;
+    final stressWords = <_StressWord>[];
+    final energy = <(int, Rect)>[];
+    final faster = <(int, List<Rect>)>[];
+    final slower = <(int, List<Rect>)>[];
+    final gapGlyphs = <(int, MarkKind, Rect)>[];
+    for (final m in marks) {
+      if (m.end >= tokens.length) continue;
+      switch (m.kind) {
+        case MarkKind.stress:
+          for (var i = m.start; i <= m.end; i++) {
+            final found = boxes(startOf(i), endOf(i));
+            if (found.isEmpty) continue;
+            final painter = TextPainter(
+              text: TextSpan(text: tokens[i].text, style: stressStyle),
+              textDirection: direction,
+              textScaler: textScaler,
+            )..layout();
+            final own = painter.getBoxesForSelection(TextSelection(baseOffset: 0, extentOffset: tokens[i].text.length));
+            final ownTopLeft = own.isEmpty ? Offset.zero : Offset(own.first.left, own.first.top);
+            stressWords.add(_StressWord(i, found.first, painter, found.first.topLeft - ownTopLeft));
+          }
+        case MarkKind.energy:
+          for (var i = m.start; i <= m.end; i++) {
+            for (final b in boxes(startOf(i), endOf(i))) {
+              energy.add((i, b));
+            }
+          }
+        case MarkKind.faster:
+          faster.add((m.start, boxes(startOf(m.start), endOf(m.end))));
+        case MarkKind.slower:
+          slower.add((m.start, boxes(startOf(m.start), endOf(m.end))));
+        case MarkKind.pauseShort || MarkKind.pauseLong || MarkKind.breath:
+          // The glyph after the word: its cue range starts at or after the word's end.
+          for (final (start, end, token) in marked.cueRanges) {
+            if (token == m.end && start >= endOf(m.end)) {
+              final found = boxes(start + 1, end);
+              if (found.isNotEmpty) gapGlyphs.add((m.end, m.kind, found.first));
+            }
+          }
+      }
+    }
+    final lineHeight = fontSize * (style.height ?? 1.45);
+    return _KineticLayout(
+      stressWords: stressWords,
+      energy: energy,
+      faster: faster,
+      slower: slower,
+      gapGlyphs: gapGlyphs,
+      lineHeight: lineHeight,
+    );
+  }
+
+  final List<_StressWord> stressWords;
+  final List<(int token, Rect box)> energy;
+  final List<(int firstToken, List<Rect> boxes)> faster;
+  final List<(int firstToken, List<Rect> boxes)> slower;
+  final List<(int token, MarkKind kind, Rect glyph)> gapGlyphs;
+  final double lineHeight;
+
+  void dispose() {
+    for (final w in stressWords) {
+      w.painter.dispose();
+    }
+  }
+}
+
+/// Paints the kinetic prompter's effects around the fixed paragraph:
+/// [under] draws glows, speed lines and breathing tints behind the text;
+/// [over] draws the stressed words (grown and popping) and the gap cues'
+/// hits. Only paint changes each frame; the paragraph never re-lays out.
+///
+/// With [kinetic] null (Still, or not measured yet) only the stressed words
+/// are drawn, at rest, if the paragraph left them to the overlay.
+class _KineticPainter {
+  _KineticPainter({
+    required this.layout,
+    required this.kinetic,
+    required this.controller,
+    required this.scroll,
+    required this.origin,
+    required this.colors,
+    required this.repaint,
+  });
+
+  final PrompterLayout? layout;
+  final _KineticLayout? kinetic;
+  final PrompterController controller;
+  final ScrollController scroll;
+
+  /// Where the paragraph starts inside the painted area.
+  final Offset origin;
+  final CueColors colors;
+  final Listenable repaint;
+
+  late final under = _KineticLayer(this, over: false);
+  late final over = _KineticLayer(this, over: true);
+
+  /// Lines between the reading line and [box] (negative once read).
+  double linesAhead(Rect box, double lineHeight) {
+    final reading = scroll.hasClients ? scroll.offset : 0.0;
+    return (box.top - reading) / lineHeight;
+  }
+
+  double livenessOf(Rect box, double lineHeight) => Kinetic.liveness(linesAhead(box, lineHeight));
+
+  /// Seconds into the read-through, for the moving speed lines and the
+  /// breathing tint.
+  double get seconds => controller.position.inMicroseconds / 1e6;
+}
+
+class _KineticLayer extends CustomPainter {
+  _KineticLayer(this.p, {required this.over}) : super(repaint: p.repaint);
+
+  final _KineticPainter p;
+  final bool over;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final k = p.kinetic;
+    if (k == null) return;
+    canvas.save();
+    canvas.translate(p.origin.dx, p.origin.dy);
+    if (over) {
+      _paintStress(canvas, k);
+      _paintHits(canvas, k);
+    } else {
+      _paintGlows(canvas, k);
+    }
+    canvas.restore();
+  }
+
+  void _paintGlows(Canvas canvas, _KineticLayout k) {
+    final lh = k.lineHeight;
+    // Lift energy: a soft glow builds behind the words.
+    for (final (_, box) in k.energy) {
+      final l = p.livenessOf(box, lh);
+      if (l <= 0) continue;
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(box.inflate(4), const Radius.circular(8)),
+        Paint()
+          ..color = p.colors.energy.withValues(alpha: 0.22 * l)
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 12),
+      );
+    }
+    // Speed up: thin speed lines drift through the tint.
+    for (final (_, boxes) in k.faster) {
+      for (final box in boxes) {
+        final l = p.livenessOf(box, lh);
+        if (l <= 0) continue;
+        canvas.save();
+        canvas.clipRRect(RRect.fromRectAndRadius(box, const Radius.circular(SaRadius.xs)));
+        final paint = Paint()
+          ..color = p.colors.faster.withValues(alpha: 0.28 * l)
+          ..strokeWidth = 3;
+        const spacing = 16.0;
+        final shift = (p.seconds * 60) % spacing;
+        for (var x = box.left - box.height + shift; x < box.right + spacing; x += spacing) {
+          canvas.drawLine(Offset(x, box.bottom), Offset(x + box.height * 0.45, box.top), paint);
+        }
+        canvas.restore();
+      }
+    }
+    // Slow down: the tint breathes, once every 2.4 seconds.
+    final breath = 0.5 + 0.5 * math.sin(2 * math.pi * p.seconds / 2.4);
+    for (final (_, boxes) in k.slower) {
+      for (final box in boxes) {
+        final l = p.livenessOf(box, lh);
+        if (l <= 0) continue;
+        canvas.drawRRect(
+          RRect.fromRectAndRadius(box, const Radius.circular(SaRadius.xs)),
+          Paint()..color = p.colors.slower.withValues(alpha: 0.12 * l * breath),
+        );
+      }
+    }
+  }
+
+  void _paintStress(Canvas canvas, _KineticLayout k) {
+    final c = p.controller;
+    final timeline = c.timeline;
+    for (final w in k.stressWords) {
+      final l = p.livenessOf(w.box, k.lineHeight);
+      Duration? since;
+      if (w.token < timeline.length) {
+        final s = c.position - timeline.startOf(w.token);
+        if (!s.isNegative && s < Kinetic.popWindow) since = s;
+      }
+      final scale = Kinetic.stressScale(l, since);
+      canvas.save();
+      final center = w.box.center;
+      canvas
+        ..translate(center.dx, center.dy)
+        ..scale(scale)
+        ..translate(-center.dx, -center.dy);
+      w.painter.paint(canvas, w.paintAt);
+      canvas.restore();
+    }
+  }
+
+  void _paintHits(Canvas canvas, _KineticLayout k) {
+    final c = p.controller;
+    final timeline = c.timeline;
+    for (final (token, kind, glyph) in k.gapGlyphs) {
+      if (token >= timeline.length) continue;
+      final hit = Kinetic.hit(c.position - timeline.endOf(token));
+      if (hit == null) continue;
+      // A ring bursts off the glyph as its hold starts.
+      final eased = Curves.easeOutCubic.transform(hit);
+      canvas.drawCircle(
+        glyph.center,
+        glyph.height * (0.45 + 0.6 * eased),
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2.5
+          ..color = p.colors.of(kind).withValues(alpha: 1 - hit),
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(_KineticLayer old) =>
+      old.p.kinetic != p.kinetic || old.p.origin != p.origin || old.p.layout != p.layout || old.p.colors != p.colors;
 }

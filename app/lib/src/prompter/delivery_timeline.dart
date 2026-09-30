@@ -114,6 +114,14 @@ class DeliveryTimeline {
     return i < length - 1 && time.inMicroseconds >= _ends[i];
   }
 
+  /// When the hold the prompter is in at [time] started and ends, or null
+  /// between holds.
+  (Duration start, Duration end)? holdAt(Duration time) {
+    if (!isHolding(time)) return null;
+    final i = tokenAt(time);
+    return (Duration(microseconds: _ends[i]), Duration(microseconds: _starts[i + 1]));
+  }
+
   /// The gap mark the prompter is holding on at [time], if any.
   MarkKind? holdingOn(Duration time) => isHolding(time) ? _gapKinds[tokenAt(time)] : null;
 

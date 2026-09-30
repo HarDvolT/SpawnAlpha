@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 
 import '../prompter/prompter_controller.dart';
 import '../prompter/prompter_view.dart';
+import '../theme/theme.dart';
 import 'format.dart';
 
 /// Keyboard control of the prompter, mostly for Windows:
@@ -13,6 +14,7 @@ import 'format.dart';
 /// - T: switch between timed and manual scroll
 /// - Home: back to the start
 /// - M: mirror
+/// - K: kinetic or still text
 /// - Plus and Minus: text size
 class PrompterShortcuts extends StatelessWidget {
   const PrompterShortcuts({
@@ -23,6 +25,7 @@ class PrompterShortcuts extends StatelessWidget {
     required this.onFontSize,
     required this.child,
     this.onPlayPause,
+    this.onKinetic,
   });
 
   final PrompterController controller;
@@ -32,6 +35,9 @@ class PrompterShortcuts extends StatelessWidget {
 
   /// Replaces the default play and pause, e.g. to start a recording.
   final VoidCallback? onPlayPause;
+
+  /// Switches between kinetic and still text.
+  final VoidCallback? onKinetic;
   final Widget child;
 
   @override
@@ -59,6 +65,8 @@ class PrompterShortcuts extends StatelessWidget {
           c.restart();
         } else if (key == LogicalKeyboardKey.keyM) {
           onMirror();
+        } else if (key == LogicalKeyboardKey.keyK && onKinetic != null) {
+          onKinetic!();
         } else if (key == LogicalKeyboardKey.equal || key == LogicalKeyboardKey.numpadAdd) {
           onFontSize(4);
         } else if (key == LogicalKeyboardKey.minus || key == LogicalKeyboardKey.numpadSubtract) {
@@ -82,12 +90,18 @@ class PrompterControls extends StatelessWidget {
     required this.onMirror,
     required this.onFontSize,
     this.showPlay = true,
+    this.kinetic,
+    this.onKinetic,
   });
 
   final PrompterController controller;
   final bool mirror;
   final VoidCallback onMirror;
   final ValueChanged<int> onFontSize;
+
+  /// Kinetic or still text; null hides the switch (reduced motion).
+  final bool? kinetic;
+  final ValueChanged<bool>? onKinetic;
 
   /// False when a record button drives playback instead.
   final bool showPlay;
@@ -99,10 +113,20 @@ class PrompterControls extends StatelessWidget {
       builder: (context, _) {
         final c = controller;
         final timed = c.mode == ScrollMode.timed;
+        final stage = SaPalette.dark;
+        final segmentStyle = SegmentedButton.styleFrom(
+          foregroundColor: stage.stageChromeText,
+          selectedForegroundColor: stage.stage,
+          selectedBackgroundColor: stage.stageText,
+          backgroundColor: stage.stage.withValues(alpha: 0.4),
+          side: BorderSide(color: stage.stageGlassEdge),
+          visualDensity: VisualDensity.compact,
+          textStyle: SaType.label,
+        );
         return IconButtonTheme(
-          data: IconButtonThemeData(style: IconButton.styleFrom(foregroundColor: Colors.white)),
+          data: IconButtonThemeData(style: IconButton.styleFrom(foregroundColor: stage.stageChromeText)),
           child: DefaultTextStyle.merge(
-            style: const TextStyle(color: Colors.white70, fontSize: 13),
+            style: SaType.meter.copyWith(color: stage.stageChromeText),
             child: Wrap(
               alignment: WrapAlignment.center,
               crossAxisAlignment: WrapCrossAlignment.center,
@@ -117,6 +141,11 @@ class PrompterControls extends StatelessWidget {
                   IconButton.filled(
                     tooltip: c.isPlaying ? 'Pause (Space)' : 'Play (Space)',
                     iconSize: 32,
+                    style: IconButton.styleFrom(
+                      backgroundColor: stage.stageText,
+                      foregroundColor: stage.stage,
+                      disabledBackgroundColor: stage.stageText.withValues(alpha: 0.38),
+                    ),
                     icon: Icon(c.isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded),
                     onPressed: timed ? c.togglePlay : null,
                   ),
@@ -128,9 +157,9 @@ class PrompterControls extends StatelessWidget {
                     onPressed: c.slower,
                   ),
                   SizedBox(
-                    width: 116,
+                    width: 132,
                     child: Text(
-                      '${c.speed.toStringAsFixed(1)}×  ${c.effectiveWpm} wpm',
+                      '${c.speed.toStringAsFixed(1)}× · ${c.effectiveWpm} WPM',
                       textAlign: TextAlign.center,
                     ),
                   ),
@@ -139,17 +168,11 @@ class PrompterControls extends StatelessWidget {
                     icon: const Icon(Icons.add_rounded),
                     onPressed: c.faster,
                   ),
-                  Text(formatDuration(c.remaining)),
+                  Text(formatDuration(c.remaining), style: SaType.timecode.copyWith(color: stage.stageText)),
                 ],
                 const SizedBox(width: 8),
                 SegmentedButton<ScrollMode>(
-                  style: SegmentedButton.styleFrom(
-                    foregroundColor: Colors.white70,
-                    selectedForegroundColor: Colors.black,
-                    selectedBackgroundColor: Colors.white,
-                    side: const BorderSide(color: Colors.white38),
-                    visualDensity: VisualDensity.compact,
-                  ),
+                  style: segmentStyle,
                   showSelectedIcon: false,
                   segments: const [
                     ButtonSegment(value: ScrollMode.timed, label: Text('Timed'), tooltip: 'Scrolls at the planned pace (T)'),
@@ -158,6 +181,17 @@ class PrompterControls extends StatelessWidget {
                   selected: {c.mode},
                   onSelectionChanged: (s) => c.setMode(s.single),
                 ),
+                if (kinetic != null)
+                  SegmentedButton<bool>(
+                    style: segmentStyle,
+                    showSelectedIcon: false,
+                    segments: const [
+                      ButtonSegment(value: true, label: Text('Kinetic'), tooltip: 'Words wake up near the reading line (K)'),
+                      ButtonSegment(value: false, label: Text('Still'), tooltip: 'Only the scroll moves (K)'),
+                    ],
+                    selected: {kinetic!},
+                    onSelectionChanged: (s) => onKinetic?.call(s.single),
+                  ),
                 IconButton(
                   tooltip: 'Smaller text (−)',
                   icon: const Icon(Icons.text_decrease_rounded),

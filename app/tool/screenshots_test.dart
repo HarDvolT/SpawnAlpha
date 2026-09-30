@@ -10,9 +10,11 @@
 
 import 'dart:io';
 
+import 'package:camera_platform_interface/camera_platform_interface.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 import 'package:spawnalpha/src/app.dart';
 import 'package:spawnalpha/src/markup/local_markup_engine.dart';
 import 'package:spawnalpha/src/markup/markup_engine.dart';
@@ -28,6 +30,8 @@ import 'package:spawnalpha/src/ui/editor_screen.dart';
 import 'package:spawnalpha/src/ui/library_screen.dart';
 import 'package:spawnalpha/src/ui/settings_screen.dart';
 import 'package:spawnalpha/src/ui/prompter_screen.dart';
+import 'package:spawnalpha/src/ui/record_screen.dart';
+import 'package:spawnalpha/src/ui/recording_widgets.dart';
 import 'package:spawnalpha/src/ui/script_page.dart';
 
 Future<void> _loadFonts() async {
@@ -54,6 +58,12 @@ Future<void> _loadFonts() async {
       files.fold(FontLoader(family), (loader, file) => loader..addFont(bytes('assets/fonts/$file'))),
   ];
   await Future.wait([text.load(), icons.load(), for (final v in voices) v.load()]);
+}
+
+/// No camera in a container: the record screen shows its chrome and says so.
+class _NoCameras extends CameraPlatform with MockPlatformInterfaceMixin {
+  @override
+  Future<List<CameraDescription>> availableCameras() async => [];
 }
 
 Future<ScriptDocument> _markedUp(ScriptDocument s, {bool accept = true}) async {
@@ -86,7 +96,7 @@ void main() {
 
   Future<void> shoot(WidgetTester tester, String name, Size size, Widget Function(AppServices) screen,
       List<ScriptDocument> scripts,
-      {Future<void> Function(WidgetTester)? before, Brightness brightness = Brightness.light}) async {
+      {Future<void> Function(WidgetTester)? before, Brightness brightness = Brightness.light, bool settle = true}) async {
     tester.view.physicalSize = size;
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
@@ -99,7 +109,8 @@ void main() {
         home: screen(app),
       ),
     ));
-    await tester.pumpAndSettle();
+    // Animations that should be caught mid-way skip settling.
+    settle ? await tester.pumpAndSettle() : await tester.pump();
     if (before != null) await before(tester);
     await expectLater(find.byType(MaterialApp), matchesGoldenFile('screenshots/$name.png'));
   }
@@ -125,6 +136,31 @@ void main() {
       await tester.pumpAndSettle();
     });
   });
+
+  testWidgets('prompter, still', (tester) async {
+    final script = await _markedUp(sampleScripts()[0]);
+    await shoot(tester, 'prompter-en-still', phone, (app) {
+      app.settings.kinetic = false;
+      return PrompterScreen(script: script);
+    }, [script], before: (tester) async {
+      tester.widget<PrompterView>(find.byType(PrompterView)).controller.seekToToken(9);
+      await tester.pumpAndSettle();
+    });
+  });
+
+  testWidgets('record screen, no camera', (tester) async {
+    CameraPlatform.instance = _NoCameras();
+    final script = await _markedUp(sampleScripts()[0]);
+    await shoot(tester, 'record-no-camera', phone, (_) => RecordScreen(script: script), [script]);
+  });
+
+  for (final (name, at) in [('countdown-landing', 70), ('countdown', 700)]) {
+    testWidgets(name, (tester) async {
+      await shoot(tester, name, const Size(300, 260), (_) {
+        return Scaffold(backgroundColor: SaPalette.dark.stage, body: const Center(child: CountdownNumeral(value: 3)));
+      }, [], settle: false, before: (tester) async => tester.pump(Duration(milliseconds: at)));
+    });
+  }
 
   testWidgets('library dark', (tester) async {
     await shoot(tester, 'library-dark', phone, (_) => const LibraryScreen(), sampleScripts(),
@@ -155,6 +191,26 @@ void main() {
     testWidgets('editor $name on a phone', (tester) async {
       final script = await _markedUp(sampleScripts()[i]);
       await shoot(tester, 'editor-$name-phone', phone, (_) => EditorScreen(script: script), [script]);
+    });
+
+    testWidgets('prompter $name, kinetic in a hold', (tester) async {
+      final script = await _markedUp(sampleScripts()[i]);
+      await shoot(tester, 'prompter-$name-hold', phone, (_) => PrompterScreen(script: script), [script],
+          before: (tester) async {
+        final controller = tester.widget<PrompterView>(find.byType(PrompterView)).controller;
+        // The second pause or breath: play into it, so its glyph hits and the ring runs.
+        final gaps = controller.marks.where((m) => m.kind.isGap).toList();
+        final gap = gaps[gaps.length > 1 ? 1 : 0];
+        controller.seekToToken(gap.end);
+        controller.play();
+        await tester.pump();
+        await tester.pump(controller.timeline.endOf(gap.end) - controller.timeline.startOf(gap.end) +
+            const Duration(milliseconds: 120));
+        controller.pause();
+        // Let the hold badge fade in.
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 250));
+      });
     });
 
     testWidgets('prompter $name', (tester) async {

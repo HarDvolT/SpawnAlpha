@@ -36,6 +36,18 @@ void main() {
     expect(reloaded.hasApiKey(MarkupProvider.mistral), isFalse);
   });
 
+  test('keeps the prompter preferences, with kinetic text on by default', () async {
+    final settings = Settings(file: file(), secrets: MemorySecretStore());
+    expect(settings.kinetic, isTrue);
+    await settings.update((s) => s
+      ..kinetic = false
+      ..mirror = true);
+    final reloaded = Settings(file: file(), secrets: MemorySecretStore());
+    await reloaded.load();
+    expect(reloaded.kinetic, isFalse);
+    expect(reloaded.mirror, isTrue);
+  });
+
   test('reads settings from before providers existed', () async {
     file().writeAsStringSync(jsonEncode({'markupSource': 'claude', 'claudeModel': 'claude-sonnet-5-5'}));
     final secrets = MemorySecretStore()..values['anthropic_api_key'] = 'sk-ant';

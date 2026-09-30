@@ -1,0 +1,253 @@
+import 'dart:math' as math;
+import 'dart:ui' show ImageFilter;
+
+import 'package:flutter/material.dart';
+import 'package:flutter/physics.dart';
+
+import '../theme/theme.dart';
+import 'format.dart';
+
+/// One countdown beat: the numeral in the display face lands wide and
+/// large and settles to normal width on the pop spring, while a ring
+/// sweeps once around it over the beat (docs/design/motion.md, "The
+/// countdown"). A new [value] starts a new beat.
+class CountdownNumeral extends StatefulWidget {
+  const CountdownNumeral({super.key, required this.value, this.size = 150});
+
+  final int value;
+
+  /// The dial's diameter.
+  final double size;
+
+  @override
+  State<CountdownNumeral> createState() => _CountdownNumeralState();
+}
+
+class _CountdownNumeralState extends State<CountdownNumeral> with TickerProviderStateMixin {
+  late final _land = AnimationController.unbounded(vsync: this);
+  late final _sweep = AnimationController(vsync: this, duration: SaDurations.beat);
+
+  @override
+  void initState() {
+    super.initState();
+    _beat();
+  }
+
+  @override
+  void didUpdateWidget(CountdownNumeral old) {
+    super.didUpdateWidget(old);
+    if (old.value != widget.value) _beat();
+  }
+
+  void _beat() {
+    _land.animateWith(SpringSimulation(SaSprings.pop, 0, 1, 0));
+    _sweep.forward(from: 0);
+  }
+
+  @override
+  void dispose() {
+    _land.dispose();
+    _sweep.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final reduce = MediaQuery.disableAnimationsOf(context);
+    final stage = SaPalette.dark;
+    return SizedBox.square(
+      dimension: widget.size,
+      child: AnimatedBuilder(
+        animation: Listenable.merge([_land, _sweep]),
+        builder: (context, _) {
+          // t runs 0 to 1 with the spring's overshoot; reduced motion swaps
+          // numerals without scaling and steps the ring in quarters.
+          final t = reduce ? 1.0 : _land.value;
+          final sweep = reduce ? (_sweep.value * 4).floor() / 4 : _sweep.value;
+          final width = (150 - 50 * t).clamp(50.0, 150.0);
+          final style = atWidth(SaType.countdown.copyWith(color: stage.stageText, fontSize: widget.size * 0.62), width);
+          return CustomPaint(
+            painter: _DialPainter(sweep: sweep, color: stage.stageText, fill: stage.stage.withValues(alpha: 0.5)),
+            child: Center(
+              child: Opacity(
+                opacity: (t * 1.6).clamp(0.0, 1.0),
+                child: Transform.scale(
+                  scale: 1.35 - 0.35 * t,
+                  child: Text('${widget.value}', style: style),
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _DialPainter extends CustomPainter {
+  _DialPainter({required this.sweep, required this.color, required this.fill});
+
+  final double sweep;
+  final Color color;
+  final Color fill;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final rect = Offset.zero & size;
+    canvas.drawCircle(rect.center, size.width / 2, Paint()..color = fill);
+    final ring = rect.deflate(3);
+    canvas.drawArc(
+      ring,
+      -math.pi / 2,
+      2 * math.pi * sweep,
+      false,
+      Paint()
+        ..color = color
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 4
+        ..strokeCap = StrokeCap.round,
+    );
+  }
+
+  @override
+  bool shouldRepaint(_DialPainter old) => old.sweep != sweep || old.color != color || old.fill != fill;
+}
+
+/// The record button: a `stage-rec` disc in a ring that morphs to a
+/// rounded square while recording, and turns into a spinner while saving.
+class RecordButton extends StatefulWidget {
+  const RecordButton({super.key, required this.recording, required this.saving, required this.enabled, required this.onPressed});
+
+  final bool recording;
+  final bool saving;
+  final bool enabled;
+  final VoidCallback onPressed;
+
+  @override
+  State<RecordButton> createState() => _RecordButtonState();
+}
+
+class _RecordButtonState extends State<RecordButton> {
+  bool _pressed = false;
+
+  // The overshooting morph of the design (a spring written as a curve).
+  static const _morph = Cubic(0.34, 1.56, 0.64, 1);
+
+  @override
+  Widget build(BuildContext context) {
+    final stage = SaPalette.dark;
+    final recording = widget.recording || widget.saving;
+    final disc = recording ? 26.0 : 56.0;
+    return Semantics(
+      button: true,
+      label: widget.recording ? 'Stop recording' : 'Record',
+      child: Tooltip(
+        message: widget.recording ? 'Stop (Space)' : 'Record (Space)',
+        child: GestureDetector(
+          onTapDown: widget.enabled ? (_) => setState(() => _pressed = true) : null,
+          onTapCancel: () => setState(() => _pressed = false),
+          onTapUp: widget.enabled
+              ? (_) {
+                  setState(() => _pressed = false);
+                  widget.onPressed();
+                }
+              : null,
+          child: AnimatedScale(
+            scale: _pressed ? 0.9 : 1,
+            duration: SaDurations.instant,
+            curve: SaEasing.press,
+            child: SizedBox.square(
+              dimension: 72,
+              child: Stack(alignment: Alignment.center, children: [
+                if (widget.saving)
+                  SizedBox.square(
+                    dimension: 72,
+                    child: CircularProgressIndicator(strokeWidth: 4, color: stage.stageRec),
+                  )
+                else
+                  Container(
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(color: stage.stageText.withValues(alpha: widget.enabled ? 1 : 0.38), width: 4),
+                    ),
+                  ),
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 320),
+                  curve: _morph,
+                  width: disc,
+                  height: disc,
+                  decoration: BoxDecoration(
+                    color: stage.stageRec.withValues(alpha: widget.enabled ? (widget.saving ? 0.4 : 1) : 0.38),
+                    borderRadius: BorderRadius.circular(recording ? SaRadius.sm : disc / 2),
+                  ),
+                ),
+              ]),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The glass timecode pill: the tally and the running time in the signal
+/// face. The tally is steady while recording and never blinks.
+class TimecodePill extends StatelessWidget {
+  const TimecodePill({super.key, required this.elapsed, required this.recording});
+
+  final Duration elapsed;
+  final bool recording;
+
+  @override
+  Widget build(BuildContext context) {
+    final stage = SaPalette.dark;
+    return GlassSurface(
+      borderRadius: SaRadius.full,
+      padding: const EdgeInsets.symmetric(horizontal: SaSpace.s3, vertical: 6),
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        Container(
+          width: 8,
+          height: 8,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: recording ? stage.stageRec : Colors.transparent,
+            border: recording ? null : Border.all(color: stage.stageRec, width: 2),
+            boxShadow: recording ? [BoxShadow(color: stage.stageRec.withValues(alpha: 0.7), blurRadius: 10)] : null,
+          ),
+        ),
+        const SizedBox(width: SaSpace.s2),
+        Text(formatDuration(elapsed), style: SaType.timecode.copyWith(color: stage.stageText)),
+      ]),
+    );
+  }
+}
+
+/// Glass: for surfaces floating over live pixels (the camera preview, a
+/// recorded screen). Blurs what is behind it, with a hairline edge.
+class GlassSurface extends StatelessWidget {
+  const GlassSurface({super.key, required this.child, this.borderRadius = SaRadius.md, this.padding});
+
+  final Widget child;
+  final double borderRadius;
+  final EdgeInsetsGeometry? padding;
+
+  @override
+  Widget build(BuildContext context) {
+    final stage = SaPalette.dark;
+    final radius = BorderRadius.circular(borderRadius);
+    return ClipRRect(
+      borderRadius: radius,
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: stage.stageGlass,
+            borderRadius: radius,
+            border: Border.all(color: stage.stageGlassEdge),
+          ),
+          child: padding == null ? child : Padding(padding: padding!, child: child),
+        ),
+      ),
+    );
+  }
+}

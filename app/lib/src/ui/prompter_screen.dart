@@ -5,6 +5,7 @@ import '../app.dart';
 import '../model/script_document.dart';
 import '../prompter/prompter_controller.dart';
 import '../prompter/prompter_view.dart';
+import '../theme/theme.dart';
 import 'prompter_controls.dart';
 
 /// The prompter on its own, for practice or for use with separate camera
@@ -40,9 +41,12 @@ class _PrompterScreenState extends State<PrompterScreen> {
     final settings = AppScope.of(context).settings;
     void changeFont(int delta) => settings.update((s) => s.fontSize = (s.fontSize + delta).clamp(24, 96));
     void toggleMirror() => settings.update((s) => s.mirror = !s.mirror);
+    // Reduced motion forces Still, and hides the switch.
+    final reduceMotion = MediaQuery.disableAnimationsOf(context);
+    void setKinetic(bool v) => settings.update((s) => s.kinetic = v);
 
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: SaPalette.dark.stage,
       body: ListenableBuilder(
         listenable: settings,
         builder: (context, _) => PrompterShortcuts(
@@ -50,6 +54,7 @@ class _PrompterScreenState extends State<PrompterScreen> {
           view: _view,
           onMirror: toggleMirror,
           onFontSize: changeFont,
+          onKinetic: reduceMotion ? null : () => setKinetic(!settings.kinetic),
           child: SafeArea(
             child: Column(children: [
               Expanded(
@@ -64,6 +69,7 @@ class _PrompterScreenState extends State<PrompterScreen> {
                         controller: _controller,
                         fontSize: settings.fontSize,
                         mirror: settings.mirror,
+                        kinetic: settings.kinetic && !reduceMotion,
                       ),
                     ),
                   ),
@@ -72,20 +78,25 @@ class _PrompterScreenState extends State<PrompterScreen> {
                     left: 4,
                     child: IconButton(
                       tooltip: 'Close',
-                      color: Colors.white70,
+                      color: SaPalette.dark.stageChromeText,
                       icon: const Icon(Icons.close_rounded),
                       onPressed: () => Navigator.of(context).maybePop(),
                     ),
                   ),
                 ]),
               ),
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
-                child: PrompterControls(
-                  controller: _controller,
-                  mirror: settings.mirror,
-                  onMirror: toggleMirror,
-                  onFontSize: changeFont,
+              ColoredBox(
+                color: SaPalette.dark.stageChrome,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: SaSpace.s2, horizontal: SaSpace.s2),
+                  child: PrompterControls(
+                    controller: _controller,
+                    mirror: settings.mirror,
+                    onMirror: toggleMirror,
+                    onFontSize: changeFont,
+                    kinetic: reduceMotion ? null : settings.kinetic,
+                    onKinetic: setKinetic,
+                  ),
                 ),
               ),
             ]),
