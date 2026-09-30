@@ -23,6 +23,7 @@ v2 applied. It has not yet run on a real device.** The build order is in
 | Storage: scripts as JSON files, settings, API key in secure storage | Done |
 | Design language v2 (four type voices, glass, springs, signature motions, kinetic prompter, cursor companion, Director's Cut; 20 components) | Done in `docs/design/` and the design-system artifact |
 | Design v2 in the app: fonts and generated tokens, Studio theme, script page (marker swipes, margin notes, director's pass), kinetic prompter with Still, glass hold badge, record screen (glass panel, countdown, record button, timecode), privacy and licences in Settings | Done, tested (widget tests plus rendered screenshots). What's left is listed in the next steps |
+| CI (`.github/workflows/build.yml`): analyze, test, then Windows and Android test builds as downloadable artifacts | Added 2026-09-30; see the session log for the first run's result |
 | Compliance groundwork ([compliance.md](compliance.md)) | Rules and checklist written, licence page in the app, no secrets in the repo. Legal documents and filings are still to do |
 | Screen and Screen + camera recording, cursor companion, telemetry | Designed (`docs/design/recording.md`). Not built. |
 | Director's Cut (auto-edit, captions, auto-zoom, finish screen) | Designed (`docs/design/autoedit.md`). Not built; needs a native render core. |
@@ -46,7 +47,9 @@ v2 applied. It has not yet run on a real device.** The build order is in
    Re-render `app/tool/screenshots_test.dart` after UI changes, and compare with the
    artifact previews.
 
-3. **Run it on real hardware** (can't be done in a Linux container):
+3. **Run it on real hardware** (can't be done in a Linux container). No Flutter install is
+   needed: download the Windows zip or the Android APK from the latest green **Build** run
+   (GitHub Actions, Artifacts; see the README).
    - Windows: `flutter run -d windows`. Check camera recording through
      `camera_windows`, the keyboard shortcuts, and where the takes are saved.
    - Android phone: check the camera and microphone permission prompts, the
