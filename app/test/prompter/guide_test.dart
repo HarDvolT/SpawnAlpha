@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'dart:ui';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -59,7 +60,7 @@ void main() {
       expect(p.at(t, t.startOf(2))!.center, p.restOn(2));
     });
 
-    test('rests on a pause glyph while a ring closes, then hops on', () {
+    test('becomes the pause sign while a timer ring drains, then hops on', () {
       final marks = [const Mark.gap(id: 'p', kind: MarkKind.pauseLong, after: 0)];
       final t = timeline(marks);
       final words = plainWords();
@@ -73,38 +74,58 @@ void main() {
       final late = p.at(t, start + (end - start) * 0.75)!;
       expect(early.center, glyph);
       expect(early.tint, DotTint.pause);
-      expect(early.ring, lessThan(late.ring!));
-      // The last moment of the hold: on its way to the next word, in white.
+      expect(early.sign, DotSign.pauseLong);
+      expect(early.size, closeTo(BouncePath.longPauseSize, 0.05), reason: 'grown into the sign');
+      expect(early.timer, greaterThan(late.timer!));
+      // It grows in as the hold starts.
+      expect(p.at(t, start + ms * 20)!.size, lessThan(early.size));
+      // The last moment of the hold: small again, on its way to the next word, in white.
       final hop = p.at(t, end - ms * 40)!;
       expect(hop.center, isNot(glyph));
       expect(hop.tint, DotTint.plain);
-      expect(hop.ring, isNull);
+      expect(hop.timer, isNull);
+      expect(hop.size, 1);
     });
 
-    test('swells on a breath', () {
+    test('inhales on a breath, with the breath sign', () {
       final t = timeline([const Mark.gap(id: 'b', kind: MarkKind.breath, after: 0)]);
       final words = plainWords();
       words[0] = DotWord(box: wordBox(0), gap: MarkKind.breath, gapGlyph: const Rect.fromLTWH(84, 8, 12, 24));
       final (start, end) = t.holdAt(t.endOf(0) + ms)!;
       final frame = path(words).at(t, start + (end - start) * 0.5)!;
       expect(frame.tint, DotTint.breath);
-      expect(frame.scaleX, greaterThan(1.5));
+      expect(frame.size, closeTo(BouncePath.breathSize, 0.01));
+      expect(frame.sign, DotSign.breath);
+      // And exhales by the end of the hold.
+      expect(path(words).at(t, start + (end - start) * 0.95)!.size, lessThan(1.4));
     });
 
-    test('jumps high into a stressed word, and bursts as it lands', () {
+    test('climbs, grows and slams onto a stressed word, striking it', () {
       final t = timeline(const []);
       final words = plainWords();
       words[1] = DotWord(box: wordBox(1), stressed: true);
       final p = path(words);
-      final straight = Offset.lerp(p.restOn(0), p.restOn(1), 0.5)!;
-      expect(p.at(t, t.startOf(0) + ms * 250)!.center.dy, closeTo(straight.dy - BouncePath.stressHop * 40, 0.01));
-      final landed = p.at(t, t.startOf(1) + ms * 100)!;
+      double highest(BouncePath path) => [
+            for (var m = 0; m < 500; m += 10) path.at(t, t.startOf(0) + ms * m)!.center.dy,
+          ].reduce(math.min);
+      expect(highest(p), lessThan(highest(path(plainWords()))), reason: 'it climbs higher');
+      // Charging on the way down: amber and growing.
+      final falling = p.at(t, t.startOf(0) + ms * 450)!;
+      expect(falling.tint, DotTint.stress);
+      expect(falling.size, greaterThan(1.4));
+      final landed = p.at(t, t.startOf(1) + ms * 20)!;
       expect(landed.tint, DotTint.stress);
+      expect(landed.size, greaterThan(1.65));
+      expect(landed.scaleX, greaterThan(1.3), reason: 'a hard squash');
       expect(landed.burst, isNotNull);
+      expect(landed.slam, isNotNull);
+      expect(landed.slamBox, wordBox(1));
+      final later = p.at(t, t.startOf(1) + ms * 480)!;
+      expect(later.size, closeTo(1.2, 0.01), reason: 'settled');
       expect(p.at(t, t.startOf(1) + ms * 600)?.burst, isNull);
     });
 
-    test('pace runs shape the hop, energy throws sparks', () {
+    test('pace runs shape the hop and leave trails', () {
       final t = timeline(const []);
       double peak(MarkKind run) {
         final words = plainWords();
@@ -119,16 +140,40 @@ void main() {
       words[0] = DotWord(box: wordBox(0), run: MarkKind.energy);
       final energy = path(words).at(t, t.startOf(0) + ms * 250)!;
       expect(energy.tint, DotTint.energy);
-      expect(energy.sparks, isTrue);
+      expect(energy.trail, DotTrail.sparks);
+      final slow = DotWord(box: wordBox(0), run: MarkKind.slower);
+      final fast = DotWord(box: wordBox(0), run: MarkKind.faster);
+      final slowFrame = path([slow, ...plainWords().skip(1)]).at(t, t.startOf(0) + ms * 250)!;
+      final fastFrame = path([fast, ...plainWords().skip(1)]).at(t, t.startOf(0) + ms * 250)!;
+      expect(slowFrame.trail, DotTrail.echoes);
+      expect(slowFrame.size, greaterThan(1), reason: 'heavy');
+      expect(fastFrame.trail, DotTrail.streaks);
+      expect(fastFrame.size, lessThan(1), reason: 'light');
+      expect(fastFrame.scaleX, greaterThan(fastFrame.scaleY), reason: 'stretched along its path');
     });
 
-    test('bobs over the word while it waits for the voice', () {
+    test('announces a run with its glyph as the run opens', () {
+      final t = timeline(const []);
+      final words = plainWords();
+      words[0] = DotWord(box: wordBox(0), run: MarkKind.slower, opensRun: true);
+      final p = path(words);
+      final showing = p.at(t, t.startOf(0) + BouncePath.announceLength * 0.5)!;
+      expect(showing.sign, DotSign.slower);
+      expect(showing.signAlpha, greaterThan(0.5));
+      expect(showing.size, greaterThan(BouncePath.slowSize));
+      expect(p.at(t, t.startOf(0) + BouncePath.announceLength + ms)!.sign, isNull);
+    });
+
+    test('grows a microphone and bobs while it waits for the voice', () {
       final t = timeline(const []);
       final p = path(plainWords());
       final a = p.at(t, t.startOf(0) + ms * 200, waiting: true, clock: 0.35)!.center;
       final b = p.at(t, t.startOf(0) + ms * 200, waiting: true, clock: 1.05)!.center;
       expect(a.dx, p.restOn(0)!.dx);
       expect(a.dy, isNot(b.dy));
+      final waiting = p.at(t, t.startOf(0) + ms * 200, waiting: true)!;
+      expect(waiting.sign, DotSign.listen);
+      expect(waiting.size, BouncePath.listenSize);
     });
 
     test('with reduced motion it jumps from word to word', () {

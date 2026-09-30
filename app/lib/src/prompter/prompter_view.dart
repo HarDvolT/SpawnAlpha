@@ -652,6 +652,7 @@ class _KineticLayout {
     // Per word, for the bouncing dot.
     final stressed = List<bool>.filled(tokens.length, false);
     final run = List<MarkKind?>.filled(tokens.length, null);
+    final opensRun = List<bool>.filled(tokens.length, false);
     final gap = List<MarkKind?>.filled(tokens.length, null);
     final glyphOf = List<Rect?>.filled(tokens.length, null);
     for (final m in marks) {
@@ -664,6 +665,7 @@ class _KineticLayout {
         for (var i = m.start; i <= m.end; i++) {
           run[i] = m.kind;
         }
+        opensRun[m.start] = true;
       }
     }
     for (final m in marks) {
@@ -718,7 +720,14 @@ class _KineticLayout {
     final bounce = BouncePath(
       words: [
         for (var i = 0; i < tokens.length; i++)
-          DotWord(box: tokenBoxes[i], stressed: stressed[i], run: run[i], gap: gap[i], gapGlyph: glyphOf[i]),
+          DotWord(
+            box: tokenBoxes[i],
+            stressed: stressed[i],
+            run: run[i],
+            opensRun: opensRun[i],
+            gap: gap[i],
+            gapGlyph: glyphOf[i],
+          ),
       ],
       fontSize: fontSize,
       rtl: rtl,
@@ -1049,59 +1058,64 @@ class _DotLayer extends CustomPainter {
     canvas.restore();
   }
 
-  /// The bouncing dot, and what it throws: a burst on a stressed word, a
-  /// ring closing at a pause, sparks in an energy run.
+  /// The bouncing dot, acting out each cue: its size, colour and sign, the
+  /// timer ring at a pause, and (with Kinetic on) what it throws: the
+  /// shockwave and strike on a stressed word, echoes, streaks or sparks.
   void _paintDot(Canvas canvas, _KineticLayout k) {
     final p = this.p;
     final c = p.controller;
     final bounce = k.bounce;
     final frame = bounce.at(c.timeline, c.position, waiting: c.waitingForVoice, clock: p.clock(), calm: p.calm);
     if (frame == null) return;
-    final r = bounce.radius;
-    final color = switch (frame.tint) {
-      DotTint.plain => p.colors.text,
-      DotTint.stress => p.colors.stress,
-      DotTint.energy => p.colors.energy,
-      DotTint.slower => p.colors.slower,
-      DotTint.faster => p.colors.faster,
-      DotTint.pause => p.colors.pause,
-      DotTint.breath => p.colors.breath,
-    };
-    // Kinetic off (Still) or reduced motion: the dot moves, and nothing else.
-    if (p.effects) {
-      if (frame.sparks) {
-        for (var n = 1; n <= 3; n++) {
-          final back = c.position - Duration(milliseconds: 45 * n);
-          final trail = bounce.at(c.timeline, back.isNegative ? Duration.zero : back);
-          if (trail == null) continue;
-          canvas.drawCircle(trail.center, r * (0.5 - 0.1 * n), Paint()..color = p.colors.energy.withValues(alpha: 0.7 - 0.18 * n));
-        }
+    final base = bounce.radius;
+    final r = base * frame.size;
+    final color = _colorOf(frame.tint);
+
+    if (p.effects && !p.calm) {
+      _paintTrail(canvas, bounce, frame, base, color);
+      final slam = frame.slam;
+      final box = frame.slamBox;
+      if (slam != null && box != null) {
+        // The strike: drawn across the word fast, then faded.
+        final drawn = Curves.easeOutCubic.transform((slam / 0.3).clamp(0.0, 1.0));
+        final alpha = slam < 0.6 ? 1.0 : 1 - (slam - 0.6) / 0.4;
+        final y = box.bottom + base * 0.4;
+        final w = box.width * drawn;
+        canvas.drawLine(
+          Offset(p.rtl ? box.right - w : box.left, y),
+          Offset(p.rtl ? box.right : box.left + w, y),
+          Paint()
+            ..color = p.colors.stress.withValues(alpha: alpha)
+            ..strokeWidth = math.max(3, base * 0.55)
+            ..strokeCap = StrokeCap.round,
+        );
       }
       final burst = frame.burst;
       if (burst != null) {
         final eased = Curves.easeOutCubic.transform(burst);
         canvas.drawCircle(
           frame.center,
-          r * (1.2 + 3.5 * eased),
+          r * (1.1 + 2.6 * eased),
           Paint()
             ..style = PaintingStyle.stroke
-            ..strokeWidth = r * 0.3 * (1 - burst) + 1
+            ..strokeWidth = base * 0.45 * (1 - burst) + 1
             ..color = p.colors.stress.withValues(alpha: 1 - burst),
         );
       }
     }
-    final ring = frame.ring;
-    if (ring != null) {
-      // The ring closes in around the dot over the hold.
-      canvas.drawCircle(
-        frame.center,
-        r * (2.6 - 1.3 * ring),
-        Paint()
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = math.max(2, r * 0.22)
-          ..color = color,
-      );
+
+    final timer = frame.timer;
+    if (timer != null) {
+      // A timer ring around the pause sign, draining over the hold.
+      final ring = Rect.fromCircle(center: frame.center, radius: r + base * 0.55);
+      final stroke = Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = math.max(2.5, base * 0.3)
+        ..strokeCap = StrokeCap.round;
+      canvas.drawOval(ring, stroke..color = color.withValues(alpha: 0.25));
+      if (timer > 0) canvas.drawArc(ring, -math.pi / 2, 2 * math.pi * timer, false, stroke..color = color);
     }
+
     canvas.save();
     canvas.translate(frame.center.dx, frame.center.dy);
     canvas.scale(frame.scaleX, frame.scaleY);
@@ -1113,6 +1127,97 @@ class _DotLayer extends CustomPainter {
         ..maskFilter = MaskFilter.blur(BlurStyle.normal, r * 0.8),
     );
     canvas.drawCircle(Offset.zero, r, Paint()..color = color);
+    canvas.restore();
+
+    final sign = frame.sign;
+    if (sign != null && frame.signAlpha > 0) _paintSign(canvas, sign, frame.center, r, frame.signAlpha);
+  }
+
+  Color _colorOf(DotTint tint) => switch (tint) {
+        DotTint.plain => p.colors.text,
+        DotTint.stress => p.colors.stress,
+        DotTint.energy => p.colors.energy,
+        DotTint.slower => p.colors.slower,
+        DotTint.faster => p.colors.faster,
+        DotTint.pause => p.colors.pause,
+        DotTint.breath => p.colors.breath,
+      };
+
+  /// Echoes behind it in a slower run (slow motion), streaks in a faster
+  /// run, sparks in an energy run: where it was a moment ago.
+  void _paintTrail(Canvas canvas, BouncePath bounce, DotFrame frame, double base, Color color) {
+    final c = p.controller;
+    DotFrame? back(int ms) {
+      final t = c.position - Duration(milliseconds: ms);
+      return bounce.at(c.timeline, t.isNegative ? Duration.zero : t);
+    }
+
+    switch (frame.trail) {
+      case DotTrail.none:
+        return;
+      case DotTrail.echoes:
+        for (var n = 3; n >= 1; n--) {
+          final echo = back(110 * n);
+          if (echo == null) continue;
+          canvas.drawCircle(echo.center, base * echo.size * (1 - 0.12 * n), Paint()..color = color.withValues(alpha: 0.42 - 0.11 * n));
+        }
+      case DotTrail.streaks:
+        final paint = Paint()
+          ..strokeCap = StrokeCap.round
+          ..strokeWidth = base * 0.5;
+        var from = frame.center;
+        for (var n = 1; n <= 3; n++) {
+          final was = back(35 * n);
+          if (was == null) continue;
+          canvas.drawLine(from, was.center, paint..color = color.withValues(alpha: 0.55 - 0.15 * n));
+          from = was.center;
+        }
+      case DotTrail.sparks:
+        for (var n = 1; n <= 4; n++) {
+          final was = back(40 * n);
+          if (was == null) continue;
+          // Sparks scatter a little off the path, the same way every time.
+          final angle = n * 2.4;
+          final off = Offset(math.cos(angle), math.sin(angle)) * (base * 0.5 * n);
+          canvas.drawCircle(was.center + off, base * (0.42 - 0.08 * n), Paint()..color = color.withValues(alpha: 0.8 - 0.17 * n));
+        }
+    }
+  }
+
+  static final _signPainters = <DotSign, TextPainter>{};
+  static const _signFontSize = 64.0;
+
+  /// The cue's glyph inside the grown dot, in stage black.
+  void _paintSign(Canvas canvas, DotSign sign, Offset center, double r, double alpha) {
+    final painter = _signPainters.putIfAbsent(sign, () {
+      final icon = switch (sign) {
+        DotSign.pause => cueIcon(MarkKind.pauseShort),
+        DotSign.pauseLong => cueIcon(MarkKind.pauseShort),
+        DotSign.breath => cueIcon(MarkKind.breath),
+        DotSign.slower => cueIcon(MarkKind.slower),
+        DotSign.faster => cueIcon(MarkKind.faster),
+        DotSign.energy => cueIcon(MarkKind.energy),
+        DotSign.listen => Icons.mic_rounded,
+      };
+      return TextPainter(
+        text: TextSpan(
+          text: String.fromCharCode(icon.codePoint),
+          style: TextStyle(
+            fontFamily: icon.fontFamily,
+            package: icon.fontPackage,
+            fontSize: _signFontSize,
+            color: SaPalette.dark.stage,
+          ),
+        ),
+        textDirection: TextDirection.ltr,
+      )..layout();
+    });
+    final scale = r * 1.35 / _signFontSize;
+    final rect = Rect.fromCircle(center: center, radius: r);
+    canvas.saveLayer(rect, Paint()..color = SaPalette.dark.stage.withValues(alpha: alpha));
+    canvas.translate(center.dx, center.dy);
+    canvas.scale(scale);
+    painter.paint(canvas, Offset(-painter.width / 2, -painter.height / 2));
     canvas.restore();
   }
 

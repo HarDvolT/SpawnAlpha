@@ -96,7 +96,14 @@ On top of the motion, and only when Kinetic is on (the default):
 Kinetic can be switched to **Still**, which keeps only the motion, the guide and the holds. Reduced motion forces Still.
 
 ### 5b. The guide
-- **The bouncing dot** arcs from word to word and lands on each as it starts, squashing a little. It acts out the cues: higher and amber into a stressed word (with a burst), low and long in slow runs, short skips in fast runs, sparks in energy runs. It rests on a pause glyph while a ring closes around it, swells on a breath, and hops on to the next word in the last 160ms of the hold. With Voice pace it bobs while it waits. Full rules in Prompter.
+- **The bouncing dot** arcs from word to word and lands on each as it starts, squashing a little. It **becomes each cue** as it reaches it:
+  - it climbs and slams onto a stressed word, growing and turning amber, with a shockwave and a strike across the word;
+  - it springs into the pause sign on a pause glyph while a timer ring drains;
+  - it inhales and exhales on a breath;
+  - it announces each run with the run's glyph, then turns heavy with echoes (slower), light with streaks (faster), or pulsing with sparks (energy);
+  - it grows a microphone and bobs while voice pace waits.
+
+  Full rules in Prompter, "The bouncing dot".
 - **The underline** fills across the current word in the reading direction over the word's time.
 - **The spotlight** fades words in and out over `dur-quick`.
 - Reduced motion: the dot jumps without arcs or effects, and the underline appears full.

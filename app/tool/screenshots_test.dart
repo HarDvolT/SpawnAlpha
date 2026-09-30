@@ -19,6 +19,7 @@ import 'package:spawnalpha/src/app.dart';
 import 'package:spawnalpha/src/markup/local_markup_engine.dart';
 import 'package:spawnalpha/src/markup/markup_engine.dart';
 import 'package:spawnalpha/src/markup/providers.dart';
+import 'package:spawnalpha/src/model/mark.dart';
 import 'package:spawnalpha/src/model/mark_editing.dart';
 import 'package:spawnalpha/src/model/samples.dart';
 import 'package:spawnalpha/src/model/script_document.dart';
@@ -221,23 +222,52 @@ void main() {
     });
   }
 
-  testWidgets('prompter, the dot lands on a stressed word', (tester) async {
-    final script = await _markedUp(sampleScripts()[0]);
-    await shoot(tester, 'prompter-dot-stress', phone, (_) => PrompterScreen(script: script), [script], settle: false,
-        before: (tester) async {
-      await tester.pump(const Duration(milliseconds: 300));
-      final controller = tester.widget<PrompterView>(find.byType(PrompterView)).controller;
-      final word = controller.tokens.indexWhere((t) => t.text == '12,000');
-      controller.seekToToken(word);
-      controller.play();
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 120));
-      controller.pause();
-      // The view glides on to the word's line.
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 300));
+  // The dot acting out each cue in the English sample: landing on a
+  // stressed word, as the pause sign, inhaling, and announcing a run.
+  final dotMoments = <String, Duration Function(PrompterController)>{
+    'stress': (c) => c.timeline.startOf(c.tokens.indexWhere((t) => t.text == '12,000')) + const Duration(milliseconds: 60),
+    'pause': (c) {
+      final m = c.marks.firstWhere((m) => m.kind == MarkKind.pauseShort || m.kind == MarkKind.pauseLong);
+      return c.timeline.endOf(m.end) + const Duration(milliseconds: 260);
+    },
+    'breath': (c) {
+      final m = c.marks.firstWhere((m) => m.kind == MarkKind.breath);
+      final (start, end) = c.timeline.holdAt(c.timeline.endOf(m.end) + const Duration(milliseconds: 1))!;
+      return start + (end - start) * 0.5;
+    },
+    'announce': (c) {
+      final m = c.marks.firstWhere((m) => m.kind == MarkKind.energy);
+      return c.timeline.startOf(m.start) + const Duration(milliseconds: 180);
+    },
+  };
+  for (final moment in dotMoments.entries) {
+    testWidgets('prompter, the dot acts out: ${moment.key}', (tester) async {
+      var script = await _markedUp(sampleScripts()[0]);
+      if (!script.marks.any((m) => m.kind == MarkKind.breath)) {
+        // The sample has no breath: add one after "before,".
+        final after = script.tokens.indexWhere((t) => t.text == 'before,');
+        script = script.copyWith(
+          marks: normalizeMarks([...script.marks, Mark.gap(id: 'breath', kind: MarkKind.breath, after: after)], script.tokens.length),
+        );
+      }
+      await shoot(tester, 'prompter-dot-${moment.key}', phone, (_) => PrompterScreen(script: script), [script],
+          settle: false, before: (tester) async {
+        await tester.pump(const Duration(milliseconds: 300));
+        final controller = tester.widget<PrompterView>(find.byType(PrompterView)).controller;
+        final target = moment.value(controller);
+        // Start a little before, so the view has settled on the line.
+        final token = controller.timeline.tokenAt(target);
+        controller.seekToToken(token);
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 400));
+        controller.play();
+        await tester.pump();
+        await tester.pump(target - controller.position);
+        controller.pause();
+        await tester.pump();
+      });
     });
-  });
+  }
 
   testWidgets('record screen, no camera', (tester) async {
     CameraPlatform.instance = _NoCameras();

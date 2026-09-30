@@ -61,26 +61,28 @@ The guide marks the current word. It is always one mark, never two, and it follo
 
 ### The bouncing dot
 
-The dot is white (`stage-text`). It takes a cue's colour only while it acts that cue out, so its colour always means something.
+The dot **becomes each cue** as it reaches it: it grows, takes the cue's colour, shows the cue's glyph inside itself and moves the way the speaker should. Between cues it is a small white ball (`stage-text`), so its colour and size always mean something.
 
-| Moment | What the dot does |
-|---|---|
-| A word starts | It lands on the word (just above it, a third of the way in from the leading edge) with a small squash, then arcs toward the next word so it arrives as that word starts |
-| A stressed word | It jumps higher (36px arc instead of 22px), lands in `stage-stress`, and the landing throws a ring that grows and fades (`burst`) |
-| A slower run | Low, long arcs (14px), in `stage-slower` |
-| A faster run | Short skips (9px), in `stage-faster` |
-| An energy run | It throws small sparks in `stage-energy` as it travels |
-| A new line | An 18px arc down to the start of the next line |
-| A pause or long pause | It hops onto the pause glyph and rests there. A ring in `stage-pause` closes around it over exactly the length of the hold |
-| A breath | It rests on the breath glyph and swells in `stage-breath` like an inhale, then settles |
-| The last 160ms of a hold | It hops on to the next word, so the speaker sees the restart coming |
-| Voice pace, waiting | It hovers over the next word and bobs gently until the voice starts |
+| Moment | What the dot does | What it tells the speaker |
+|---|---|---|
+| A word starts | Lands on the word (just above it, a third in from the leading edge) with a small squash, then arcs to the next word so it arrives as that word starts. | say this word now |
+| Into a stressed word | Climbs higher (0.95em), then drops hard, turning `stage-stress` and growing to 1.8×. It lands with a hard squash, a shockwave, and an amber **strike** drawn across the word. It settles to 1.2× while the word lasts. | hit this word |
+| A pause or long pause | Drops onto the pause glyph and **grows into the pause sign**: a `stage-pause` disc (2.3×, long pause 2.9×) with the pause bars inside, springing in. A **timer ring** around it drains over exactly the hold. It shrinks back and hops on in the last 160ms. | stop until the ring runs out |
+| A breath | Lands on the breath glyph and **inhales**: it swells to 2.6× in `stage-breath` with the breath glyph inside, then exhales back over the hold. | breathe in, then go |
+| A slower run opens | Grows for a moment with the slow chevrons inside, in `stage-slower`. | slow down from here |
+| In a slower run | Heavy: 1.3×, low long arcs (0.3em), with three fading **echoes** behind it, like slow motion. | keep it slow |
+| A faster run opens | Grows for a moment with the fast chevrons inside, in `stage-faster`. | speed up from here |
+| In a faster run | Light: 0.8×, short skips (0.18em), stretched along its path, with **streaks** behind it. | keep it quick |
+| An energy run opens | Grows for a moment with the bolt inside, in `stage-energy`. | lift your energy |
+| In an energy run | Pulses three times a second (up to 1.25× plus the beat), bouncy arcs (0.7em), throwing **sparks**. | stay up |
+| A new line | Stays on the line's last word for most of it, then swoops (0.4em) to the next line, rather than crossing the line being read. | the next line |
+| Voice pace, waiting | Grows to 1.9× with a **microphone** inside, above the next word, and bobs until the voice starts. | your turn to speak |
 
-- Size: about 0.4 of the type size (18px at 44px text), with a soft glow in its own colour.
-- It never covers a letter: it rides above the x-height, and its arcs stay within the line gap.
-- Positions come from the laid-out word boxes, never from animated ones, so the kinetic effects never throw it off.
-- Right to left: it travels right to left, and lands a third of the way in from the word's right edge.
-- Reduced motion: the dot jumps from word to word with no arc, squash, burst or sparks.
+- Resting size: about 0.4 of the type size (18px at 44px text), with a soft glow in its own colour. Signs are drawn in `stage` black on the grown disc, from the cue vocabulary's glyphs.
+- Positions come from the laid-out word boxes, never from animated ones, so the kinetic effects never throw it off. It is painted above the read-zone fade, so it is never dimmed.
+- Right to left: it travels right to left, lands a third in from the word's right edge, and the strike draws from the right.
+- **Still** keeps the dot's size, colour, signs and timer ring, and drops the extras: shockwave, strike, echoes, streaks and sparks.
+- **Reduced motion:** the dot jumps from word to word with no arcs, squash, pulsing or bobbing. It still shows each cue's colour, sign and full size, and the timer ring still drains.
 
 ## Cues on the stage
 
