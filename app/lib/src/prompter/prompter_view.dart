@@ -121,7 +121,7 @@ class PrompterViewState extends State<PrompterView> with SingleTickerProviderSta
   }
 
   void _syncTicker() {
-    final run = _c.isPlaying && _c.mode == ScrollMode.timed;
+    final run = _c.isPlaying && _c.mode != ScrollMode.manual;
     if (run && !_ticker.isActive) {
       _lastTick = Duration.zero;
       _ticker.start();
@@ -134,17 +134,27 @@ class PrompterViewState extends State<PrompterView> with SingleTickerProviderSta
     final delta = elapsed - _lastTick;
     _lastTick = elapsed;
     _c.advance(delta);
-    _scrollToController();
+    _scrollToController(glide: delta);
     _frame.value++;
   }
 
-  void _scrollToController({bool animate = false}) {
+  /// Glide time constant: the view settles on a new line in about 300 ms,
+  /// without overshoot (like `spring-smooth`).
+  static const _glideTau = 0.09;
+
+  void _scrollToController({bool animate = false, Duration? glide}) {
     final layout = _layout;
     if (layout == null || !_scroll.hasClients) return;
     final y = layout.scrollYAt(_c.timeline, _c.position).clamp(0.0, _scroll.position.maxScrollExtent);
     if ((y - _scroll.offset).abs() < 0.5) return;
     _programmaticScroll = true;
-    if (animate) {
+    if (glide != null) {
+      // Ease toward the line being read, a little further each frame.
+      final k = 1 - math.exp(-(glide.inMicroseconds / 1e6) / _glideTau);
+      final next = _scroll.offset + (y - _scroll.offset) * k;
+      _scroll.jumpTo((y - next).abs() < 0.5 ? y : next);
+      _programmaticScroll = false;
+    } else if (animate) {
       _scroll
           .animateTo(y, duration: const Duration(milliseconds: 250), curve: Curves.easeOut)
           .whenComplete(() => _programmaticScroll = false);
@@ -278,7 +288,9 @@ class PrompterViewState extends State<PrompterView> with SingleTickerProviderSta
       final measured = _layoutKey == layoutKey;
       final kineticPainter = _KineticPainter(
         layout: measured ? _layout : null,
-        kinetic: measured && widget.kinetic ? _kineticLayout : null,
+        kinetic: measured ? _kineticLayout : null,
+        effects: widget.kinetic,
+        rtl: isRtl,
         controller: _c,
         scroll: _scroll,
         origin: Offset(gutter, readingY),
@@ -363,7 +375,14 @@ class PrompterViewState extends State<PrompterView> with SingleTickerProviderSta
           top: readingY - 2,
           left: 0,
           right: 0,
-          child: IgnorePointer(child: _ReadingLine(gutter: gutter, rtl: isRtl)),
+          child: IgnorePointer(
+            child: _ReadingLine(
+              gutter: gutter,
+              rtl: isRtl,
+              listening: _c.mode == ScrollMode.voice && _c.isPlaying ? _c.speaking : null,
+              lineHeight: lineHeight,
+            ),
+          ),
         ),
         Positioned(
           top: readingY - widget.fontSize * 1.6,
@@ -389,20 +408,41 @@ class PrompterViewState extends State<PrompterView> with SingleTickerProviderSta
 
 /// A marker at the reading line, on the side the text starts from.
 class _ReadingLine extends StatelessWidget {
-  const _ReadingLine({required this.gutter, required this.rtl});
+  const _ReadingLine({required this.gutter, required this.rtl, required this.lineHeight, this.listening});
 
   final double gutter;
   final bool rtl;
 
+  /// The caret points at the middle of the line being read, just below.
+  final double lineHeight;
+
+  /// In voice mode: whether the speaker is heard (the caret lights up in
+  /// amber), or null in other modes.
+  final bool? listening;
+
   @override
   Widget build(BuildContext context) {
     final stage = SaPalette.dark;
-    final arrow = Icon(rtl ? Icons.arrow_left_rounded : Icons.arrow_right_rounded, color: stage.stageChromeText, size: 32);
+    final heard = listening ?? false;
+    final arrow = AnimatedScale(
+      scale: heard ? 1.25 : 1,
+      duration: SaDurations.quick,
+      child: Icon(
+        rtl ? Icons.arrow_left_rounded : Icons.arrow_right_rounded,
+        color: heard ? stage.stageStress : stage.stageChromeText,
+        size: 32,
+      ),
+    );
     return SizedBox(
       height: 4,
       child: Stack(clipBehavior: Clip.none, children: [
         Positioned.fill(child: ColoredBox(color: stage.stageLine)),
-        Positioned(top: -14, left: rtl ? null : gutter * 0.5 - 20, right: rtl ? gutter * 0.5 - 20 : null, child: arrow),
+        Positioned(
+          top: lineHeight / 2 - 16,
+          left: rtl ? null : gutter * 0.5 - 20,
+          right: rtl ? gutter * 0.5 - 20 : null,
+          child: arrow,
+        ),
       ]),
     );
   }
@@ -550,6 +590,7 @@ class _KineticLayout {
     required this.slower,
     required this.gapGlyphs,
     required this.lineHeight,
+    required this.tokenBoxes,
   });
 
   factory _KineticLayout.measure({
@@ -613,7 +654,16 @@ class _KineticLayout {
       }
     }
     final lineHeight = fontSize * (style.height ?? 1.45);
+    // Every word's box, for the current-word guide.
+    final tokenBoxes = [
+      for (var i = 0; i < tokens.length; i++)
+        () {
+          final found = boxes(startOf(i), endOf(i));
+          return found.isEmpty ? null : found.first;
+        }(),
+    ];
     return _KineticLayout(
+      tokenBoxes: tokenBoxes,
       stressWords: stressWords,
       energy: energy,
       faster: faster,
@@ -629,6 +679,9 @@ class _KineticLayout {
   final List<(int firstToken, List<Rect> boxes)> slower;
   final List<(int token, MarkKind kind, Rect glyph)> gapGlyphs;
   final double lineHeight;
+
+  /// The first box of every token, or null for tokens with no box.
+  final List<Rect?> tokenBoxes;
 
   void dispose() {
     for (final w in stressWords) {
@@ -653,10 +706,18 @@ class _KineticPainter {
     required this.origin,
     required this.colors,
     required this.repaint,
+    required this.effects,
+    required this.rtl,
   });
 
   final PrompterLayout? layout;
   final _KineticLayout? kinetic;
+
+  /// Kinetic effects on. Off (Still), only the current-word guide is drawn.
+  final bool effects;
+
+  /// The script runs right to left: the guide fills from the right.
+  final bool rtl;
   final PrompterController controller;
   final ScrollController scroll;
 
@@ -694,12 +755,55 @@ class _KineticLayer extends CustomPainter {
     canvas.save();
     canvas.translate(p.origin.dx, p.origin.dy);
     if (over) {
-      _paintStress(canvas, k);
-      _paintHits(canvas, k);
-    } else {
+      if (p.effects) _paintStress(canvas, k);
+      _paintGuide(canvas, k);
+      if (p.effects) _paintHits(canvas, k);
+    } else if (p.effects) {
       _paintGlows(canvas, k);
     }
     canvas.restore();
+  }
+
+  /// The current-word guide: words already said on the reading line dim,
+  /// and an amber underline fills across the word to say now, over its
+  /// planned length. In voice mode it stops when the speaker stops.
+  void _paintGuide(Canvas canvas, _KineticLayout k) {
+    final c = p.controller;
+    final timeline = c.timeline;
+    final layout = p.layout;
+    if (timeline.isEmpty || layout == null || c.state == PlaybackState.ready) return;
+    final current = c.currentToken.clamp(0, k.tokenBoxes.length - 1);
+    final box = k.tokenBoxes[current];
+    if (box == null) return;
+    // Dim what has been said on this line.
+    final line = layout.lineOfToken[current];
+    final dim = Paint()..color = SaPalette.dark.stage.withValues(alpha: 0.55);
+    for (var i = layout.firstTokenOn(line); i < current; i++) {
+      final b = k.tokenBoxes[i];
+      if (b != null) canvas.drawRect(b.inflate(2), dim);
+    }
+    // Fill the underline across the word as it is said.
+    final start = timeline.startOf(current);
+    final length = timeline.endOf(current) - start;
+    final said = length.inMicroseconds <= 0
+        ? 1.0
+        : ((c.position - start).inMicroseconds / length.inMicroseconds).clamp(0.0, 1.0);
+    final rtl = p.rtl;
+    final y = box.bottom + 3;
+    final track = Paint()
+      ..color = p.colors.stress.withValues(alpha: 0.28)
+      ..strokeWidth = 4
+      ..strokeCap = StrokeCap.round;
+    canvas.drawLine(Offset(box.left, y), Offset(box.right, y), track);
+    final fill = track..color = p.colors.stress;
+    final w = box.width * said;
+    if (w > 0) {
+      canvas.drawLine(
+        Offset(rtl ? box.right - w : box.left, y),
+        Offset(rtl ? box.right : box.left + w, y),
+        fill,
+      );
+    }
   }
 
   void _paintGlows(Canvas canvas, _KineticLayout k) {
@@ -791,5 +895,9 @@ class _KineticLayer extends CustomPainter {
 
   @override
   bool shouldRepaint(_KineticLayer old) =>
-      old.p.kinetic != p.kinetic || old.p.origin != p.origin || old.p.layout != p.layout || old.p.colors != p.colors;
+      old.p.kinetic != p.kinetic ||
+      old.p.effects != p.effects ||
+      old.p.origin != p.origin ||
+      old.p.layout != p.layout ||
+      old.p.colors != p.colors;
 }

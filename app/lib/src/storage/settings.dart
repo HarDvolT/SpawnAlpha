@@ -61,6 +61,10 @@ class Settings extends ChangeNotifier {
   /// off is Still. Reduced motion forces Still whatever this says.
   bool kinetic = true;
 
+  /// The microphone takes record from (Windows endpoint ID); null for the
+  /// system default.
+  String? audioInputId;
+
   static String _keyName(MarkupProvider p) => 'api_key_${p.name}';
 
   ProviderConfig configOf(MarkupProvider p) => _configs[p] ?? ProviderConfig.defaults(p);
@@ -130,6 +134,7 @@ class Settings extends ChangeNotifier {
     fontSize = (json['fontSize'] as num?)?.toDouble() ?? fontSize;
     mirror = json['mirror'] as bool? ?? mirror;
     kinetic = json['kinetic'] as bool? ?? kinetic;
+    audioInputId = json['audioInputId'] as String?;
   }
 
   Map<String, Object?> toJson() => {
@@ -139,6 +144,7 @@ class Settings extends ChangeNotifier {
         'fontSize': fontSize,
         'mirror': mirror,
         'kinetic': kinetic,
+        if (audioInputId != null) 'audioInputId': audioInputId,
       };
 
   Future<void> update(void Function(Settings s) change) async {

@@ -9,6 +9,11 @@ enum ScrollMode {
   /// The prompter scrolls itself at the planned pace, holding at pauses.
   timed,
 
+  /// The prompter moves at the planned pace only while the speaker is
+  /// talking, and waits when they stop. Planned pauses still run out in
+  /// silence. Needs a microphone level (see [PrompterController.speaking]).
+  voice,
+
   /// The user scrolls by hand, with a scroll wheel, a drag or the keys.
   manual,
 }
@@ -62,6 +67,21 @@ class PrompterController extends ChangeNotifier {
 
   int _currentToken = 0;
   int get currentToken => _currentToken;
+
+  bool _speaking = false;
+
+  /// Whether the speaker is talking, fed from the microphone in voice mode.
+  bool get speaking => _speaking;
+
+  set speaking(bool value) {
+    if (value == _speaking) return;
+    _speaking = value;
+    if (mode == ScrollMode.voice) notifyListeners();
+  }
+
+  /// True while voice mode is waiting for the speaker to go on.
+  bool get waitingForVoice =>
+      mode == ScrollMode.voice && isPlaying && !_speaking && !_timeline.isHolding(_position);
 
   MarkKind? _holding;
 
@@ -127,9 +147,11 @@ class PrompterController extends ChangeNotifier {
   }
 
   /// Moves time forward by [elapsed] of wall-clock time. Call it every
-  /// frame; it does nothing unless the timed scroll is playing.
+  /// frame; it does nothing unless the scroll is playing on its own (timed,
+  /// or voice while the speaker talks or a planned pause runs out).
   void advance(Duration elapsed) {
-    if (!isPlaying || mode != ScrollMode.timed) return;
+    if (!isPlaying || mode == ScrollMode.manual) return;
+    if (waitingForVoice) return;
     final next = _position + elapsed * _speed;
     if (next >= _timeline.total) {
       _seek(_timeline.total);

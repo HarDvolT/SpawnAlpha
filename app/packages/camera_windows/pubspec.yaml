@@ -1,0 +1,27 @@
+name: camera_windows
+description: >-
+  The camera_windows plugin (0.3.0, from flutter/packages), vendored with
+  SpawnAlpha changes: it records from the chosen or default microphone and
+  lists and meters microphones. See README.md.
+version: 0.3.0+spawnalpha.1
+publish_to: none
+
+environment:
+  sdk: ^3.11.0
+  flutter: ">=3.41.0"
+
+flutter:
+  plugin:
+    implements: camera
+    platforms:
+      windows:
+        pluginClass: CameraWindows
+        dartPluginClass: CameraWindows
+
+dependencies:
+  camera_platform_interface: ^2.14.0
+  cross_file: ^0.3.1
+  flutter:
+    sdk: flutter
+  meta: ^1.10.0
+  stream_transform: ^2.0.0

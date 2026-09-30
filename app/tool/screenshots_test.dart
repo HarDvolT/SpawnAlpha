@@ -22,7 +22,9 @@ import 'package:spawnalpha/src/markup/providers.dart';
 import 'package:spawnalpha/src/model/mark_editing.dart';
 import 'package:spawnalpha/src/model/samples.dart';
 import 'package:spawnalpha/src/model/script_document.dart';
+import 'package:spawnalpha/src/prompter/prompter_controller.dart';
 import 'package:spawnalpha/src/prompter/prompter_view.dart';
+import 'package:spawnalpha/src/recording/audio_input.dart';
 import 'package:spawnalpha/src/storage/script_store.dart';
 import 'package:spawnalpha/src/storage/settings.dart';
 import 'package:spawnalpha/src/theme/theme.dart';
@@ -60,6 +62,30 @@ Future<void> _loadFonts() async {
   await Future.wait([text.load(), icons.load(), for (final v in voices) v.load()]);
 }
 
+/// A microphone for screenshots: two inputs, and someone talking.
+class _TalkingMic implements AudioInputs {
+  @override
+  bool get supported => true;
+
+  @override
+  Future<List<AudioInput>> list() async => const [
+        AudioInput(id: 'headset', name: 'Headset microphone', isDefault: true),
+        AudioInput(id: 'webcam', name: 'Webcam microphone', isDefault: false),
+      ];
+
+  @override
+  Future<void> select(String? id) async {}
+
+  @override
+  Future<void> startLevels(String? id) async {}
+
+  @override
+  Future<void> stopLevels() async {}
+
+  @override
+  Future<MicLevel> level() async => const MicLevel(peakDb: -12, rmsDb: -22);
+}
+
 /// No camera in a container: the record screen shows its chrome and says so.
 // This file runs under `flutter test`, but lives in tool/ rather than test/.
 // ignore: invalid_use_of_visible_for_testing_member
@@ -84,7 +110,7 @@ void main() {
     );
   });
 
-  Future<AppServices> services(List<ScriptDocument> scripts) async {
+  Future<AppServices> services(List<ScriptDocument> scripts, {AudioInputs? audio}) async {
     final library = ScriptLibrary(MemoryScriptStore());
     for (final s in scripts.reversed) {
       await library.save(s);
@@ -93,16 +119,20 @@ void main() {
       library: library,
       settings: Settings(secrets: MemorySecretStore()),
       recordingsDir: Directory.systemTemp,
+      audio: audio ?? const UnsupportedAudioInputs(),
     );
   }
 
   Future<void> shoot(WidgetTester tester, String name, Size size, Widget Function(AppServices) screen,
       List<ScriptDocument> scripts,
-      {Future<void> Function(WidgetTester)? before, Brightness brightness = Brightness.light, bool settle = true}) async {
+      {Future<void> Function(WidgetTester)? before,
+      Brightness brightness = Brightness.light,
+      bool settle = true,
+      AudioInputs? audio}) async {
     tester.view.physicalSize = size;
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
-    final app = await services(scripts);
+    final app = await services(scripts, audio: audio);
     await tester.pumpWidget(AppScope(
       services: app,
       child: MaterialApp(
@@ -136,6 +166,24 @@ void main() {
       final start = page.plainText.indexOf('12,000');
       await tester.tapAt(page.localToGlobal(page.rectOf(start, start + 6)!.center));
       await tester.pumpAndSettle();
+    });
+  });
+
+  testWidgets('prompter, voice pacing with the word guide', (tester) async {
+    final script = await _markedUp(sampleScripts()[0]);
+    await shoot(tester, 'prompter-en-voice', phone, (_) => PrompterScreen(script: script), [script],
+        audio: _TalkingMic(), settle: false, before: (tester) async {
+      await tester.pump(const Duration(milliseconds: 300));
+      final controller = tester.widget<PrompterView>(find.byType(PrompterView)).controller;
+      expect(controller.mode, ScrollMode.voice);
+      controller.seekToToken(12);
+      controller.play();
+      await tester.pump();
+      // Half-way through the word.
+      final word = controller.timeline.endOf(12) - controller.timeline.startOf(12);
+      await tester.pump(word * 0.5);
+      controller.pause();
+      await tester.pump(const Duration(milliseconds: 250));
     });
   });
 

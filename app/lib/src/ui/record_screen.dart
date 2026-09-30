@@ -9,8 +9,10 @@ import '../app.dart';
 import '../model/script_document.dart';
 import '../prompter/prompter_controller.dart';
 import '../prompter/prompter_view.dart';
-import 'format.dart';
+import '../recording/mic_monitor.dart';
+import '../recording/mp4.dart';
 import '../theme/theme.dart';
+import 'format.dart';
 import 'prompter_controls.dart';
 import 'recording_widgets.dart';
 
@@ -43,7 +45,12 @@ class _RecordScreenState extends State<RecordScreen> with WidgetsBindingObserver
   Timer? _clock;
   bool _saving = false;
 
+  /// The chosen microphone: meter, voice pacing and the silent-take check.
+  MicMonitor? _mic;
+
   bool get _recording => _camera?.value.isRecordingVideo ?? false;
+
+  bool get _voiceAvailable => _mic?.supported ?? false;
 
   @override
   void initState() {
@@ -51,7 +58,39 @@ class _RecordScreenState extends State<RecordScreen> with WidgetsBindingObserver
     WidgetsBinding.instance.addObserver(this);
     WakelockPlus.enable();
     _prompter.addListener(_onPrompter);
-    _setUpCameras();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_mic != null) return;
+    _mic = MicMonitor(AppScope.of(context).audio)..addListener(_onMic);
+    _setUp();
+  }
+
+  /// Chooses the microphone before the camera opens, because the camera
+  /// records from the microphone chosen when it is created.
+  Future<void> _setUp() async {
+    final mic = _mic!;
+    try {
+      await mic.start(AppScope.of(context).settings.audioInputId);
+      // Where the microphone can be heard, the prompter follows the voice.
+      if (mic.supported) _prompter.setMode(ScrollMode.voice);
+    } on Object catch (e) {
+      debugPrint('Microphone monitor unavailable: $e');
+    }
+    if (mounted) await _setUpCameras();
+  }
+
+  void _onMic() => _prompter.speaking = _mic!.speaking;
+
+  Future<void> _chooseMic(String? id) async {
+    final mic = _mic;
+    if (mic == null) return;
+    await AppScope.of(context).settings.update((s) => s.audioInputId = id);
+    await mic.choose(id);
+    // Reopen the camera so the next take records from this microphone.
+    if (!_recording && _countdown == null && _cameras.isNotEmpty && mounted) await _openCamera(_cameraIndex);
   }
 
   @override
@@ -63,6 +102,8 @@ class _RecordScreenState extends State<RecordScreen> with WidgetsBindingObserver
     _prompter.removeListener(_onPrompter);
     _prompter.dispose();
     _camera?.dispose();
+    _mic?.removeListener(_onMic);
+    _mic?.dispose();
     super.dispose();
   }
 
@@ -176,12 +217,13 @@ class _RecordScreenState extends State<RecordScreen> with WidgetsBindingObserver
       if (mounted) showMessage(context, _describe(e));
       return;
     }
+    _mic?.resetLoudest();
     _stopwatch
       ..reset()
       ..start();
     _clock = Timer.periodic(const Duration(milliseconds: 500), (_) => setState(() {}));
     if (_prompter.state == PlaybackState.finished) _prompter.restart();
-    if (_prompter.mode == ScrollMode.timed) _prompter.play();
+    if (_prompter.mode != ScrollMode.manual) _prompter.play();
     setState(() {});
   }
 
@@ -193,12 +235,13 @@ class _RecordScreenState extends State<RecordScreen> with WidgetsBindingObserver
     _clock?.cancel();
     _stopwatch.stop();
     final services = AppScope.of(context);
+    final loudest = _mic?.loudestRmsDb;
     try {
       final file = await camera.stopVideoRecording();
       final take = await _keep(file, _stopwatch.elapsed, services.recordingsDir);
       _script = _script.copyWith(takes: [..._script.takes, take]);
       await services.library.save(_script);
-      if (mounted) _showSaved(take);
+      if (mounted) _showSaved(take, await _soundProblem(take, loudest));
     } on Object catch (e) {
       if (mounted) showMessage(context, 'The take could not be saved: $e');
     } finally {
@@ -233,12 +276,37 @@ class _RecordScreenState extends State<RecordScreen> with WidgetsBindingObserver
     return Take(path: target, recordedAt: now, duration: duration);
   }
 
-  void _showSaved(Take take) {
+  /// Why this take may have no usable sound, or null when it sounds fine.
+  Future<String?> _soundProblem(Take take, double? loudestRmsDb) async {
+    final hasTrack = await mp4HasAudioTrack(File(take.path));
+    if (hasTrack == false) {
+      return 'This take has no sound track. Check the microphone, then record again.';
+    }
+    final mic = _mic;
+    if (mic != null && mic.supported && loudestRmsDb != null && loudestRmsDb < -55) {
+      final name = mic.input?.name ?? 'the microphone';
+      return '$name heard almost nothing during this take. If you spoke, choose another microphone '
+          'and record again.';
+    }
+    return null;
+  }
+
+  void _showSaved(Take take, String? soundProblem) {
     showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Take saved'),
-        content: Text('${formatDuration(take.duration)} recorded.\n\n${take.path}'),
+        title: Text(soundProblem == null ? 'Take saved' : 'Take saved, but check the sound'),
+        content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+          if (soundProblem != null) ...[
+            Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Icon(Icons.mic_off_rounded, color: SaTheme.of(context).danger, size: 20),
+              const SizedBox(width: SaSpace.s2),
+              Expanded(child: Text(soundProblem)),
+            ]),
+            const SizedBox(height: SaSpace.s3),
+          ],
+          Text('${formatDuration(take.duration)} recorded.\n\n${take.path}'),
+        ]),
         actions: [
           TextButton(
             onPressed: () {
@@ -288,6 +356,7 @@ class _RecordScreenState extends State<RecordScreen> with WidgetsBindingObserver
             onFontSize: changeFont,
             onPlayPause: _toggleRecording,
             onKinetic: reduceMotion ? null : () => setKinetic(!settings.kinetic),
+            voiceAvailable: _voiceAvailable,
             child: SafeArea(
               child: Column(children: [
                 Expanded(
@@ -349,9 +418,16 @@ class _RecordScreenState extends State<RecordScreen> with WidgetsBindingObserver
                       top: size.height * 0.42 + SaSpace.s4,
                       left: 0,
                       right: 0,
-                      child: Center(
-                        child: TimecodePill(elapsed: _recording ? _stopwatch.elapsed : Duration.zero, recording: _recording),
-                      ),
+                      child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                        TimecodePill(elapsed: _recording ? _stopwatch.elapsed : Duration.zero, recording: _recording),
+                        if (_voiceAvailable) ...[
+                          const SizedBox(width: SaSpace.s2),
+                          MicChip(
+                            monitor: _mic!,
+                            onTap: _recording ? () {} : () => showMicPicker(context, _mic!, _chooseMic),
+                          ),
+                        ],
+                      ]),
                     ),
                     if (_countdown != null) Center(child: CountdownNumeral(value: _countdown!)),
                   ]),
@@ -369,6 +445,7 @@ class _RecordScreenState extends State<RecordScreen> with WidgetsBindingObserver
                         showPlay: false,
                         kinetic: reduceMotion ? null : settings.kinetic,
                         onKinetic: setKinetic,
+                        voiceAvailable: _voiceAvailable,
                       ),
                       const SizedBox(height: SaSpace.s2),
                       // Take number, record, camera flip: one thumb's reach.

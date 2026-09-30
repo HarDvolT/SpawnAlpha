@@ -52,24 +52,14 @@ class PrompterLayout {
     return best;
   }
 
-  /// The vertical position to put under the reading line at [time].
+  /// The vertical position to put under the reading line at [time]: the
+  /// top of the line being spoken.
   ///
-  /// The scroll moves at an even rate through each line while it is
-  /// spoken, reaching the next line with words as the line's last word
-  /// ends, and it stands still while the timeline holds at a pause.
+  /// The line being read stays still, so the eye can hold its place, and
+  /// the view glides to the next line as its first word starts. During a
+  /// pause nothing moves.
   double scrollYAt(DeliveryTimeline timeline, Duration time) {
     if (timeline.isEmpty || lineOfToken.length != timeline.length) return 0;
-    final token = timeline.tokenAt(time);
-    final line = lineOfToken[token];
-    final first = firstTokenOn(line);
-    final last = lastTokenOn(line);
-    final from = timeline.spokenBefore(first).inMicroseconds;
-    final to = timeline.spokenBefore(last).inMicroseconds +
-        (timeline.endOf(last) - timeline.startOf(last)).inMicroseconds;
-    final spoken = timeline.spokenAt(time).inMicroseconds;
-    final progress = to > from ? ((spoken - from) / (to - from)).clamp(0.0, 1.0) : 1.0;
-    final top = lineTops[line];
-    final next = last + 1 < lineOfToken.length ? topOf(last + 1) : lineBottoms[line];
-    return top + progress * (next - top);
+    return lineTops[lineOfToken[timeline.tokenAt(time)]];
   }
 }

@@ -68,7 +68,7 @@ void main() {
     final tokens = tokenize('aaaa bbbb cccc dddd');
     final layout = PrompterLayout(lineOfToken: [0, 0, 1, 1], lineTops: [0, 40], lineBottoms: [40, 80]);
 
-    test('moves evenly through a line and stands still at a pause', () {
+    test('holds the line being read still and steps to the next line', () {
       final t = DeliveryTimeline.build(
         tokens,
         [const Mark.gap(id: 'p', kind: MarkKind.pauseShort, after: 0)],
@@ -76,18 +76,67 @@ void main() {
         wordsPerMinute: 120,
       );
       expect(layout.scrollYAt(t, Duration.zero), 0);
-      expect(layout.scrollYAt(t, ms * 250), 10);
-      // Holding after the first word: still halfway through line one.
-      expect(layout.scrollYAt(t, ms * 600), 20);
-      expect(layout.scrollYAt(t, t.startOf(1)), 20);
+      expect(layout.scrollYAt(t, ms * 250), 0);
+      // Holding after the first word: still on line one.
+      expect(layout.scrollYAt(t, ms * 600), 0);
+      expect(layout.scrollYAt(t, t.startOf(1)), 0);
+      // The second line's first word moves the view to it.
       expect(layout.scrollYAt(t, t.startOf(2)), 40);
-      expect(layout.scrollYAt(t, t.total), 80);
+      expect(layout.scrollYAt(t, t.total), 40);
     });
 
     test('finds the first word on the line at a position', () {
       expect(layout.tokenAtY(10), 0);
       expect(layout.tokenAtY(50), 2);
       expect(layout.tokenAtY(500), 2);
+    });
+  });
+
+  group('voice pacing', () {
+    ScriptDocument script() => ScriptDocument.create(
+          text: 'aaaa bbbb cccc dddd eeee',
+          language: ScriptLanguage.en,
+          style: CoachingStyle.presentation,
+        ).copyWith(marks: [const Mark.gap(id: 'p', kind: MarkKind.pauseShort, after: 1, accepted: true)]);
+
+    test('moves while the speaker talks and waits when they stop', () {
+      final c = PrompterController(script())..setMode(ScrollMode.voice);
+      c.play();
+      c.advance(ms * 200);
+      expect(c.position, Duration.zero, reason: 'nothing heard yet');
+      expect(c.waitingForVoice, isTrue);
+      c.speaking = true;
+      c.advance(ms * 200);
+      expect(c.position, ms * 200);
+      c.speaking = false;
+      c.advance(ms * 300);
+      expect(c.position, ms * 200, reason: 'the speaker stopped mid-word: wait');
+    });
+
+    test('a planned pause runs out in silence, then waits for the voice', () {
+      final c = PrompterController(script())..setMode(ScrollMode.voice);
+      c.play();
+      c.speaking = true;
+      c.advance(c.timeline.endOf(1) + ms * 10);
+      expect(c.holding, MarkKind.pauseShort);
+      c.speaking = false;
+      // Silence through the whole pause: it still counts down.
+      c.advance(CoachingStyle.presentation.shortPause);
+      expect(c.currentToken, 2);
+      final atNext = c.position;
+      c.advance(ms * 500);
+      expect(c.position, atNext, reason: 'the next word waits for the voice');
+      expect(c.waitingForVoice, isTrue);
+    });
+
+    test('timed and manual modes ignore the microphone', () {
+      final c = PrompterController(script())..play();
+      c.advance(ms * 300);
+      expect(c.position, ms * 300);
+      c.setMode(ScrollMode.manual);
+      c.speaking = true;
+      c.advance(ms * 300);
+      expect(c.position, ms * 300);
     });
   });
 

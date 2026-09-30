@@ -12,6 +12,7 @@ import 'format.dart';
 /// - Up and Down: speed (timed) or line by line (manual)
 /// - Left and Right: previous or next sentence
 /// - T: switch between timed and manual scroll
+/// - V: voice pacing (where a microphone level is available)
 /// - Home: back to the start
 /// - M: mirror
 /// - K: kinetic or still text
@@ -26,6 +27,7 @@ class PrompterShortcuts extends StatelessWidget {
     required this.child,
     this.onPlayPause,
     this.onKinetic,
+    this.voiceAvailable = false,
   });
 
   final PrompterController controller;
@@ -38,6 +40,9 @@ class PrompterShortcuts extends StatelessWidget {
 
   /// Switches between kinetic and still text.
   final VoidCallback? onKinetic;
+
+  /// Whether voice pacing can be chosen (a microphone level is available).
+  final bool voiceAvailable;
   final Widget child;
 
   @override
@@ -61,6 +66,8 @@ class PrompterShortcuts extends StatelessWidget {
           c.nextSentence();
         } else if (key == LogicalKeyboardKey.keyT) {
           c.setMode(manual ? ScrollMode.timed : ScrollMode.manual);
+        } else if (key == LogicalKeyboardKey.keyV && voiceAvailable) {
+          c.setMode(ScrollMode.voice);
         } else if (key == LogicalKeyboardKey.home) {
           c.restart();
         } else if (key == LogicalKeyboardKey.keyM) {
@@ -92,6 +99,7 @@ class PrompterControls extends StatelessWidget {
     this.showPlay = true,
     this.kinetic,
     this.onKinetic,
+    this.voiceAvailable = false,
   });
 
   final PrompterController controller;
@@ -103,6 +111,9 @@ class PrompterControls extends StatelessWidget {
   final bool? kinetic;
   final ValueChanged<bool>? onKinetic;
 
+  /// Whether to offer voice pacing.
+  final bool voiceAvailable;
+
   /// False when a record button drives playback instead.
   final bool showPlay;
 
@@ -112,7 +123,8 @@ class PrompterControls extends StatelessWidget {
       listenable: controller,
       builder: (context, _) {
         final c = controller;
-        final timed = c.mode == ScrollMode.timed;
+        // Timed and voice both run on the planned pace; manual is by hand.
+        final timed = c.mode != ScrollMode.manual;
         final stage = SaPalette.dark;
         final segmentStyle = SegmentedButton.styleFrom(
           foregroundColor: stage.stageChromeText,
@@ -174,9 +186,15 @@ class PrompterControls extends StatelessWidget {
                 SegmentedButton<ScrollMode>(
                   style: segmentStyle,
                   showSelectedIcon: false,
-                  segments: const [
-                    ButtonSegment(value: ScrollMode.timed, label: Text('Timed'), tooltip: 'Scrolls at the planned pace (T)'),
-                    ButtonSegment(value: ScrollMode.manual, label: Text('Manual'), tooltip: 'You scroll (T)'),
+                  segments: [
+                    const ButtonSegment(value: ScrollMode.timed, label: Text('Timed'), tooltip: 'Scrolls at the planned pace (T)'),
+                    if (voiceAvailable)
+                      const ButtonSegment(
+                        value: ScrollMode.voice,
+                        label: Text('Voice'),
+                        tooltip: 'Moves while you talk, waits when you stop (V)',
+                      ),
+                    const ButtonSegment(value: ScrollMode.manual, label: Text('Manual'), tooltip: 'You scroll (T)'),
                   ],
                   selected: {c.mode},
                   onSelectionChanged: (s) => c.setMode(s.single),

@@ -5,8 +5,10 @@ import '../app.dart';
 import '../model/script_document.dart';
 import '../prompter/prompter_controller.dart';
 import '../prompter/prompter_view.dart';
+import '../recording/mic_monitor.dart';
 import '../theme/theme.dart';
 import 'prompter_controls.dart';
+import 'recording_widgets.dart';
 
 /// The prompter on its own, for practice or for use with separate camera
 /// gear.
@@ -23,6 +25,11 @@ class _PrompterScreenState extends State<PrompterScreen> {
   late final _controller = PrompterController(widget.script);
   final _view = GlobalKey<PrompterViewState>();
 
+  /// The microphone, for voice pacing.
+  MicMonitor? _mic;
+
+  bool get _voiceAvailable => _mic?.supported ?? false;
+
   @override
   void initState() {
     super.initState();
@@ -30,9 +37,30 @@ class _PrompterScreenState extends State<PrompterScreen> {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_mic != null) return;
+    final services = AppScope.of(context);
+    final mic = _mic = MicMonitor(services.audio)..addListener(_onMic);
+    mic.start(services.settings.audioInputId).then((_) {
+      if (mounted && mic.supported) _controller.setMode(ScrollMode.voice);
+      if (mounted) setState(() {});
+    }, onError: (Object e) => debugPrint('Microphone monitor unavailable: $e'));
+  }
+
+  void _onMic() => _controller.speaking = _mic!.speaking;
+
+  Future<void> _chooseMic(String? id) async {
+    await AppScope.of(context).settings.update((s) => s.audioInputId = id);
+    await _mic?.choose(id);
+  }
+
+  @override
   void dispose() {
     WakelockPlus.disable();
     _controller.dispose();
+    _mic?.removeListener(_onMic);
+    _mic?.dispose();
     super.dispose();
   }
 
@@ -55,6 +83,7 @@ class _PrompterScreenState extends State<PrompterScreen> {
           onMirror: toggleMirror,
           onFontSize: changeFont,
           onKinetic: reduceMotion ? null : () => setKinetic(!settings.kinetic),
+          voiceAvailable: _voiceAvailable,
           child: SafeArea(
             child: Column(children: [
               Expanded(
@@ -62,7 +91,7 @@ class _PrompterScreenState extends State<PrompterScreen> {
                   Positioned.fill(
                     child: GestureDetector(
                       onTap: () {
-                        if (_controller.mode == ScrollMode.timed) _controller.togglePlay();
+                        if (_controller.mode != ScrollMode.manual) _controller.togglePlay();
                       },
                       child: PrompterView(
                         key: _view,
@@ -83,6 +112,12 @@ class _PrompterScreenState extends State<PrompterScreen> {
                       onPressed: () => Navigator.of(context).maybePop(),
                     ),
                   ),
+                  if (_voiceAvailable)
+                    Positioned(
+                      top: SaSpace.s2,
+                      right: SaSpace.s2,
+                      child: MicChip(monitor: _mic!, onTap: () => showMicPicker(context, _mic!, _chooseMic)),
+                    ),
                 ]),
               ),
               ColoredBox(
@@ -96,6 +131,7 @@ class _PrompterScreenState extends State<PrompterScreen> {
                     onFontSize: changeFont,
                     kinetic: reduceMotion ? null : settings.kinetic,
                     onKinetic: setKinetic,
+                    voiceAvailable: _voiceAvailable,
                   ),
                 ),
               ),

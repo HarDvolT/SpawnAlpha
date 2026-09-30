@@ -143,8 +143,23 @@ The user picks the engine in Settings (`MarkupProvider` in `providers.dart`):
   only on discrete changes: the current word, the pause being held, play
   state, speed or mode. The prompter shows **accepted marks only**.
 - **`PrompterLayout`** maps tokens to screen lines (measured after layout).
-  `scrollYAt(timeline, t)` moves evenly through the line being spoken and
-  reaches the next line with words as the line's last word ends.
+  `scrollYAt(timeline, t)` is the top of the line being spoken. The line being
+  read stays still under the reading line, and the view glides to the next
+  line (about 300 ms, no overshoot) as its first word starts. Testers found a
+  continuous drift hard to read.
+- **Voice pacing** (`ScrollMode.voice`, the default where a microphone level is
+  available, Windows for now):
+  - The timeline advances only while `speaking` is true.
+  - A planned pause still runs out in silence, then the next word waits for
+    the voice.
+  - `VoiceActivity` (pure Dart) turns microphone levels into "speaking", with an
+    adaptive noise floor and hangover.
+  - `MicMonitor` (`lib/src/recording/`) polls the level at 20 Hz.
+- **The current-word guide** is drawn in every mode:
+  - an amber underline fills across the word to say now, over its planned
+    length;
+  - words already said on that line dim;
+  - the reading caret lights amber while the voice is heard.
 - **`PrompterView`** is the widget. It shows:
   - large type on `stage` black, or on glass over a camera (`glass: true`);
   - a reading line at 30% of the height;
@@ -247,6 +262,16 @@ recordings folder.
   - Controls: a glass timecode pill, and the take number, `RecordButton`
     and camera flip in one row (`ui/recording_widgets.dart`).
   - On mobile, the camera is released when the app goes to the background.
+- **Microphone (`lib/src/recording/`)**:
+  - `AudioInputs` lists microphones, chooses the one takes record from, and
+    meters levels. On Windows it goes through the `spawnalpha/audio_input`
+    channel of the vendored camera plugin (`app/packages/camera_windows`).
+    That plugin records from the chosen or default microphone; upstream used
+    the first one listed, which recorded silence on the owner's PC.
+  - The record and practice screens show a `MicChip` (name and meter) and a
+    picker.
+  - After a take, `mp4HasAudioTrack` and the loudest level during the take
+    catch silent recordings, and the save dialog says so.
 - **SettingsScreen**: the markup source, API key, model, default style, text
   size and mirror setting, plus **Privacy and licences**: what leaves the
   device, and the licence page (`showLicensePage`).

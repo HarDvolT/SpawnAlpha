@@ -4,6 +4,7 @@ import 'dart:ui' show ImageFilter;
 import 'package:flutter/material.dart';
 import 'package:flutter/physics.dart';
 
+import '../recording/mic_monitor.dart';
 import '../theme/theme.dart';
 import 'format.dart';
 
@@ -250,4 +251,141 @@ class GlassSurface extends StatelessWidget {
       ),
     );
   }
+}
+
+/// The microphone in use, with a live level meter. Tapping it opens the
+/// picker.
+class MicChip extends StatelessWidget {
+  const MicChip({super.key, required this.monitor, required this.onTap});
+
+  final MicMonitor monitor;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final stage = SaPalette.dark;
+    return ListenableBuilder(
+      listenable: monitor,
+      builder: (context, _) {
+        final failed = monitor.level.failed;
+        final name = failed ? 'Microphone blocked' : (monitor.input?.name ?? 'Microphone');
+        return Semantics(
+          button: true,
+          label: 'Microphone: $name. Choose another.',
+          child: GestureDetector(
+            onTap: onTap,
+            child: GlassSurface(
+              borderRadius: SaRadius.full,
+              padding: const EdgeInsets.fromLTRB(SaSpace.s2, 6, SaSpace.s3, 6),
+              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                Icon(failed ? Icons.mic_off_rounded : Icons.mic_rounded,
+                    size: 16, color: failed ? stage.stageRec : stage.stageText),
+                const SizedBox(width: 6),
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 150),
+                  child: Text(name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: SaType.caption.copyWith(color: stage.stageText, fontWeight: FontWeight.w600)),
+                ),
+                const SizedBox(width: SaSpace.s2),
+                LevelMeter(level: monitor.level.meter, speaking: monitor.speaking),
+              ]),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// Five bars that light with the microphone level. Amber while the speaker
+/// is heard, so voice pacing is easy to trust.
+class LevelMeter extends StatelessWidget {
+  const LevelMeter({super.key, required this.level, this.speaking = false, this.height = 14});
+
+  /// 0 to 1.
+  final double level;
+  final bool speaking;
+  final double height;
+
+  @override
+  Widget build(BuildContext context) {
+    final stage = SaPalette.dark;
+    final on = speaking ? stage.stageStress : stage.stageText;
+    return Row(mainAxisSize: MainAxisSize.min, children: [
+      for (var i = 0; i < 5; i++)
+        AnimatedContainer(
+          duration: const Duration(milliseconds: 80),
+          margin: const EdgeInsets.only(left: 2),
+          width: 3,
+          height: height * (0.4 + 0.15 * i),
+          decoration: BoxDecoration(
+            color: level > i / 5 ? on : stage.stageText.withValues(alpha: 0.22),
+            borderRadius: BorderRadius.circular(2),
+          ),
+        ),
+    ]);
+  }
+}
+
+/// Picks the microphone takes record from, with a live meter and help when
+/// Windows blocks access.
+Future<void> showMicPicker(BuildContext context, MicMonitor monitor, ValueChanged<String?> onChoose) {
+  final stage = SaPalette.dark;
+  return showModalBottomSheet<void>(
+    context: context,
+    backgroundColor: stage.stageChrome,
+    showDragHandle: true,
+    builder: (context) => ListenableBuilder(
+      listenable: monitor,
+      builder: (context, _) {
+        final text = SaType.body.copyWith(color: stage.stageText);
+        final meta = SaType.caption.copyWith(color: stage.stageChromeText);
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(SaSpace.s5, 0, SaSpace.s5, SaSpace.s5),
+            child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+              Text('Microphone', style: SaType.title.copyWith(color: stage.stageText)),
+              const SizedBox(height: SaSpace.s1),
+              Text('Speak: the bars should move. If they stay flat, choose another microphone.', style: meta),
+              const SizedBox(height: SaSpace.s3),
+              if (monitor.available.isEmpty) Text('No microphone found.', style: text),
+              for (final input in monitor.available)
+                InkWell(
+                  borderRadius: BorderRadius.circular(SaRadius.md),
+                  onTap: () => onChoose(input.isDefault ? null : input.id),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: SaSpace.s2, horizontal: SaSpace.s1),
+                    child: Row(children: [
+                      Icon(
+                        input == monitor.input ? Icons.radio_button_checked_rounded : Icons.radio_button_unchecked_rounded,
+                        color: input == monitor.input ? stage.stageStress : stage.stageChromeText,
+                        size: 20,
+                      ),
+                      const SizedBox(width: SaSpace.s3),
+                      Expanded(
+                        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                          Text(input.name, style: text, maxLines: 1, overflow: TextOverflow.ellipsis),
+                          if (input.isDefault) Text('Windows default', style: meta),
+                        ]),
+                      ),
+                      if (input == monitor.input) LevelMeter(level: monitor.level.meter, speaking: monitor.speaking, height: 18),
+                    ]),
+                  ),
+                ),
+              if (monitor.level.failed) ...[
+                const SizedBox(height: SaSpace.s3),
+                Text(
+                  'Windows is blocking the microphone. Open Settings › Privacy & security › Microphone, '
+                  'and turn on "Let desktop apps access your microphone".',
+                  style: meta.copyWith(color: stage.stageRec),
+                ),
+              ],
+            ]),
+          ),
+        );
+      },
+    ),
+  );
 }

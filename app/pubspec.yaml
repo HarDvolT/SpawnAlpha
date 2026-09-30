@@ -41,12 +41,20 @@ dependencies:
   flutter_secure_storage: ^11.2.0
   wakelock_plus: ^1.8.1
 
+# The Windows camera plugin, vendored with a microphone fix and metering
+# (packages/camera_windows/README.md). BSD-3-Clause.
+dependency_overrides:
+  camera_windows:
+    path: packages/camera_windows
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
   # Fakes for the camera in tests and screenshots (both BSD-3).
   camera_platform_interface: ^2.14.0
   plugin_platform_interface: ^2.1.8
+  # Fake timers in tests (Apache-2.0; ships with flutter_test).
+  fake_async: ^1.3.3
 
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is
