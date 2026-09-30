@@ -23,6 +23,7 @@ docs/
   status.md            progress log and next steps; keep it current
   architecture.md      how the code fits together, with the key invariants
   design-language.md   entry point to the design language
+  roadmap.md           proposed product direction (Director's Cut), pushback, build order; awaiting the owner
   design/              the design language: brand book, prompter, recording, motion, tokens, components
 app/                   the Flutter app (package name: spawnalpha)
   lib/main.dart
@@ -61,7 +62,11 @@ app/                   the Flutter app (package name: spawnalpha)
   - use its tokens, and never add literal colours, sizes or durations;
   - keep the Studio (themed) and the Stage (always dark) apart;
   - draw cues only with the cue vocabulary's glyphs and colours;
-  - keep the prompter hidden from capture in the screen modes.
+  - keep the prompter hidden from capture in the screen modes;
+  - drive motion with the `spring` tokens, and never animate anything that reflows script text;
+  - use the four type voices only for their jobs: display for one hero per screen and
+    captions, reading for everything read, signal for timers and stage labels, pencil for
+    the director's notes.
 
   If a change needs something the design language lacks, add it there first.
 

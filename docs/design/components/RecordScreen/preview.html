@@ -1,0 +1,141 @@
+<!-- @dsCard group="Recording" height=660 subtitle="The phone camera screen, end to end: countdown, a take under the lens, and the cut waiting when you stop" -->
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>Record screen — preview</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anybody:wdth,wght@50..150,100..900&family=Readex+Pro:wght@300..700&family=Martian+Mono:wdth,wght@75..112.5,300..800&family=Reem+Kufi:wght@400..700&family=Caveat:wght@500..700&family=Aref+Ruqaa:wght@400;700&family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,400..600,0..1,0&display=block">
+<style>
+  html, body { margin: 0; }
+  body { padding: 16px; }
+  .wrap { display: flex; gap: 28px; align-items: flex-start; justify-content: center; flex-wrap: wrap; }
+  .phone { position: relative; width: 300px; height: 624px; border-radius: 44px; padding: 10px; background: #0b0c10; box-shadow: 0 0 0 2px #2a2d35, var(--shadow-float); flex: none; }
+  .scr { position: relative; width: 100%; height: 100%; border-radius: 35px; overflow: hidden; background: #000; color: var(--stage-text); }
+  .island { position: absolute; left: 50%; top: 10px; width: 92px; height: 26px; margin-left: -46px; border-radius: 13px; background: #000; z-index: 9; display: flex; align-items: center; justify-content: flex-end; padding-right: 10px; }
+  .island i { width: 9px; height: 9px; border-radius: 50%; background: #121826; box-shadow: inset 0 0 2px #4a6fa5; }
+  /* The camera feed: stand-in light and a figure, never a real face. */
+  .feed { position: absolute; inset: 0; background: radial-gradient(60% 40% at 50% 20%, #3a4a6a, transparent 70%), radial-gradient(50% 40% at 80% 70%, #5a3f30, transparent 70%), #121620; }
+  .feed .fig { position: absolute; left: 50%; bottom: 0; width: 76%; height: 62%; transform: translateX(-50%); background: radial-gradient(closest-side at 50% 30%, #6b7488 0 36%, transparent 38%), radial-gradient(62% 48% at 50% 100%, #555d70 0 70%, transparent 71%); filter: blur(1.5px); opacity: 0.8; animation: sway 6s ease-in-out infinite alternate; }
+  @keyframes sway { to { transform: translateX(-48%) rotate(0.6deg); } }
+  /* Prompter glass: right under the lens, three lines, the reading line on the first. */
+  .pglass { position: absolute; left: 10px; right: 10px; top: 44px; height: 132px; border-radius: 22px; overflow: hidden; }
+  .plines { position: absolute; left: 0; right: 0; top: 12px; padding: 0 16px; font-size: 19px; line-height: 34px; font-weight: 500; transition: transform 380ms cubic-bezier(0.2, 0, 0, 1); }
+  .plines .said { color: var(--stage-text-read); }
+  .plines .sa-stress { font-size: 1.1em; display: inline-block; margin: 0 0.1em; }
+  .plines .sa-g { margin: 0 0.1em; }
+  .plines .sa-g.hit .sa-i { animation: hit 520ms cubic-bezier(0.34, 1.56, 0.64, 1); }
+  @keyframes hit { 40% { transform: scale(1.5); } }
+  .pfade { position: absolute; left: 0; right: 0; bottom: 0; height: 48px; background: linear-gradient(transparent, #16171bcc); pointer-events: none; }
+  .rline { position: absolute; left: 8px; top: 29px; width: 0; height: 0; border: 6px solid transparent; border-left-color: var(--stage-chrome-text); border-right: 0; }
+  .top { position: absolute; left: 14px; right: 14px; top: 186px; display: flex; align-items: center; justify-content: space-between; }
+  .tc { display: inline-flex; align-items: center; gap: 7px; height: 28px; padding: 0 12px; border-radius: 14px; font-family: var(--font-signal); font-size: 12px; font-weight: 600; }
+  .modes { display: inline-flex; gap: 2px; padding: 3px; border-radius: 16px; }
+  .modes span { font-size: 11px; font-weight: 600; padding: 4px 9px; border-radius: 12px; color: var(--stage-chrome-text); }
+  .modes span.on { background: var(--stage-text); color: #15171c; }
+  .bottom { position: absolute; left: 0; right: 0; bottom: 26px; display: flex; align-items: center; justify-content: space-around; padding: 0 28px; }
+  .side { width: 46px; height: 46px; border-radius: 50%; display: grid; place-items: center; }
+  .take { font-family: var(--font-display); font-weight: 800; font-size: 15px; font-variation-settings: 'wdth' 118; }
+  /* Countdown and the finish toast. */
+  .count { position: absolute; inset: 0; display: grid; place-items: center; background: #0000004d; opacity: 0; pointer-events: none; transition: opacity 200ms; }
+  .count.on { opacity: 1; }
+  .count span { font-family: var(--font-display); font-size: 120px; font-weight: 900; line-height: 1; text-shadow: 0 6px 30px #00000080; }
+  .count span.pop { animation: cpop 460ms cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+  @keyframes cpop { from { transform: scale(1.4); opacity: 0.2; font-variation-settings: 'wdth' 150; } to { transform: none; opacity: 1; font-variation-settings: 'wdth' 100; } }
+  .toast { position: absolute; left: 12px; right: 12px; bottom: 116px; padding: 12px 14px; border-radius: 18px; display: flex; gap: 10px; align-items: center; transform: translateY(24px); opacity: 0; transition: transform 420ms cubic-bezier(0.34, 1.56, 0.64, 1), opacity 200ms; }
+  .toast.on { transform: none; opacity: 1; }
+  .toast .ic { width: 36px; height: 36px; border-radius: 12px; background: var(--cue); color: #15171c; display: grid; place-items: center; flex: none; }
+  .toast b { display: block; font-size: 14px; }
+  .toast small { font-size: 12px; color: var(--stage-chrome-text); }
+  .toast .go { margin-left: auto; font-size: 12px; font-weight: 700; color: var(--stage-stress); }
+  /* Pencil annotations beside the phone. */
+  .notes { width: 250px; display: flex; flex-direction: column; gap: 34px; padding-top: 40px; }
+  .notes .sa-note { position: relative; display: block; }
+  .notes .sa-note::before { content: ''; position: absolute; right: calc(100% + 8px); top: 12px; width: 26px; height: 1.5px; background: var(--ink-3); border-radius: 1px; }
+  .notes .num { font-family: var(--font-signal); font-size: 10px; font-weight: 700; letter-spacing: 0.1em; color: var(--ink-3); display: block; margin-bottom: 2px; }
+  @media (max-width: 640px) { .notes { width: 100%; padding-top: 0; gap: 14px; } .notes .sa-note::before { display: none; } }
+  @media (prefers-reduced-motion: reduce) { .feed .fig { animation: none; } .plines, .toast { transition: none; } }
+</style>
+</head>
+<body class="sa">
+<div class="wrap">
+  <div class="phone">
+    <div class="scr">
+      <span class="island"><i></i></span>
+      <div class="feed"><div class="fig"></div></div>
+      <div class="pglass sa-glass sa-stage" style="background:var(--stage-glass)"><span class="rline"></span><div class="plines" id="lines"></div><div class="pfade"></div></div>
+      <div class="top">
+        <span class="tc sa-glass" id="tc"><span class="sa-tally paused" id="tally" style="width:8px;height:8px"></span><span id="time">00:00</span></span>
+        <span class="modes sa-glass"><span class="on">Camera</span><span>Screen</span><span>Both</span></span>
+      </div>
+      <div class="count" id="count"><span id="num">3</span></div>
+      <div class="toast sa-glass" id="toast"><span class="ic"><span class="sa-i fill">auto_awesome</span></span><div><b>Director's Cut ready</b><small>0:24 → 0:19 · captions · 9:16</small></div><span class="go">Review</span></div>
+      <div class="bottom">
+        <span class="side sa-glass"><span class="take" id="take">T3</span></span>
+        <button class="sa-rec" id="rec" data-state="idle" aria-label="Record"><i></i></button>
+        <span class="side sa-glass"><span class="sa-i">cameraswitch</span></span>
+      </div>
+    </div>
+  </div>
+  <div class="notes">
+    <div><span class="num">01</span><span class="sa-note">The script sits right under the lens, so reading looks like eye contact.</span></div>
+    <div><span class="num">02</span><span class="sa-note">Glass, not a black box: you still see yourself framed.</span></div>
+    <div><span class="num">03</span><span class="sa-note">Three beats, then go. The numbers land wide and settle.</span></div>
+    <div><span class="num">04</span><span class="sa-note">Stop, and the edit is already waiting.</span></div>
+  </div>
+</div>
+<script>
+(function () {
+  var LINES = ['Most people <b>quit</b> in week two. |', 'Not because it is hard, ~', 'but because nobody told them', 'what <b>good</b> looks like. ||', '[e So here is the plan. ]'];
+  var linesEl = document.getElementById('lines'), words = [], clock = 0;
+  var GL = { '|': ['sa-g-pause', 'pause', 1, 450], '||': ['sa-g-long', 'pause_circle', 1, 1000], '~': ['sa-g-breath', 'air', 0, 350] };
+  LINES.forEach(function (l, li) {
+    var div = document.createElement('div'), energy = false;
+    l.replace(/<b>(.*?)<\/b>/g, '*$1').split(' ').forEach(function (tok) {
+      if (tok === '[e') { energy = true; var e = document.createElement('span'); e.className = 'sa-g sa-g-energy'; e.innerHTML = '<span class="sa-i fill">bolt</span>'; div.appendChild(e); return; }
+      if (tok === ']') { energy = false; return; }
+      if (GL[tok]) { var g = GL[tok], gs = document.createElement('span'); gs.className = 'sa-g ' + g[0]; gs.innerHTML = '<span class="sa-i' + (g[2] ? ' fill' : '') + '">' + g[1] + '</span>'; div.appendChild(gs); var w = words[words.length - 1]; w.hold = g[3]; w.glyph = gs; return; }
+      var s = document.createElement('span'), stress = tok[0] === '*'; s.textContent = tok.replace('*', ''); if (stress) s.className = 'sa-stress'; if (energy) s.className = 'sa-energy';
+      if (div.childNodes.length) div.appendChild(document.createTextNode(' '));
+      div.appendChild(s);
+      var d = 60000 / 150 * Math.min(1.6, Math.max(0.6, s.textContent.length / 5));
+      words.push({ el: s, line: li, start: clock, end: clock + d }); clock += d;
+    });
+    if (words[words.length - 1].hold) clock += words[words.length - 1].hold;
+    linesEl.appendChild(div);
+  });
+  var TAKE = clock + 700;
+  var rec = document.getElementById('rec'), count = document.getElementById('count'), num = document.getElementById('num'), toast = document.getElementById('toast');
+  var tally = document.getElementById('tally'), time = document.getElementById('time'), reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var state = 'idle', t0 = 0, raf, timers = [], lastHit = -1, take = 3;
+
+  function reset() {
+    words.forEach(function (w) { w.el.classList.remove('said'); });
+    linesEl.style.transform = ''; time.textContent = '00:00'; tally.classList.add('paused'); lastHit = -1;
+  }
+  function setState(s) { state = s; rec.setAttribute('data-state', s === 'counting' ? 'idle' : s); rec.setAttribute('aria-label', s === 'recording' ? 'Stop' : 'Record'); }
+  function later(ms, f) { timers.push(setTimeout(f, ms)); }
+  function start() {
+    timers.forEach(clearTimeout); timers = []; cancelAnimationFrame(raf); reset(); toast.classList.remove('on');
+    setState('counting'); count.classList.add('on');
+    [3, 2, 1].forEach(function (n, i) { later(i * 1000, function () { num.textContent = n; num.classList.remove('pop'); void num.offsetWidth; if (!reduce) num.classList.add('pop'); }); });
+    later(3000, function () { count.classList.remove('on'); setState('recording'); tally.classList.remove('paused'); t0 = performance.now(); raf = requestAnimationFrame(tick); });
+  }
+  function stop() {
+    cancelAnimationFrame(raf); setState('saving'); tally.classList.add('paused');
+    later(900, function () { setState('idle'); take++; document.getElementById('take').textContent = 'T' + take; toast.classList.add('on'); });
+  }
+  function tick(now) {
+    var ms = now - t0; if (ms > TAKE) { stop(); return; }
+    var s = Math.floor(ms / 1000); time.textContent = '00:' + String(s).padStart(2, '0');
+    var cur = 0;
+    words.forEach(function (w, i) { w.el.classList.toggle('said', ms >= w.end); if (ms >= w.start) cur = i; });
+    // The visual line being read sits on the reading line; the glass shows it and the next two.
+    linesEl.style.transform = 'translateY(' + (-words[cur].el.offsetTop) + 'px)';
+    var w = words[cur];
+    if (w.glyph && ms >= w.end && lastHit !== cur) { lastHit = cur; w.glyph.classList.remove('hit'); void w.glyph.offsetWidth; w.glyph.classList.add('hit'); }
+    raf = requestAnimationFrame(tick);
+  }
+  rec.onclick = function () { if (state === 'idle') start(); else if (state === 'recording') stop(); };
+  (document.fonts ? document.fonts.ready : Promise.resolve()).then(function () { later(300, start); });
+})();
+</script>
+</body>
+</html>

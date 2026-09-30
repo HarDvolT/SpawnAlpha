@@ -1,0 +1,183 @@
+<!-- @dsCard group="Director's Cut" height=520 subtitle="Captions written from the script, timed to the take, shaped by the cues" -->
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>Caption styles — preview</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anybody:wdth,wght@50..150,100..900&family=Readex+Pro:wght@300..700&family=Martian+Mono:wdth,wght@75..112.5,300..800&family=Reem+Kufi:wght@400..700&family=Caveat:wght@500..700&family=Aref+Ruqaa:wght@400;700&family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,400..600,0..1,0&display=block">
+<style>
+  html, body { margin: 0; }
+  body { padding: 16px; }
+  .top { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 12px; }
+  .frames { display: flex; gap: 16px; align-items: flex-start; flex-wrap: wrap; }
+  .frame { position: relative; overflow: hidden; border-radius: var(--radius-md); background: #0d1016; box-shadow: var(--shadow-float); }
+  .wcol { flex: 1 1 420px; max-width: 640px; }
+  .wide { width: 100%; aspect-ratio: 16 / 9; }
+  .tall { width: 220px; aspect-ratio: 9 / 16; }
+  /* Stand-in footage: slow drifting light, no people. */
+  .scene { position: absolute; inset: -20%; background: radial-gradient(40% 50% at 30% 40%, #3a4a6a, transparent 70%), radial-gradient(35% 45% at 70% 60%, #6a4a3a, transparent 70%), radial-gradient(60% 60% at 50% 100%, #1d2a2a, transparent 70%); animation: drift 14s ease-in-out infinite alternate; }
+  @keyframes drift { to { transform: translate(6%, -4%) scale(1.08); } }
+  .tc { position: absolute; top: 10px; left: 12px; font-size: 10px; color: #ffffffb3; }
+  .cap { position: absolute; left: 6%; right: 6%; text-align: center; font-family: var(--font-display); color: var(--caption-text); text-shadow: 0 2px 0 #000000a6, 0 0 18px #00000099; }
+  .cue { bottom: 9%; font-size: clamp(18px, 3.6vw, 30px); line-height: 1.18; font-weight: 700; }
+  .kar { bottom: 9%; font-size: clamp(16px, 3.2vw, 27px); line-height: 1.25; font-weight: 600; }
+  .kar .line { display: inline; padding: 4px 10px; border-radius: var(--radius-sm); background: var(--caption-plate); box-decoration-break: clone; -webkit-box-decoration-break: clone; }
+  .punch { top: 50%; transform: translateY(-50%); font-size: 30px; line-height: 1; font-weight: 800; letter-spacing: -0.01em; }
+  .wd { display: inline-block; font-variation-settings: 'wdth' var(--wdth, 100); }
+  /* Cue: words rise in as they are spoken. */
+  .cue .wd { opacity: 0; transform: translateY(10px); transition: opacity 140ms var(--ease-standard), transform 320ms cubic-bezier(0.34, 1.56, 0.64, 1); }
+  .cue .wd.in { opacity: 1; transform: none; }
+  .stress { color: var(--stage-stress); font-weight: 800; --wdth: 125; margin: 0 0.12em; }
+  .energy { color: var(--stage-energy); }
+  .slow { --wdth: 118; }
+  .fast { --wdth: 82; }
+  .wd.pop { animation: pop 460ms cubic-bezier(0.34, 1.56, 0.64, 1); }
+  @keyframes pop { 0% { transform: scale(0.55); } 55% { transform: scale(1.22); } 100% { transform: scale(1); } }
+  .cap.out { opacity: 0; transition: opacity 160ms var(--ease-exit); }
+  /* Karaoke: the line waits dimmed and fills word by word. */
+  .kar .wd { color: #ffffff80; position: relative; }
+  .kar .wd.in { color: var(--caption-text); }
+  .kar .wd.in.stress { color: var(--stage-stress); }
+  .kar .wd::after { content: ''; position: absolute; left: 0; right: 0; bottom: -3px; height: 3px; border-radius: 2px; background: var(--ripple); transform: scaleX(0); transform-origin: left; }
+  [dir="rtl"] .kar .wd::after { transform-origin: right; }
+  .kar .wd.now::after { transform: scaleX(1); transition: transform var(--dur, 300ms) linear; }
+  /* Punch: a few words at a time. */
+  .chunk { display: inline-block; }
+  .chunk.in { animation: chunk 260ms cubic-bezier(0.34, 1.56, 0.64, 1); }
+  @keyframes chunk { 0% { transform: scale(0.8); opacity: 0; } 60% { transform: scale(1.06); opacity: 1; } 100% { transform: scale(1); } }
+  .chunk .stress { font-size: 1.3em; font-weight: 900; --wdth: 135; }
+  .safe { position: absolute; inset: 0; pointer-events: none; }
+  .safe i { position: absolute; background: repeating-linear-gradient(45deg, #ffffff14 0 6px, transparent 6px 12px); border: 1px dashed #ffffff40; }
+  .label { margin-top: 8px; font-size: 12px; color: var(--ink-3); }
+  @media (prefers-reduced-motion: reduce) { .scene { animation: none; } .wd.pop, .chunk.in { animation: none; } }
+</style>
+</head>
+<body class="sa">
+<div class="top">
+  <div class="sa-seg" role="group" aria-label="Wide style">
+    <button aria-pressed="true" data-style="cue">Cue</button>
+    <button aria-pressed="false" data-style="kar">Karaoke</button>
+  </div>
+  <div class="sa-seg" role="group" aria-label="Language">
+    <button aria-pressed="true" data-lang="en">English</button>
+    <button aria-pressed="false" data-lang="ar">العربية</button>
+  </div>
+  <div class="sa-seg" role="group" aria-label="Safe zones">
+    <button aria-pressed="false" id="safeBtn"><span class="sa-i">crop_free</span>Safe zones</button>
+  </div>
+</div>
+<div class="frames">
+  <div class="wcol">
+    <div class="frame wide" id="wide"><div class="scene"></div><span class="tc sa-mono" id="tc1">00:00:00</span><div class="cap cue" id="capWide"></div></div>
+    <div class="label" id="wideLabel">16:9 · Cue captions</div>
+  </div>
+  <div>
+    <div class="frame tall" id="tall"><div class="scene" style="animation-delay:-5s"></div><span class="tc sa-mono" id="tc2">00:00:00</span><div class="cap punch" id="capTall"></div>
+      <div class="safe" id="safe" hidden><i style="left:0;right:0;top:0;height:13%"></i><i style="left:0;right:0;bottom:0;height:21%"></i><i style="right:0;top:13%;bottom:21%;width:14%"></i></div></div>
+    <div class="label">9:16 · Punch captions</div>
+  </div>
+</div>
+<script>
+(function () {
+  var SCRIPTS = {
+    en: '[e Stop scrolling. ] | This one trick saves you *ten* *hours* a week, ~ [s and it takes two minutes. ] || [f Turn off every notification you do not need, ] | and watch what happens. ~ [e Follow for more. ]',
+    ar: '[e توقف! ] | هذه الحيلة توفر عليك *عشر* *ساعات* كل أسبوع، ~ [s وتأخذ دقيقتين فقط. ] || [f أطفئ كل إشعار لا تحتاجه، ] | وشاهد ما سيحدث. ~ [e تابعني للمزيد. ]'
+  };
+  var HOLD = { pause: 500, long: 1100, breath: 350 };
+  var TATWEEL = String.fromCharCode(0x640);
+  var DUAL = 'بتثجحخسشصضطظعغفقكلمنهيئ';
+  var style = 'cue', lang = 'en', words, total, t0 = performance.now(), phrases, chunks;
+  var capWide = document.getElementById('capWide'), capTall = document.getElementById('capTall');
+
+  // Stretch an Arabic word with kashida after its first dual-joining letter.
+  function kashida(w) {
+    for (var i = 0; i < w.length - 1; i++) if (DUAL.indexOf(w[i]) >= 0 && /[ء-ي]/.test(w[i + 1])) return w.slice(0, i + 1) + TATWEEL + TATWEEL + TATWEEL + w.slice(i + 1);
+    return w;
+  }
+
+  function parse() {
+    words = []; var run = null;
+    SCRIPTS[lang].split(/\s+/).forEach(function (tok) {
+      if (!tok) return;
+      if (tok[0] === '[') { run = { s: 'slow', f: 'fast', e: 'energy' }[tok[1]]; return; }
+      if (tok === ']') { run = null; return; }
+      if (tok === '|' || tok === '||' || tok === '~') { words[words.length - 1].gap = tok === '|' ? 'pause' : tok === '||' ? 'long' : 'breath'; return; }
+      var stress = /^\*.*\*$/.test(tok), text = stress ? tok.slice(1, -1) : tok;
+      words.push({ text: text, stress: stress, run: run });
+    });
+    var avg = words.reduce(function (s, w) { return s + w.text.length; }, 0) / words.length, clock = 400;
+    words.forEach(function (w) {
+      var d = 60000 / 165 * Math.min(1.8, Math.max(0.6, w.text.length / avg)) * (w.run === 'slow' ? 1.25 : w.run === 'fast' ? 0.8 : 1);
+      w.start = clock; w.end = clock + d;
+      clock = w.end + (w.gap ? HOLD[w.gap] : /[.!?؟،,]$/.test(w.text) ? 160 : 0);
+    });
+    total = clock + 1200;
+    // Phrases break at every gap cue and sentence end: the markup already knows where a caption should end.
+    phrases = []; var cur = [];
+    words.forEach(function (w, i) { cur.push(i); if (w.gap || /[.!?؟]$/.test(w.text) || cur.length >= 7) { phrases.push(cur); cur = []; } });
+    if (cur.length) phrases.push(cur);
+    // Punch chunks: at most three words; a stressed word stands alone; gaps end a chunk.
+    chunks = []; cur = [];
+    words.forEach(function (w, i) {
+      if (w.stress && cur.length && !words[cur[cur.length - 1]].stress) { chunks.push(cur); cur = []; }
+      cur.push(i);
+      var nextStress = words[i + 1] && words[i + 1].stress;
+      if (w.gap || cur.length >= 3 || (w.stress && !nextStress) || /[.!?؟,،]$/.test(w.text)) { chunks.push(cur); cur = []; }
+    });
+    if (cur.length) chunks.push(cur);
+    document.body.dir = '';
+    [capWide, capTall].forEach(function (c) { c.dir = lang === 'ar' ? 'rtl' : 'ltr'; });
+  }
+
+  function wordHtml(i, extra) {
+    var w = words[i], cls = 'wd' + (w.stress ? ' stress' : '') + (w.run === 'energy' ? ' energy' : '') + (w.run === 'slow' ? ' slow' : '') + (w.run === 'fast' ? ' fast' : '') + (extra || '');
+    var text = lang === 'ar' && w.stress ? kashida(w.text) : w.text;
+    return '<span class="' + cls + '" data-i="' + i + '">' + text + '</span>';
+  }
+
+  var shownPhrase = -1, shownChunk = -1;
+  function render(now) {
+    var t = (now - t0) % total;
+    if (t < 50) { shownPhrase = -1; shownChunk = -1; }
+    var sec = Math.floor(t / 1000), tc = '00:00:' + String(sec).padStart(2, '0');
+    document.getElementById('tc1').textContent = tc; document.getElementById('tc2').textContent = tc;
+    // Wide frame.
+    var pi = phrases.findIndex(function (p) { var a = words[p[0]], b = words[p[p.length - 1]]; return t >= a.start - 120 && t < b.end + (b.gap ? HOLD[b.gap] * 0.7 : 250); });
+    if (pi !== shownPhrase) {
+      shownPhrase = pi;
+      capWide.className = 'cap ' + style;
+      capWide.innerHTML = pi < 0 ? '' : (style === 'kar' ? '<span class="line">' : '') + phrases[pi].map(function (i) { return wordHtml(i); }).join(' ') + (style === 'kar' ? '</span>' : '');
+    }
+    if (pi >= 0) {
+      Array.prototype.slice.call(capWide.querySelectorAll('.wd')).forEach(function (el) {
+        var w = words[+el.getAttribute('data-i')], on = t >= w.start;
+        if (on && !el.classList.contains('in')) {
+          el.classList.add('in');
+          if (w.stress) { el.classList.remove('pop'); void el.offsetWidth; el.classList.add('pop'); }
+          if (style === 'kar') { el.style.setProperty('--dur', Math.round(w.end - w.start) + 'ms'); el.classList.add('now'); }
+        }
+      });
+    }
+    // Tall frame.
+    var ci = chunks.findIndex(function (c) { var a = words[c[0]], b = words[c[c.length - 1]]; return t >= a.start - 60 && t < b.end + (b.gap ? HOLD[b.gap] * 0.6 : 120); });
+    if (ci !== shownChunk) {
+      shownChunk = ci;
+      capTall.innerHTML = ci < 0 ? '' : '<span class="chunk in">' + chunks[ci].map(function (i) { return wordHtml(i); }).join(' ') + '</span>';
+    }
+    requestAnimationFrame(render);
+  }
+
+  function pick(sel, b) { Array.prototype.slice.call(document.querySelectorAll(sel)).forEach(function (x) { x.setAttribute('aria-pressed', String(x === b)); }); }
+  Array.prototype.slice.call(document.querySelectorAll('[data-style]')).forEach(function (b) {
+    b.onclick = function () { style = b.getAttribute('data-style'); pick('[data-style]', b); shownPhrase = -2; document.getElementById('wideLabel').textContent = '16:9 · ' + (style === 'cue' ? 'Cue' : 'Karaoke') + ' captions'; };
+  });
+  Array.prototype.slice.call(document.querySelectorAll('[data-lang]')).forEach(function (b) {
+    b.onclick = function () { lang = b.getAttribute('data-lang'); pick('[data-lang]', b); parse(); t0 = performance.now(); shownPhrase = -2; shownChunk = -2; };
+  });
+  document.getElementById('safeBtn').onclick = function () {
+    var s = document.getElementById('safe'); s.hidden = !s.hidden; this.setAttribute('aria-pressed', String(!s.hidden));
+  };
+  parse();
+  (document.fonts ? document.fonts.ready : Promise.resolve()).then(function () { requestAnimationFrame(render); });
+})();
+</script>
+</body>
+</html>

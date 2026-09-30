@@ -1,0 +1,210 @@
+<!-- @dsCard group="Director's Cut" height=700 subtitle="The finish screen: the edit is already done, every change is listed and can be undone" -->
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>Director's Cut — preview</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anybody:wdth,wght@50..150,100..900&family=Readex+Pro:wght@300..700&family=Martian+Mono:wdth,wght@75..112.5,300..800&family=Reem+Kufi:wght@400..700&family=Caveat:wght@500..700&family=Aref+Ruqaa:wght@400;700&family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,400..600,0..1,0&display=block">
+<style>
+  html, body { margin: 0; }
+  body { padding: 20px; }
+  .hero { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px 24px; margin-bottom: 16px; }
+  .kicker { display: flex; align-items: center; gap: 8px; color: var(--ink-3); margin-bottom: 4px; }
+  .kicker .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--success); box-shadow: 0 0 0 4px color-mix(in srgb, var(--success) 20%, transparent); }
+  h1 { margin: 0; font-size: 38px; line-height: 40px; font-weight: 800; font-variation-settings: 'wdth' 112; }
+  .clock { margin-left: auto; display: flex; align-items: baseline; gap: 10px; }
+  .clock .from { font-family: var(--font-display); font-size: 22px; font-weight: 600; color: var(--ink-3); text-decoration: line-through; text-decoration-thickness: 2px; }
+  .clock .to { font-family: var(--font-display); font-size: 48px; line-height: 48px; font-weight: 900; font-variant-numeric: tabular-nums; font-variation-settings: 'wdth' var(--w, 100); transition: font-variation-settings 600ms cubic-bezier(0.34, 1.56, 0.64, 1); }
+  .clock .delta { font-family: var(--font-signal); font-size: 12px; font-weight: 700; color: var(--success); }
+  .grid { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 16px; }
+  @media (max-width: 720px) { .grid { grid-template-columns: 1fr; } .clock { margin-left: 0; } }
+  /* Player */
+  .player { position: relative; aspect-ratio: 16 / 9; border-radius: var(--radius-md); overflow: hidden; background: #0d1016; box-shadow: var(--shadow-float); }
+  .scene { position: absolute; inset: -20%; background: radial-gradient(40% 50% at 30% 40%, #3a4a6a, transparent 70%), radial-gradient(35% 45% at 70% 60%, #6a4a3a, transparent 70%), #10141c; animation: drift 12s ease-in-out infinite alternate; }
+  @keyframes drift { to { transform: translate(6%, -4%) scale(1.1); } }
+  .face { position: absolute; left: 50%; bottom: 0; width: 34%; aspect-ratio: 1 / 1.1; transform: translateX(-50%); background: radial-gradient(closest-side at 50% 32%, #5b6478 0 38%, transparent 40%), radial-gradient(60% 50% at 50% 100%, #4a5264 0 70%, transparent 71%); opacity: 0.8; }
+  .pcap { position: absolute; left: 6%; right: 6%; bottom: 8%; text-align: center; font-family: var(--font-display); font-weight: 700; font-size: 22px; color: #fff; text-shadow: 0 2px 0 #000000a6, 0 0 16px #00000099; }
+  .pcap b { color: var(--stage-stress); font-weight: 800; font-variation-settings: 'wdth' 125; }
+  .tall { position: absolute; right: 10px; top: 10px; width: 17%; aspect-ratio: 9 / 16; border-radius: 8px; overflow: hidden; box-shadow: 0 0 0 1px #ffffff40, 0 8px 20px #00000080; background: #0d1016; }
+  .tall .face { width: 90%; }
+  .tall span { position: absolute; left: 0; right: 0; top: 46%; text-align: center; font-family: var(--font-display); font-weight: 900; font-size: 13px; color: var(--stage-stress); font-variation-settings: 'wdth' 130; }
+  .ptag { position: absolute; left: 10px; top: 10px; }
+  /* The list of what the edit did */
+  .list { display: flex; flex-direction: column; gap: 6px; }
+  .item { display: grid; grid-template-columns: 32px 1fr auto; align-items: center; gap: 10px; padding: 8px 10px; border-radius: var(--radius-md); background: var(--surface); border: 1px solid var(--line); opacity: 0; transform: translateY(8px); transition: opacity 200ms var(--ease-standard), transform 420ms cubic-bezier(0.34, 1.56, 0.64, 1), border-color 160ms; }
+  .item.in { opacity: 1; transform: none; }
+  .item .ic { width: 32px; height: 32px; border-radius: 9px; display: grid; place-items: center; background: var(--surface-sunk); }
+  .item .t { font-size: 13px; font-weight: 600; line-height: 17px; }
+  .item .s { font-size: 12px; line-height: 16px; color: var(--ink-3); }
+  .item .n { font-family: var(--font-signal); font-weight: 700; font-size: 10px; letter-spacing: 0.02em; margin-left: 8px; padding: 2px 6px; border-radius: 6px; background: var(--surface-sunk); color: var(--ink-2); vertical-align: 1px; white-space: nowrap; }
+  .sw { width: 36px; height: 22px; border-radius: 11px; border: 0; padding: 2px; background: var(--line-strong); cursor: pointer; transition: background-color 160ms; }
+  .sw i { display: block; width: 18px; height: 18px; border-radius: 50%; background: #fff; transition: transform 300ms cubic-bezier(0.34, 1.56, 0.64, 1); }
+  .sw[aria-checked="true"] { background: var(--primary); }
+  .sw[aria-checked="true"] i { transform: translateX(14px); background: var(--on-primary); }
+  .sw:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+  .review { margin-top: 10px; padding: 10px 12px; border-radius: var(--radius-md); border: 1px dashed var(--line-strong); background: color-mix(in srgb, var(--cue) 10%, var(--surface)); display: flex; gap: 10px; align-items: flex-start; }
+  .review .sa-i { color: var(--warning); }
+  .review p { margin: 0 0 8px; font-size: 13px; line-height: 18px; }
+  .review s { color: var(--ink-3); }
+  .review .sa-btn { height: 30px; font-size: 12px; padding: 0 10px; }
+  /* The timeline: the take as recorded, tightening into the cut */
+  .tl { margin-top: 16px; }
+  .tlhead { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+  .tlhead .grow { flex: 1; }
+  .strip { position: relative; display: flex; height: 44px; gap: 1px; padding: 4px; border-radius: var(--radius-sm); background: var(--surface-sunk); border: 1px solid var(--line); overflow: hidden; }
+  .seg { flex-basis: 0; min-width: 0; border-radius: 3px; transition: flex-grow 800ms cubic-bezier(0.2, 0, 0, 1), background-color 240ms, opacity 240ms, margin 800ms; position: relative; }
+  .seg.speech { background: color-mix(in srgb, var(--ink) 22%, transparent); }
+  .seg.speech::after { content: ''; position: absolute; left: 0; right: 0; top: 30%; bottom: 30%; background: repeating-linear-gradient(90deg, color-mix(in srgb, var(--ink) 30%, transparent) 0 2px, transparent 2px 4px); border-radius: 2px; }
+  .seg.silence { background: transparent; }
+  .seg.silence.flag { background: repeating-linear-gradient(45deg, color-mix(in srgb, var(--danger) 35%, transparent) 0 3px, transparent 3px 7px); }
+  .seg.filler.flag { background: var(--danger); }
+  .seg.filler { background: color-mix(in srgb, var(--ink) 22%, transparent); }
+  .seg.retake.flag { background: repeating-linear-gradient(45deg, color-mix(in srgb, var(--ink) 25%, transparent) 0 3px, transparent 3px 7px); }
+  .seg.retake { background: color-mix(in srgb, var(--ink) 22%, transparent); }
+  .seg.kept { background: var(--cue-pause); opacity: 0.85; }
+  .seg.gone { flex-grow: 0 !important; margin: 0 -0.5px; opacity: 0; }
+  .zoom { position: absolute; top: 1px; height: 4px; border-radius: 2px; background: var(--cue); transform: scaleX(0); transform-origin: left; transition: transform 400ms cubic-bezier(0.34, 1.56, 0.64, 1); }
+  .zoom.in { transform: none; }
+  .caps { position: absolute; left: 4px; right: 4px; bottom: 1px; height: 3px; border-radius: 2px; background: var(--cue-slower); transform: scaleX(0); transform-origin: left; transition: transform 900ms cubic-bezier(0.2, 0, 0, 1); }
+  .caps.in { transform: none; }
+  .legend { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 6px; font-size: 11px; color: var(--ink-3); }
+  .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; }
+  /* Export */
+  .export { margin-top: 16px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .fmt { display: inline-flex; align-items: center; gap: 8px; height: 44px; padding: 0 12px 0 8px; border-radius: var(--radius-md); border: 1px solid var(--line-strong); background: var(--surface); font: inherit; font-size: 13px; font-weight: 600; color: var(--ink); cursor: pointer; }
+  .fmt .box { border: 2px solid currentColor; border-radius: 3px; }
+  .fmt[aria-pressed="false"] { color: var(--ink-3); border-color: var(--line); }
+  .fmt small { font-family: var(--font-signal); font-size: 10px; color: var(--ink-3); font-weight: 600; }
+  .export .grow { flex: 1; }
+  .ship { height: 48px; padding: 0 20px; font-size: 15px; border-radius: var(--radius-md); }
+  @media (prefers-reduced-motion: reduce) { .scene { animation: none; } .item, .seg, .zoom, .caps, .sw i, .clock .to { transition: none; } }
+</style>
+</head>
+<body class="sa">
+<div class="hero">
+  <div>
+    <div class="kicker"><span class="dot"></span><span class="sa-signal" id="phase">Take 3 · editing</span></div>
+    <h1 class="sa-display">Ready to publish.</h1>
+  </div>
+  <div class="clock"><span class="from">4:12</span><span class="to" id="dur">4:12</span><span class="delta" id="delta"></span></div>
+</div>
+<div class="grid">
+  <div>
+    <div class="player">
+      <div class="scene"></div><div class="face"></div>
+      <div class="pcap">It saves you <b>ten hours</b> a week</div>
+      <div class="tall"><div class="scene" style="animation-delay:-4s"></div><div class="face"></div><span>ten hours</span></div>
+      <span class="ptag sa-glass sa-hidden-tag" style="padding:4px 8px;border-radius:8px"><span class="sa-i">auto_awesome</span>Director's Cut</span>
+    </div>
+    <div class="review" id="review" style="opacity:0;transition:opacity 300ms">
+      <span class="sa-i">rate_review</span>
+      <div><p><b>One thing to check.</b> At 1:48 you said "next <b>Tuesday</b>"; the script says "next <s>Thursday</s>". The caption follows what you said.</p>
+        <div class="sa-row" style="gap:6px"><button class="sa-btn">Keep what I said</button><button class="sa-btn sa-btn-plain">Use the script's words</button><button class="sa-btn sa-btn-plain">Rerecord that line</button></div></div>
+    </div>
+  </div>
+  <div class="list" id="list"></div>
+</div>
+<div class="tl">
+  <div class="tlhead"><span class="sa-signal" style="color:var(--ink-3)">The take</span><span class="grow"></span><button class="sa-btn sa-btn-plain" id="replay" style="height:30px;font-size:12px"><span class="sa-i" style="font-size:16px">replay</span>Replay the edit</button></div>
+  <div class="strip" id="strip"><div class="caps" id="caps"></div></div>
+  <div class="legend"><span><i style="background:color-mix(in srgb, var(--ink) 22%, transparent)"></i>Speech</span><span><i style="background:repeating-linear-gradient(45deg, color-mix(in srgb, var(--danger) 45%, transparent) 0 3px, transparent 3px 6px)"></i>Dead air</span><span><i style="background:var(--danger)"></i>Filler</span><span><i style="background:repeating-linear-gradient(45deg, color-mix(in srgb, var(--ink) 35%, transparent) 0 3px, transparent 3px 6px)"></i>Discarded retake</span><span><i style="background:var(--cue-pause)"></i>Marked pause, kept</span><span><i style="background:var(--cue)"></i>Zoom</span><span><i style="background:var(--cue-slower)"></i>Captions</span></div>
+</div>
+<div class="export">
+  <button class="fmt" aria-pressed="true"><span class="box" style="width:26px;height:15px"></span>16:9<small>YouTube</small></button>
+  <button class="fmt" aria-pressed="true"><span class="box" style="width:13px;height:22px"></span>9:16<small>Reels · Shorts · TikTok</small></button>
+  <button class="fmt" aria-pressed="false"><span class="box" style="width:17px;height:21px"></span>4:5<small>LinkedIn</small></button>
+  <span class="grow"></span>
+  <button class="sa-btn">Open in editor</button>
+  <button class="sa-btn sa-btn-cue ship"><span class="sa-i fill">rocket_launch</span>Export 2 videos</button>
+</div>
+<script>
+(function () {
+  // A 4:12 take: speech, dead air, fillers, a discarded first try at one line, and the pauses the script asked for.
+  var rnd = (function (a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; var t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; })(7);
+  var segs = [], plan = 'ssfSpsSfsSkSsfSRSskSfSsSpfSSskSsfSsSsSfk';
+  // S speech, s dead air, f filler, k marked pause (kept), R the discarded retake, p a breath (kept, part of speech).
+  var DUR = { s: 41 / 12, f: 6 / 14, k: 0.7, R: 27, p: 0.35 };
+  var counts = { s: 0, f: 0 };
+  for (var i = 0; i < plan.length; i++) counts[plan[i]] = (counts[plan[i]] || 0) + 1;
+  var fixed = 0; plan.split('').forEach(function (c) { if (c !== 'S') fixed += DUR[c] * (c === 's' ? 12 / counts.s : c === 'f' ? 14 / counts.f : 1); });
+  var speechCount = counts.S, speechTotal = 252 - fixed, weights = [];
+  for (i = 0; i < speechCount; i++) weights.push(0.5 + rnd());
+  var wsum = weights.reduce(function (a, b) { return a + b; }, 0), si = 0;
+  plan.split('').forEach(function (c) {
+    var d = c === 'S' ? speechTotal * weights[si++] / wsum : DUR[c] * (c === 's' ? 12 / counts.s : c === 'f' ? 14 / counts.f : 1);
+    segs.push({ kind: { S: 'speech', s: 'silence', f: 'filler', k: 'kept', R: 'retake', p: 'speech' }[c], d: d });
+  });
+  var strip = document.getElementById('strip'), caps = document.getElementById('caps');
+  segs.forEach(function (s) { s.el = document.createElement('div'); s.el.className = 'seg ' + s.kind; s.el.style.flexGrow = s.d.toFixed(3); strip.insertBefore(s.el, caps); });
+
+  var ITEMS = [
+    { key: 'silence', icon: 'content_cut', t: 'Dead air trimmed', n: '41 s', s: 'Gaps over 0.7 s. Your 9 marked pauses stay.' },
+    { key: 'filler', icon: 'graphic_eq', t: 'Fillers removed', n: '14', s: '"um", "so", "euh", "يعني": only outside marked pauses.' },
+    { key: 'retake', icon: 'replay', t: 'Best take kept', n: '1 of 2', s: 'Line 8: kept the try that matched the script and your cues.' },
+    { key: 'zoom', icon: 'zoom_in', t: 'Zooms added', n: '6', s: 'On clicks, typing, and where you said "here".' },
+    { key: 'caps', icon: 'closed_caption', t: 'Captions from the script', n: 'Cue style', s: 'Timed to your voice; stressed words pop.' },
+    { key: 'tall', icon: 'crop_portrait', t: 'Vertical version', n: '9:16', s: 'Reframed on your face; captions in the safe zone.' }
+  ];
+  var on = { silence: true, filler: true, retake: true, zoom: true, caps: true, tall: true };
+  var list = document.getElementById('list');
+  ITEMS.forEach(function (it) {
+    var el = document.createElement('div'); el.className = 'item';
+    el.innerHTML = '<span class="ic"><span class="sa-i">' + it.icon + '</span></span><div><div class="t">' + it.t + '<span class="n">' + it.n + '</span></div><div class="s">' + it.s + '</div></div><button class="sw" role="switch" aria-checked="true" aria-label="' + it.t + '"><i></i></button>';
+    el.querySelector('.sw').onclick = function () { on[it.key] = !on[it.key]; this.setAttribute('aria-checked', String(on[it.key])); apply(true); };
+    it.el = el; list.appendChild(el);
+  });
+
+  var ZOOMS = [[.08, .05], [.23, .04], [.41, .06], [.58, .05], [.72, .04], [.86, .05]];
+  var zoomEls = ZOOMS.map(function (z) { var e = document.createElement('div'); e.className = 'zoom'; e.style.left = (z[0] * 100) + '%'; e.style.width = (z[1] * 100) + '%'; strip.appendChild(e); return e; });
+
+  var durEl = document.getElementById('dur'), deltaEl = document.getElementById('delta'), shown = 252, timers = [], anim;
+  function fmt(s) { s = Math.round(s); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); }
+  function countTo(target) {
+    cancelAnimationFrame(anim); var from = shown, t0 = performance.now();
+    durEl.style.setProperty('--w', 70);
+    function step(now) {
+      var k = Math.min(1, (now - t0) / 900), e = 1 - Math.pow(1 - k, 3); shown = from + (target - from) * e;
+      durEl.textContent = fmt(shown);
+      if (k < 1) anim = requestAnimationFrame(step); else { durEl.style.setProperty('--w', 100); deltaEl.textContent = target < 252 ? '−' + fmt(252 - target) : ''; }
+    }
+    anim = requestAnimationFrame(step);
+  }
+  function keptLength() { return segs.reduce(function (a, s) { return a + (s.el.classList.contains('gone') ? 0 : s.d); }, 0); }
+  function apply(count) {
+    segs.forEach(function (s) {
+      var cut = (s.kind === 'silence' && on.silence) || (s.kind === 'filler' && on.filler) || (s.kind === 'retake' && on.retake);
+      s.el.classList.toggle('gone', cut);
+    });
+    zoomEls.forEach(function (z) { z.classList.toggle('in', on.zoom); });
+    caps.classList.toggle('in', on.caps);
+    document.querySelector('.pcap').style.opacity = on.caps ? 1 : 0;
+    document.querySelector('.tall').style.opacity = on.tall ? 1 : 0;
+    document.querySelector('.ship').lastChild.textContent = on.tall ? 'Export 2 videos' : 'Export video';
+    if (count) countTo(keptLength());
+  }
+
+  // The edit, replayed: flag, then tighten, then dress.
+  function run() {
+    timers.forEach(clearTimeout); timers = []; cancelAnimationFrame(anim);
+    shown = 252; durEl.textContent = '4:12'; deltaEl.textContent = ''; document.getElementById('review').style.opacity = 0;
+    document.getElementById('phase').textContent = 'Take 3 · editing';
+    segs.forEach(function (s) { s.el.classList.remove('gone', 'flag'); });
+    zoomEls.forEach(function (z) { z.classList.remove('in'); }); caps.classList.remove('in');
+    ITEMS.forEach(function (it) { it.el.classList.remove('in'); });
+    var at = function (ms, f) { timers.push(setTimeout(f, ms)); };
+    var flagKind = function (kind) { segs.forEach(function (s, i) { if (s.kind === kind) at(i * 12, function () { s.el.classList.add('flag'); }); }); };
+    at(250, function () { flagKind('silence'); ITEMS[0].el.classList.add('in'); });
+    at(650, function () { flagKind('filler'); ITEMS[1].el.classList.add('in'); });
+    at(1050, function () { flagKind('retake'); ITEMS[2].el.classList.add('in'); });
+    at(1500, function () { apply(true); });
+    at(2100, function () { ITEMS[3].el.classList.add('in'); });
+    at(2250, function () { ITEMS[4].el.classList.add('in'); });
+    at(2400, function () { ITEMS[5].el.classList.add('in'); document.getElementById('review').style.opacity = 1; document.getElementById('phase').textContent = 'Take 3 · Director’s Cut'; });
+    zoomEls.forEach(function (z) { z.classList.remove('in'); });
+    caps.classList.remove('in');
+  }
+  document.getElementById('replay').onclick = run;
+  Array.prototype.slice.call(document.querySelectorAll('.fmt')).forEach(function (b) { b.onclick = function () { b.setAttribute('aria-pressed', String(b.getAttribute('aria-pressed') !== 'true')); }; });
+  (document.fonts ? document.fonts.ready : Promise.resolve()).then(run);
+})();
+</script>
+</body>
+</html>

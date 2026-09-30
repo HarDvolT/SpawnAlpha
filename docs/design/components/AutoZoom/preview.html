@@ -1,0 +1,219 @@
+<!-- @dsCard group="Director's Cut" height=560 subtitle="Screen recordings, edited: zooms that anticipate clicks, a smooth cursor, motion blur" -->
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>Auto zoom — preview</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anybody:wdth,wght@50..150,100..900&family=Readex+Pro:wght@300..700&family=Martian+Mono:wdth,wght@75..112.5,300..800&family=Reem+Kufi:wght@400..700&family=Caveat:wght@500..700&family=Aref+Ruqaa:wght@400;700&family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,400..600,0..1,0&display=block">
+<style>
+  html, body { margin: 0; }
+  body { padding: 16px; }
+  .top { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 12px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip { font: inherit; font-size: 12px; font-weight: 600; height: 30px; padding: 0 10px; border-radius: var(--radius-full); border: 1px solid var(--line-strong); background: var(--surface); color: var(--ink-2); display: inline-flex; align-items: center; gap: 4px; cursor: pointer; transition: background-color var(--dur-quick) var(--ease-standard), color var(--dur-quick) var(--ease-standard); }
+  .chip .sa-i { font-size: 16px; }
+  .chip[aria-pressed="true"] { background: var(--primary); color: var(--on-primary); border-color: var(--primary); }
+  .chip:disabled { opacity: 0.38; cursor: default; }
+  .out { position: relative; max-width: 720px; aspect-ratio: 16 / 9; overflow: hidden; border-radius: var(--radius-md); box-shadow: var(--shadow-float); background: #0b0d12; }
+  .wall { position: absolute; inset: 0; background: radial-gradient(60% 80% at 15% 20%, #3b3413, transparent 60%), radial-gradient(60% 80% at 90% 90%, #0f2f4a, transparent 60%), #0d1017; transition: opacity var(--dur-base) var(--ease-standard); }
+  .cam { position: absolute; inset: 0; transform-origin: 0 0; }
+  .screen { position: absolute; overflow: hidden; background: #f4f5f7; color: #15171c; font-family: var(--font-reading); transition: inset var(--dur-base) var(--ease-standard), border-radius var(--dur-base) var(--ease-standard), box-shadow var(--dur-base); }
+  .ui { position: absolute; inset: 0; font-size: 10px; }
+  .bar { position: absolute; left: 0; right: 0; top: 0; height: 9%; background: #ffffff; border-bottom: 1px solid #d9dce3; display: flex; align-items: center; padding: 0 2%; font-weight: 600; }
+  .menu { position: absolute; right: 12%; top: 1.6%; width: 4%; height: 6%; border-radius: 6px; display: grid; place-items: center; }
+  .menu.on { background: #eceef2; }
+  .drop { position: absolute; right: 8%; top: 10%; width: 22%; background: #fff; border: 1px solid #d9dce3; border-radius: 8px; box-shadow: 0 8px 20px #0000002e; padding: 4px; opacity: 0; transform: translateY(-4px); transition: opacity 120ms, transform 160ms; }
+  .drop.on { opacity: 1; transform: none; }
+  .drop div { padding: 5px 8px; border-radius: 5px; }
+  .drop div.hl { background: #eceef2; }
+  .side { position: absolute; left: 0; top: 9%; bottom: 0; width: 22%; background: #eceef2; padding: 2%; display: flex; flex-direction: column; gap: 6%; }
+  .side div { height: 7%; border-radius: 5px; display: flex; align-items: center; padding: 0 8%; color: #4a4f5c; }
+  .side div.on { background: #ffffff; color: #15171c; font-weight: 600; }
+  .main { position: absolute; left: 26%; right: 4%; top: 14%; bottom: 4%; }
+  .lbl { color: #646a78; margin-bottom: 1.5%; }
+  .field { position: absolute; left: 0; width: 60%; top: 13%; height: 13%; border: 1px solid #7f8594; border-radius: 6px; background: #fff; display: flex; align-items: center; padding: 0 2%; font-size: 12px; }
+  .field.focus { box-shadow: 0 0 0 2px #15171c; }
+  .save { position: absolute; left: 64%; width: 20%; top: 13%; height: 13%; border-radius: 6px; background: #15171c; color: #fff; display: grid; place-items: center; font-weight: 600; transition: transform 120ms; }
+  .save.flash { transform: scale(0.94); background: #2a2d35; }
+  .cards { position: absolute; left: 0; right: 0; top: 36%; bottom: 0; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 3%; }
+  .cards div { background: #fff; border-radius: 8px; border: 1px solid #d9dce3; }
+  .cursor { position: absolute; width: 0; height: 0; pointer-events: none; }
+  .cursor svg { position: absolute; left: -2px; top: -1px; width: 16px; height: 22px; filter: drop-shadow(0 1px 1px #00000066); transform-origin: 2px 1px; }
+  .halo { position: absolute; width: 34px; height: 34px; left: -17px; top: -17px; border-radius: 50%; background: color-mix(in srgb, var(--ripple) 22%, transparent); opacity: 0; transition: opacity 160ms; }
+  .ripple { position: absolute; width: 10px; height: 10px; left: -5px; top: -5px; border-radius: 50%; border: 2px solid var(--ripple); animation: ripple 420ms cubic-bezier(0.2, 0, 0, 1) forwards; pointer-events: none; }
+  @keyframes ripple { to { transform: scale(4.4); opacity: 0; } }
+  .key { position: absolute; left: 50%; bottom: 6%; transform: translateX(-50%) translateY(8px); opacity: 0; display: flex; gap: 4px; transition: opacity 140ms, transform 260ms cubic-bezier(0.34, 1.56, 0.64, 1); }
+  .key.on { opacity: 1; transform: translateX(-50%); }
+  .key span { font-family: var(--font-signal); font-size: 12px; font-weight: 600; color: #fff; padding: 5px 9px; border-radius: 7px; background: var(--stage-glass); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); box-shadow: inset 0 0 0 1px var(--stage-glass-edge), inset 0 -2px 0 #ffffff14; }
+  .track { position: relative; max-width: 720px; height: 34px; margin-top: 10px; border-radius: var(--radius-sm); background: var(--surface-sunk); border: 1px solid var(--line); overflow: hidden; }
+  .seg { position: absolute; top: 6px; bottom: 6px; border-radius: 4px; background: color-mix(in srgb, var(--cue) 70%, transparent); }
+  .dot { position: absolute; top: 50%; width: 7px; height: 7px; margin: -3.5px 0 0 -3.5px; border-radius: 50%; background: var(--ink); }
+  .dot.kbd { background: var(--cue-pause); border-radius: 2px; }
+  .head { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--rec); }
+  .legend { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 6px; font-size: 12px; color: var(--ink-3); }
+  .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; }
+</style>
+</head>
+<body class="sa">
+<svg width="0" height="0" style="position:absolute"><filter id="mb" x="-5%" y="-5%" width="110%" height="110%"><feGaussianBlur id="mbb" stdDeviation="0 0"></feGaussianBlur></filter></svg>
+<div class="top">
+  <div class="sa-seg" role="group" aria-label="Version">
+    <button aria-pressed="false" data-mode="raw"><span class="sa-i">videocam</span>As recorded</button>
+    <button aria-pressed="true" data-mode="cut"><span class="sa-i">auto_awesome</span>Director's Cut</button>
+  </div>
+  <div class="chips" id="chips">
+    <button class="chip" aria-pressed="true" data-fx="zoom"><span class="sa-i">zoom_in</span>Auto-zoom</button>
+    <button class="chip" aria-pressed="true" data-fx="smooth"><span class="sa-i">gesture</span>Smooth cursor</button>
+    <button class="chip" aria-pressed="true" data-fx="blur"><span class="sa-i">blur_on</span>Motion blur</button>
+    <button class="chip" aria-pressed="true" data-fx="ripple"><span class="sa-i">ads_click</span>Click ripples</button>
+    <button class="chip" aria-pressed="true" data-fx="keys"><span class="sa-i">keyboard</span>Keystrokes</button>
+    <button class="chip" aria-pressed="true" data-fx="frame"><span class="sa-i">wallpaper</span>Backdrop</button>
+  </div>
+</div>
+<div class="out" id="out">
+  <div class="wall" id="wall"></div>
+  <div class="cam" id="cam">
+    <div class="screen" id="screen">
+      <div class="ui">
+        <div class="bar">Projects<div class="menu" id="menu"><span class="sa-i" style="font-size:14px">more_horiz</span></div></div>
+        <div class="drop" id="drop"><div>Rename</div><div id="dropItem">Duplicate</div><div>Share</div></div>
+        <div class="side"><div class="on" id="s1">Scripts</div><div id="s2">Takes</div><div>Exports</div><div id="s4">Settings</div></div>
+        <div class="main"><div class="lbl">Title</div><div class="field" id="field"><span id="typed"></span></div><div class="save" id="save">Save</div>
+          <div class="cards"><div></div><div></div><div></div><div></div><div></div><div></div></div></div>
+      </div>
+      <div class="cursor" id="cursor"><span class="halo" id="halo"></span><svg viewBox="0 0 16 22"><path d="M1 1 L1 17 L5 13 L8 20 L11 19 L8 12 L14 12 Z" fill="#15171c" stroke="#fff" stroke-width="1.4" stroke-linejoin="round"></path></svg></div>
+    </div>
+  </div>
+  <div class="key" id="key"><span>Ctrl</span><span>S</span></div>
+</div>
+<div class="track" id="track"><div class="head" id="head"></div></div>
+<div class="legend"><span><i style="background:color-mix(in srgb, var(--cue) 70%, transparent)"></i>Zoom</span><span><i style="background:var(--ink);border-radius:50%"></i>Click</span><span><i style="background:var(--cue-pause)"></i>Shortcut</span></div>
+<script>
+(function () {
+  var T = 12; // seconds per loop
+  // Cursor waypoints in screen coordinates (0..1): time, x, y, event.
+  var WP = [[0, .72, .74], [1.2, .40, .30, 'click'], [3.0, .40, .30], [3.6, .41, .31, 'key'], [5.0, .41, .31], [5.9, .10, .40, 'click'], [7.3, .78, .62], [8.0, .86, .06, 'click'], [8.8, .84, .19, 'click'], [9.4, .84, .19], [12, .84, .19]];
+  var TYPE = [1.5, 3.0], TEXT = 'Quarterly update';
+  var EVENTS = WP.filter(function (w) { return w[3]; }).map(function (w) { return { t: w[0], x: w[1], y: w[2], kind: w[3] }; });
+  // A typing burst counts as events all the way through, so the zoom holds while you type.
+  EVENTS.splice(1, 0, { t: 1.6, x: .40, y: .30, kind: 'type' }, { t: 2.3, x: .40, y: .30, kind: 'type' }, { t: 3.0, x: .40, y: .30, kind: 'type' });
+  var LEAD = .3, HOLD = 1.4, ZOOM = 1.8;
+  // Group events that happen close together in time and space into one zoom.
+  var clusters = [];
+  EVENTS.forEach(function (e) {
+    var c = clusters[clusters.length - 1];
+    if (c && e.t - c.end < 1.3 && Math.hypot(e.x - c.x, e.y - c.y) < .3) { c.end = e.t; c.n++; c.x = (c.x + e.x) / 2; c.y = (c.y + e.y) / 2; }
+    else clusters.push({ start: e.t, end: e.t, x: e.x, y: e.y, n: 1 });
+  });
+  // A lone click gets a ripple, not a zoom: zooming on every click makes people seasick.
+  clusters = clusters.filter(function (c) { return c.n > 1; });
+  clusters.forEach(function (c) { c.from = c.start - LEAD - .35; c.to = c.end + HOLD; });
+
+  var fx = { zoom: true, smooth: true, blur: true, ripple: true, keys: true, frame: true }, mode = 'cut';
+  var out = document.getElementById('out'), cam = document.getElementById('cam'), screen = document.getElementById('screen'), cursor = document.getElementById('cursor');
+  var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var t0 = performance.now(), prevT = 0;
+  var camS = { x: .5, y: .5, z: 1, vx: 0, vy: 0, vz: 0 }, cur = { x: .72, y: .74 }, lastMove = 0, fired = {};
+
+  function ease(k) { return k < .5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2; }
+  function rawCursor(t) {
+    for (var i = 0; i < WP.length - 1; i++) {
+      var a = WP[i], b = WP[i + 1];
+      if (t >= a[0] && t <= b[0]) {
+        var travel = Math.min(1, (t - a[0]) / Math.min(.9, b[0] - a[0]));
+        var k = ease(travel);
+        // A real hand wobbles: the raw path carries jitter the edit removes.
+        var j = travel < 1 ? .006 : .0015;
+        return { x: a[1] + (b[1] - a[1]) * k + Math.sin(t * 37) * j, y: a[2] + (b[2] - a[2]) * k + Math.cos(t * 41) * j, moving: travel < 1 };
+      }
+    }
+    var l = WP[WP.length - 1]; return { x: l[1], y: l[2], moving: false };
+  }
+
+  function drawTrack() {
+    var tr = document.getElementById('track');
+    Array.prototype.slice.call(tr.querySelectorAll('.seg,.dot')).forEach(function (n) { n.remove(); });
+    clusters.forEach(function (c) { var s = document.createElement('div'); s.className = 'seg'; s.style.left = (Math.max(0, c.from) / T * 100) + '%'; s.style.width = ((c.to - Math.max(0, c.from)) / T * 100) + '%'; s.hidden = !(mode === 'cut' && fx.zoom); tr.appendChild(s); });
+    EVENTS.forEach(function (e) { if (e.kind === 'type') return; var d = document.createElement('div'); d.className = 'dot' + (e.kind === 'key' ? ' kbd' : ''); d.style.left = (e.t / T * 100) + '%'; tr.appendChild(d); });
+  }
+
+  function frame(now) {
+    var t = ((now - t0) / 1000) % T, dt = Math.min(.05, Math.max(.001, (t - prevT + T) % T)); prevT = t;
+    if (t < .05) { fired = {}; }
+    var W = out.clientWidth, H = out.clientHeight, cut = mode === 'cut';
+    var inset = cut && fx.frame ? .06 : 0;
+    var sx = W * inset, sy = H * inset, sw = W * (1 - 2 * inset), sh = H * (1 - 2 * inset);
+    screen.style.left = sx + 'px'; screen.style.top = sy + 'px'; screen.style.width = sw + 'px'; screen.style.height = sh + 'px';
+    screen.style.borderRadius = cut && fx.frame ? '12px' : '0'; screen.style.boxShadow = cut && fx.frame ? '0 24px 60px #00000080' : 'none';
+    document.getElementById('wall').style.opacity = cut && fx.frame ? 1 : 0;
+
+    // Cursor: the raw path, or a smoothed one that drops the wobble.
+    var r = rawCursor(t);
+    if (cut && fx.smooth) { var a = 1 - Math.exp(-dt / .07); cur.x += (r.x - cur.x) * a; cur.y += (r.y - cur.y) * a; } else { cur.x = r.x; cur.y = r.y; }
+    if (r.moving) lastMove = t;
+    var idle = cut && fx.smooth && t - lastMove > 1.5 && t > 9.4;
+    cursor.style.left = (cur.x * sw) + 'px'; cursor.style.top = (cur.y * sh) + 'px';
+    cursor.querySelector('svg').style.transform = 'scale(' + (cut && fx.smooth ? 1.5 : 1) + ')';
+    cursor.style.opacity = idle ? 0 : 1; cursor.style.transition = 'opacity 300ms';
+    document.getElementById('halo').style.opacity = cut && fx.ripple && !idle ? 1 : 0;
+
+    // The app reacts to the events.
+    var typedN = Math.max(0, Math.min(TEXT.length, Math.floor((t - TYPE[0]) / (TYPE[1] - TYPE[0]) * TEXT.length)));
+    document.getElementById('typed').textContent = TEXT.slice(0, typedN) + (t > 1.2 && t < 5.2 ? '|' : '');
+    document.getElementById('field').classList.toggle('focus', t > 1.2 && t < 5.9);
+    document.getElementById('save').classList.toggle('flash', t > 3.6 && t < 3.8);
+    document.getElementById('s1').classList.toggle('on', t < 5.9); document.getElementById('s2').classList.toggle('on', t >= 5.9);
+    document.getElementById('menu').classList.toggle('on', t >= 8.0 && t < 9.0);
+    document.getElementById('drop').classList.toggle('on', t >= 8.0 && t < 9.0);
+    document.getElementById('dropItem').classList.toggle('hl', t >= 8.5 && t < 9.0);
+    EVENTS.forEach(function (e, i) {
+      if (e.kind === 'click' && t >= e.t && !fired[i]) {
+        fired[i] = true;
+        if (cut && fx.ripple) { var rp = document.createElement('span'); rp.className = 'ripple'; cursor.appendChild(rp); setTimeout(function () { rp.remove(); }, 450); }
+      }
+    });
+    document.getElementById('key').classList.toggle('on', cut && fx.keys && t > 3.55 && t < 4.8);
+
+    // Camera: spring toward the active zoom. The edit knows the future, so zooms start before the click.
+    var target = { x: .5, y: .5, z: 1 };
+    if (cut && fx.zoom) {
+      clusters.forEach(function (c) { if (t >= c.from && t <= c.to) target = { x: c.x * .6 + cur.x * .4, y: c.y * .6 + cur.y * .4, z: ZOOM }; });
+    }
+    var k = 90, c = 19;
+    ['x', 'y', 'z'].forEach(function (p) {
+      var v = 'v' + p, acc = k * (target[p] - camS[p]) - c * camS[v];
+      camS[v] += acc * dt; camS[p] += camS[v] * dt;
+    });
+    if (reduce) { camS.x = target.x; camS.y = target.y; camS.z = target.z; }
+    var z = camS.z;
+    // Keep the view inside the recorded screen.
+    var px = sx + camS.x * sw, py = sy + camS.y * sh;
+    var halfW = W / (2 * z), halfH = H / (2 * z);
+    if (z > 1.001) { px = Math.min(Math.max(px, sx + halfW), sx + sw - halfW); py = Math.min(Math.max(py, sy + halfH), sy + sh - halfH); } else { px = W / 2; py = H / 2; }
+    var tx = W / 2 - z * px, ty = H / 2 - z * py;
+    cam.style.transform = 'translate(' + tx.toFixed(2) + 'px,' + ty.toFixed(2) + 'px) scale(' + z.toFixed(4) + ')';
+    // Motion blur follows how fast the frame moves, and is zero when it is still.
+    // Directional: a pan smears along its direction; a zoom adds only a little blur.
+    var speedX = Math.abs(camS.vx * sw * z) + Math.abs(camS.vz) * W * .12, speedY = Math.abs(camS.vy * sh * z) + Math.abs(camS.vz) * H * .12;
+    var bx = cut && fx.blur && !reduce ? Math.min(6, speedX * .0016) : 0, by = cut && fx.blur && !reduce ? Math.min(6, speedY * .0016) : 0;
+    document.getElementById('mbb').setAttribute('stdDeviation', bx.toFixed(2) + ' ' + by.toFixed(2));
+    cam.style.filter = bx + by > .15 ? 'url(#mb)' : 'none';
+    document.getElementById('head').style.left = (t / T * 100) + '%';
+    requestAnimationFrame(frame);
+  }
+
+  function pick(sel, b) { Array.prototype.slice.call(document.querySelectorAll(sel)).forEach(function (x) { x.setAttribute('aria-pressed', String(x === b)); }); }
+  Array.prototype.slice.call(document.querySelectorAll('[data-mode]')).forEach(function (b) {
+    b.onclick = function () {
+      mode = b.getAttribute('data-mode'); pick('[data-mode]', b);
+      Array.prototype.slice.call(document.querySelectorAll('.chip')).forEach(function (c) { c.disabled = mode !== 'cut'; });
+      drawTrack();
+    };
+  });
+  Array.prototype.slice.call(document.querySelectorAll('.chip')).forEach(function (c) {
+    c.onclick = function () { var f = c.getAttribute('data-fx'); fx[f] = !fx[f]; c.setAttribute('aria-pressed', String(fx[f])); drawTrack(); };
+  });
+  drawTrack();
+  (document.fonts ? document.fonts.ready : Promise.resolve()).then(function () { requestAnimationFrame(frame); });
+})();
+</script>
+</body>
+</html>

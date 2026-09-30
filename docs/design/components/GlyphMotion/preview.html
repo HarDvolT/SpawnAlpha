@@ -1,0 +1,64 @@
+<!-- @dsCard group="Cues" height=400 subtitle="Every cue has one signature motion. It plays when the cue arrives, when it is pressed, and when the take reaches it" -->
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>Glyph motion — preview</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anybody:wdth,wght@50..150,100..900&family=Readex+Pro:wght@300..700&family=Martian+Mono:wdth,wght@75..112.5,300..800&family=Reem+Kufi:wght@400..700&family=Caveat:wght@500..700&family=Aref+Ruqaa:wght@400;700&family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,400..600,0..1,0&display=block">
+<style>
+  body { margin: 0; padding: 16px; }
+  .bar { margin-bottom: 12px; }
+  .bar .grow { flex: 1; }
+  .board { border-radius: var(--radius-md); padding: 14px; display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 8px; }
+  .tile { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 16px 8px 12px; border-radius: var(--radius-md); background: #ffffff0a; box-shadow: inset 0 0 0 1px #ffffff14; cursor: pointer; transition: background-color var(--dur-quick) var(--ease-standard); }
+  .tile:hover { background: #ffffff14; }
+  .tile .sa-g { font-size: 44px; height: 56px; margin: 0; }
+  .tile .sa-g .sa-i { font-size: 1em; }
+  .tile .word { font-size: 28px; line-height: 56px; font-weight: 700; color: var(--stage-stress); }
+  .tile .nm { font-family: var(--font-signal); font-size: 11px; font-weight: 700; letter-spacing: 0.14em; color: var(--stage-text); }
+  .tile .cue { font-size: 11px; color: var(--stage-chrome-text); text-align: center; line-height: 14px; }
+  .rules { margin-top: 12px; display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 6px 20px; font-size: 13px; line-height: 18px; color: var(--ink-2); }
+  .rules b { color: var(--ink); }
+  /* Once mode: signatures play a single time, on arrival or press. */
+  .once .sa-sig-pause .sa-i, .once .sa-sig-long .sa-i, .once .sa-sig-breath .sa-i, .once .sa-sig-slower .sa-i, .once .sa-sig-faster .sa-i, .once .sa-sig-energy .sa-i, .once .sa-sig-stress { animation-iteration-count: 1; }
+</style>
+</head>
+<body class="sa">
+<div class="sa-row bar">
+  <div class="sa-seg" role="group" aria-label="Playback"><button aria-pressed="true" data-mode="loop"><span class="sa-i">all_inclusive</span>Loop</button><button aria-pressed="false" data-mode="once"><span class="sa-i">looks_one</span>Once, on arrival</button></div>
+  <span class="grow"></span>
+  <button class="sa-btn" id="arrive"><span class="sa-i">replay</span>Arrive</button>
+</div>
+<div class="board sa-stage" id="board">
+  <div class="tile" data-sig="sa-sig-stress"><span class="word">ten</span><span class="nm">GROW</span><span class="cue">Stress · swells on the beat</span></div>
+  <div class="tile" data-sig="sa-sig-pause"><span class="sa-g sa-g-pause"><span class="sa-i fill">pause</span></span><span class="nm">TAP</span><span class="cue">Pause · a baton tap</span></div>
+  <div class="tile" data-sig="sa-sig-long"><span class="sa-g sa-g-long"><span class="sa-i fill">pause_circle</span></span><span class="nm">HOLD</span><span class="cue">Long pause · a held ring</span></div>
+  <div class="tile" data-sig="sa-sig-breath"><span class="sa-g sa-g-breath"><span class="sa-i">air</span></span><span class="nm">FLOW</span><span class="cue">Breathe · air moves through</span></div>
+  <div class="tile" data-sig="sa-sig-slower"><span class="sa-g sa-g-slower"><span class="sa-i">keyboard_double_arrow_down</span></span><span class="nm">SINK</span><span class="cue">Slow down · settles lower</span></div>
+  <div class="tile" data-sig="sa-sig-faster"><span class="sa-g sa-g-faster"><span class="sa-i">keyboard_double_arrow_up</span></span><span class="nm">DART</span><span class="cue">Speed up · shoots off, returns</span></div>
+  <div class="tile" data-sig="sa-sig-energy"><span class="sa-g sa-g-energy"><span class="sa-i fill">bolt</span></span><span class="nm">SPARK</span><span class="cue">Lift energy · flashes, glows</span></div>
+</div>
+<div class="rules">
+  <div><b>One motion per cue.</b> The motion says what the cue asks of your voice, so it is learnt without a legend.</div>
+  <div><b>Played, not looped.</b> In the app a signature plays once: when the cue arrives, when you press it, and on the stage when the take reaches it.</div>
+  <div><b>Glyphs move, words don't.</b> Only stress may scale a word, and it has reserved room for it. Nothing ever reflows a line.</div>
+</div>
+<script>
+(function () {
+  var board = document.getElementById('board'), tiles = Array.prototype.slice.call(board.querySelectorAll('.tile'));
+  function target(t) { return t.getAttribute('data-sig') === 'sa-sig-stress' ? t.querySelector('.word') : t.querySelector('.sa-g'); }
+  function play(t) { var el = target(t), sig = t.getAttribute('data-sig'); el.classList.remove(sig); void el.offsetWidth; el.classList.add(sig); }
+  tiles.forEach(function (t, i) { play(t); target(t).style.animationDelay = board.classList.contains('once') ? '0ms' : (i * -170) + 'ms'; t.onclick = function () { play(t); }; });
+  Array.prototype.slice.call(document.querySelectorAll('[data-mode]')).forEach(function (b) {
+    b.onclick = function () {
+      Array.prototype.forEach.call(document.querySelectorAll('[data-mode]'), function (x) { x.setAttribute('aria-pressed', String(x === b)); });
+      board.classList.toggle('once', b.getAttribute('data-mode') === 'once');
+      tiles.forEach(function (t, i) { target(t).style.animationDelay = board.classList.contains('once') ? (i * 90) + 'ms' : (i * -170) + 'ms'; play(t); });
+    };
+  });
+  // The shared entrance: every glyph arrives on the snappy spring, staggered in reading order.
+  document.getElementById('arrive').onclick = function () {
+    tiles.forEach(function (t, i) { var el = target(t); el.classList.remove('sa-arrive', t.getAttribute('data-sig')); void el.offsetWidth; el.style.animationDelay = (i * 60) + 'ms'; el.classList.add('sa-arrive'); setTimeout(function () { el.classList.remove('sa-arrive'); play(t); }, 480 + i * 60); });
+  };
+})();
+</script>
+</body>
+</html>

@@ -44,7 +44,9 @@ for (const theme of ['light', 'dark']) {
     html = html.replace('<html>', `<html data-theme="${theme}">`).replace('</head>', `<style>${tokens}</style><style>${bundle}</style></head>`);
     await page.setViewportSize({ width: 960, height });
     await page.setContent(html, { waitUntil: 'networkidle' });
-    await page.waitForTimeout(c === 'Prompter' ? 4000 : 800);
+    // Animated previews need time to reach a representative frame.
+    const wait = { Prompter: 4200, Countdown: 1500, AutoZoom: 3600, CaptionStyles: 2600, CursorCompanion: 2500, DirectorsCut: 4200, RecordScreen: 5600, GlyphMotion: 1500, MarkedScript: 2400 };
+    await page.waitForTimeout(wait[c] ?? 800);
     await page.screenshot({ path: path.join(out, `${c}-${theme}.png`) });
     await page.close();
   }

@@ -2,7 +2,7 @@
 <!doctype html>
 <html>
 <head><meta charset="utf-8"><title>Cover</title>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Readex+Pro:wght@300..700&display=block">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anybody:wdth,wght@50..150,100..900&family=Readex+Pro:wght@300..700&family=Martian+Mono:wdth,wght@75..112.5,300..800&family=Reem+Kufi:wght@400..700&family=Caveat:wght@500..700&family=Aref+Ruqaa:wght@400;700&family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,400..600,0..1,0&display=block">
 <style>
   html, body { margin: 0; }
   body { background: var(--paper); }
@@ -22,7 +22,7 @@
   .slab-shape { rx: var(--radius-lg); }
   .cue-shape { rx: var(--radius-xs); }
   .tint { rx: var(--radius-xs); }
-  .name { position: absolute; left: 40px; bottom: 72px; max-width: 440px; margin: 0; font-size: 72px; line-height: 0.92; font-weight: 700; letter-spacing: -0.02em; color: var(--ink); }
+  .name { position: absolute; left: 40px; bottom: 72px; max-width: 440px; margin: 0; font-family: var(--font-display); font-size: 68px; line-height: 0.92; font-weight: 800; font-variation-settings: 'wdth' 112; letter-spacing: -0.02em; color: var(--ink); white-space: nowrap; }
   .tag { position: absolute; left: 40px; bottom: 36px; max-width: 440px; margin: 0; font-size: 14px; color: var(--ink-2); }
 </style>
 </head>
@@ -52,8 +52,8 @@
     <rect class="word pill" x="568" y="221" width="88" height="14"></rect><rect class="word pill" x="672" y="221" width="112" height="14"></rect>
   </svg>
   <p class="name">SpawnAlpha</p>
-  <p class="tag">The AI directs, you perform, the AI checks.</p>
+  <p class="tag">The AI directs, you perform, the edit is done.</p>
 </div>
-<script>/* Static cover. */</script>
+<script>/* Static cover. */ document.fonts && document.fonts.ready.then(function () { var n = document.querySelector(".name"); if (n.scrollWidth > 440) n.style.fontSize = Math.floor(68 * 440 / n.scrollWidth) + "px"; });</script>
 </body>
 </html>

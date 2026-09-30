@@ -1,69 +1,114 @@
-<!-- @dsCard group="Cues" height=360 subtitle="The editor's Marks view: proposed cues draw in, then settle when accepted" -->
+<!-- @dsCard group="Cues" height=340 subtitle="The editor's Marks view: the director's pass swipes a marker, drops glyphs and pencils why in the margin" -->
 <!doctype html>
 <html>
 <head><meta charset="utf-8"><title>Marked script — preview</title>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Readex+Pro:wght@300..700&family=IBM+Plex+Mono:wght@400;500&family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,400..600,0..1,0&display=block">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anybody:wdth,wght@50..150,100..900&family=Readex+Pro:wght@300..700&family=Martian+Mono:wdth,wght@75..112.5,300..800&family=Reem+Kufi:wght@400..700&family=Caveat:wght@500..700&family=Aref+Ruqaa:wght@400;700&family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,400..600,0..1,0&display=block">
 <style>
   body { margin: 0; padding: 16px; }
-  .bar { margin-bottom: 14px; }
-  .page { max-width: 720px; }
-  .note { margin-top: 10px; }
+  .bar { margin-bottom: 12px; }
+  .bar .grow { flex: 1; }
+  /* The page: the script column plus a margin for the director's pencil. */
+  .page { position: relative; max-width: 860px; display: grid; grid-template-columns: minmax(0, 1fr) 220px; gap: 0 20px; padding: 18px 20px 22px 24px; border-radius: var(--radius-md); background: var(--surface); border: 1px solid var(--line); }
+  .page::after { content: ''; position: absolute; top: 14px; bottom: 14px; inset-inline-end: 240px; width: 1px; background: repeating-linear-gradient(var(--line) 0 4px, transparent 4px 8px); }
+  .page .sa-script { margin: 0; }
+  .margin { position: relative; }
+  /* Pencil notes write on in the reading direction, then stay. */
+  .pn { position: absolute; inset-inline-start: 0; width: 220px; display: flex; gap: 4px; align-items: flex-start; clip-path: inset(0 100% 0 0); transition: clip-path 700ms cubic-bezier(0.4, 0, 0.2, 1); }
+  [dir="rtl"] .pn { clip-path: inset(0 0 0 100%); }
+  .pn.in { clip-path: inset(0 0 0 0) !important; }
+  .pn svg { flex: none; width: 26px; height: 20px; margin-top: 2px; color: var(--ink-3); }
+  [dir="rtl"] .pn svg { transform: scaleX(-1); }
+  .pn .sa-note { color: var(--ink-2); }
+  /* Marker swipes draw across the word in reading order. */
+  .sa-marker { transition: background-size 420ms cubic-bezier(0.4, 0, 0.2, 1), background-image 200ms; }
+  .foot { margin-top: 10px; }
+  @media (max-width: 640px) { .page { grid-template-columns: 1fr; } .page::after { display: none; } .margin { min-height: 120px; } }
+  @media (prefers-reduced-motion: reduce) { .pn, .sa-marker { transition: none; } }
 </style>
 </head>
 <body class="sa">
-<div class="page">
-  <div class="sa-row bar">
-    <button class="sa-btn" id="replay"><span class="sa-i">auto_awesome</span>Run the director's pass</button>
-    <button class="sa-btn sa-btn-cue" id="accept"><span class="sa-i">done_all</span>Accept all</button>
-  </div>
-  <p class="sa-script" id="script">
-    <span class="cue-text sa-stress">Last quarter,</span> our support team answered
-    <span class="cue-text sa-stress">12,000</span> <span class="sa-nb">tickets.<span class="cue sa-g sa-g-long" title="Long pause"><span class="sa-i fill">pause_circle</span></span></span>
-    <span class="cue-text sa-slower"><span class="sa-nb"><span class="cue sa-g sa-g-slower" title="Slow down"><span class="sa-i">keyboard_double_arrow_down</span><small>slow</small></span>That</span> is twice as many as the year <span class="sa-nb">before,<span class="cue sa-g sa-g-breath" title="Breathe"><span class="sa-i">air</span></span></span></span>
-    with the <span class="sa-select">same</span> <span class="sa-nb">team.<span class="cue sa-g sa-g-pause" title="Pause"><span class="sa-i fill">pause</span></span></span>
-    <span class="cue-text sa-energy"><span class="sa-nb"><span class="cue sa-g sa-g-energy"><span class="sa-i fill">bolt</span></span>So</span> how did we do it?</span>
-  </p>
-  <div class="sa-caption note">Faded cues are proposals. The word "same" is selected: its sheet is open.</div>
+<div class="sa-row bar">
+  <button class="sa-btn" id="replay"><span class="sa-i">auto_awesome</span>Run the director's pass</button>
+  <button class="sa-btn sa-btn-cue" id="accept"><span class="sa-i">done_all</span>Accept all</button>
+  <span class="grow"></span>
+  <div class="sa-seg" role="group" aria-label="Language"><button aria-pressed="true" data-lang="en">English</button><button aria-pressed="false" data-lang="ar">العربية</button></div>
 </div>
+<div class="page" id="page" dir="ltr">
+  <p class="sa-script" id="script"></p>
+  <div class="margin" id="margin"></div>
+</div>
+<div class="sa-caption foot" id="foot">Faded marks are proposals. Accept all, or tap one to change it.</div>
 <script>
-  var glyphs = Array.prototype.slice.call(document.querySelectorAll('#script .cue'));
-  var words = Array.prototype.slice.call(document.querySelectorAll('#script .cue-text'));
-  // Reading order: sort every cue by its position in the text.
-  var all = glyphs.concat(words).sort(function (a, b) {
-    return a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1;
-  });
-  var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  function reset(el) { el.classList.remove('sa-cue-in', 'sa-cue-settle'); el.style.animationDelay = ''; el.style.transitionDelay = ''; }
+(function () {
+  function g(cls, icon, fill, label) { return '<span class="cue sa-g ' + cls + '"><span class="sa-i' + (fill ? ' fill' : '') + '">' + icon + '</span>' + (label ? '<small>' + label + '</small>' : '') + '</span>'; }
+  var LONG = g('sa-g-long', 'pause_circle', 1), PAUSE = g('sa-g-pause', 'pause', 1), AIR = g('sa-g-breath', 'air', 0);
+  var PAGES = {
+    en: {
+      dir: 'ltr',
+      html: '<span class="mk sa-marker">Last quarter,</span> our support team answered <span class="mk sa-marker" data-note="0">12,000</span> <span class="sa-nb">tickets.' + LONG + '</span> ' +
+        '<span class="tint sa-slower" data-note="1"><span class="sa-nb">' + g('sa-g-slower', 'keyboard_double_arrow_down', 0, 'slow') + 'That</span> is twice as many as the year <span class="sa-nb">before,' + AIR + '</span></span> ' +
+        'with the same <span class="sa-nb">team.' + PAUSE + '</span> <span class="tint sa-energy" data-note="2"><span class="sa-nb">' + g('sa-g-energy', 'bolt', 1) + 'So</span> how did we do it?</span>',
+      notes: ['the number is the story. let it land', 'slow. let them do the maths', 'lift! this is the turn'],
+      foot: 'Faded marks are proposals. Accept all, or tap one to change it.'
+    },
+    ar: {
+      dir: 'rtl',
+      html: '<span class="mk sa-marker">في الربع الأخير،</span> أجاب فريق الدعم على <span class="mk sa-marker" data-note="0">١٢٬٠٠٠</span> <span class="sa-nb">تذكرة.' + LONG + '</span> ' +
+        '<span class="tint sa-slower" data-note="1"><span class="sa-nb">' + g('sa-g-slower', 'keyboard_double_arrow_down', 0, 'ببطء') + 'أي</span> ضعف ما أجبنا عليه العام <span class="sa-nb">الماضي،' + AIR + '</span></span> ' +
+        'بنفس <span class="sa-nb">الفريق.' + PAUSE + '</span> <span class="tint sa-energy" data-note="2"><span class="sa-nb">' + g('sa-g-energy', 'bolt', 1) + 'فكيف</span> فعلنا ذلك؟</span>',
+      notes: ['الرقم هو القصة، أعطه وقته', 'أبطئ، دعهم يستوعبون', 'ارفع الطاقة، هنا المنعطف'],
+      foot: 'العلامات الباهتة مقترحات. اقبلها كلها، أو المس واحدة لتغييرها.'
+    }
+  };
+  // A pencil arrow, drawn once per note, pointing back at the text.
+  var ARROW = '<svg viewBox="0 0 26 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M24 14 C 17 15, 9 12, 3 5"/><path d="M3 5 L 3.5 11"/><path d="M3 5 L 9 6"/></svg>';
+  var page = document.getElementById('page'), script = document.getElementById('script'), margin = document.getElementById('margin');
+  var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches, lang = 'en', timers = [];
+
+  function build() {
+    var P = PAGES[lang];
+    page.dir = P.dir; script.dir = P.dir; script.innerHTML = P.html; document.getElementById('foot').textContent = P.foot; document.getElementById('foot').dir = P.dir;
+    margin.innerHTML = P.notes.map(function (n, i) { return '<div class="pn" data-i="' + i + '">' + ARROW + '<div><span class="sa-note">' + n + '</span></div></div>'; }).join('');
+    // Each note sits level with the line its cue is on, pushed down if it would overlap the one above.
+    var pr = margin.getBoundingClientRect(), last = -1e9;
+    Array.prototype.forEach.call(margin.children, function (n, i) {
+      var a = script.querySelector('[data-note="' + i + '"]').getBoundingClientRect(), top = Math.max(a.top - pr.top - 2, last + 8);
+      n.style.top = top + 'px'; last = top + n.offsetHeight;
+    });
+    margin.style.minHeight = last + 'px';
+  }
+  function marks() { return Array.prototype.slice.call(script.querySelectorAll('.mk, .tint, .cue')).sort(function (a, b) { return a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1; }); }
+  function later(ms, f) { if (reduce) f(); else timers.push(setTimeout(f, ms)); }
+
+  // The director's pass: marks arrive in reading order, about 70 ms apart, and each note writes on after its mark.
   function pass() {
-    var step = reduce ? 0 : Math.min(18, 800 / Math.max(all.length, 1));
-    all.forEach(function (el) { reset(el); el.classList.add('sa-off'); el.classList.remove('sa-pending'); });
-    void document.body.offsetWidth;
+    timers.forEach(clearTimeout); timers = [];
+    build();
+    var all = marks();
+    all.forEach(function (el) { el.classList.add('sa-pending', 'sa-off'); el.classList.remove('sa-arrive'); });
+    void script.offsetWidth;
     all.forEach(function (el, i) {
-      el.classList.remove('sa-off');
-      el.classList.add('sa-pending');
-      if (glyphs.indexOf(el) >= 0) {
-        if (!reduce) { el.classList.add('sa-cue-in'); el.style.animationDelay = (i * step) + 'ms'; }
-      } else {
-        el.style.transitionDelay = (i * step) + 'ms';
-      }
+      later(200 + i * 70, function () {
+        el.classList.remove('sa-off');
+        if (el.classList.contains('cue')) { el.style.setProperty('--arrive-to', 0.5); el.classList.add('sa-arrive'); }
+        var ni = el.getAttribute('data-note');
+        if (ni !== null) later(260, function () { margin.children[+ni].classList.add('in'); });
+      });
     });
   }
   function acceptAll() {
-    var step = reduce ? 0 : Math.min(18, 400 / Math.max(all.length, 1));
-    all.forEach(function (el, i) {
-      reset(el);
-      void el.offsetWidth;
-      el.classList.remove('sa-pending');
-      if (glyphs.indexOf(el) >= 0) {
-        if (!reduce) { el.classList.add('sa-cue-settle'); el.style.animationDelay = (i * step) + 'ms'; }
-      } else {
-        el.style.transitionDelay = (i * step) + 'ms';
-      }
+    marks().forEach(function (el, i) {
+      later(i * 18, function () { el.classList.remove('sa-pending', 'sa-off', 'sa-arrive'); el.style.removeProperty('--arrive-to'); });
     });
+    Array.prototype.forEach.call(margin.children, function (n) { n.classList.add('in'); });
   }
   document.getElementById('replay').onclick = pass;
   document.getElementById('accept').onclick = acceptAll;
-  pass();
+  Array.prototype.slice.call(document.querySelectorAll('[data-lang]')).forEach(function (b) {
+    b.onclick = function () { lang = b.getAttribute('data-lang'); Array.prototype.forEach.call(document.querySelectorAll('[data-lang]'), function (x) { x.setAttribute('aria-pressed', String(x === b)); }); pass(); };
+  });
+  (document.fonts ? document.fonts.ready : Promise.resolve()).then(pass);
+})();
 </script>
 </body>
 </html>

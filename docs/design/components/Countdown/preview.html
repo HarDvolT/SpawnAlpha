@@ -2,7 +2,7 @@
 <!doctype html>
 <html>
 <head><meta charset="utf-8"><title>Countdown — preview</title>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Readex+Pro:wght@300..700&family=IBM+Plex+Mono:wght@400;500&family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,400..600,0..1,0&display=block">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anybody:wdth,wght@50..150,100..900&family=Readex+Pro:wght@300..700&family=Martian+Mono:wdth,wght@75..112.5,300..800&family=Reem+Kufi:wght@400..700&family=Caveat:wght@500..700&family=Aref+Ruqaa:wght@400;700&family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,400..600,0..1,0&display=block">
 <style>
   html, body { margin: 0; height: 100%; }
   body { background: var(--stage); }
@@ -10,9 +10,10 @@
   .dial { position: absolute; left: 50%; top: 50%; width: 150px; height: 150px; margin: -75px 0 0 -75px; border-radius: 50%; background: #00000080; display: grid; place-items: center; }
   .dial svg { position: absolute; inset: 0; transform: rotate(-90deg); }
   .dial circle { fill: none; stroke: var(--stage-text); stroke-width: 4; stroke-linecap: round; }
-  .num { font-size: 76px; font-weight: 700; color: var(--stage-text); font-variant-numeric: tabular-nums; line-height: 1; }
-  .num.pop { animation: pop 200ms var(--ease-standard) both; }
-  @keyframes pop { from { transform: scale(1.15); opacity: 0.4; } to { transform: none; opacity: 1; } }
+  /* The numeral is the display face at weight 900: it lands wide and tightens to normal width on each beat. */
+  .num { font-family: var(--font-display); font-size: 92px; font-weight: 900; color: var(--stage-text); font-variant-numeric: tabular-nums; line-height: 1; font-variation-settings: 'wdth' 100; }
+  .num.pop { animation: pop 460ms cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+  @keyframes pop { from { transform: scale(1.35); opacity: 0.2; font-variation-settings: 'wdth' 150; } 60% { opacity: 1; } to { transform: none; opacity: 1; font-variation-settings: 'wdth' 100; } }
   .dot { position: absolute; width: 12px; height: 12px; border-radius: 50%; background: var(--stage-rec); left: calc(50% - 6px); top: calc(50% - 6px); opacity: 0; }
   .dot.go { opacity: 1; animation: fly var(--dur-base) var(--ease-standard) both; }
   @keyframes fly { from { transform: translate(0, 0) scale(12); opacity: 0.2; } to { transform: translate(var(--dx), var(--dy)) scale(1); opacity: 1; } }

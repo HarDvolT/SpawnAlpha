@@ -20,41 +20,57 @@ device.** (The build order is in [product-brief.md](product-brief.md#build-order
 | Practice prompter screen with keyboard shortcuts | Done |
 | Camera recording screen (countdown, prompter overlay, saves takes) | Written. **Untested: no camera in CI; needs a real Windows and Android run.** |
 | Storage: scripts as JSON files, settings, API key in secure storage | Done |
-| Design language (Studio and Stage tokens, cue vocabulary, prompter, recording modes, motion, 14 components) | Done in `docs/design/` and the design-system artifact. **Not yet applied to the Flutter app.** |
-| Screen and Screen + camera recording | Designed (`docs/design/recording.md`). Not built. |
+| Design language v2 (four type voices, glass, springs, signature motions, kinetic prompter, cursor companion, Director's Cut; 20 components) | Done in `docs/design/` and the design-system artifact. **Not yet applied to the Flutter app.** |
+| Screen and Screen + camera recording, cursor companion, telemetry | Designed (`docs/design/recording.md`). Not built. |
+| Director's Cut (auto-edit, captions, auto-zoom, finish screen) | Designed (`docs/design/autoedit.md`). Not built; needs a native render core. |
 
 85 tests pass (`cd app && flutter test`), and `flutter analyze` is clean.
 
 ## Next steps
 
-0. **Apply the design language to the app** (`docs/design-language.md`):
-   - the tokens as a Flutter theme (`ColorScheme` plus `CueColors` and stage colours);
-   - Readex Pro and IBM Plex Mono bundled as font assets;
+1. **Get the owner's answer on [roadmap.md](roadmap.md)** (move Windows screen recording
+   up, make the Director's Cut the core promise). Then update the brief's build order to
+   match.
+2. **Apply design language v2 to the app** (`docs/design-language.md`):
+   - the tokens as a Flutter theme: `ColorScheme`, `CueColors`, stage and glass colours,
+     `Springs` as `SpringDescription`s;
+   - the fonts bundled as assets: Anybody, Readex Pro, Martian Mono, Caveat, Aref Ruqaa and
+     Reem Kufi, all OFL, with `fontFamilyFallback` for Arabic;
    - the new cue colours and glyphs (Long pause becomes `pause_circle`);
-   - the always-dark stage;
-   - the motion list (director's pass, accept settle, hold badge ring, countdown, record morph);
-   - the pending banner and the record screen layout per mode.
+   - the marker swipe and margin notes in the editor. Notes need a `note` field on marks,
+     filled by the AI markup.
+   - the kinetic prompter (liveness near the reading line, no reflow) with a Kinetic/Still
+     toggle;
+   - the countdown in the display face, the glass phone prompter panel, and the record
+     screen;
+   - the motion list (director's pass, accept, hold badge ring, countdown, record morph).
 
    Re-render `app/tool/screenshots_test.dart` and compare with the artifact previews.
 
-1. **Run it on real hardware** (can't be done in a Linux container):
+3. **Run it on real hardware** (can't be done in a Linux container):
    - Windows: `flutter run -d windows`. Check camera recording through
      `camera_windows`, the keyboard shortcuts, and where the takes are saved.
    - Android phone: check the camera and microphone permission prompts, the
      front camera preview with the prompter overlay, and the recording files.
    - iOS: the same checks as Android (needs a Mac).
-2. **Try the AI engines for real.** Use Claude and at least one other cloud
+4. **Try the AI engines for real.** Use Claude and at least one other cloud
    provider with real keys, and Ollama or LM Studio with a small local model
    (for example a 7B or 8B instruct model). Compare the markup on the three
    samples, and note which local models follow the JSON format reliably. Check
    the phone-to-computer case (LAN address) and the error messages (bad key,
    server off, context too small).
-3. Polish found while testing: an in-app list of takes with playback (needs a
+5. Polish found while testing: an in-app list of takes with playback (needs a
    video player that supports Windows), and an easier way to extend a pace or
    energy span beyond one sentence.
-4. Then **build step 2, the delivery review**: whisper.cpp transcription with
-   word timings, aligned to the script tokens (the `Take` records already
-   point at the files). See OpenScreen in the brief for reusable parts.
+6. Then the next build step:
+   - If the owner approves the roadmap, it is the **Windows recorder** (screen, camera,
+     both, with the hidden prompter, HUD, cursor companion and telemetry).
+   - Otherwise it is the brief's **step 2, the delivery review**: whisper.cpp
+     transcription with word timings, aligned to the script tokens. The `Take` records
+     already point at the files.
+
+   Either way, the word alignment is shared by the review and the Director's Cut. See
+   OpenScreen in the brief for reusable parts.
 
 ## Decisions
 
@@ -67,6 +83,19 @@ device.** (The build order is in [product-brief.md](product-brief.md#build-order
   dark and true black. Readex Pro (one family for Latin and Arabic) and IBM Plex Mono. Each cue
   has a fixed glyph and colour, and no cue relies on colour alone. On the Stage, only timing
   moves. The artifact holds the live previews; `docs/design/` mirrors it for agents.
+- 2026-09-30: Design language v2, at the owner's request ("premium, consistent, not boring",
+  "interesting fonts", "animated text popups").
+  - **Fonts:** four type voices (Anybody, Readex Pro, Martian Mono, Caveat and Aref Ruqaa).
+    Anybody's width axis expresses pace.
+  - **Studio:** stress is an amber marker swipe, and the AI director writes pencil notes in
+    the margin.
+  - **Motion:** glass over live video, springs for motion, and one signature motion per cue.
+  - **Prompter:** kinetic text only near the reading line, and never reflowing. Big animation
+    lives in the captions.
+  - **Recording:** the prompter follows the mouse only in screen-only mode (cursor
+    companion), never with the camera on. The Director's Cut edits the take automatically,
+    from the script, the cues and screen telemetry. Proposed, not yet approved as the build
+    order: [roadmap.md](roadmap.md).
 - 2026-09-30: The Flutter app lives in `app/`, leaving the repo root free for docs and any
   later backend.
 - 2026-09-30: Marks are anchored to token indices, not character offsets or inline tags. Text
@@ -91,7 +120,12 @@ device.** (The build order is in [product-brief.md](product-brief.md#build-order
 ## Open questions (from the brief)
 
 - Should screen recording on Windows (build step 4 in the brief) move up, before the delivery
-  review? It is now a core mode of the recorder.
+  review? It is now a core mode of the recorder. **Proposed: yes**, as step 2 (see
+  [roadmap.md](roadmap.md)).
+- Which render core should the Director's Cut use (native encoders or an LGPL FFmpeg, GPU
+  compositing, through FFI)? Spike it early.
+- How good is word alignment for Moroccan Darija and Darija–French switching? The review and
+  the Cut both depend on it.
 - Which cloud model to use for markup, and how much the free tier includes.
 - How reliably stress can be detected from volume and pitch (needs a prototype, step 2).
 - App name.
@@ -122,3 +156,12 @@ device.** (The build order is in [product-brief.md](product-brief.md#build-order
     `render-previews.mjs` for visual checks.
   - Studied OpenScreen's recording HUD, Notes teleprompter and content protection for the
     recording design.
+- 2026-09-30, session 1 (continued), design v2:
+  - Added the four type voices, glass, springs and signature motions.
+  - Added new components: the kinetic Prompter, CaptionStyles, AutoZoom, CursorCompanion,
+    DirectorsCut, GlyphMotion and RecordScreen.
+  - Reworked MarkedScript as a script page with a marker and pencil notes.
+  - Added the `autoedit.md` spec and `docs/roadmap.md` with the pushback and the proposed
+    build order.
+  - Rendered every preview in both themes and in Arabic, and republished the artifact
+    (version 4).
