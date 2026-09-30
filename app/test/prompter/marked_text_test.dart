@@ -24,7 +24,7 @@ void main() {
       tokens: tokens,
       marks: marks,
       style: const TextStyle(fontSize: 20),
-      colors: CueColors.light,
+      colors: CueColors.studioLight,
     );
     final key = GlobalKey();
     await tester.pumpWidget(Directionality(
@@ -60,7 +60,7 @@ void main() {
 
   test('taps on a cue open the word it belongs to', () {
     final tokens = tokenize('one two three');
-    final marked = MarkedText.build(tokens: tokens, marks: marks, style: const TextStyle(), colors: CueColors.light);
+    final marked = MarkedText.build(tokens: tokens, marks: marks, style: const TextStyle(), colors: CueColors.studioLight);
     for (final (start, _, token) in marked.cueRanges) {
       expect(marked.tokenForTap(start, tokens), token);
     }

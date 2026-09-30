@@ -298,7 +298,7 @@ class _EditorScreenState extends State<EditorScreen> with SingleTickerProviderSt
 
   Widget _marksTab() {
     final theme = Theme.of(context);
-    final colors = theme.brightness == Brightness.dark ? CueColors.dark : CueColors.light;
+    final colors = CueColors.forStudio(context);
     final marked = MarkedText.build(
       tokens: _script.tokens,
       marks: _script.marks,

@@ -1,6 +1,8 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 
 import 'src/app.dart';
@@ -9,6 +11,7 @@ import 'src/storage/settings.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  _registerFontLicenses();
   final documents = await getApplicationDocumentsDirectory();
   final root = Directory('${documents.path}${Platform.pathSeparator}SpawnAlpha');
   String under(String name) => '${root.path}${Platform.pathSeparator}$name';
@@ -24,4 +27,22 @@ Future<void> main() async {
       recordingsDir: Directory(under('recordings')),
     ),
   ));
+}
+
+/// The bundled fonts are under the SIL Open Font License, which asks for
+/// the licence to travel with them; it shows in the app's licence page.
+void _registerFontLicenses() {
+  const fonts = {
+    'Anybody': 'anybody',
+    'Aref Ruqaa': 'arefruqaa',
+    'Caveat': 'caveat',
+    'Martian Mono': 'martianmono',
+    'Readex Pro': 'readexpro',
+    'Reem Kufi': 'reemkufi',
+  };
+  LicenseRegistry.addLicense(() async* {
+    for (final MapEntry(key: family, value: file) in fonts.entries) {
+      yield LicenseEntryWithLineBreaks([family], await rootBundle.loadString('assets/fonts/OFL-$file.txt'));
+    }
+  });
 }

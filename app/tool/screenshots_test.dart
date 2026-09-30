@@ -4,8 +4,9 @@
 //
 //   flutter test tool/screenshots_test.dart --update-goldens
 //
-// Images land in app/tool/screenshots/ (git-ignored). Latin and Arabic text
-// uses DejaVu Sans from /usr/share/fonts, or from SCREENSHOT_FONT_DIR.
+// Images land in app/tool/screenshots/ (git-ignored). Text uses the app's
+// bundled fonts (assets/fonts); anything asking for Roboto gets DejaVu Sans
+// from /usr/share/fonts, or from SCREENSHOT_FONT_DIR.
 
 import 'dart:io';
 
@@ -22,6 +23,7 @@ import 'package:spawnalpha/src/model/script_document.dart';
 import 'package:spawnalpha/src/prompter/prompter_view.dart';
 import 'package:spawnalpha/src/storage/script_store.dart';
 import 'package:spawnalpha/src/storage/settings.dart';
+import 'package:spawnalpha/src/theme/theme.dart';
 import 'package:spawnalpha/src/ui/editor_screen.dart';
 import 'package:spawnalpha/src/ui/library_screen.dart';
 import 'package:spawnalpha/src/ui/settings_screen.dart';
@@ -37,7 +39,20 @@ Future<void> _loadFonts() async {
     ..addFont(bytes('$fontDir/DejaVuSans-Bold.ttf'));
   final icons = FontLoader('MaterialIcons')
     ..addFont(bytes('$flutterRoot/bin/cache/artifacts/material_fonts/MaterialIcons-Regular.otf'));
-  await Future.wait([text.load(), icons.load()]);
+  // The design language's type voices, as bundled in pubspec.yaml.
+  const bundled = {
+    'Anybody': ['Anybody-Variable.ttf'],
+    'Readex Pro': ['ReadexPro-Variable.ttf'],
+    'Martian Mono': ['MartianMono-Variable.ttf'],
+    'Caveat': ['Caveat-Variable.ttf'],
+    'Aref Ruqaa': ['ArefRuqaa-Regular.ttf', 'ArefRuqaa-Bold.ttf'],
+    'Reem Kufi': ['ReemKufi-Variable.ttf'],
+  };
+  final voices = [
+    for (final MapEntry(key: family, value: files) in bundled.entries)
+      files.fold(FontLoader(family), (loader, file) => loader..addFont(bytes('assets/fonts/$file'))),
+  ];
+  await Future.wait([text.load(), icons.load(), for (final v in voices) v.load()]);
 }
 
 Future<ScriptDocument> _markedUp(ScriptDocument s, {bool accept = true}) async {
@@ -70,7 +85,7 @@ void main() {
 
   Future<void> shoot(WidgetTester tester, String name, Size size, Widget Function(AppServices) screen,
       List<ScriptDocument> scripts,
-      {Future<void> Function(WidgetTester)? before}) async {
+      {Future<void> Function(WidgetTester)? before, Brightness brightness = Brightness.light}) async {
     tester.view.physicalSize = size;
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
@@ -79,7 +94,7 @@ void main() {
       services: app,
       child: MaterialApp(
         debugShowCheckedModeBanner: false,
-        theme: ThemeData(colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF6D4AFF))),
+        theme: buildTheme(brightness),
         home: screen(app),
       ),
     ));
@@ -95,6 +110,11 @@ void main() {
     await shoot(tester, 'library', phone, (_) => const LibraryScreen(), sampleScripts());
   });
 
+  testWidgets('library dark', (tester) async {
+    await shoot(tester, 'library-dark', phone, (_) => const LibraryScreen(), sampleScripts(),
+        brightness: Brightness.dark);
+  });
+
   for (final provider in [MarkupProvider.ollama, MarkupProvider.gemini]) {
     testWidgets('settings ${provider.name}', (tester) async {
       await shoot(tester, 'settings-${provider.name}', phone, (app) {
@@ -108,6 +128,12 @@ void main() {
     testWidgets('editor $name, marks pending', (tester) async {
       final script = await _markedUp(sampleScripts()[i], accept: false);
       await shoot(tester, 'editor-$name', desktop, (_) => EditorScreen(script: script), [script]);
+    });
+
+    testWidgets('editor $name, dark', (tester) async {
+      final script = await _markedUp(sampleScripts()[i]);
+      await shoot(tester, 'editor-$name-dark', desktop, (_) => EditorScreen(script: script), [script],
+          brightness: Brightness.dark);
     });
 
     testWidgets('editor $name on a phone', (tester) async {

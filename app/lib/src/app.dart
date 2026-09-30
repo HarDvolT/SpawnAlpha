@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 
 import 'storage/script_store.dart';
+import 'theme/theme.dart';
 import 'storage/settings.dart';
 import 'ui/library_screen.dart';
 
@@ -37,17 +38,13 @@ class SpawnAlphaApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    ThemeData theme(Brightness brightness) => ThemeData(
-          colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF6D4AFF), brightness: brightness),
-          useMaterial3: true,
-        );
     return AppScope(
       services: services,
       child: MaterialApp(
         title: 'SpawnAlpha',
         debugShowCheckedModeBanner: false,
-        theme: theme(Brightness.light),
-        darkTheme: theme(Brightness.dark),
+        theme: buildTheme(Brightness.light),
+        darkTheme: buildTheme(Brightness.dark),
         home: const LibraryScreen(),
       ),
     );

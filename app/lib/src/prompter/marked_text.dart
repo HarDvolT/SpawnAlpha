@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 
 import '../model/mark.dart';
 import '../model/token.dart';
+import '../theme/theme.dart';
 
-/// Colours for the delivery cues, in a dark (prompter) and a light
-/// (editor) variant.
+/// Colours for the delivery cues: the stage set (always dark, whatever
+/// the device theme) and a Studio set per theme. All come from the design
+/// tokens (`cue-*`, `stage-*`, `tint-*`).
 class CueColors {
   const CueColors({
     required this.text,
@@ -15,29 +17,47 @@ class CueColors {
     required this.pause,
     required this.breath,
     required this.selection,
+    required this.tintSlower,
+    required this.tintFaster,
+    required this.marker,
   });
 
-  static const dark = CueColors(
-    text: Color(0xFFF4F4F2),
-    stress: Color(0xFFFFC940),
-    energy: Color(0xFFFF8A65),
-    slower: Color(0xFF40C4FF),
-    faster: Color(0xFFFF9100),
-    pause: Color(0xFFB388FF),
-    breath: Color(0xFF69F0AE),
-    selection: Color(0x33FFFFFF),
+  /// The stage: the prompter, the countdown, the recording HUD.
+  static final stage = CueColors(
+    text: SaPalette.dark.stageText,
+    stress: SaPalette.dark.stageStress,
+    energy: SaPalette.dark.stageEnergy,
+    slower: SaPalette.dark.stageSlower,
+    faster: SaPalette.dark.stageFaster,
+    pause: SaPalette.dark.stagePause,
+    breath: SaPalette.dark.stageBreath,
+    selection: SaPalette.dark.tintSelect,
+    tintSlower: SaPalette.dark.stageTintSlower,
+    tintFaster: SaPalette.dark.stageTintFaster,
+    marker: SaPalette.dark.cue.withValues(alpha: 0.72),
   );
 
-  static const light = CueColors(
-    text: Color(0xFF1C1B1F),
-    stress: Color(0xFFD84315),
-    energy: Color(0xFFC2185B),
-    slower: Color(0xFF0288D1),
-    faster: Color(0xFFEF6C00),
-    pause: Color(0xFF5E35B1),
-    breath: Color(0xFF2E7D32),
-    selection: Color(0x331565C0),
-  );
+  /// The Studio (editor, sheets, legend) in one theme.
+  factory CueColors.studio(SaPalette p) => CueColors(
+        text: p.ink,
+        stress: p.cueStress,
+        energy: p.cueEnergy,
+        slower: p.cueSlower,
+        faster: p.cueFaster,
+        pause: p.cuePause,
+        breath: p.cueBreath,
+        selection: p.tintSelect,
+        tintSlower: p.tintSlower,
+        tintFaster: p.tintFaster,
+        marker: p.cue.withValues(alpha: 0.72),
+      );
+
+  static final studioLight = CueColors.studio(SaPalette.light);
+  static final studioDark = CueColors.studio(SaPalette.dark);
+
+  /// The Studio colours for the theme at [context].
+  static CueColors forStudio(BuildContext context) =>
+      Theme.of(context).brightness == Brightness.dark ? studioDark : studioLight;
 
   final Color text;
   final Color stress;
@@ -47,6 +67,11 @@ class CueColors {
   final Color pause;
   final Color breath;
   final Color selection;
+  final Color tintSlower;
+  final Color tintFaster;
+
+  /// The marker swipe behind a stressed word in the Studio.
+  final Color marker;
 
   Color of(MarkKind kind) => switch (kind) {
         MarkKind.stress => stress,
@@ -56,6 +81,9 @@ class CueColors {
         MarkKind.pauseShort || MarkKind.pauseLong => pause,
         MarkKind.breath => breath,
       };
+
+  /// The tint behind the words of a pace run.
+  Color tintOf(MarkKind kind) => kind == MarkKind.faster ? tintFaster : tintSlower;
 }
 
 /// Separates a cue icon from its word without letting a line break
@@ -214,7 +242,7 @@ class MarkedText {
     for (var i = 0; i < n; i++) {
       final t = tokens[i];
       final paceMark = pace[i];
-      final paceTint = paceMark == null ? null : TextStyle(backgroundColor: _tint(colors.of(paceMark.kind), paceMark));
+      final paceTint = paceMark == null ? null : TextStyle(backgroundColor: _tint(colors.tintOf(paceMark.kind), paceMark));
       if (i > 0) {
         final separator = t.lineBreaksBefore > 0 ? '\n' * t.lineBreaksBefore.clamp(1, 2) : ' ';
         // Keep a pace tint unbroken across the spaces inside a run.
@@ -273,7 +301,8 @@ class MarkedText {
 
   static Color _fade(Color color, Mark mark) => mark.accepted ? color : color.withValues(alpha: 0.6);
 
-  static Color _tint(Color color, Mark mark) => color.withValues(alpha: mark.accepted ? 0.2 : 0.1);
+  /// Pending runs get half the tint.
+  static Color _tint(Color tint, Mark mark) => mark.accepted ? tint : tint.withValues(alpha: tint.a / 2);
 }
 
 /// A key to the cue symbols.

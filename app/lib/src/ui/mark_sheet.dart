@@ -29,7 +29,7 @@ class _MarkSheetState extends State<MarkSheet> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final colors = theme.brightness == Brightness.dark ? CueColors.dark : CueColors.light;
+    final colors = CueColors.forStudio(context);
     final token = widget.token;
     final marks = _script.marksAt(token);
     final direction = _script.language.isRtl ? TextDirection.rtl : TextDirection.ltr;

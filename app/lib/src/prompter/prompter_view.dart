@@ -46,7 +46,7 @@ class PrompterView extends StatefulWidget {
 }
 
 class PrompterViewState extends State<PrompterView> with SingleTickerProviderStateMixin {
-  static const _colors = CueColors.dark;
+  static final _colors = CueColors.stage;
 
   final _scroll = ScrollController();
   final _textKey = GlobalKey();
@@ -336,7 +336,7 @@ class _HoldBadge extends StatelessWidget {
       MarkKind.breath => ('BREATHE', Icons.air_rounded),
       _ => ('PAUSE', Icons.pause_circle_filled_rounded),
     };
-    final color = k == null ? Colors.transparent : CueColors.dark.of(k);
+    final color = k == null ? Colors.transparent : CueColors.stage.of(k);
     return AnimatedOpacity(
       opacity: k == null ? 0 : 1,
       duration: const Duration(milliseconds: 120),
