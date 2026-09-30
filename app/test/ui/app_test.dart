@@ -132,6 +132,37 @@ void main() {
       expect(stressColor(true)!.a, 0);
     });
 
+    testWidgets('kinetic also leaves energy and pace-run words to the overlay, so they can move', (tester) async {
+      final doc = ScriptDocument.create(
+        text: 'Go now, then slowly after.',
+        language: ScriptLanguage.en,
+        style: CoachingStyle.presentation,
+      ).copyWith(marks: [
+        const Mark(id: 'e', kind: MarkKind.energy, start: 0, end: 1),
+        const Mark(id: 's', kind: MarkKind.slower, start: 3, end: 4),
+      ]);
+      Color? colorOf(String word, StressStyle style) {
+        final marked = MarkedText.build(
+          tokens: doc.tokens,
+          marks: doc.marks,
+          style: const TextStyle(fontSize: 32),
+          colors: CueColors.stage,
+          stressStyle: style,
+        );
+        Color? found;
+        marked.span.visitChildren((span) {
+          if (span is TextSpan && span.text == word) found = span.style?.color;
+          return found == null;
+        });
+        return found;
+      }
+
+      expect(colorOf('Go', StressStyle.stage), CueColors.stage.energy);
+      expect(colorOf('Go', StressStyle.stageOverlay)!.a, 0);
+      expect(colorOf('slowly', StressStyle.stageOverlay)!.a, 0);
+      expect(colorOf('then', StressStyle.stageOverlay), isNull, reason: 'plain words stay in the paragraph');
+    });
+
     testWidgets('scrolls while playing and holds at a long pause', (tester) async {
       final words = List.generate(80, (i) => 'word$i').join(' ');
       final c = PrompterController(script(ScriptLanguage.en, 'Hello there, $words.'));

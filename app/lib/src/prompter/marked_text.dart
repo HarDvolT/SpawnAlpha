@@ -144,8 +144,9 @@ enum StressStyle {
   /// On the stage: `stage-stress` amber, heavier and 1.15× larger.
   stage,
 
-  /// The stage's layout, with the stressed words left transparent: the
-  /// kinetic prompter paints them itself, so they can grow and pop.
+  /// The stage's layout, with the stressed words and the words of energy
+  /// and pace runs left transparent: the kinetic prompter paints them
+  /// itself, so they can punch, hop, lean and float.
   stageOverlay,
 
   /// In the Studio: ink at weight 700, with an amber marker swipe painted
@@ -293,7 +294,7 @@ class MarkedText {
       final stressMark = stress[i];
       final energyMark = energy[i];
       Color? color;
-      if (stressMark != null && overlay) {
+      if (overlay && (stressMark != null || energyMark != null || paceMark != null)) {
         color = const Color(0x00000000);
       } else if (stressMark != null && !marker) {
         color = _fade(colors.stress, stressMark);

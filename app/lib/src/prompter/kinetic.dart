@@ -17,17 +17,36 @@ abstract final class Kinetic {
   /// stage reserves room for it beside the word.
   static const stressGrowth = 0.08;
 
-  /// The extra size of the pop as a stressed word is spoken.
-  static const popAmplitude = 0.08;
+  /// The extra size of the punch as a stressed word is spoken: with its
+  /// growth, it peaks at about 1.3 times.
+  static const popAmplitude = 0.22;
 
   /// How long the pop and a gap glyph's hit last.
   static const popWindow = Duration(milliseconds: 600);
   static const hitWindow = Duration(milliseconds: 520);
 
   /// Room reserved on each side of a stressed word, in ems, so growing
-  /// toward the reading line never touches its neighbours. (The pop, a
+  /// toward the reading line never touches its neighbours. (The punch, a
   /// fifth of a second, may briefly reach past it.)
   static const stressRoom = 0.2;
+
+  /// Energy: each word hops as it is spoken, this high (in ems), over
+  /// [hopWindow].
+  static const hopHeight = 0.16;
+  static const hopWindow = Duration(milliseconds: 360);
+
+  /// Slow down: the words float down and up by this much (in ems), once
+  /// every [floatPeriod] seconds.
+  static const floatDepth = 0.11;
+  static const floatPeriod = 2.6;
+
+  /// Speed up: the words lean forward by this angle, in degrees.
+  static const leanDegrees = 9.0;
+
+  /// A pause: this many words after it wait, faded to [waitOpacity], until
+  /// the hold ends.
+  static const waitWords = 6;
+  static const waitOpacity = 0.32;
 
   /// 1 on the reading line, easing to 0 [wakeLines] ahead (smoothstep).
   /// Words already read drop to 0 once they are half a line past.
@@ -49,6 +68,17 @@ abstract final class Kinetic {
   /// The size of a stressed word: grown by its liveness, plus the pop.
   static double stressScale(double liveness, Duration? sinceSpoken) =>
       1 + stressGrowth * liveness + (sinceSpoken == null ? 0 : pop(sinceSpoken));
+
+  /// How high an energy word is in its hop at [since] after it starts, 0
+  /// to 1 (a quick up and down); 0 outside [hopWindow].
+  static double hop(Duration since) {
+    if (since.isNegative || since >= hopWindow) return 0;
+    return math.sin(math.pi * since.inMicroseconds / hopWindow.inMicroseconds);
+  }
+
+  /// A slower word's float offset, -1 to 1, at [seconds] on a wall clock.
+  /// [phase] staggers neighbouring words so the run ripples.
+  static double float(double seconds, int phase) => math.sin(2 * math.pi * seconds / floatPeriod + phase * 0.7);
 
   /// Progress of a gap glyph's hit, 0 to 1, at [since] after its hold
   /// starts; null outside [hitWindow].

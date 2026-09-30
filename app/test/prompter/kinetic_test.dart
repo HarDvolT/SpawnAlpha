@@ -40,6 +40,27 @@ void main() {
     expect((grown - 1) * wordEms / 2, lessThanOrEqualTo(Kinetic.stressRoom));
   });
 
+  test('a stressed word punches to about 1.3 times as it is spoken', () {
+    var peak = 0.0;
+    for (var ms = 0; ms < 600; ms += 2) {
+      final s = Kinetic.stressScale(1, Duration(milliseconds: ms));
+      if (s > peak) peak = s;
+    }
+    expect(peak, closeTo(1.3, 0.01));
+    expect(Kinetic.stressScale(1, const Duration(milliseconds: 599)), closeTo(1 + Kinetic.stressGrowth, 0.01));
+  });
+
+  test('energy words hop once, slower words float, staggered', () {
+    expect(Kinetic.hop(Duration.zero), 0);
+    expect(Kinetic.hop(Kinetic.hopWindow * 0.5), closeTo(1, 0.001));
+    expect(Kinetic.hop(Kinetic.hopWindow), 0);
+    expect(Kinetic.hop(const Duration(milliseconds: -5)), 0);
+    for (var t = 0.0; t < 3; t += 0.1) {
+      expect(Kinetic.float(t, 0).abs(), lessThanOrEqualTo(1));
+    }
+    expect(Kinetic.float(0.4, 0), isNot(Kinetic.float(0.4, 1)), reason: 'neighbours ripple');
+  });
+
   test('hits run for their window only', () {
     expect(Kinetic.hit(Duration.zero), 0);
     expect(Kinetic.hit(const Duration(milliseconds: 260)), closeTo(0.5, 0.01));

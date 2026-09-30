@@ -596,10 +596,11 @@ class _PaceBarPainter extends CustomPainter {
       old.layout != layout || old.marks != marks || old.rtl != rtl || old.gutter != gutter || old.top != top;
 }
 
-/// A stressed word the kinetic prompter paints itself: where it sits in
-/// the paragraph, and a painter that draws it at that spot.
-class _StressWord {
-  _StressWord(this.token, this.box, this.painter, this.paintAt);
+/// A word the kinetic prompter paints itself (stressed, or in an energy or
+/// pace run): where it sits in the paragraph, and a painter that draws it
+/// at that spot, so it can punch, hop, lean or float.
+class _OverlayWord {
+  _OverlayWord(this.token, this.box, this.painter, this.paintAt, {required this.stressed, required this.run});
 
   final int token;
   final Rect box;
@@ -607,13 +608,15 @@ class _StressWord {
 
   /// Where to paint [painter] so its glyphs land exactly on [box].
   final Offset paintAt;
+  final bool stressed;
+  final MarkKind? run;
 }
 
 /// What the kinetic effects need to know about the laid-out script, in the
 /// paragraph's coordinates. Measured once per layout, not per frame.
 class _KineticLayout {
   _KineticLayout({
-    required this.stressWords,
+    required this.words,
     required this.energy,
     required this.faster,
     required this.slower,
@@ -644,7 +647,7 @@ class _KineticLayout {
     // The same look the stage gives stressed words (see MarkedText.build).
     final stressStyle = style.merge(TextStyle(color: colors.stress, fontWeight: FontWeight.w700, fontSize: fontSize * 1.15));
     final direction = paragraph.textDirection;
-    final stressWords = <_StressWord>[];
+    final words = <_OverlayWord>[];
     final energy = <(int, Rect)>[];
     final faster = <(int, List<Rect>)>[];
     final slower = <(int, List<Rect>)>[];
@@ -672,18 +675,7 @@ class _KineticLayout {
       if (m.end >= tokens.length) continue;
       switch (m.kind) {
         case MarkKind.stress:
-          for (var i = m.start; i <= m.end; i++) {
-            final found = boxes(startOf(i), endOf(i));
-            if (found.isEmpty) continue;
-            final painter = TextPainter(
-              text: TextSpan(text: tokens[i].text, style: stressStyle),
-              textDirection: direction,
-              textScaler: textScaler,
-            )..layout();
-            final own = painter.getBoxesForSelection(TextSelection(baseOffset: 0, extentOffset: tokens[i].text.length));
-            final ownTopLeft = own.isEmpty ? Offset.zero : Offset(own.first.left, own.first.top);
-            stressWords.add(_StressWord(i, found.first, painter, found.first.topLeft - ownTopLeft));
-          }
+          break;
         case MarkKind.energy:
           for (var i = m.start; i <= m.end; i++) {
             for (final b in boxes(startOf(i), endOf(i))) {
@@ -707,6 +699,26 @@ class _KineticLayout {
             }
           }
       }
+    }
+    // The words the overlay paints: the same looks the stage gives them
+    // (see MarkedText.build).
+    for (var i = 0; i < tokens.length; i++) {
+      if (!stressed[i] && run[i] == null) continue;
+      final found = boxes(startOf(i), endOf(i));
+      if (found.isEmpty) continue;
+      final look = stressed[i]
+          ? stressStyle
+          : run[i] == MarkKind.energy
+              ? style.copyWith(color: colors.energy)
+              : style;
+      final painter = TextPainter(
+        text: TextSpan(text: tokens[i].text, style: look),
+        textDirection: direction,
+        textScaler: textScaler,
+      )..layout();
+      final own = painter.getBoxesForSelection(TextSelection(baseOffset: 0, extentOffset: tokens[i].text.length));
+      final ownTopLeft = own.isEmpty ? Offset.zero : Offset(own.first.left, own.first.top);
+      words.add(_OverlayWord(i, found.first, painter, found.first.topLeft - ownTopLeft, stressed: stressed[i], run: run[i]));
     }
     final lineHeight = fontSize * (style.height ?? 1.45);
     // Every word's box, for the current-word guide.
@@ -736,7 +748,7 @@ class _KineticLayout {
       tokenBoxes: tokenBoxes,
       bounce: bounce,
       textWidth: paragraph.size.width,
-      stressWords: stressWords,
+      words: words,
       energy: energy,
       faster: faster,
       slower: slower,
@@ -745,7 +757,7 @@ class _KineticLayout {
     );
   }
 
-  final List<_StressWord> stressWords;
+  final List<_OverlayWord> words;
   final List<(int token, Rect box)> energy;
   final List<(int firstToken, List<Rect> boxes)> faster;
   final List<(int firstToken, List<Rect> boxes)> slower;
@@ -762,7 +774,7 @@ class _KineticLayout {
   final double textWidth;
 
   void dispose() {
-    for (final w in stressWords) {
+    for (final w in words) {
       w.painter.dispose();
     }
   }
@@ -846,7 +858,10 @@ class _KineticLayer extends CustomPainter {
     canvas.save();
     canvas.translate(p.origin.dx, p.origin.dy);
     if (over) {
-      if (p.effects) _paintStress(canvas, k);
+      if (p.effects) {
+        _paintWords(canvas, k);
+        _paintWait(canvas, k);
+      }
       _paintGuide(canvas, k);
       if (p.effects) _paintHits(canvas, k);
     } else if (p.effects) {
@@ -984,25 +999,103 @@ class _KineticLayer extends CustomPainter {
     }
   }
 
-  void _paintStress(Canvas canvas, _KineticLayout k) {
+  /// The words the overlay owns, each acting out its cue (docs/design/
+  /// prompter.md, "Kinetic text"): stressed words grow toward the line and
+  /// punch as they are spoken, with a glow (and a strike, unless the dot
+  /// strikes them); energy words hop; faster words lean forward; slower
+  /// words float. Only transforms: the paragraph never moves.
+  void _paintWords(Canvas canvas, _KineticLayout k) {
     final c = p.controller;
     final timeline = c.timeline;
-    for (final w in k.stressWords) {
-      final l = p.livenessOf(w.box, k.lineHeight);
-      Duration? since;
-      if (w.token < timeline.length) {
-        final s = c.position - timeline.startOf(w.token);
-        if (!s.isNegative && s < Kinetic.popWindow) since = s;
-      }
-      final scale = Kinetic.stressScale(l, since);
-      canvas.save();
+    final lh = k.lineHeight;
+    final fontSize = k.bounce.fontSize;
+    final clock = p.clock();
+    // Only what can be on screen.
+    final top = (p.scroll.hasClients ? p.scroll.offset : 0.0) - p.origin.dy - lh;
+    final bottom = top + (p.scroll.hasClients ? p.scroll.position.viewportDimension : 2000) + 2 * lh;
+    final lean = math.tan(Kinetic.leanDegrees * math.pi / 180) * (p.rtl ? 1 : -1);
+    for (final w in k.words) {
+      if (w.box.bottom < top || w.box.top > bottom) continue;
+      final l = p.livenessOf(w.box, lh);
+      final since = w.token < timeline.length ? c.position - timeline.startOf(w.token) : const Duration(days: 1);
       final center = w.box.center;
-      canvas
-        ..translate(center.dx, center.dy)
-        ..scale(scale)
-        ..translate(-center.dx, -center.dy);
+      canvas.save();
+      if (l > 0) {
+        switch (w.run) {
+          case MarkKind.energy:
+            final hop = Kinetic.hop(since);
+            canvas.translate(0, -Kinetic.hopHeight * fontSize * hop);
+            if (hop > 0) _scaleAbout(canvas, center, 1 + 0.06 * hop);
+          case MarkKind.slower:
+            canvas.translate(0, Kinetic.floatDepth * fontSize * l * Kinetic.float(clock, w.token));
+          case MarkKind.faster:
+            // Lean forward from the baseline, in the reading direction.
+            canvas
+              ..translate(center.dx, w.box.bottom)
+              ..skew(lean * l, 0)
+              ..translate(-center.dx, -w.box.bottom);
+          default:
+            break;
+        }
+      }
+      if (w.stressed) {
+        final popping = !since.isNegative && since < Kinetic.popWindow;
+        final pop = popping ? Kinetic.pop(since) : 0.0;
+        if (pop > 0) {
+          // A glow while it punches.
+          canvas.drawRRect(
+            RRect.fromRectAndRadius(w.box.inflate(fontSize * 0.1), Radius.circular(fontSize * 0.2)),
+            Paint()
+              ..color = p.colors.stress.withValues(alpha: 0.5 * pop / Kinetic.popAmplitude)
+              ..maskFilter = MaskFilter.blur(BlurStyle.normal, fontSize * 0.35),
+          );
+        }
+        _scaleAbout(canvas, center, Kinetic.stressScale(l, popping ? since : null));
+        w.painter.paint(canvas, w.paintAt);
+        canvas.restore();
+        if (p.guide != PrompterGuide.dot && !since.isNegative && since < BouncePath.slamLength) {
+          _paintStrike(canvas, w.box, since.inMicroseconds / BouncePath.slamLength.inMicroseconds, fontSize);
+        }
+        continue;
+      }
       w.painter.paint(canvas, w.paintAt);
       canvas.restore();
+    }
+  }
+
+  static void _scaleAbout(Canvas canvas, Offset center, double scale) => canvas
+    ..translate(center.dx, center.dy)
+    ..scale(scale)
+    ..translate(-center.dx, -center.dy);
+
+  /// The amber strike across a stressed word as it is spoken: drawn fast,
+  /// then faded. The dot draws its own when it is the guide.
+  void _paintStrike(Canvas canvas, Rect box, double t, double fontSize) {
+    final drawn = Curves.easeOutCubic.transform((t / 0.3).clamp(0.0, 1.0));
+    final alpha = t < 0.6 ? 1.0 : 1 - (t - 0.6) / 0.4;
+    final y = box.bottom + fontSize * 0.08;
+    final w = box.width * drawn;
+    canvas.drawLine(
+      Offset(p.rtl ? box.right - w : box.left, y),
+      Offset(p.rtl ? box.right : box.left + w, y),
+      Paint()
+        ..color = p.colors.stress.withValues(alpha: alpha)
+        ..strokeWidth = math.max(3, fontSize * 0.11)
+        ..strokeCap = StrokeCap.round,
+    );
+  }
+
+  /// During a pause, the next few words wait: they fade back until the
+  /// hold ends, so the eye doesn't run ahead.
+  void _paintWait(Canvas canvas, _KineticLayout k) {
+    final c = p.controller;
+    final holding = c.holding;
+    if (holding != MarkKind.pauseShort && holding != MarkKind.pauseLong) return;
+    final from = c.currentToken + 1;
+    final fade = _fade(1 - Kinetic.waitOpacity);
+    for (var i = from; i < math.min(from + Kinetic.waitWords, k.tokenBoxes.length); i++) {
+      final b = k.tokenBoxes[i];
+      if (b != null) canvas.drawRect(b.inflate(4), fade);
     }
   }
 
