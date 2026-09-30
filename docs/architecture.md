@@ -242,8 +242,20 @@ library subtitle does.
 `AppScope` (an InheritedWidget) provides the library, the settings and the
 recordings folder.
 
-- **LibraryScreen**: the script list, with a button that adds one sample
-  script per language and style.
+- **HomeScreen** (the start screen): the director's desk from design v3.
+  - One stage hero, Record next: the most recently edited script (or another
+    picked from a menu), its opening lines as the prompter shows them, the
+    recording modes, and Record and Practice.
+  - The scripts as marked pages (`ScriptPage` with the director's pass), a
+    New script page, and the recent takes.
+  - A sidebar on wide windows, a tab bar with a raised record button on
+    phones, and a first-run panel with the samples.
+  - Going on stage from here or from the editor goes through
+    `ui/stage_launch.dart`, which asks once about unreviewed marks.
+- **LibraryScreen**: the full script list (Home's "See all"), with a button
+  that adds one sample script per language and style.
+- **TakesScreen**: every take, newest first. Opening one selects its file in
+  Explorer on Windows; in-app playback is still to come.
 - **EditorScreen**: a title, a style picker and a language picker (the
   language is detected from the first words typed). It has two tabs:
   - **Write** is the text, remapping marks on every edit.
@@ -270,6 +282,16 @@ recordings folder.
   the text size.
 - **RecordScreen**: the camera preview with the prompter as a glass panel
   under the lens (top centre, at most 720px wide).
+  - **Wide windows (desktop):** the set-up rail beside the preview
+    (`ui/record_setup.dart`): what to record, the camera, every microphone
+    with its own meter plus a sound check, and the prompter's guide, motion,
+    pace, cues, size and mirror. The record button sits at the bottom with
+    one line that says what will happen, or what is missing. **A take is
+    never silently soundless:** when Windows blocks the microphone, or the
+    sound check heard nothing, Record is off until the user fixes it or
+    picks "record without sound".
+  - **Narrow windows and phones:** the controls bar and the record row under
+    the preview, as before.
   - A 3-2-1 countdown (`CountdownNumeral`: the display face lands wide and
     settles on the pop spring) starts the recording and the timed scroll
     together.
@@ -286,6 +308,14 @@ recordings folder.
     the first one listed, which recorded silence on the owner's PC.
   - The record and practice screens show a `MicChip` (name and meter) and a
     picker.
+  - During the record set-up, `MicMonitor.watchEveryMic` meters every
+    microphone at once (one WASAPI stream each, native `watchAll`), so the
+    one that moves when you talk is easy to spot. It stops for the take.
+  - `MicMonitor.blocked` is true when Windows denies access
+    (`E_ACCESSDENIED`: the microphone privacy switches). The rail then shows
+    the switches to turn on and opens `ms-settings:privacy-microphone`.
+  - `SoundCheck` (pure Dart) judges a sound check from the loudest level
+    while the speaker reads a line: heard, quiet or silent.
   - After a take, `mp4HasAudioTrack` and the loudest level during the take
     catch silent recordings, and the save dialog says so.
 - **SettingsScreen**: the markup source, API key, model, default style, text

@@ -15,7 +15,7 @@ class AudioInput {
 
 /// A microphone's level over the last ~50 ms, in dBFS (-100 is silence).
 class MicLevel {
-  const MicLevel({required this.peakDb, required this.rmsDb, this.failed = false});
+  const MicLevel({required this.peakDb, required this.rmsDb, this.failed = false, this.denied = false});
 
   static const silent = MicLevel(peakDb: -100, rmsDb: -100);
 
@@ -24,6 +24,10 @@ class MicLevel {
 
   /// The microphone could not be opened (unplugged, or access denied).
   final bool failed;
+
+  /// The system refused access: on Windows, the microphone privacy
+  /// switches are off for desktop apps.
+  final bool denied;
 
   /// 0 to 1 for a meter: -60 dBFS and below is empty, 0 dBFS is full.
   double get meter => ((peakDb + 60) / 60).clamp(0.0, 1.0);
@@ -51,6 +55,14 @@ abstract class AudioInputs {
   Future<void> stopLevels();
 
   Future<MicLevel> level();
+
+  /// Starts metering every microphone at once, for the record set-up.
+  Future<void> watchAll();
+
+  /// Every watched microphone's level, by ID.
+  Future<Map<String, MicLevel>> levels();
+
+  Future<void> unwatchAll();
 }
 
 class UnsupportedAudioInputs implements AudioInputs {
@@ -73,6 +85,15 @@ class UnsupportedAudioInputs implements AudioInputs {
 
   @override
   Future<MicLevel> level() async => MicLevel.silent;
+
+  @override
+  Future<void> watchAll() async {}
+
+  @override
+  Future<Map<String, MicLevel>> levels() async => const {};
+
+  @override
+  Future<void> unwatchAll() async {}
 }
 
 class _ChannelAudioInputs implements AudioInputs {
@@ -100,12 +121,27 @@ class _ChannelAudioInputs implements AudioInputs {
   Future<void> stopLevels() => _channel.invokeMethod('stopLevels');
 
   @override
-  Future<MicLevel> level() async {
-    final m = await _channel.invokeMapMethod<String, Object?>('level') ?? const {};
-    return MicLevel(
-      peakDb: (m['peak'] as num?)?.toDouble() ?? -100,
-      rmsDb: (m['rms'] as num?)?.toDouble() ?? -100,
-      failed: m['failed'] == true,
-    );
+  Future<MicLevel> level() async => _levelOf(await _channel.invokeMapMethod<String, Object?>('level') ?? const {});
+
+  @override
+  Future<void> watchAll() => _channel.invokeMethod('watchAll');
+
+  @override
+  Future<Map<String, MicLevel>> levels() async {
+    final raw = await _channel.invokeMapMethod<String, Object?>('levels') ?? const {};
+    return {
+      for (final e in raw.entries)
+        if (e.value is Map) e.key: _levelOf((e.value! as Map).cast<String, Object?>()),
+    };
   }
+
+  @override
+  Future<void> unwatchAll() => _channel.invokeMethod('unwatchAll');
+
+  static MicLevel _levelOf(Map<String, Object?> m) => MicLevel(
+        peakDb: (m['peak'] as num?)?.toDouble() ?? -100,
+        rmsDb: (m['rms'] as num?)?.toDouble() ?? -100,
+        failed: m['failed'] == true,
+        denied: m['denied'] == true,
+      );
 }

@@ -13,6 +13,9 @@ Flutter Authors). The app uses it through `dependency_overrides` in `app/pubspec
 - `windows/audio_input.{h,cpp}` (new): the `spawnalpha/audio_input` method channel.
   It lists the active microphones, selects the one to record from, and measures a
   microphone's level (Core Audio and WASAPI) for the level meter and voice pacing.
+  During the record set-up it meters every microphone at once (`watchAll`,
+  `levels`, `unwatchAll`), and reports when Windows denies access (the
+  microphone privacy switches).
 - `windows/camera_plugin.cpp`: registers that channel.
 - `windows/CMakeLists.txt`: builds the new files. The upstream unit-test target is
   not vendored.

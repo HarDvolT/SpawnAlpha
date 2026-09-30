@@ -22,6 +22,17 @@ using Microsoft::WRL::ComPtr;
 
 namespace {
 
+flutter::EncodableValue LevelValue(const AudioLevelMonitor& monitor) {
+  return flutter::EncodableValue(flutter::EncodableMap{
+      {flutter::EncodableValue("peak"),
+       flutter::EncodableValue(static_cast<double>(monitor.peak_db()))},
+      {flutter::EncodableValue("rms"),
+       flutter::EncodableValue(static_cast<double>(monitor.rms_db()))},
+      {flutter::EncodableValue("failed"), flutter::EncodableValue(monitor.failed())},
+      {flutter::EncodableValue("denied"), flutter::EncodableValue(monitor.denied())},
+  });
+}
+
 // PKEY_Device_FriendlyName, defined here so no extra GUID library is needed.
 const PROPERTYKEY kDeviceFriendlyName = {
     {0xa45c254e, 0xdf1c, 0x4efd, {0x80, 0x20, 0x67, 0xd1, 0x46, 0xa8, 0x50, 0xe0}},
@@ -123,6 +134,7 @@ AudioLevelMonitor::~AudioLevelMonitor() { Stop(); }
 void AudioLevelMonitor::Start(const std::wstring& id) {
   Stop();
   failed_ = false;
+  denied_ = false;
   peak_db_ = -100.0f;
   rms_db_ = -100.0f;
   running_ = true;
@@ -165,6 +177,7 @@ void AudioLevelMonitor::Run(std::wstring id) {
     if (SUCCEEDED(hr)) hr = client->Start();
 
     if (FAILED(hr)) {
+      denied_ = hr == E_ACCESSDENIED;
       failed_ = true;
     } else {
       // The shared-mode mix format is almost always 32-bit float; 16- and
@@ -277,20 +290,48 @@ AudioInputChannel::AudioInputChannel(flutter::BinaryMessenger* messenger)
           monitor_.Stop();
           result->Success();
         } else if (method == "level") {
-          result->Success(flutter::EncodableValue(flutter::EncodableMap{
-              {flutter::EncodableValue("peak"),
-               flutter::EncodableValue(static_cast<double>(monitor_.peak_db()))},
-              {flutter::EncodableValue("rms"),
-               flutter::EncodableValue(static_cast<double>(monitor_.rms_db()))},
-              {flutter::EncodableValue("failed"),
-               flutter::EncodableValue(monitor_.failed())},
-          }));
+          result->Success(LevelValue(monitor_));
+        } else if (method == "watchAll") {
+          // Meter every active microphone; forget unplugged ones.
+          const std::vector<AudioInputInfo> inputs = ListAudioInputs();
+          for (auto it = watched_.begin(); it != watched_.end();) {
+            bool present = false;
+            for (const AudioInputInfo& input : inputs) {
+              if (input.id == it->first) present = true;
+            }
+            if (present) {
+              ++it;
+            } else {
+              it->second->Stop();
+              it = watched_.erase(it);
+            }
+          }
+          for (const AudioInputInfo& input : inputs) {
+            if (watched_.count(input.id) > 0) continue;
+            auto monitor = std::make_unique<AudioLevelMonitor>();
+            monitor->Start(input.id);
+            watched_[input.id] = std::move(monitor);
+          }
+          result->Success();
+        } else if (method == "levels") {
+          flutter::EncodableMap levels;
+          for (const auto& entry : watched_) {
+            levels[flutter::EncodableValue(Utf8FromUtf16(entry.first))] = LevelValue(*entry.second);
+          }
+          result->Success(flutter::EncodableValue(levels));
+        } else if (method == "unwatchAll") {
+          for (auto& entry : watched_) entry.second->Stop();
+          watched_.clear();
+          result->Success();
         } else {
           result->NotImplemented();
         }
       });
 }
 
-AudioInputChannel::~AudioInputChannel() { monitor_.Stop(); }
+AudioInputChannel::~AudioInputChannel() {
+  monitor_.Stop();
+  for (auto& entry : watched_) entry.second->Stop();
+}
 
 }  // namespace camera_windows

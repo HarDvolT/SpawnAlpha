@@ -147,15 +147,6 @@ class PrompterControls extends StatelessWidget {
         // Timed and voice both run on the planned pace; manual is by hand.
         final timed = c.mode != ScrollMode.manual;
         final stage = SaPalette.dark;
-        final segmentStyle = SegmentedButton.styleFrom(
-          foregroundColor: stage.stageChromeText,
-          selectedForegroundColor: stage.stage,
-          selectedBackgroundColor: stage.stageText,
-          backgroundColor: stage.stage.withValues(alpha: 0.4),
-          side: BorderSide(color: stage.stageGlassEdge),
-          visualDensity: VisualDensity.compact,
-          textStyle: SaType.label,
-        );
         return IconButtonTheme(
           data: IconButtonThemeData(style: IconButton.styleFrom(foregroundColor: stage.stageChromeText)),
           child: DefaultTextStyle.merge(
@@ -205,56 +196,10 @@ class PrompterControls extends StatelessWidget {
                   Text(formatDuration(c.remaining), style: SaType.timecode.copyWith(color: stage.stageText)),
                 ],
                 const SizedBox(width: 8),
-                _Group(label: 'Pace', child: SegmentedButton<ScrollMode>(
-                  style: segmentStyle,
-                  showSelectedIcon: false,
-                  segments: [
-                    const ButtonSegment(value: ScrollMode.timed, label: Text('Timed'), tooltip: 'Scrolls at the planned pace (T)'),
-                    if (voiceAvailable)
-                      const ButtonSegment(
-                        value: ScrollMode.voice,
-                        label: Text('Voice'),
-                        tooltip: 'Moves while you talk, waits when you stop (V)',
-                      ),
-                    const ButtonSegment(value: ScrollMode.manual, label: Text('Manual'), tooltip: 'You scroll (T)'),
-                  ],
-                  selected: {c.mode},
-                  onSelectionChanged: (s) => c.setMode(s.single),
-                )),
-                if (guide != null)
-                  _Group(label: 'Guide', child: SegmentedButton<PrompterGuide>(
-                    key: const ValueKey('guide'),
-                    style: segmentStyle,
-                    showSelectedIcon: false,
-                    segments: [
-                      for (final g in PrompterGuide.values)
-                        ButtonSegment(value: g, label: Text(g.label), tooltip: '${g.hint} (G)'),
-                    ],
-                    selected: {guide!},
-                    onSelectionChanged: (s) => onGuide?.call(s.single),
-                  )),
-                if (motion != null)
-                  _Group(label: 'Motion', child: SegmentedButton<PrompterMotion>(
-                    key: const ValueKey('motion'),
-                    style: segmentStyle,
-                    showSelectedIcon: false,
-                    segments: [
-                      for (final m in PrompterMotion.values) ButtonSegment(value: m, label: Text(m.label), tooltip: m.hint),
-                    ],
-                    selected: {motion!},
-                    onSelectionChanged: (s) => onMotion?.call(s.single),
-                  )),
-                if (kinetic != null)
-                  SegmentedButton<bool>(
-                    style: segmentStyle,
-                    showSelectedIcon: false,
-                    segments: const [
-                      ButtonSegment(value: true, label: Text('Kinetic'), tooltip: 'Words wake up near the reading line (K)'),
-                      ButtonSegment(value: false, label: Text('Still'), tooltip: 'Only the scroll moves (K)'),
-                    ],
-                    selected: {kinetic!},
-                    onSelectionChanged: (s) => onKinetic?.call(s.single),
-                  ),
+                _Group(label: 'Pace', child: PaceChoice(controller: c, voiceAvailable: voiceAvailable)),
+                if (guide != null) _Group(label: 'Guide', child: GuideChoice(guide: guide!, onChanged: onGuide)),
+                if (motion != null) _Group(label: 'Motion', child: MotionChoice(motion: motion!, onChanged: onMotion)),
+                if (kinetic != null) CuesChoice(kinetic: kinetic!, onChanged: onKinetic),
                 IconButton(
                   tooltip: 'Smaller text (−)',
                   icon: const Icon(Icons.text_decrease_rounded),
@@ -302,5 +247,113 @@ class _Group extends StatelessWidget {
             child,
           ],
         ),
+      );
+}
+
+/// The stage look for a row of choices: dark, with the choice lit.
+ButtonStyle stageSegmentStyle() {
+  final stage = SaPalette.dark;
+  return SegmentedButton.styleFrom(
+    foregroundColor: stage.stageChromeText,
+    selectedForegroundColor: stage.stage,
+    selectedBackgroundColor: stage.stageText,
+    backgroundColor: stage.stage.withValues(alpha: 0.4),
+    side: BorderSide(color: stage.stageGlassEdge),
+    visualDensity: VisualDensity.compact,
+    textStyle: SaType.label,
+    padding: const EdgeInsets.symmetric(horizontal: SaSpace.s2),
+  );
+}
+
+/// Timed, Voice (where a microphone level is available) or Manual.
+class PaceChoice extends StatelessWidget {
+  const PaceChoice({super.key, required this.controller, required this.voiceAvailable, this.manual = true});
+
+  final PrompterController controller;
+  final bool voiceAvailable;
+
+  /// Offer Manual too (not while recording, where the voice or the plan
+  /// drives the prompter).
+  final bool manual;
+
+  @override
+  Widget build(BuildContext context) => ListenableBuilder(
+        listenable: controller,
+        builder: (context, _) => SegmentedButton<ScrollMode>(
+          style: stageSegmentStyle(),
+          showSelectedIcon: false,
+          segments: [
+            if (voiceAvailable)
+              const ButtonSegment(
+                value: ScrollMode.voice,
+                label: Text('Voice'),
+                tooltip: 'Moves while you talk, waits when you stop (V)',
+              ),
+            const ButtonSegment(value: ScrollMode.timed, label: Text('Timed'), tooltip: 'Scrolls at the planned pace (T)'),
+            if (manual) const ButtonSegment(value: ScrollMode.manual, label: Text('Manual'), tooltip: 'You scroll (T)'),
+          ],
+          selected: {controller.mode},
+          onSelectionChanged: (s) => controller.setMode(s.single),
+        ),
+      );
+}
+
+/// Dot, Underline, Spotlight or Off.
+class GuideChoice extends StatelessWidget {
+  const GuideChoice({super.key, required this.guide, required this.onChanged});
+
+  final PrompterGuide guide;
+  final ValueChanged<PrompterGuide>? onChanged;
+
+  @override
+  Widget build(BuildContext context) => SegmentedButton<PrompterGuide>(
+        key: const ValueKey('guide'),
+        style: stageSegmentStyle(),
+        showSelectedIcon: false,
+        segments: [
+          for (final g in PrompterGuide.values) ButtonSegment(value: g, label: Text(g.label), tooltip: '${g.hint} (G)'),
+        ],
+        selected: {guide},
+        onSelectionChanged: (s) => onChanged?.call(s.single),
+      );
+}
+
+/// Line step, Smooth or One phrase.
+class MotionChoice extends StatelessWidget {
+  const MotionChoice({super.key, required this.motion, required this.onChanged});
+
+  final PrompterMotion motion;
+  final ValueChanged<PrompterMotion>? onChanged;
+
+  @override
+  Widget build(BuildContext context) => SegmentedButton<PrompterMotion>(
+        key: const ValueKey('motion'),
+        style: stageSegmentStyle(),
+        showSelectedIcon: false,
+        segments: [
+          for (final m in PrompterMotion.values) ButtonSegment(value: m, label: Text(m.label), tooltip: m.hint),
+        ],
+        selected: {motion},
+        onSelectionChanged: (s) => onChanged?.call(s.single),
+      );
+}
+
+/// Kinetic or Still.
+class CuesChoice extends StatelessWidget {
+  const CuesChoice({super.key, required this.kinetic, required this.onChanged});
+
+  final bool kinetic;
+  final ValueChanged<bool>? onChanged;
+
+  @override
+  Widget build(BuildContext context) => SegmentedButton<bool>(
+        style: stageSegmentStyle(),
+        showSelectedIcon: false,
+        segments: const [
+          ButtonSegment(value: true, label: Text('Kinetic'), tooltip: 'Cues act themselves out near the reading line (K)'),
+          ButtonSegment(value: false, label: Text('Still'), tooltip: 'Only the motion, the guide and the holds (K)'),
+        ],
+        selected: {kinetic},
+        onSelectionChanged: (s) => onChanged?.call(s.single),
       );
 }

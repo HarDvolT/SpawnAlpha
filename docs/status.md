@@ -5,17 +5,20 @@ Last updated: 2026-09-30
 ## Where we are
 
 **Build step 1 of 7 (script markup and coached prompter): code complete, with design language
-v2 applied. The owner has tested builds #1 and #2 on Windows: build #2 records with sound. The
-prompter's guide choice (Dot, Underline, Spotlight, Off) and motion choice (Line step, Smooth)
-from design v3 are now in the app (build #4), waiting for the owner's retest. The rest of v3 (a
-new Home, the Windows record set-up) is designed as live demos.** The build order is in
+v2 applied, and most of design v3. The owner has tested builds #1, #2 and #4 on Windows: takes
+have sound, and the bouncing dot is the default guide. At the owner's request the dot now acts
+out every cue, and the next v3 features are built: the kinetic cues that act out the
+instruction, One phrase motion, the Home screen (director's desk) and the Windows record
+set-up rail. All of this waits for the owner's retest on the latest build.** The build order is in
 [product-brief.md](product-brief.md#build-order); it was revised on 2026-09-30.
 
 The owner's first test on Windows (build #1) found: no microphone permission prompt and no
 sound in takes; a prompter that scrolled away from the word being read; effects that were too
 weak and generic; a generic first screen; and no screen recording yet. Build #2 fixes the first
 two (see the session log). The owner confirmed the sound works in build #2, and asked for the
-guide choice in the app, which build #4 adds. The rest is design v3 and build step 2.
+guide choice in the app, which build #4 adds. After trying build #4 the owner asked for the
+dot to grow and act out each cue in the cue's colour, and for the next features. The rest is
+build step 2 (screen recording).
 
 | Area | State |
 |---|---|
@@ -27,39 +30,40 @@ guide choice in the app, which build #4 adds. The rest is design v3 and build st
 | Delivery timeline, prompter controller, scroll maths | Done, tested |
 | Prompter widget: cues, reading line, pause badge, pace bars, mirror, RTL | Done, tested (widget tests plus rendered screenshots) |
 | Voice pacing (moves while you speak, level-based), line-step motion | Done, tested. Tried by the owner on Windows (build #2) |
-| Guide choice (bouncing Dot, Underline, Spotlight, Off; G key) and motion choice (Line step, Smooth) in the prompter's control bar, kept in settings | Done, tested (unit tests of the dot's path, widget tests, screenshots in EN and AR). **Needs the owner's retest (build #4).** One phrase motion is not built yet |
+| Guide choice (bouncing Dot, Underline, Spotlight, Off; G key) and motion choice (Line step, Smooth, One phrase), kept in settings | Done, tested. The owner tried the choice in build #4 |
+| The explanatory dot: grows into each cue in its colour, with the cue's glyph inside (pause sign with a timer ring, breath inhaling, stress slam and strike, run announcements, echoes, streaks and sparks, a microphone while waiting) | Done, tested (unit tests of `BouncePath`, screenshots of each state). **Needs the owner's retest** |
+| Kinetic cues that act out the instruction: stress punches to 1.3× with a strike, energy hops, faster leans, slower floats, a pause makes the next words wait | Done, tested (no-reflow tests, screenshots). **Needs the owner's retest** |
+| One phrase motion: the phrase being said, large and centred, the next one dimmed | Done, tested (phrase splitting in EN, FR, AR). **Needs the owner's retest** |
+| Home screen (director's desk): Record next hero, scripts as marked pages, recent takes, sidebar or tab bar; Takes screen | Done, tested (widget tests, screenshots desktop, dark, phone, first run). **Needs the owner's retest** |
+| Windows record set-up rail: mode, camera, every microphone with its own meter, sound check, blocked-by-Windows panel with a button to the privacy settings, prompter choices, and a record button that refuses silence unless chosen | Done, tested (unit and widget tests, screenshots). The native part (one meter per microphone, access denied) compiles only in CI. **Needs the owner's retest** |
 | Editor: write, style and language, markup, review marks and suggestions | Done, tested (widget test of the main flow) |
 | Practice prompter screen with keyboard shortcuts | Done |
 | Camera recording screen (countdown, prompter overlay, saves takes) | Works on Windows (owner, build #2), with sound. Android not yet tried |
 | Microphones on Windows: vendored `camera_windows` records from the chosen or default microphone; list, level meter and picker; sound check after each take | Done. The owner confirmed takes have sound in build #2 |
 | Storage: scripts as JSON files, settings, API key in secure storage | Done |
 | Design language v2 (four type voices, glass, springs, signature motions, kinetic prompter, cursor companion, Director's Cut) | Done in `docs/design/` and the design-system artifact |
-| Design v3 demos (22 components): Home, the prompter's guide (bouncing dot, underline, spotlight), motion and pace choices, stronger kinetic cues, the Windows record set-up | Designed and published (artifact version 9). **Waiting for the owner to try them and pick defaults.** Not in the app yet |
+| Design v3 demos (22 components): Home, the prompter's guide (bouncing dot, underline, spotlight), motion and pace choices, stronger kinetic cues, the Windows record set-up | Designed and published (artifact version 9). Now built into the app (see above), except the floating prompter window (build step 2) |
 | Design v2 in the app: fonts and generated tokens, Studio theme, script page (marker swipes, margin notes, director's pass), kinetic prompter with Still, glass hold badge, record screen (glass panel, countdown, record button, timecode), privacy and licences in Settings | Done, tested (widget tests plus rendered screenshots). What's left is listed in the next steps |
 | CI (`.github/workflows/build.yml`): analyze, test, then Windows and Android test builds as downloadable artifacts | Working. Run #2 (2026-09-30, <https://github.com/HarDvolT/SpawnAlpha/actions/runs/36780365939>) is green and has the microphone fix |
 | Compliance groundwork ([compliance.md](compliance.md)) | Rules and checklist written, licence page in the app, no secrets in the repo. Legal documents and filings are still to do |
 | Screen and Screen + camera recording, cursor companion, telemetry | Designed (`docs/design/recording.md`). Not built. |
 | Director's Cut (auto-edit, captions, auto-zoom, finish screen) | Designed (`docs/design/autoedit.md`). Not built; needs a native render core. |
 
-137 tests pass (`cd app && flutter test`), and `flutter analyze` is clean.
+149 tests pass (`cd app && flutter test`), and `flutter analyze` is clean.
 
 ## Next steps
 
 1. ~~Get the owner's answer on the roadmap.~~ Done 2026-09-30: approved (see Decisions).
-2. **The owner tries build #4 on Windows** (Build run #4, <https://github.com/HarDvolT/SpawnAlpha/actions/runs/36784760155>): the Guide row in
-   the prompter's control bar (Dot, Underline, Spotlight, Off, or the G key) and Motion
-   (Line step, Smooth), in practice and on the record screen, and says which to keep as
-   defaults and what to change about the dot. Build #2 retest: sound works (owner,
-   2026-09-30).
-3. **The owner tries the design v3 demos** in the artifact (Home, Prompter, RecordSetup).
-   Then build the rest of v3 into the app:
-   - ~~the guide choice with the bouncing dot, and Line step or Smooth~~ (build #4);
-     still to do: the One phrase motion, and the stronger kinetic cues (punch and slam,
-     lean, float, wait);
-   - the Home screen (director's desk) replacing the library as the start screen;
-   - the Windows record set-up rail: every microphone with its own meter, the sound
-     check, the blocked state with a button that opens `ms-settings:privacy-microphone`,
-     and the record button refusing silence unless chosen.
+2. **The owner tries the latest build on Windows** (the newest green **Build** run on the
+   branch; GitHub Actions, Artifacts):
+   - Home: Record next, the script pages, Practice and Record from the hero.
+   - The record set-up rail (window wider than 1000px): every microphone moves on its own
+     meter; Check says "We hear you"; with Windows' microphone switches off it says so and
+     opens the settings; Record refuses silence unless "record without sound" is chosen.
+   - The dot acting out each cue, and the kinetic cues; One phrase motion.
+   Then ask which defaults to keep and what to change.
+3. **Remaining design v3 in the app:** the floating prompter window and cursor companion come
+   with build step 2 (screen recording).
 4. **Finish design v2 in the app.** Done so far: the fonts, tokens, theme, script page,
    kinetic prompter, hold badge and record screen. Still to do:
    - glyph signature motions in the Studio: arrive on the director's pass, play once when
@@ -144,6 +148,9 @@ guide choice in the app, which build #4 adds. The rest is design v3 and build st
   **choices**, not one style. Guide: Dot, Underline, Spotlight, Off. Motion: Line step,
   Smooth, One phrase. Pace: Voice, Timed, Manual. Cues: Kinetic, Still. The defaults are
   proposed (Dot, Line step, Voice, Kinetic) until the owner has tried the demos.
+- 2026-09-30, the owner, after build #4: **the Dot is the default guide**, and it must explain
+  the cues: grow, take the cue's colour and act it out (see `docs/design/prompter.md`, "The
+  bouncing dot"). Underline, Spotlight and Off stay as choices.
 - 2026-09-30: **A take is never silently soundless.** The set-up shows every microphone with a
   meter and a sound check; with no working microphone the record button is off unless the
   user picks "record without sound"; every take's audio is checked when it is saved.
@@ -259,3 +266,17 @@ guide choice in the app, which build #4 adds. The rest is design v3 and build st
     kept in settings. The text got its own layer so fading never darkens the glass, and
     the dot is painted above the read-zone fades.
   - 137 tests pass; screenshots checked in English and Arabic, phone and desktop.
+- 2026-09-30, session 1 (continued), the dot explains, and the next v3 features:
+  - The owner, on build #4: the dot is the default, but it should grow and act out the cues
+    in their colours; then do the next features.
+  - The dot now becomes each cue (`BouncePath` in `prompter/guide.dart`, painted by
+    `_DotLayer`): pause sign with a draining timer ring, breath inhaling, stress slam with a
+    shockwave and a strike, run announcements with the run's glyph, echoes (slower), streaks
+    (faster), sparks and a pulse (energy), a microphone while voice pace waits.
+  - Kinetic cues act out the instruction; the overlay now paints stressed, energy and
+    pace-run words itself.
+  - One phrase motion (`phraseStarts`).
+  - The Home screen and a Takes screen; going on stage is shared in `stage_launch.dart`.
+  - The Windows record set-up rail, with one meter per microphone and access-denied
+    detection in the vendored plugin, a sound check, and the no-silent-take rule.
+  - 149 tests pass. Design docs (prompter.md, motion.md) updated for the dot and One phrase.

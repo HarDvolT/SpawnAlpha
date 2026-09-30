@@ -22,6 +22,8 @@ class MicMonitor extends ChangeNotifier {
   MicLevel _level = MicLevel.silent;
   bool _speaking = false;
   double _loudestRmsDb = -100;
+  bool _watchingAll = false;
+  Map<String, MicLevel> _levels = const {};
 
   bool get supported => inputs.supported;
 
@@ -43,6 +45,13 @@ class MicMonitor extends ChangeNotifier {
 
   /// The loudest level since [resetLoudest], in dBFS.
   double get loudestRmsDb => _loudestRmsDb;
+
+  /// Every microphone's level, by ID, while [watchEveryMic] is on.
+  Map<String, MicLevel> get levels => _levels;
+
+  /// Windows refused access to the microphones: the privacy switches are
+  /// off for desktop apps. Takes would be silent.
+  bool get blocked => _level.denied || (_levels.isNotEmpty && _levels.values.every((l) => l.denied));
 
   /// Lists the microphones, keeps [preferredId] if it is still there, and
   /// starts listening. Returns the ID in use (null: the default).
@@ -69,11 +78,39 @@ class MicMonitor extends ChangeNotifier {
 
   void resetLoudest() => _loudestRmsDb = -100;
 
+  /// Meters every microphone as well as the chosen one, so the record
+  /// set-up can show which one moves when you talk. Stop it while
+  /// recording.
+  Future<void> watchEveryMic() async {
+    if (!supported || _watchingAll) return;
+    _watchingAll = true;
+    await inputs.watchAll();
+  }
+
+  Future<void> stopWatchingAll() async {
+    if (!_watchingAll) return;
+    _watchingAll = false;
+    _levels = const {};
+    notifyListeners();
+    if (supported) await inputs.unwatchAll();
+  }
+
+  /// Lists the microphones again and reopens them: after the user changed
+  /// the privacy switches or plugged one in.
+  Future<void> refresh() async {
+    if (!supported) return;
+    final watching = _watchingAll;
+    if (watching) await stopWatchingAll();
+    await start(_inputId);
+    if (watching) await watchEveryMic();
+  }
+
   Future<void> _poll() async {
     if (_polling) return;
     _polling = true;
     try {
       _level = await inputs.level();
+      if (_watchingAll) _levels = await inputs.levels();
       _loudestRmsDb = _level.rmsDb > _loudestRmsDb ? _level.rmsDb : _loudestRmsDb;
       _speaking = _voice.update(_level.rmsDb, pollEvery);
       notifyListeners();
@@ -91,7 +128,10 @@ class MicMonitor extends ChangeNotifier {
   @override
   void dispose() {
     _timer?.cancel();
-    if (supported) inputs.stopLevels();
+    if (supported) {
+      inputs.stopLevels();
+      if (_watchingAll) inputs.unwatchAll();
+    }
     super.dispose();
   }
 }

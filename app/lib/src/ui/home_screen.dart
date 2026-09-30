@@ -14,6 +14,7 @@ import '../theme/theme.dart';
 import 'editor_screen.dart';
 import 'format.dart';
 import 'library_screen.dart';
+import 'record_setup.dart';
 import 'recording_widgets.dart';
 import 'script_page.dart';
 import 'settings_screen.dart';
@@ -494,7 +495,7 @@ class _RecordNext extends StatelessWidget {
       ),
     ]);
     final right = Column(crossAxisAlignment: CrossAxisAlignment.stretch, mainAxisSize: MainAxisSize.min, children: [
-      const _ModeTiles(),
+      const RecordModeTiles(),
       const SizedBox(height: SaSpace.s3),
       Wrap(spacing: SaSpace.s2, runSpacing: SaSpace.s2, children: [
         const _Check(icon: Icons.videocam_outlined, text: 'Camera'),
@@ -597,55 +598,6 @@ class _StagePreview extends StatelessWidget {
   final tokens = script.tokens.take(count).toList();
   final marks = [for (final m in script.marks) if (m.end < tokens.length) m];
   return (tokens, marks);
-}
-
-class _ModeTiles extends StatelessWidget {
-  const _ModeTiles();
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(children: [
-      for (final (icon, label, ready) in [
-        (Icons.videocam_rounded, 'Camera', true),
-        (Icons.screen_share_rounded, 'Screen', false),
-        (Icons.picture_in_picture_alt_rounded, 'Both', false),
-      ]) ...[
-        Expanded(child: _ModeTile(icon: icon, label: label, ready: ready)),
-        if (label != 'Both') const SizedBox(width: SaSpace.s2),
-      ],
-    ]);
-  }
-}
-
-class _ModeTile extends StatelessWidget {
-  const _ModeTile({required this.icon, required this.label, required this.ready});
-
-  final IconData icon;
-  final String label;
-  final bool ready;
-
-  @override
-  Widget build(BuildContext context) {
-    final stage = SaPalette.dark;
-    final fg = ready ? stage.stage : stage.stageChromeText;
-    return Tooltip(
-      message: ready ? 'Records your camera' : 'Screen recording arrives in the next build',
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: SaSpace.s3),
-        decoration: BoxDecoration(
-          color: ready ? stage.stageText : stage.stageChrome,
-          borderRadius: BorderRadius.circular(SaRadius.md),
-          border: Border.all(color: stage.stageGlassEdge),
-        ),
-        child: Column(children: [
-          Icon(icon, color: fg),
-          const SizedBox(height: SaSpace.s1),
-          Text(label, style: SaType.label.copyWith(color: fg, fontWeight: FontWeight.w600)),
-          if (!ready) Text('NEXT BUILD', style: SaType.signalLabel.copyWith(color: fg)),
-        ]),
-      ),
-    );
-  }
 }
 
 class _Check extends StatelessWidget {

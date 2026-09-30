@@ -67,6 +67,11 @@ Future<void> _loadFonts() async {
 
 /// A microphone for screenshots: two inputs, and someone talking.
 class _TalkingMic implements AudioInputs {
+  _TalkingMic({this.denied = false});
+
+  /// Windows refuses access (the privacy switches are off).
+  final bool denied;
+
   @override
   bool get supported => true;
 
@@ -86,7 +91,21 @@ class _TalkingMic implements AudioInputs {
   Future<void> stopLevels() async {}
 
   @override
-  Future<MicLevel> level() async => const MicLevel(peakDb: -12, rmsDb: -22);
+  Future<MicLevel> level() async => denied
+      ? const MicLevel(peakDb: -100, rmsDb: -100, failed: true, denied: true)
+      : const MicLevel(peakDb: -12, rmsDb: -22);
+
+  @override
+  Future<void> watchAll() async {}
+
+  @override
+  Future<Map<String, MicLevel>> levels() async => {
+        'headset': await level(),
+        'webcam': MicLevel(peakDb: -100, rmsDb: -100, failed: denied, denied: denied),
+      };
+
+  @override
+  Future<void> unwatchAll() async {}
 }
 
 /// No camera in a container: the record screen shows its chrome and says so.
@@ -319,6 +338,20 @@ void main() {
         await tester.pump(target - controller.position);
         controller.pause();
         await tester.pump();
+      });
+    });
+  }
+
+  // The record set-up on a Windows-sized window: every microphone metered,
+  // and the panel that appears when Windows blocks the microphone.
+  for (final (name, denied) in [('record-desktop', false), ('record-desktop-blocked', true)]) {
+    testWidgets('record screen, desktop set-up ($name)', (tester) async {
+      CameraPlatform.instance = _NoCameras();
+      final script = await _markedUp(sampleScripts()[0]);
+      await shoot(tester, name, desktop, (_) => RecordScreen(script: script), [script],
+          audio: _TalkingMic(denied: denied), settle: false, before: (tester) async {
+        await tester.pump(const Duration(milliseconds: 300));
+        await tester.pump(const Duration(milliseconds: 300));
       });
     });
   }

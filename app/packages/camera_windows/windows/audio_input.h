@@ -9,6 +9,7 @@
 #include <windows.h>
 
 #include <atomic>
+#include <map>
 #include <memory>
 #include <string>
 #include <thread>
@@ -57,18 +58,25 @@ class AudioLevelMonitor {
   // True when the stream could not be opened (no device, access denied).
   bool failed() const { return failed_.load(); }
 
+  // True when Windows refused access: the microphone privacy switches are
+  // off for desktop apps. Implies failed().
+  bool denied() const { return denied_.load(); }
+
  private:
   void Run(std::wstring id);
 
   std::thread thread_;
   std::atomic<bool> running_{false};
   std::atomic<bool> failed_{false};
+  std::atomic<bool> denied_{false};
   std::atomic<float> peak_db_{-100.0f};
   std::atomic<float> rms_db_{-100.0f};
 };
 
 // The "spawnalpha/audio_input" method channel: list, select, startLevels,
-// stopLevels and level. Owned by the registrar, like a plugin.
+// stopLevels and level for the chosen microphone; watchAll, levels and
+// unwatchAll to meter every microphone at once (the record set-up). Owned
+// by the registrar, like a plugin.
 class AudioInputChannel : public flutter::Plugin {
  public:
   static void RegisterWithRegistrar(flutter::PluginRegistrarWindows* registrar);
@@ -79,6 +87,9 @@ class AudioInputChannel : public flutter::Plugin {
  private:
   std::unique_ptr<flutter::MethodChannel<flutter::EncodableValue>> channel_;
   AudioLevelMonitor monitor_;
+
+  // One monitor per microphone while the record set-up shows every meter.
+  std::map<std::wstring, std::unique_ptr<AudioLevelMonitor>> watched_;
 };
 
 }  // namespace camera_windows
