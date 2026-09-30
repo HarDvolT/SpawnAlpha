@@ -1,0 +1,76 @@
+# AGENTS.md: guide for agents working on SpawnAlpha
+
+Read this file first, then [`docs/status.md`](docs/status.md) to see where the work stands.
+**Update `docs/status.md` before you end a session**: what you finished, what is half done,
+and what should happen next. The next agent starts from that file.
+
+## What this is
+
+A teleprompter that coaches delivery. The AI marks up a script with delivery cues (pauses, stress,
+pace, energy, breaths), the prompter shows those cues while the user records, and later the app
+checks the recording against them. The full product brief is in
+[`docs/product-brief.md`](docs/product-brief.md). "SpawnAlpha" is a placeholder name.
+
+Targets: **Windows, Android, iOS**, from one Flutter codebase. Script languages: **English, French,
+Arabic** (Arabic is right to left).
+
+## Repository layout
+
+```
+AGENTS.md              this guide (CLAUDE.md points here)
+docs/
+  product-brief.md     the product brief: what to build and why
+  status.md            progress log and next steps; keep it current
+  architecture.md      how the code fits together, with the key invariants
+app/                   the Flutter app (package name: spawnalpha)
+  lib/main.dart
+  lib/src/model/       pure Dart: tokens, marks, script document, remapping
+  lib/src/markup/      markup engines: on-device rules and Claude (cloud)
+  lib/src/prompter/    delivery timeline, playback controller, prompter widget
+  lib/src/storage/     scripts and settings on disk
+  lib/src/ui/          screens
+  test/                mirrors lib/src/
+```
+
+## Toolchain and commands
+
+- Flutter **3.47.5 stable** (Dart 3.13). Run every command from `app/`.
+- `flutter pub get`, then `flutter analyze` (must print "No issues found!"), then `flutter test`
+  (must pass).
+- Run it: `flutter run -d windows`, or an Android or iOS device. Windows builds need a Windows
+  host and iOS builds need macOS; a Linux container can only analyze and test.
+- Claude Code cloud containers don't include Flutter. Install it into the session scratchpad:
+  ```sh
+  curl -sSL -o flutter.tar.xz https://storage.googleapis.com/flutter_infra_release/releases/stable/linux/flutter_linux_3.47.5-stable.tar.xz
+  tar xf flutter.tar.xz && export PATH="$PWD/flutter/bin:$PATH"
+  git config --global --add safe.directory '*'
+  ```
+
+## Conventions
+
+- **Keep logic out of widgets.** `model/`, `markup/` and the timeline and controller in
+  `prompter/` must not import Flutter widgets, so they stay unit testable. Widgets only render and
+  forward input.
+- **Immutable data.** `ScriptDocument` and `Mark` are immutable; edits return copies
+  (`copyWith`, `withText`, `applySuggestion`). Run marks through `normalizeMarks` whenever you
+  build a new list.
+- **Marks point at token indices, never at character offsets or inline tags.** Read
+  `docs/architecture.md` before you change how marks are stored.
+- **Every text feature must work in English, French and Arabic.** Add test cases in all three
+  when you touch tokenizing, word lists or markup rules. Word lists live in
+  `lib/src/markup/lexicon.dart` and are normalized on load, so write entries naturally, with
+  accents or hamza.
+- **Right to left:** set `Directionality` from `ScriptLanguage.isRtl` wherever script text shows.
+- **Claude API:** `markup/claude_markup_engine.dart` calls the Messages API over raw HTTP
+  (there is no Dart SDK). Default model `claude-opus-5-5`, with structured outputs
+  (`output_config.format`), streaming, and `fallbacks: "default"`. Keep the request shape in line
+  with the current API docs, and never put model names in commit messages.
+- Tests sit under `app/test/`, mirroring `lib/src/`. Add or update tests with every change.
+- Lints: `flutter_lints` plus the rules in `app/analysis_options.yaml`.
+
+## Working agreement
+
+- Work on the branch you were given; commit small, descriptive commits; push when done.
+- Follow the build order in the brief. Don't start a later step until the earlier one works.
+- Record product decisions (a model choice, a pricing limit, a name) in `docs/status.md` under
+  "Decisions", and update the brief when a decision changes it.
