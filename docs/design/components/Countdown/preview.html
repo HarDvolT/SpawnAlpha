@@ -1,0 +1,63 @@
+<!-- @dsCard group="Stage" height=300 subtitle="Three beats; at go the ring collapses into the tally" -->
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>Countdown — preview</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Readex+Pro:wght@300..700&family=IBM+Plex+Mono:wght@400;500&family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,400..600,0..1,0&display=block">
+<style>
+  html, body { margin: 0; height: 100%; }
+  body { background: var(--stage); }
+  .frame { position: absolute; inset: 12px; border-radius: var(--radius-md); background: linear-gradient(160deg, #1d2430, #0c0f14); overflow: hidden; }
+  .dial { position: absolute; left: 50%; top: 50%; width: 150px; height: 150px; margin: -75px 0 0 -75px; border-radius: 50%; background: #00000080; display: grid; place-items: center; }
+  .dial svg { position: absolute; inset: 0; transform: rotate(-90deg); }
+  .dial circle { fill: none; stroke: var(--stage-text); stroke-width: 4; stroke-linecap: round; }
+  .num { font-size: 76px; font-weight: 700; color: var(--stage-text); font-variant-numeric: tabular-nums; line-height: 1; }
+  .num.pop { animation: pop 200ms var(--ease-standard) both; }
+  @keyframes pop { from { transform: scale(1.15); opacity: 0.4; } to { transform: none; opacity: 1; } }
+  .dot { position: absolute; width: 12px; height: 12px; border-radius: 50%; background: var(--stage-rec); left: calc(50% - 6px); top: calc(50% - 6px); opacity: 0; }
+  .dot.go { opacity: 1; animation: fly var(--dur-base) var(--ease-standard) both; }
+  @keyframes fly { from { transform: translate(0, 0) scale(12); opacity: 0.2; } to { transform: translate(var(--dx), var(--dy)) scale(1); opacity: 1; } }
+  .rec { position: absolute; top: 12px; right: 14px; display: flex; align-items: center; gap: 8px; padding: 4px 12px 4px 30px; border-radius: var(--radius-full); background: var(--stage-chrome); color: var(--stage-text); opacity: 0; transition: opacity var(--dur-quick) var(--ease-standard); }
+  .rec.on { opacity: 1; }
+  .replay { position: absolute; bottom: 14px; left: 50%; transform: translateX(-50%); }
+  .replay .sa-btn { background: var(--stage-chrome); color: var(--stage-chrome-text); border-color: #ffffff24; }
+</style>
+</head>
+<body class="sa">
+<div class="frame" id="frame">
+  <div class="dial" id="dial"><svg viewBox="0 0 150 150"><circle id="sweep" cx="75" cy="75" r="72" stroke-dasharray="452.4" stroke-dashoffset="452.4"></circle></svg><span class="num" id="num">3</span></div>
+  <div class="rec" id="rec"><span class="sa-mono" style="font-size:13px">REC 00:00</span></div>
+  <span class="dot" id="dot"></span>
+  <div class="replay"><button class="sa-btn" id="again"><span class="sa-i">replay</span>Replay</button></div>
+</div>
+<script>
+(function () {
+  var num = document.getElementById('num'), sweep = document.getElementById('sweep'), dial = document.getElementById('dial');
+  var dot = document.getElementById('dot'), rec = document.getElementById('rec'), frame = document.getElementById('frame');
+  var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches, t0, raf;
+  function run() {
+    cancelAnimationFrame(raf); t0 = performance.now(); dial.style.opacity = 1; rec.classList.remove('on'); dot.className = 'dot'; show(3);
+    raf = requestAnimationFrame(step);
+  }
+  function show(n) { num.textContent = n; num.classList.remove('pop'); void num.offsetWidth; if (!reduce) num.classList.add('pop'); }
+  function step(now) {
+    var e = now - t0, beat = Math.floor(e / 1000), k = (e % 1000) / 1000;
+    if (beat < 3) {
+      if (3 - beat !== +num.textContent) show(3 - beat);
+      // The ring sweeps once per beat; reduced motion steps it in quarters.
+      var sweepK = reduce ? Math.floor(k * 4) / 4 : k;
+      sweep.setAttribute('stroke-dashoffset', String(452.4 * (1 - sweepK)));
+      raf = requestAnimationFrame(step);
+    } else {
+      dial.style.opacity = 0;
+      var f = frame.getBoundingClientRect(), r = rec.getBoundingClientRect();
+      dot.style.setProperty('--dx', (r.left + 14 - (f.left + f.width / 2)) + 'px');
+      dot.style.setProperty('--dy', (r.top + r.height / 2 - (f.top + f.height / 2)) + 'px');
+      dot.className = 'dot go'; rec.classList.add('on');
+    }
+  }
+  document.getElementById('again').onclick = run;
+  run();
+})();
+</script>
+</body>
+</html>

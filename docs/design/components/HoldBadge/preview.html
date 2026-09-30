@@ -1,0 +1,37 @@
+<!-- @dsCard group="Stage" height=150 subtitle="Shown while the scroll holds; the ring empties over the hold" -->
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>Hold badge — preview</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Readex+Pro:wght@300..700&family=IBM+Plex+Mono:wght@400;500&family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,400..600,0..1,0&display=block">
+<style>
+  html, body { margin: 0; height: 100%; }
+  body { display: grid; place-items: center; background: var(--stage); }
+  .row { display: flex; gap: 28px; flex-wrap: wrap; justify-content: center; align-items: center; padding: 16px; }
+  .cell { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+  .cell span.ms { font-family: var(--font-mono); font-size: 11px; color: var(--stage-chrome-text); }
+</style>
+</head>
+<body class="sa">
+<div class="row">
+  <div class="cell"><span class="sa-hold sa-hold-pause" data-ms="500"><svg viewBox="0 0 24 24"><circle class="track" cx="12" cy="12" r="9"></circle><circle class="ring" cx="12" cy="12" r="9" stroke-dasharray="56.55"></circle></svg>PAUSE</span><span class="ms">500 ms · presentation</span></div>
+  <div class="cell"><span class="sa-hold sa-hold-pause sa-hold-long" data-ms="1200"><svg viewBox="0 0 24 24"><circle class="track" cx="12" cy="12" r="9"></circle><circle class="ring" cx="12" cy="12" r="9" stroke-dasharray="56.55"></circle></svg>LONG PAUSE</span><span class="ms">1200 ms · presentation</span></div>
+  <div class="cell"><span class="sa-hold sa-hold-breath" data-ms="350" data-breath="1"><svg viewBox="0 0 24 24"><circle class="track" cx="12" cy="12" r="9"></circle><circle class="ring" cx="12" cy="12" r="9" stroke-dasharray="56.55"></circle></svg>BREATHE</span><span class="ms">350 ms · every style</span></div>
+</div>
+<script>
+  // Each badge replays its hold every 2.4s: the ring empties linearly over the hold's exact length.
+  var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var badges = Array.prototype.slice.call(document.querySelectorAll('.sa-hold'));
+  var start = performance.now();
+  function tick(now) {
+    badges.forEach(function (b) {
+      var ms = +b.getAttribute('data-ms'), cycle = (now - start) % 2400, k = Math.min(1, cycle / ms);
+      b.querySelector('.ring').setAttribute('stroke-dashoffset', String(56.55 * k));
+      b.style.opacity = cycle < ms + 160 ? 1 : 0.25;
+      if (b.getAttribute('data-breath') && !reduce) b.style.transform = 'scale(' + (1 + 0.06 * Math.sin(Math.PI * k)) + ')';
+    });
+    requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+</script>
+</body>
+</html>

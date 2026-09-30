@@ -1,0 +1,206 @@
+<!-- @dsCard group="Stage" height=470 subtitle="Live: the timed scroll, holds at pauses, pace bars, English and Arabic" -->
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>Prompter — preview</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Readex+Pro:wght@300..700&family=IBM+Plex+Mono:wght@400;500&family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,400..600,0..1,0&display=block">
+<style>
+  html, body { margin: 0; height: 100%; }
+  body { display: flex; flex-direction: column; background: var(--stage); }
+  .stage { flex: 1; min-height: 0; }
+  .layer { position: absolute; left: 0; right: 0; top: 0; will-change: transform; }
+  .col { position: relative; max-width: var(--column-max); margin: 0 auto; padding: 0 56px; font-size: 34px; line-height: 50px; }
+  .col[dir="rtl"] { line-height: 56px; }
+  .bar { position: absolute; width: 6px; border-radius: 3px; }
+  .bar.slower { background: var(--stage-slower); }
+  .bar.faster { background: var(--stage-faster); }
+  .w.read { color: var(--stage-text-read); }
+  .w.read.sa-stress { color: color-mix(in srgb, var(--stage-stress) 45%, transparent); }
+  .badge-slot { position: absolute; left: 0; right: 0; display: flex; justify-content: center; pointer-events: none; }
+  .sa-hold { opacity: 0; transform: translateY(4px); transition: opacity var(--dur-quick) var(--ease-standard), transform var(--dur-quick) var(--ease-standard); }
+  .sa-hold.on { opacity: 1; transform: none; }
+  .controls { display: flex; align-items: center; gap: 4px; padding: 8px 12px; flex-wrap: wrap; }
+  .controls .readout { min-width: 120px; text-align: center; font-size: 11px; letter-spacing: 0.04em; }
+  .controls .spacer { flex: 1; }
+  .controls .sa-seg { background: #00000066; border-color: #ffffff24; }
+  .controls .sa-seg button { color: var(--stage-chrome-text); height: 30px; }
+  .controls .sa-seg button[aria-pressed="true"] { background: var(--stage-text); color: #15171c; box-shadow: none; }
+  .end { position: absolute; left: 0; right: 0; text-align: center; font-size: 14px; letter-spacing: 0.1em; color: var(--stage-chrome-text); opacity: 0; transition: opacity var(--dur-base) var(--ease-standard); }
+  .end.on { opacity: 1; }
+</style>
+</head>
+<body class="sa">
+<div class="sa-stage stage" id="stage">
+  <div class="layer" id="layer"><div class="col" id="col"></div></div>
+  <div class="sa-read-fade" id="fade"></div>
+  <div class="sa-reading-line" id="line"></div>
+  <span class="sa-caret sa-i fill" id="caret">arrow_right</span>
+  <div class="badge-slot" id="slot">
+    <span class="sa-hold sa-hold-pause" id="badge"><svg viewBox="0 0 24 24"><circle class="track" cx="12" cy="12" r="9"></circle><circle id="ring" cx="12" cy="12" r="9" stroke-dasharray="56.55" stroke-dashoffset="0"></circle></svg><span id="badgeText">PAUSE</span></span>
+  </div>
+  <div class="end" id="end">END OF SCRIPT</div>
+</div>
+<div class="sa-chrome controls">
+  <button class="sa-btn sa-btn-icon" id="restart" title="Back to start"><span class="sa-i">replay</span></button>
+  <button class="sa-btn sa-btn-icon" id="play" title="Play or pause"><span class="sa-i fill" id="playIcon">pause</span></button>
+  <button class="sa-btn sa-btn-icon" id="slower" title="Slower"><span class="sa-i">remove</span></button>
+  <span class="readout sa-mono" id="readout">1.0× · 150 wpm</span>
+  <button class="sa-btn sa-btn-icon" id="faster" title="Faster"><span class="sa-i">add</span></button>
+  <span class="spacer"></span>
+  <div class="sa-seg" role="group" aria-label="Script language">
+    <button aria-pressed="true" data-lang="en">English</button>
+    <button aria-pressed="false" data-lang="ar">العربية</button>
+  </div>
+</div>
+<script>
+(function () {
+  // A tiny script notation: *word* stress, [s [f [e open a slower, faster or energy run, ] closes it,
+  // | pause, || long pause, ~ breathe, ¶ new paragraph.
+  var SCRIPTS = {
+    en: '[s Last quarter, our support team answered *12,000* tickets. ] || That is *twice* as many as the year before, ~ with the same team. | ¶ [e So how did we do it? ] | We stopped answering the same question twice. ~ [f Every answer goes into a shared library, and the next person gets it in seconds. ] || ¶ Today I want to show you *three* things. |',
+    ar: '[e توقف! ] | هل تعرف أن معظم الناس يضيعون *ساعتين* يومياً على هواتفهم دون أن يشعروا؟ || ¶ [s جرب هذه الحيلة البسيطة: ] | أطفئ *كل* الإشعارات غير المهمة لمدة أسبوع واحد فقط. ~ ¶ [f ستتفاجأ بكمية الوقت التي ستستعيدها. ] | ¶ [e تابعني لمزيد من النصائح. ]'
+  };
+  var HOLD = { pause: 500, long: 1200, breath: 350 };
+  var GLYPH = { pause: ['pause', 'sa-g-pause', 1], long: ['pause_circle', 'sa-g-long', 1], breath: ['air', 'sa-g-breath', 0] };
+  var OPEN = { s: ['slower', 'keyboard_double_arrow_down', 'slow', 'sa-slower'], f: ['faster', 'keyboard_double_arrow_up', 'fast', 'sa-faster'], e: ['energy', 'bolt', '', 'sa-energy'] };
+  var stage = document.getElementById('stage'), layer = document.getElementById('layer'), col = document.getElementById('col');
+  var badge = document.getElementById('badge'), ring = document.getElementById('ring'), badgeText = document.getElementById('badgeText');
+  var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var words, runs, lines, timeline, total, t = 0, speed = 1, playing = true, lang = 'en', wpm = 150, endHold = 0;
+
+  function glyph(icon, cls, fill, label) {
+    var g = document.createElement('span'); g.className = 'sa-g ' + cls;
+    g.innerHTML = '<span class="sa-i' + (fill ? ' fill' : '') + '">' + icon + '</span>' + (label ? '<small>' + label + '</small>' : '');
+    return g;
+  }
+
+  function build() {
+    col.innerHTML = ''; col.dir = lang === 'ar' ? 'rtl' : 'ltr';
+    words = []; runs = [];
+    var parent = col, run = null, para = document.createElement('p');
+    para.style.margin = '0 0 28px'; col.appendChild(para); parent = para;
+    SCRIPTS[lang].split(/\s+/).forEach(function (tok) {
+      if (!tok) return;
+      if (tok === '¶') { para = document.createElement('p'); para.style.margin = '0 0 28px'; col.appendChild(para); parent = para; return; }
+      if (tok[0] === '[' && OPEN[tok[1]]) {
+        var o = OPEN[tok[1]]; run = { kind: o[0], start: words.length, el: document.createElement('span') };
+        run.el.className = o[3]; para.appendChild(run.el); parent = run.el;
+        // The opening glyph waits for the run's first word, so the two can share a no-wrap span.
+        run.glyph = glyph(o[1], 'sa-g-' + o[0], o[0] === 'energy', o[2]);
+        return;
+      }
+      if (tok === ']') { run.end = words.length - 1; runs.push(run); run = null; parent = para; return; }
+      if (tok === '|' || tok === '||' || tok === '~') {
+        var kind = tok === '|' ? 'pause' : tok === '||' ? 'long' : 'breath', w = words[words.length - 1];
+        w.gap = kind; var gg = GLYPH[kind];
+        w.wrap.appendChild(glyph(gg[0], gg[1], gg[2]));
+        return;
+      }
+      var stress = /^\*.*\*$/.test(tok), text = stress ? tok.slice(1, -1) : tok;
+      var span = document.createElement('span'); span.className = 'w' + (stress ? ' sa-stress' : ''); span.textContent = text;
+      // Each word sits in a no-wrap span with its cue glyphs, so a glyph never starts or ends a line alone.
+      var wrap = document.createElement('span'); wrap.className = 'sa-nb';
+      if (run && run.glyph) { wrap.appendChild(run.glyph); run.glyph = null; }
+      wrap.appendChild(span);
+      parent.appendChild(document.createTextNode(' ')); parent.appendChild(wrap);
+      words.push({ text: text, el: span, wrap: wrap, pace: run ? run.kind : null });
+    });
+    plan(); measure();
+  }
+
+  // The delivery timeline: 60/wpm per word weighted by length, pace runs ×1.25 or ×0.8, holds after words.
+  function plan() {
+    var avg = words.reduce(function (s, w) { return s + w.text.length; }, 0) / words.length;
+    var clock = 0; timeline = []; var spoken = 0;
+    words.forEach(function (w, i) {
+      var weight = Math.min(1.8, Math.max(0.6, w.text.length / avg));
+      var d = 60000 / wpm * weight * (w.pace === 'slower' ? 1.25 : w.pace === 'faster' ? 0.8 : 1);
+      var natural = /[.!?؟]$/.test(w.text) ? 250 : /[,،:;]$/.test(w.text) ? 120 : 0;
+      var hold = i === words.length - 1 ? 0 : (w.gap ? HOLD[w.gap] : natural);
+      timeline.push({ start: clock, end: clock + d, hold: hold, gap: w.gap, spoken: spoken });
+      spoken += d; clock += d + hold;
+    });
+    total = clock;
+  }
+
+  function measure() {
+    var tops = [], lineOf = [];
+    words.forEach(function (w, i) {
+      var top = w.el.offsetTop + w.el.offsetParent.offsetTop, h = w.el.offsetHeight;
+      var c = top + h / 2, li = tops.findIndex(function (l) { return Math.abs(l.c - c) < 20; });
+      if (li < 0) { tops.push({ c: c, first: i, last: i }); li = tops.length - 1; } else tops[li].last = i;
+      lineOf[i] = li;
+    });
+    lines = tops; words.forEach(function (w, i) { w.line = lineOf[i]; });
+    // Pace bars in the leading gutter.
+    Array.prototype.slice.call(col.querySelectorAll('.bar')).forEach(function (b) { b.remove(); });
+    runs.forEach(function (r) {
+      if (r.kind === 'energy') return;
+      var a = lines[words[r.start].line], b = lines[words[r.end].line], bar = document.createElement('div');
+      bar.className = 'bar ' + r.kind; bar.style.top = (a.c - 20) + 'px'; bar.style.height = (b.c - a.c + 40) + 'px';
+      bar.style[lang === 'ar' ? 'right' : 'left'] = '20px'; col.appendChild(bar);
+    });
+    layout();
+  }
+
+  function layout() {
+    var H = stage.clientHeight, y = Math.round(H * 0.3);
+    document.getElementById('line').style.top = y + 'px';
+    document.getElementById('fade').style.height = (y - 22) + 'px';
+    var caret = document.getElementById('caret'); caret.style.top = (y - 13) + 'px';
+    caret.textContent = lang === 'ar' ? 'arrow_left' : 'arrow_right';
+    caret.style.left = lang === 'ar' ? '' : '8px'; caret.style.right = lang === 'ar' ? '8px' : '';
+    document.getElementById('slot').style.top = (y - 76) + 'px';
+    document.getElementById('end').style.top = (y + 40) + 'px';
+  }
+
+  function indexAt(time) { var i = 0; while (i + 1 < timeline.length && timeline[i + 1].start <= time) i++; return i; }
+
+  function frame(dt) {
+    if (playing) {
+      if (t >= total) { endHold += dt; if (endHold > 1800) { t = 0; endHold = 0; } }
+      else t = Math.min(total, t + dt * speed);
+    }
+    var i = indexAt(t), e = timeline[i], w = words[i], ln = lines[w.line];
+    // Speaking time only: the scroll stands still during a hold.
+    var into = Math.min(Math.max(t - e.start, 0), e.end - e.start), spokenNow = e.spoken + into;
+    var first = timeline[ln.first], last = timeline[ln.last];
+    var from = first.spoken, to = last.spoken + (last.end - last.start);
+    var p = to > from ? Math.min(1, Math.max(0, (spokenNow - from) / (to - from))) : 1;
+    var next = ln.last + 1 < words.length ? lines[words[ln.last + 1].line].c : ln.c + 50;
+    var y = ln.c + p * (next - ln.c);
+    layer.style.transform = 'translateY(' + (Math.round(stage.clientHeight * 0.3) - y) + 'px)';
+    words.forEach(function (x, k) { x.el.classList.toggle('read', k < ln.first); });
+    // Hold badge with a ring that empties over the hold.
+    var holding = t >= e.end && e.hold > 0 && e.gap;
+    badge.classList.toggle('on', !!holding);
+    if (holding) {
+      badge.className = 'sa-hold on ' + (e.gap === 'breath' ? 'sa-hold-breath' : 'sa-hold-pause') + (e.gap === 'long' ? ' sa-hold-long' : '');
+      badgeText.textContent = e.gap === 'long' ? 'LONG PAUSE' : e.gap === 'breath' ? 'BREATHE' : 'PAUSE';
+      var left = 1 - (t - e.end) / e.hold;
+      ring.setAttribute('stroke-dashoffset', String(56.55 * (1 - Math.max(0, left))));
+      badge.style.transform = e.gap === 'breath' && !reduce ? 'scale(' + (1 + 0.06 * Math.sin(Math.PI * (1 - left))) + ')' : '';
+    } else { badge.style.transform = ''; }
+    document.getElementById('end').classList.toggle('on', t >= total);
+  }
+
+  var last = performance.now();
+  function loop(now) { frame(Math.min(100, now - last)); last = now; requestAnimationFrame(loop); }
+
+  function readout() { document.getElementById('readout').textContent = speed.toFixed(1) + '× · ' + Math.round(wpm * speed) + ' wpm'; }
+  document.getElementById('play').onclick = function () { playing = !playing; document.getElementById('playIcon').textContent = playing ? 'pause' : 'play_arrow'; };
+  document.getElementById('restart').onclick = function () { t = 0; endHold = 0; };
+  document.getElementById('slower').onclick = function () { speed = Math.max(0.5, Math.round((speed - 0.1) * 10) / 10); readout(); };
+  document.getElementById('faster').onclick = function () { speed = Math.min(2, Math.round((speed + 0.1) * 10) / 10); readout(); };
+  Array.prototype.slice.call(document.querySelectorAll('[data-lang]')).forEach(function (b) {
+    b.onclick = function () {
+      lang = b.getAttribute('data-lang'); t = 0; endHold = 0;
+      Array.prototype.slice.call(document.querySelectorAll('[data-lang]')).forEach(function (x) { x.setAttribute('aria-pressed', String(x === b)); });
+      build();
+    };
+  });
+  window.addEventListener('resize', function () { measure(); });
+  (document.fonts ? document.fonts.ready : Promise.resolve()).then(function () { build(); requestAnimationFrame(loop); });
+})();
+</script>
+</body>
+</html>

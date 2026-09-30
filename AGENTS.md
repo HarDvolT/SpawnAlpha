@@ -22,6 +22,8 @@ docs/
   product-brief.md     the product brief: what to build and why
   status.md            progress log and next steps; keep it current
   architecture.md      how the code fits together, with the key invariants
+  design-language.md   entry point to the design language
+  design/              the design language: brand book, prompter, recording, motion, tokens, components
 app/                   the Flutter app (package name: spawnalpha)
   lib/main.dart
   lib/src/model/       pure Dart: tokens, marks, script document, remapping
@@ -53,6 +55,15 @@ app/                   the Flutter app (package name: spawnalpha)
   for any new screen.
 
 ## Conventions
+
+- **Follow the design language** in [`docs/design/`](docs/design/) (start at
+  [`docs/design-language.md`](docs/design-language.md)) for every UI change:
+  - use its tokens, and never add literal colours, sizes or durations;
+  - keep the Studio (themed) and the Stage (always dark) apart;
+  - draw cues only with the cue vocabulary's glyphs and colours;
+  - keep the prompter hidden from capture in the screen modes.
+
+  If a change needs something the design language lacks, add it there first.
 
 - **Keep logic out of widgets.** `model/`, `markup/` and the timeline and controller in
   `prompter/` must not import Flutter widgets, so they stay unit testable. Widgets only render and

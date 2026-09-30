@@ -1,0 +1,50 @@
+<!-- @dsCard group="Recording" height=170 subtitle="The floating desktop controller, hidden from capture" -->
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>Recording HUD — preview</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Readex+Pro:wght@300..700&family=IBM+Plex+Mono:wght@400;500&family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,400..600,0..1,0&display=block">
+<style>
+  html, body { margin: 0; }
+  body { padding: 20px 16px; display: flex; flex-direction: column; align-items: center; gap: 12px; }
+  .time { font-size: 13px; color: var(--stage-text); min-width: 58px; }
+  .tally-breathe { animation: breathe 2s ease-in-out infinite; }
+  @keyframes breathe { 50% { opacity: 0.7; } }
+  @media (prefers-reduced-motion: reduce) { .tally-breathe { animation: none; } }
+</style>
+</head>
+<body class="sa">
+<div class="sa-hud" role="toolbar" aria-label="Recording controls">
+  <span class="sa-tally tally-breathe" id="tally"></span>
+  <span class="time sa-mono" id="time">00:00:00</span>
+  <button id="pause" title="Pause" aria-pressed="false"><span class="sa-i fill" id="pauseIcon">pause</span></button>
+  <button class="stop" title="Stop"><span class="sa-i fill">stop_circle</span></button>
+  <span class="sep"></span>
+  <span class="sa-i" style="font-size:18px">mic</span><span class="sa-meter"><i id="meter"></i></span>
+  <span class="sep"></span>
+  <button title="Show or hide the prompter" aria-pressed="true"><span class="sa-i">subject</span></button>
+  <button id="lock" title="Lock: click through the prompter" aria-pressed="false"><span class="sa-i" id="lockIcon">lock_open</span></button>
+</div>
+<span class="sa-hidden-tag" style="color:var(--ink-2)"><span class="sa-i">visibility_off</span>Hidden from recording</span>
+<script>
+(function () {
+  var paused = false, secs = 83, tally = document.getElementById('tally');
+  setInterval(function () {
+    if (!paused) secs++;
+    var h = Math.floor(secs / 3600), m = Math.floor(secs / 60) % 60, s = secs % 60;
+    document.getElementById('time').textContent = [h, m, s].map(function (n) { return String(n).padStart(2, '0'); }).join(':');
+  }, 1000);
+  var meter = document.getElementById('meter');
+  setInterval(function () { meter.style.width = paused ? '4%' : (20 + Math.random() * 60) + '%'; }, 90);
+  document.getElementById('pause').onclick = function () {
+    paused = !paused; this.setAttribute('aria-pressed', String(paused));
+    document.getElementById('pauseIcon').textContent = paused ? 'play_arrow' : 'pause';
+    tally.classList.toggle('paused', paused); tally.classList.toggle('tally-breathe', !paused);
+  };
+  document.getElementById('lock').onclick = function () {
+    var on = this.getAttribute('aria-pressed') !== 'true'; this.setAttribute('aria-pressed', String(on));
+    document.getElementById('lockIcon').textContent = on ? 'lock' : 'lock_open';
+  };
+})();
+</script>
+</body>
+</html>

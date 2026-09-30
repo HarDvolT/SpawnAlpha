@@ -1,0 +1,37 @@
+<!-- @dsCard group="Recording" height=200 subtitle="Screen + camera takes: choose the layout after recording" -->
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>Camera layouts — preview</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Readex+Pro:wght@300..700&family=IBM+Plex+Mono:wght@400;500&family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,400..600,0..1,0&display=block">
+<style>
+  html, body { margin: 0; }
+  body { padding: 16px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+  .opt { font: inherit; text-align: start; padding: 8px; border-radius: var(--radius-md); border: 1px solid var(--line); background: var(--surface); color: var(--ink); cursor: pointer; display: flex; flex-direction: column; gap: 8px; transition: box-shadow var(--dur-quick) var(--ease-standard); }
+  .opt[aria-pressed="true"] { box-shadow: 0 0 0 2px var(--ink); border-color: transparent; }
+  .opt:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+  .thumb { position: relative; aspect-ratio: 16 / 9; border-radius: var(--radius-xs); background: var(--surface-sunk); overflow: hidden; }
+  .scr { position: absolute; inset: 0; background: repeating-linear-gradient(0deg, transparent 0 14px, var(--line) 14px 16px); }
+  .camv { position: absolute; background: var(--ink-3); }
+  .bubble .camv { height: 25%; aspect-ratio: 1; right: 6%; bottom: 8%; border-radius: var(--radius-full); box-shadow: 0 0 0 2px var(--surface); }
+  .split .scr { right: 30%; }
+  .split .camv { top: 0; bottom: 0; right: 0; width: 30%; }
+  .cam .camv { inset: 0; }
+  .screen .camv { display: none; }
+  .opt b { font-size: 13px; font-weight: 600; }
+  .opt span.sa-caption { margin-top: -6px; }
+</style>
+</head>
+<body class="sa">
+<div class="grid" role="group" aria-label="Layout">
+  <button class="opt" aria-pressed="true"><div class="thumb bubble"><div class="scr"></div><div class="camv"></div></div><b>Bubble</b><span class="sa-caption">Camera in a corner circle</span></button>
+  <button class="opt" aria-pressed="false"><div class="thumb split"><div class="scr"></div><div class="camv"></div></div><b>Side by side</b><span class="sa-caption">Screen 70%, camera 30%</span></button>
+  <button class="opt" aria-pressed="false"><div class="thumb cam"><div class="scr"></div><div class="camv"></div></div><b>Camera only</b><span class="sa-caption">For intros and outros</span></button>
+  <button class="opt" aria-pressed="false"><div class="thumb screen"><div class="scr"></div><div class="camv"></div></div><b>Screen only</b><span class="sa-caption">For detailed steps</span></button>
+</div>
+<script>
+  var opts = Array.prototype.slice.call(document.querySelectorAll('.opt'));
+  opts.forEach(function (o) { o.onclick = function () { opts.forEach(function (x) { x.setAttribute('aria-pressed', String(x === o)); }); }; });
+</script>
+</body>
+</html>

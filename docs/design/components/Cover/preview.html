@@ -1,0 +1,59 @@
+<!-- @dsCard height=288 -->
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>Cover</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Readex+Pro:wght@300..700&display=block">
+<style>
+  html, body { margin: 0; }
+  body { background: var(--paper); }
+  .cover { position: relative; width: 960px; height: 288px; overflow: hidden; background: var(--paper); font-family: var(--font-reading); }
+  svg { position: absolute; inset: 0; }
+  .slab { fill: var(--stage); }
+  .cue { fill: var(--cue); }
+  .read { fill: var(--stage-text-read); }
+  .word { fill: var(--stage-text); }
+  .stress { fill: var(--stage-stress); }
+  .pause { fill: var(--stage-pause); }
+  .slowtint { fill: var(--stage-tint-slower); }
+  .slowbar { fill: var(--stage-slower); }
+  .rl { stroke: var(--stage-line); stroke-width: 2; }
+  .pill { rx: 7px; }
+  .bar { rx: 3px; }
+  .slab-shape { rx: var(--radius-lg); }
+  .cue-shape { rx: var(--radius-xs); }
+  .tint { rx: var(--radius-xs); }
+  .name { position: absolute; left: 40px; bottom: 72px; max-width: 440px; margin: 0; font-size: 72px; line-height: 0.92; font-weight: 700; letter-spacing: -0.02em; color: var(--ink); }
+  .tag { position: absolute; left: 40px; bottom: 36px; max-width: 440px; margin: 0; font-size: 14px; color: var(--ink-2); }
+</style>
+</head>
+<body>
+<div class="cover">
+  <svg viewBox="0 0 960 288" width="960" height="288" aria-hidden="true">
+    <!--
+      blocks: stage slab 440×288 (x 520–960, radius-lg, bleeding off top, right and bottom) · cue square 96×96 (radius-xs) overlapping its top-left corner at x 488.
+      arrangement: one tall slab with a single satellite, as the stage sits beside the Studio.
+      pattern: literal motif, a marked script line: word pills (14px tall, pill radius) in rows at a 44px pitch, the reading row full strength, one stress pill in amber, one pause pair in lavender, a slower run tinted with its gutter bar; chosen because the cue vocabulary is the brand.
+      steps and radii: space-4 (16) gaps, space-5 (24) gutter, row pitch 44 (space-7 − 4), radius-xs tints, radius-lg slab, pills at half their height.
+    -->
+    <rect class="slab slab-shape" x="520" y="-20" width="460" height="328"></rect>
+    <rect class="cue cue-shape" x="488" y="32" width="96" height="96"></rect>
+    <!-- rows above the reading line: already read -->
+    <rect class="read pill" x="608" y="44" width="96" height="14"></rect><rect class="read pill" x="720" y="44" width="56" height="14"></rect><rect class="read pill" x="792" y="44" width="120" height="14"></rect>
+    <rect class="read pill" x="608" y="88" width="72" height="14"></rect><rect class="read pill" x="696" y="88" width="136" height="14"></rect><rect class="read pill" x="848" y="88" width="48" height="14"></rect>
+    <!-- the reading line -->
+    <line class="rl" x1="544" y1="139" x2="960" y2="139"></line>
+    <rect class="word pill" x="568" y="132" width="64" height="14"></rect><rect class="stress" rx="10" x="648" y="129" width="112" height="20"></rect><rect class="word pill" x="776" y="132" width="72" height="14"></rect>
+    <rect class="pause bar" x="864" y="126" width="6" height="26"></rect><rect class="pause bar" x="876" y="126" width="6" height="26"></rect>
+    <!-- a slower run below, tinted, with its gutter bar -->
+    <rect class="slowbar bar" x="544" y="170" width="6" height="72"></rect>
+    <rect class="slowtint tint" x="560" y="170" width="376" height="28"></rect>
+    <rect class="word pill" x="568" y="177" width="120" height="14"></rect><rect class="word pill" x="704" y="177" width="80" height="14"></rect><rect class="word pill" x="800" y="177" width="120" height="14"></rect>
+    <rect class="slowtint tint" x="560" y="214" width="232" height="28"></rect>
+    <rect class="word pill" x="568" y="221" width="88" height="14"></rect><rect class="word pill" x="672" y="221" width="112" height="14"></rect>
+  </svg>
+  <p class="name">SpawnAlpha</p>
+  <p class="tag">The AI directs, you perform, the AI checks.</p>
+</div>
+<script>/* Static cover. */</script>
+</body>
+</html>

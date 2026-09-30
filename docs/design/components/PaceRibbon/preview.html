@@ -1,0 +1,57 @@
+<!-- @dsCard group="Review" height=330 subtitle="Build step 2: a take's pace against the style's range, with each pause checked" -->
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>Pace ribbon — preview</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Readex+Pro:wght@300..700&family=IBM+Plex+Mono:wght@400;500&family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,400..600,0..1,0&display=block">
+<style>
+  html, body { margin: 0; } body { padding: 16px; }
+  .head { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 8px; max-width: 680px; }
+  .head b { font-size: 16px; }
+  svg { width: 100%; max-width: 680px; height: auto; display: block; margin-top: 8px; overflow: visible; }
+  .grid { stroke: var(--line); stroke-width: 1; }
+  .band { fill: var(--tint-slower); }
+  .axis { fill: var(--ink-3); font-family: var(--font-mono); font-size: 11px; }
+  .pace { fill: none; stroke: var(--ink); stroke-width: 2.5; stroke-linejoin: round; stroke-linecap: round; }
+  .area { fill: var(--ink); opacity: 0.06; }
+  .end { fill: var(--ink); }
+  .ok { fill: var(--success); }
+  .miss { fill: var(--surface); stroke: var(--warning); stroke-width: 2; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+  .chip { display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border-radius: var(--radius-sm); border: 1px solid var(--line); background: var(--surface); font-size: 13px; }
+  .chip .sa-i { font-size: 18px; }
+  .chip.good .sa-i { color: var(--success); }
+  .chip.warn .sa-i { color: var(--warning); }
+</style>
+</head>
+<body class="sa">
+<div class="head"><b>Pace</b><span class="sa-caption">Example take · presentation · target 130–150 wpm</span></div>
+<svg viewBox="0 0 640 196" id="chart" role="img" aria-label="Words per minute over the take, with the target range shaded"></svg>
+<div class="chips">
+  <span class="chip good"><span class="sa-i">check_circle</span>4 of 5 pauses taken</span>
+  <span class="chip warn"><span class="sa-i">error</span>Rushed at 0:10</span>
+  <span class="chip good"><span class="sa-i">check_circle</span>In range 65% of the time</span>
+</div>
+<script>
+(function () {
+  var wpm = [118, 132, 141, 150, 162, 171, 158, 146, 139, 128, 135, 144, 149, 153, 147, 141, 136];
+  var pauses = [[4.2, true], [9.8, true], [15.5, false], [22.0, true], [27.4, true]];
+  var T = 32, X0 = 44, X1 = 624, Y0 = 160, Y1 = 16;
+  var x = function (t) { return X0 + t / T * (X1 - X0); }, y = function (v) { return Y0 - (v - 100) / 100 * (Y0 - Y1); };
+  var s = '';
+  [100, 130, 150, 200].forEach(function (v) {
+    s += '<line class="grid" x1="' + X0 + '" x2="' + X1 + '" y1="' + y(v) + '" y2="' + y(v) + '"></line>';
+    s += '<text class="axis" x="' + (X0 - 8) + '" y="' + (y(v) + 4) + '" text-anchor="end">' + v + '</text>';
+  });
+  s = '<rect class="band" x="' + X0 + '" width="' + (X1 - X0) + '" y="' + y(150) + '" height="' + (y(130) - y(150)) + '"></rect>' + s;
+  [0, 10, 20, 30].forEach(function (t) { s += '<text class="axis" x="' + x(t) + '" y="192" text-anchor="middle">0:' + String(t).padStart(2, '0') + '</text>'; });
+  var pts = wpm.map(function (v, i) { return [x(i * 2), y(v)]; });
+  var d = pts.map(function (p, i) { return (i ? 'L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1); }).join(' ');
+  s += '<path class="area" d="' + d + ' L' + pts[pts.length - 1][0] + ' ' + Y0 + ' L' + X0 + ' ' + Y0 + ' Z"></path>';
+  s += '<path class="pace" d="' + d + '"></path>';
+  var e = pts[pts.length - 1]; s += '<circle class="end" cx="' + e[0] + '" cy="' + e[1] + '" r="4"></circle>';
+  pauses.forEach(function (p) { s += '<circle class="' + (p[1] ? 'ok' : 'miss') + '" cx="' + x(p[0]) + '" cy="172" r="5"><title>' + (p[1] ? 'Pause taken' : 'Pause missed') + ' at 0:' + String(Math.round(p[0])).padStart(2, '0') + '</title></circle>'; });
+  document.getElementById('chart').innerHTML = s;
+})();
+</script>
+</body>
+</html>

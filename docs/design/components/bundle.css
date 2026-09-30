@@ -1,0 +1,130 @@
+@import url('https://fonts.googleapis.com/css2?family=Readex+Pro:wght@300..700&family=IBM+Plex+Mono:wght@400;500&family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,400..600,0..1,0&display=block');
+
+/* SpawnAlpha components. Every colour, length and duration comes from tokens.css. */
+
+.sa { font-family: var(--font-reading); color: var(--ink); background: var(--paper); -webkit-font-smoothing: antialiased; }
+.sa *, .sa *::before, .sa *::after { box-sizing: border-box; }
+.sa-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); }
+.sa-col { display: flex; flex-direction: column; gap: var(--space-3); }
+.sa-caption { font-size: 12px; line-height: 16px; color: var(--ink-3); }
+.sa-label { font-size: 13px; line-height: 16px; font-weight: 600; letter-spacing: 0.01em; }
+.sa-mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+
+/* Icons: Material Symbols Rounded, by ligature name. */
+.sa-i { font-family: 'Material Symbols Rounded'; font-weight: normal; font-style: normal; font-size: 20px; line-height: 1; letter-spacing: normal; text-transform: none; display: inline-block; white-space: nowrap; direction: ltr; font-feature-settings: 'liga'; font-variation-settings: 'FILL' 0, 'wght' 500, 'GRAD' 0, 'opsz' 24; vertical-align: -0.15em; }
+.sa-i.fill { font-variation-settings: 'FILL' 1, 'wght' 500, 'GRAD' 0, 'opsz' 24; }
+
+/* ---- Buttons ---- */
+.sa-btn { font: inherit; font-size: 13px; font-weight: 600; letter-spacing: 0.01em; height: 40px; padding: 0 var(--space-4); border-radius: var(--radius-md); border: 1px solid var(--line-strong); background: var(--surface); color: var(--ink); display: inline-flex; align-items: center; gap: var(--space-2); cursor: pointer; transition: transform var(--dur-instant) var(--ease-press), background-color var(--dur-quick) var(--ease-standard); }
+.sa-btn:hover { background: var(--surface-sunk); }
+.sa-btn:active { transform: scale(0.97); }
+.sa-btn:focus-visible, .sa-seg button:focus-visible, .sa-rec:focus-visible, .sa-hud button:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.sa-btn-primary { background: var(--primary); border-color: var(--primary); color: var(--on-primary); }
+.sa-btn-primary:hover { background: var(--primary); opacity: 0.92; }
+.sa-btn-cue { background: var(--cue); border-color: var(--cue); color: var(--on-cue); }
+.sa-btn-cue:hover { background: var(--cue); opacity: 0.92; }
+.sa-btn-plain { border-color: transparent; background: transparent; }
+.sa-btn-danger { border-color: transparent; background: transparent; color: var(--danger); }
+.sa-btn-icon { width: 40px; padding: 0; justify-content: center; border-color: transparent; background: transparent; }
+.sa-btn[disabled] { opacity: 0.38; cursor: default; transform: none; }
+
+/* ---- Segmented control ---- */
+.sa-seg { display: inline-flex; padding: 3px; gap: 3px; border-radius: var(--radius-md); background: var(--surface-sunk); border: 1px solid var(--line); }
+.sa-seg button { font: inherit; font-size: 13px; font-weight: 600; border: 0; background: transparent; color: var(--ink-2); height: 34px; padding: 0 var(--space-3); border-radius: 9px; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; transition: background-color var(--dur-quick) var(--ease-standard), color var(--dur-quick) var(--ease-standard); }
+.sa-seg button[aria-pressed="true"] { background: var(--surface); color: var(--ink); box-shadow: 0 0 0 1px var(--line-strong); }
+
+/* ---- Cues inside script text ---- */
+.sa-script { font-size: 22px; line-height: 37px; }
+.sa-script[dir="rtl"] { line-height: 40px; }
+.sa-stress { color: var(--cue-stress); font-weight: 700; font-size: 1.15em; }
+.sa-energy { color: var(--cue-energy); }
+.sa-slower { background: var(--tint-slower); border-radius: var(--radius-xs); box-decoration-break: clone; -webkit-box-decoration-break: clone; padding: 0 2px; }
+.sa-faster { background: var(--tint-faster); border-radius: var(--radius-xs); box-decoration-break: clone; -webkit-box-decoration-break: clone; padding: 0 2px; }
+.sa-select { background: var(--tint-select); border-radius: var(--radius-xs); }
+/* A glyph and its word never part at a line break. */
+.sa-nb { white-space: nowrap; }
+.sa-g { display: inline-flex; align-items: center; gap: 1px; white-space: nowrap; margin: 0 0.18em; }
+.sa-g .sa-i { font-size: 0.72em; vertical-align: 0; }
+.sa-g-pause, .sa-g-long { color: var(--cue-pause); }
+.sa-g-long .sa-i { font-size: 0.9em; }
+.sa-g-breath { color: var(--cue-breath); }
+.sa-g-slower { color: var(--cue-slower); }
+.sa-g-faster { color: var(--cue-faster); }
+.sa-g-energy { color: var(--cue-energy); }
+.sa-g small { font-family: var(--font-reading); font-size: 0.4em; font-weight: 700; letter-spacing: 0.02em; }
+/* Pending (proposed) cues: glyphs at half strength, coloured words at 60%, tints at half. */
+.sa-pending { opacity: 0.5; }
+.sa-stress.sa-pending, .sa-energy.sa-pending { opacity: 0.6; }
+.sa-slower.sa-pending, .sa-faster.sa-pending { opacity: 1; }
+.sa-slower.sa-pending { background-color: color-mix(in srgb, var(--tint-slower) 50%, transparent); }
+.sa-faster.sa-pending { background-color: color-mix(in srgb, var(--tint-faster) 50%, transparent); }
+.sa-stress.sa-pending { text-decoration: underline dotted var(--cue-stress); text-underline-offset: 0.2em; }
+/* Words never slide or scale: coloured words and tints fade; only glyphs scale. */
+.sa-stress, .sa-energy, .sa-slower, .sa-faster { transition: color var(--dur-quick) var(--ease-standard), background-color var(--dur-quick) var(--ease-standard), opacity var(--dur-quick) var(--ease-standard); }
+.sa-off.sa-stress, .sa-off.sa-energy { color: inherit; opacity: 1; text-decoration: none; }
+.sa-off.sa-slower, .sa-off.sa-faster { background-color: transparent; }
+.sa-g.sa-off { opacity: 0; }
+.sa-cue-in { animation: sa-cue-in var(--dur-quick) var(--ease-standard) both; }
+.sa-cue-settle { animation: sa-cue-settle var(--dur-quick) var(--ease-standard) both; }
+@keyframes sa-cue-in { from { opacity: 0; transform: scale(0.6); } to { opacity: 0.5; transform: none; } }
+@keyframes sa-cue-settle { from { opacity: 0.5; transform: scale(0.96); } to { opacity: 1; transform: none; } }
+
+/* ---- Stage ---- */
+.sa-stage { --stage-size: 44px; background: var(--stage); color: var(--stage-text); font-family: var(--font-reading); font-weight: 500; position: relative; overflow: hidden; }
+.sa-stage .sa-stress { color: var(--stage-stress); }
+.sa-stage .sa-energy, .sa-stage .sa-g-energy { color: var(--stage-energy); }
+.sa-stage .sa-g-pause, .sa-stage .sa-g-long { color: var(--stage-pause); }
+.sa-stage .sa-g-breath { color: var(--stage-breath); }
+.sa-stage .sa-g-slower { color: var(--stage-slower); }
+.sa-stage .sa-g-faster { color: var(--stage-faster); }
+.sa-stage .sa-slower { background: var(--stage-tint-slower); }
+.sa-stage .sa-faster { background: var(--stage-tint-faster); }
+.sa-reading-line { position: absolute; left: 0; right: 0; height: 2px; background: var(--stage-line); }
+.sa-caret { position: absolute; color: var(--stage-chrome-text); font-size: 28px; line-height: 1; }
+.sa-read-fade { position: absolute; left: 0; right: 0; top: 0; pointer-events: none; background: linear-gradient(to bottom, #000000e6, #00000059); }
+.sa-chrome { background: var(--stage-chrome); color: var(--stage-chrome-text); }
+.sa-chrome .sa-btn-icon { color: var(--stage-chrome-text); }
+
+/* Hold badge */
+.sa-hold { display: inline-flex; align-items: center; gap: 8px; height: 32px; padding: 0 14px 0 6px; border-radius: var(--radius-full); background: #000000cc; border: 2px solid currentColor; font-size: 12px; font-weight: 700; letter-spacing: 0.12em; }
+.sa-hold svg { width: 22px; height: 22px; transform: rotate(-90deg); }
+.sa-hold circle { fill: none; stroke: currentColor; stroke-width: 3; }
+.sa-hold .track { opacity: 0.25; }
+.sa-hold-pause { color: var(--stage-pause); }
+.sa-hold-breath { color: var(--stage-breath); }
+.sa-hold-long { height: 38px; font-size: 13px; }
+
+/* Tally and record */
+.sa-tally { width: 10px; height: 10px; border-radius: var(--radius-full); background: var(--stage-rec); display: inline-block; }
+.sa-tally.paused { background: transparent; box-shadow: inset 0 0 0 2px var(--stage-rec); }
+.sa-rec { width: 68px; height: 68px; border-radius: var(--radius-full); border: 4px solid var(--ink); background: transparent; display: inline-grid; place-items: center; cursor: pointer; padding: 0; transition: transform var(--dur-instant) var(--ease-press); }
+.sa-stage .sa-rec, .sa-chrome .sa-rec { border-color: var(--stage-text); }
+.sa-stage .sa-rec i, .sa-chrome .sa-rec i { background: var(--stage-rec); }
+.sa-rec:active { transform: scale(0.92); }
+.sa-rec i { display: block; width: 52px; height: 52px; border-radius: 26px; background: var(--rec); transition: width var(--dur-base) var(--ease-press), height var(--dur-base) var(--ease-press), border-radius var(--dur-base) var(--ease-press); }
+.sa-rec[data-state="recording"] i { width: 26px; height: 26px; border-radius: var(--radius-sm); }
+.sa-rec[data-state="saving"] i { width: 26px; height: 26px; border-radius: var(--radius-sm); opacity: 0.4; }
+.sa-rec[data-state="saving"] { border-color: transparent; background: conic-gradient(var(--rec) 0 25%, transparent 0) border-box; animation: sa-spin 900ms linear infinite; }
+@keyframes sa-spin { to { transform: rotate(1turn); } }
+
+/* HUD */
+.sa-hud { display: inline-flex; align-items: center; gap: 6px; padding: 6px 8px 6px 14px; border-radius: var(--radius-lg); background: var(--stage-chrome); color: var(--stage-chrome-text); box-shadow: var(--shadow-float); font-family: var(--font-reading); }
+.sa-hud button { font: inherit; width: 36px; height: 36px; border-radius: var(--radius-md); border: 0; background: transparent; color: inherit; display: inline-grid; place-items: center; cursor: pointer; }
+.sa-hud button:hover { background: #ffffff14; }
+.sa-hud button[aria-pressed="true"] { background: #ffffff24; color: var(--stage-text); }
+.sa-hud .stop .sa-i { color: var(--stage-rec); }
+.sa-hud .sep { width: 1px; height: 22px; background: #ffffff24; margin: 0 4px; }
+.sa-meter { width: 40px; height: 3px; border-radius: 2px; background: #ffffff24; overflow: hidden; }
+.sa-meter i { display: block; height: 100%; width: 40%; background: var(--stage-chrome-text); transition: width 80ms linear; }
+.sa-hidden-tag { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 600; color: var(--stage-chrome-text); opacity: 0.8; }
+.sa-hidden-tag .sa-i { font-size: 14px; }
+
+/* Cards */
+.sa-card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-md); padding: var(--space-4); }
+.sa-banner { background: var(--surface); border: 1px solid var(--line-strong); border-radius: var(--radius-md); padding: var(--space-3) var(--space-3) var(--space-3) var(--space-4); display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; }
+
+@media (prefers-reduced-motion: reduce) {
+  .sa-cue-in, .sa-cue-settle { animation-duration: 1ms; }
+  .sa-stress, .sa-energy, .sa-slower, .sa-faster { transition: none; }
+  .sa-btn, .sa-rec, .sa-rec i { transition: none; }
+}

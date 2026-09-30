@@ -1,0 +1,31 @@
+<!-- @dsCard group="Recording" height=170 subtitle="Idle, recording and saving; press to see the morph" -->
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>Record button — preview</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Readex+Pro:wght@300..700&family=IBM+Plex+Mono:wght@400;500&family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,400..600,0..1,0&display=block">
+<style>
+  html, body { margin: 0; }
+  body { padding: 16px; }
+  .row { display: flex; gap: 16px; flex-wrap: wrap; }
+  .tile { flex: 1 1 180px; display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 16px; border-radius: var(--radius-md); }
+  .tile.studio { background: var(--surface); border: 1px solid var(--line); }
+  .tile.stage { background: var(--stage-chrome); color: var(--stage-chrome-text); }
+</style>
+</head>
+<body class="sa">
+<div class="row">
+  <div class="tile studio"><button class="sa-rec" id="a" data-state="idle" aria-label="Record"><i></i></button><span class="sa-caption" id="al">Idle · press to record</span></div>
+  <div class="tile stage"><button class="sa-rec" data-state="recording" aria-label="Stop"><i></i></button><span class="sa-caption" style="color:inherit">Recording · on the stage</span></div>
+  <div class="tile stage"><button class="sa-rec" data-state="saving" aria-label="Saving"><i></i></button><span class="sa-caption" style="color:inherit">Saving</span></div>
+</div>
+<script>
+  var a = document.getElementById('a'), al = document.getElementById('al');
+  a.onclick = function () {
+    var rec = a.getAttribute('data-state') !== 'recording';
+    a.setAttribute('data-state', rec ? 'recording' : 'idle');
+    a.setAttribute('aria-label', rec ? 'Stop' : 'Record');
+    al.textContent = rec ? 'Recording · press to stop' : 'Idle · press to record';
+  };
+</script>
+</body>
+</html>

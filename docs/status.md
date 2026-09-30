@@ -20,10 +20,22 @@ device.** (The build order is in [product-brief.md](product-brief.md#build-order
 | Practice prompter screen with keyboard shortcuts | Done |
 | Camera recording screen (countdown, prompter overlay, saves takes) | Written. **Untested: no camera in CI; needs a real Windows and Android run.** |
 | Storage: scripts as JSON files, settings, API key in secure storage | Done |
+| Design language (Studio and Stage tokens, cue vocabulary, prompter, recording modes, motion, 14 components) | Done in `docs/design/` and the design-system artifact. **Not yet applied to the Flutter app.** |
+| Screen and Screen + camera recording | Designed (`docs/design/recording.md`). Not built. |
 
 85 tests pass (`cd app && flutter test`), and `flutter analyze` is clean.
 
 ## Next steps
+
+0. **Apply the design language to the app** (`docs/design-language.md`):
+   - the tokens as a Flutter theme (`ColorScheme` plus `CueColors` and stage colours);
+   - Readex Pro and IBM Plex Mono bundled as font assets;
+   - the new cue colours and glyphs (Long pause becomes `pause_circle`);
+   - the always-dark stage;
+   - the motion list (director's pass, accept settle, hold badge ring, countdown, record morph);
+   - the pending banner and the record screen layout per mode.
+
+   Re-render `app/tool/screenshots_test.dart` and compare with the artifact previews.
 
 1. **Run it on real hardware** (can't be done in a Linux container):
    - Windows: `flutter run -d windows`. Check camera recording through
@@ -46,6 +58,15 @@ device.** (The build order is in [product-brief.md](product-brief.md#build-order
 
 ## Decisions
 
+- 2026-09-30: The recorder records three ways: **Camera**, **Screen** and **Screen + camera**
+  (screen and camera as separate files, with the layout chosen after recording). The prompter
+  works in all three and is never visible to the viewer: in the screen modes it is a floating
+  window excluded from capture (`WDA_EXCLUDEFROMCAPTURE` on Windows), as OpenScreen does for its
+  HUD and Notes windows. Full detail: `docs/design/recording.md`.
+- 2026-09-30: Design language v1. The Studio follows the device theme; the Stage is always
+  dark and true black. Readex Pro (one family for Latin and Arabic) and IBM Plex Mono. Each cue
+  has a fixed glyph and colour, and no cue relies on colour alone. On the Stage, only timing
+  moves. The artifact holds the live previews; `docs/design/` mirrors it for agents.
 - 2026-09-30: The Flutter app lives in `app/`, leaving the repo root free for docs and any
   later backend.
 - 2026-09-30: Marks are anchored to token indices, not character offsets or inline tags. Text
@@ -69,6 +90,8 @@ device.** (The build order is in [product-brief.md](product-brief.md#build-order
 
 ## Open questions (from the brief)
 
+- Should screen recording on Windows (build step 4 in the brief) move up, before the delivery
+  review? It is now a core mode of the recorder.
 - Which cloud model to use for markup, and how much the free tier includes.
 - How reliably stress can be detected from volume and pitch (needs a prototype, step 2).
 - App name.
@@ -92,3 +115,10 @@ device.** (The build order is in [product-brief.md](product-brief.md#build-order
   - 67 tests pass.
 - 2026-09-30, session 1 (continued): Added provider choice for the AI markup (the table above),
   with a shared prompt and a forgiving parser for local models. 85 tests pass.
+- 2026-09-30, session 1 (continued):
+  - Built the design language: a brand book, prompter, recording and motion specs, tokens and
+    14 components with live previews.
+  - Published it as a design-system artifact and mirrored it in `docs/design/`, with
+    `render-previews.mjs` for visual checks.
+  - Studied OpenScreen's recording HUD, Notes teleprompter and content protection for the
+    recording design.
