@@ -222,6 +222,28 @@ void main() {
     });
   }
 
+  // One phrase motion, in English on a desktop and in Arabic on a phone.
+  for (final (name, index, size) in [('en', 0, desktop), ('ar', 2, phone)]) {
+    testWidgets('prompter, one phrase ($name)', (tester) async {
+      final script = await _markedUp(sampleScripts()[index]);
+      await shoot(tester, 'prompter-phrase-$name', size, (app) {
+        app.settings.motion = PrompterMotion.phrase;
+        return PrompterScreen(script: script);
+      }, [script], settle: false, before: (tester) async {
+        await tester.pump(const Duration(milliseconds: 300));
+        final controller = tester.widget<PrompterView>(find.byType(PrompterView)).controller;
+        controller.seekToToken(6);
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 400));
+        controller.play();
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 150));
+        controller.pause();
+        await tester.pump();
+      });
+    });
+  }
+
   // The dot acting out each cue in the English sample: landing on a
   // stressed word, as the pause sign, inhaling, and announcing a run.
   final dotMoments = <String, Duration Function(PrompterController)>{

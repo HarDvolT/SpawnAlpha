@@ -5,8 +5,12 @@ import 'guide.dart';
 /// on, and the vertical extent of each line. The prompter widget measures
 /// this after layout; the scroll maths below uses it.
 class PrompterLayout {
-  PrompterLayout({required this.lineOfToken, required this.lineTops, required this.lineBottoms})
-      : assert(lineTops.length == lineBottoms.length) {
+  PrompterLayout({
+    required this.lineOfToken,
+    required this.lineTops,
+    required this.lineBottoms,
+    this.phraseStarts = const [],
+  }) : assert(lineTops.length == lineBottoms.length) {
     for (var i = 0; i < lineOfToken.length; i++) {
       final line = lineOfToken[i];
       _firstOnLine.putIfAbsent(line, () => i);
@@ -18,6 +22,10 @@ class PrompterLayout {
   final List<int> lineOfToken;
   final List<double> lineTops;
   final List<double> lineBottoms;
+
+  /// Where each phrase starts (sorted token indices), for the One phrase
+  /// motion. Empty otherwise.
+  final List<int> phraseStarts;
 
   final _firstOnLine = <int, int>{};
   final _lastOnLine = <int, int>{};
@@ -33,6 +41,25 @@ class PrompterLayout {
 
   /// The top of the line [token] is on.
   double topOf(int token) => lineTops[lineOfToken[token]];
+
+  /// The phrase [token] is in: its first token and the first token of the
+  /// next phrase (or the token count). The whole script is one phrase when
+  /// there are no [phraseStarts].
+  (int start, int end) phraseOf(int token) {
+    if (phraseStarts.isEmpty) return (0, lineOfToken.length);
+    var low = 0;
+    var high = phraseStarts.length - 1;
+    while (low < high) {
+      final mid = (low + high + 1) >> 1;
+      if (phraseStarts[mid] <= token) {
+        low = mid;
+      } else {
+        high = mid - 1;
+      }
+    }
+    final end = low + 1 < phraseStarts.length ? phraseStarts[low + 1] : lineOfToken.length;
+    return (phraseStarts[low], end);
+  }
 
   /// The first token of the line at vertical position [y], or of the
   /// nearest line with words on it.
@@ -63,12 +90,16 @@ class PrompterLayout {
   /// each line while it is spoken, reaching the next line as the line's
   /// last word ends.
   ///
+  /// With [PrompterMotion.phrase] it is the top of the phrase being
+  /// spoken, which sits on the reading line until the next phrase starts.
+  ///
   /// Either way, nothing moves during a pause.
   double scrollYAt(DeliveryTimeline timeline, Duration time, {PrompterMotion motion = PrompterMotion.lineStep}) {
     if (timeline.isEmpty || lineOfToken.length != timeline.length) return 0;
     final token = timeline.tokenAt(time);
     final line = lineOfToken[token];
     if (motion == PrompterMotion.lineStep) return lineTops[line];
+    if (motion == PrompterMotion.phrase) return lineTops[lineOfToken[phraseOf(token).$1]];
     final first = firstTokenOn(line);
     final last = lastTokenOn(line);
     final from = timeline.spokenBefore(first).inMicroseconds;

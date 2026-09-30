@@ -47,7 +47,7 @@ The defaults are proposals until the owner has tried them (see `docs/status.md`)
 
 - **Line step** (proposed default): the current line sits on the reading line and stays there while it is read. When the next line starts, the text glides up one line (an exponential glide, time constant 90ms). Your eyes never chase moving words.
 - **Smooth:** the classic prompter. The text moves at constant speed within a line (`ease-scroll`) and reaches the next line as its last word ends. It stands still during a hold.
-- **One phrase:** only the phrase being spoken, large and centred on the reading line, with the next phrase small underneath. Phrases break at gap cues and sentence ends. Best on a phone held close, or for short videos.
+- **One phrase:** only the phrase being spoken, set 1.25× larger and centred, sitting on the reading line until the next phrase starts, with the next phrase dimmed underneath and everything else hidden. A phrase ends at a gap cue, at the end of a sentence or line, at a clause end once it has four words, and at eight words at most. Best on a phone held close, or for short videos. The guide and the kinetic cues work the same.
 - In every motion the text stands still during a hold. That stillness is the pause cue; the badge and the guide only name it.
 
 ## The guide: which word to say now

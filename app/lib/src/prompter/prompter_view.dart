@@ -216,13 +216,32 @@ class PrompterViewState extends State<PrompterView> with SingleTickerProviderSta
 
   // ---- layout -------------------------------------------------------------
 
+  bool get _phrase => widget.motion == PrompterMotion.phrase;
+
+  /// One phrase at a time is set larger: there is room for it.
+  double get _fontSize => widget.fontSize * (_phrase ? 1.25 : 1);
+
   TextStyle get _style {
     final base = _c.script.language.isRtl ? SaType.stageMAr : SaType.stageM;
-    return base.copyWith(fontSize: widget.fontSize, color: _stage.stageText);
+    return base.copyWith(fontSize: _fontSize, color: _stage.stageText);
+  }
+
+  List<int> _phraseStarts = const [];
+  Object? _phraseKey;
+
+  /// Where each phrase starts, in One phrase motion.
+  List<int> get _phrases {
+    if (!_phrase) return const [];
+    final key = _c.script;
+    if (_phraseKey != key) {
+      _phraseKey = key;
+      _phraseStarts = phraseStarts(_c.tokens, _c.marks);
+    }
+    return _phraseStarts;
   }
 
   MarkedText _markedText() {
-    final key = (_c.script, widget.fontSize, widget.kinetic);
+    final key = (_c.script, widget.fontSize, widget.kinetic, _phrase);
     if (_markedKey != key || _marked == null) {
       _markedKey = key;
       _marked = MarkedText.build(
@@ -233,6 +252,7 @@ class PrompterViewState extends State<PrompterView> with SingleTickerProviderSta
         // Kinetic: the stressed words are painted by the overlay, so they
         // can grow. Their room on the line is the same either way.
         stressStyle: widget.kinetic ? StressStyle.stageOverlay : StressStyle.stage,
+        breakBefore: {..._phrases.skip(1)},
       );
     }
     return _marked!;
@@ -278,7 +298,7 @@ class PrompterViewState extends State<PrompterView> with SingleTickerProviderSta
     );
     setState(() {
       _layoutKey = key;
-      _layout = PrompterLayout(lineOfToken: lineOfToken, lineTops: tops, lineBottoms: bottoms);
+      _layout = PrompterLayout(lineOfToken: lineOfToken, lineTops: tops, lineBottoms: bottoms, phraseStarts: _phrases);
       _kineticLayout?.dispose();
       _kineticLayout = kinetic;
     });
@@ -309,6 +329,7 @@ class PrompterViewState extends State<PrompterView> with SingleTickerProviderSta
         kinetic: measured ? _kineticLayout : null,
         effects: widget.kinetic,
         guide: widget.guide,
+        phrase: _phrase,
         calm: MediaQuery.disableAnimationsOf(context),
         rtl: isRtl,
         clock: () => _clock,
@@ -332,11 +353,16 @@ class PrompterViewState extends State<PrompterView> with SingleTickerProviderSta
           foregroundPainter: kineticPainter.over,
           child: Padding(
             padding: EdgeInsets.fromLTRB(gutter, readingY, gutter, height - readingY),
-            child: Text.rich(key: _textKey, marked.span, textDirection: direction),
+            child: Text.rich(
+              key: _textKey,
+              marked.span,
+              textDirection: direction,
+              textAlign: _phrase ? TextAlign.center : TextAlign.start,
+            ),
           ),
         ),
       );
-      final lineHeight = widget.fontSize * (_style.height ?? 1.45);
+      final lineHeight = _fontSize * (_style.height ?? 1.45);
       final fadeStrength = widget.glass ? 0.7 : widget.backgroundOpacity;
 
       final prompter = Stack(children: [
@@ -414,11 +440,11 @@ class PrompterViewState extends State<PrompterView> with SingleTickerProviderSta
         ),
         Positioned.fill(child: IgnorePointer(child: CustomPaint(painter: kineticPainter.dot))),
         Positioned(
-          top: readingY - widget.fontSize * 1.6,
+          top: readingY - _fontSize * 1.6,
           left: 0,
           right: 0,
           child: IgnorePointer(
-            child: Center(child: _HoldBadge(kind: _c.holding, fontSize: widget.fontSize, controller: _c, frame: _frame)),
+            child: Center(child: _HoldBadge(kind: _c.holding, fontSize: _fontSize, controller: _c, frame: _frame)),
           ),
         ),
       ]);
@@ -798,6 +824,7 @@ class _KineticPainter {
     required this.repaint,
     required this.effects,
     required this.guide,
+    required this.phrase,
     required this.calm,
     required this.rtl,
     required this.clock,
@@ -814,6 +841,9 @@ class _KineticPainter {
 
   /// Reduced motion: the dot jumps from word to word without arcs.
   final bool calm;
+
+  /// One phrase motion: everything but the phrase being said fades.
+  final bool phrase;
 
   /// Wall-clock seconds, for the dot bobbing while it waits for the voice.
   final double Function() clock;
@@ -862,6 +892,7 @@ class _KineticLayer extends CustomPainter {
         _paintWords(canvas, k);
         _paintWait(canvas, k);
       }
+      if (p.phrase) _paintPhraseFocus(canvas, k);
       _paintGuide(canvas, k);
       if (p.effects) _paintHits(canvas, k);
     } else if (p.effects) {
@@ -901,6 +932,31 @@ class _KineticLayer extends CustomPainter {
   static Paint _fade(double alpha) => Paint()
     ..blendMode = BlendMode.dstOut
     ..color = SaPalette.dark.stage.withValues(alpha: alpha);
+
+  /// One phrase: only the phrase being said shows at full strength, the
+  /// next one dimmed underneath, and nothing else.
+  void _paintPhraseFocus(Canvas canvas, _KineticLayout k) {
+    final layout = p.layout;
+    if (layout == null || layout.lineOfToken.isEmpty) return;
+    final current = p.controller.currentToken.clamp(0, layout.lineOfToken.length - 1);
+    Rect block((int, int) phrase) => Rect.fromLTRB(
+          -p.origin.dx,
+          layout.lineTops[layout.lineOfToken[phrase.$1]],
+          k.textWidth + p.origin.dx,
+          layout.lineBottoms[layout.lineOfToken[phrase.$2 - 1]],
+        );
+    final now = layout.phraseOf(current);
+    final here = block(now);
+    final next = now.$2 < layout.lineOfToken.length ? block(layout.phraseOf(now.$2)) : null;
+    final all = Rect.fromLTRB(-p.origin.dx, -p.origin.dy, k.textWidth + p.origin.dx, layout.lineBottoms.last + k.lineHeight * 4);
+    final rest = Path()
+      ..fillType = PathFillType.evenOdd
+      ..addRect(all)
+      ..addRect(here);
+    if (next != null) rest.addRect(next);
+    canvas.drawPath(rest, _fade(0.92));
+    if (next != null) canvas.drawRect(next, _fade(0.6));
+  }
 
   /// Words already said on the line being read fade back.
   void _fadeSaid(Canvas canvas, _KineticLayout k, PrompterLayout layout, int current, Rect box) {
@@ -1125,6 +1181,7 @@ class _KineticLayer extends CustomPainter {
       old.p.effects != p.effects ||
       old.p.guide != p.guide ||
       old.p.calm != p.calm ||
+      old.p.phrase != p.phrase ||
       old.p.origin != p.origin ||
       old.p.layout != p.layout ||
       old.p.colors != p.colors;

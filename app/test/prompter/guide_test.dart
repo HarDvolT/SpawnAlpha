@@ -200,6 +200,49 @@ void main() {
       expect(PrompterMotion.fromName('bogus'), PrompterMotion.lineStep);
     });
 
+    test('phrases break at cues, sentence ends and long clauses, in every language', () {
+      List<String> phrasesOf(String text, [List<Mark> marks = const []]) {
+        final tokens = tokenize(text);
+        final starts = phraseStarts(tokens, marks);
+        return [
+          for (var n = 0; n < starts.length; n++)
+            tokens.sublist(starts[n], n + 1 < starts.length ? starts[n + 1] : tokens.length).map((t) => t.text).join(' '),
+        ];
+      }
+
+      expect(phrasesOf('Last quarter our team answered tickets. That is twice as many'),
+          ['Last quarter our team answered tickets.', 'That is twice as many']);
+      // A pause after "team" splits the sentence there.
+      expect(
+        phrasesOf('Last quarter our team answered tickets.', [const Mark.gap(id: 'p', kind: MarkKind.pauseShort, after: 3)]),
+        ['Last quarter our team', 'answered tickets.'],
+      );
+      // A comma ends a phrase only once it has four words.
+      expect(phrasesOf("D'abord, ouvrez le menu Fichier, puis choisissez Exporter."),
+          ["D'abord, ouvrez le menu Fichier,", 'puis choisissez Exporter.']);
+      expect(phrasesOf('توقف! هل تعرف أن معظم الناس يضيعون ساعتين يومياً؟ جرب هذه الحيلة'),
+          ['توقف!', 'هل تعرف أن معظم الناس يضيعون ساعتين يومياً؟', 'جرب هذه الحيلة']);
+      // No phrase runs past eight words.
+      final long = List.generate(30, (i) => 'w$i').join(' ');
+      expect(phrasesOf(long).map((p) => p.split(' ').length), everyElement(lessThanOrEqualTo(8)));
+    });
+
+    test('one phrase motion holds the phrase on the reading line', () {
+      // Tokens 0-1 on line 0, 2-3 on line 1: one phrase of four words.
+      final layout = PrompterLayout(
+        lineOfToken: [0, 0, 1, 1],
+        lineTops: [0, 40],
+        lineBottoms: [40, 80],
+        phraseStarts: [0],
+      );
+      final t = timeline(const []);
+      expect(layout.scrollYAt(t, t.startOf(3), motion: PrompterMotion.phrase), 0);
+      expect(layout.phraseOf(3), (0, 4));
+      final two = PrompterLayout(lineOfToken: [0, 0, 1, 1], lineTops: [0, 40], lineBottoms: [40, 80], phraseStarts: [0, 2]);
+      expect(two.scrollYAt(t, t.startOf(2), motion: PrompterMotion.phrase), 40);
+      expect(two.phraseOf(1), (0, 2));
+    });
+
     test('smooth motion scrolls through a line, line step holds it', () {
       final layout = PrompterLayout(lineOfToken: [0, 0, 1, 1], lineTops: [0, 40], lineBottoms: [40, 80]);
       final t = timeline(const []);

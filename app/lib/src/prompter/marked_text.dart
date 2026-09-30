@@ -214,7 +214,8 @@ class MarkedText {
   /// - pauses and breaths are icons in the gap after their word.
   ///
   /// Marks that are not accepted are drawn faded, for review in the
-  /// editor. [selected] tokens get a highlight.
+  /// editor. [selected] tokens get a highlight. [breakBefore] tokens start
+  /// a new block, after a blank line (the One phrase motion).
   static MarkedText build({
     required List<Token> tokens,
     required List<Mark> marks,
@@ -222,6 +223,7 @@ class MarkedText {
     required CueColors colors,
     Set<int> selected = const {},
     StressStyle stressStyle = StressStyle.stage,
+    Set<int> breakBefore = const {},
   }) {
     final marker = stressStyle == StressStyle.marker;
     final overlay = stressStyle == StressStyle.stageOverlay;
@@ -268,9 +270,11 @@ class MarkedText {
       final paceMark = pace[i];
       final paceTint = paceMark == null ? null : TextStyle(backgroundColor: _tint(colors.tintOf(paceMark.kind), paceMark));
       if (i > 0) {
-        final separator = t.lineBreaksBefore > 0 ? '\n' * t.lineBreaksBefore.clamp(1, 2) : ' ';
+        // One phrase per block: a blank line before each phrase.
+        final breaks = breakBefore.contains(i) ? 2 : t.lineBreaksBefore.clamp(0, 2);
+        final separator = breaks > 0 ? '\n' * breaks : ' ';
         // Keep a pace tint unbroken across the spaces inside a run.
-        final inRun = t.lineBreaksBefore == 0 && paceMark != null && identical(paceMark, pace[i - 1]);
+        final inRun = breaks == 0 && paceMark != null && identical(paceMark, pace[i - 1]);
         // On the stage, the spaces beside a stressed word are widened so it
         // has room to grow (the same in Kinetic and Still, so switching
         // never reflows).

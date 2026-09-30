@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'dart:ui';
 
 import '../model/mark.dart';
+import '../model/token.dart';
 import 'delivery_timeline.dart';
 
 /// How the prompter shows which word to say now (docs/design/prompter.md,
@@ -37,7 +38,11 @@ enum PrompterMotion {
   lineStep('Line step', 'The line stays still, then steps up'),
 
   /// The classic prompter scroll, at an even rate through each line.
-  smooth('Smooth', 'An even scroll, like a classic prompter');
+  smooth('Smooth', 'An even scroll, like a classic prompter'),
+
+  /// Only the phrase being said, large and centred on the reading line,
+  /// with the next phrase dimmed underneath.
+  phrase('One phrase', 'Only the phrase to say, large');
 
   const PrompterMotion(this.label, this.hint);
 
@@ -441,4 +446,29 @@ class BouncePath {
     const c3 = c1 + 1;
     return 1 + c3 * math.pow(t - 1, 3) + c1 * math.pow(t - 1, 2);
   }
+}
+
+/// Where each phrase starts, for the One phrase motion: a phrase ends after
+/// a pause, long pause or breath, at the end of a sentence or line, at a
+/// clause end once it has [minWords] words, and after [maxWords] words at
+/// most. Works the same in English, French and Arabic, through the
+/// tokenizer's punctuation.
+List<int> phraseStarts(List<Token> tokens, List<Mark> marks, {int minWords = 4, int maxWords = 8}) {
+  if (tokens.isEmpty) return const [];
+  final gapAfter = List<bool>.filled(tokens.length, false);
+  for (final m in marks) {
+    if (m.kind.isGap && m.end < tokens.length) gapAfter[m.end] = true;
+  }
+  final starts = <int>[0];
+  var words = 0;
+  for (var i = 0; i < tokens.length - 1; i++) {
+    final t = tokens[i];
+    if (t.isWord) words++;
+    final end = gapAfter[i] || t.endsSentence || t.endsLine || (t.endsClause && words >= minWords) || words >= maxWords;
+    if (end) {
+      starts.add(i + 1);
+      words = 0;
+    }
+  }
+  return starts;
 }

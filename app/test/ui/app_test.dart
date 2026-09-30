@@ -197,8 +197,8 @@ void main() {
     testWidgets('every guide and motion paints while playing, without moving a word', (tester) async {
       final words = List.generate(40, (i) => 'word$i').join(' ');
       final c = PrompterController(script(ScriptLanguage.en, 'Hello there, $words.').acceptAllMarks());
-      Rect? first;
       for (final motion in PrompterMotion.values) {
+        Rect? first;
         for (final guide in PrompterGuide.values) {
           c.restart();
           await tester.pumpWidget(MaterialApp(
@@ -221,6 +221,13 @@ void main() {
               .toRect();
           first ??= box;
           expect(box, first, reason: 'the guide never reflows the text ($guide, $motion)');
+          if (motion == PrompterMotion.phrase) {
+            // One phrase: a larger size, and the phrase starts its own block.
+            final hello = paragraph
+                .getBoxesForSelection(TextSelection(baseOffset: text.indexOf('Hello'), extentOffset: text.indexOf('Hello') + 5))
+                .first;
+            expect(hello.bottom - hello.top, greaterThan(32 * 1.2));
+          }
           c.pause();
         }
       }
