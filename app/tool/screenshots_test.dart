@@ -110,6 +110,19 @@ void main() {
     await shoot(tester, 'library', phone, (_) => const LibraryScreen(), sampleScripts());
   });
 
+  testWidgets('library, empty', (tester) async {
+    await shoot(tester, 'library-empty', phone, (_) => const LibraryScreen(), []);
+  });
+
+  testWidgets('mark sheet', (tester) async {
+    final script = await _markedUp(sampleScripts()[0]);
+    await shoot(tester, 'mark-sheet', phone, (_) => EditorScreen(script: script), [script], before: (tester) async {
+      // "12,000": a stressed word whose mark carries the director's note.
+      await tester.tap(find.byKey(const ValueKey('marked-script')), warnIfMissed: false);
+      await tester.pumpAndSettle();
+    });
+  });
+
   testWidgets('library dark', (tester) async {
     await shoot(tester, 'library-dark', phone, (_) => const LibraryScreen(), sampleScripts(),
         brightness: Brightness.dark);

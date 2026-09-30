@@ -11,6 +11,8 @@ import '../model/mark_editing.dart';
 import '../model/script_document.dart';
 import '../model/script_language.dart';
 import '../prompter/marked_text.dart';
+import '../theme/theme.dart';
+import 'components.dart';
 import 'format.dart';
 import 'mark_sheet.dart';
 import 'prompter_screen.dart';
@@ -226,8 +228,16 @@ class _EditorScreenState extends State<EditorScreen> with SingleTickerProviderSt
       appBar: AppBar(
         title: TextField(
           controller: _title,
-          decoration: const InputDecoration.collapsed(hintText: 'Untitled script'),
-          style: Theme.of(context).textTheme.titleLarge,
+          // The script's title is the screen's one display-face hero.
+          decoration: const InputDecoration(
+            isCollapsed: true,
+            filled: false,
+            hintText: 'Untitled script',
+            border: InputBorder.none,
+            enabledBorder: InputBorder.none,
+            focusedBorder: InputBorder.none,
+          ),
+          style: Theme.of(context).textTheme.headlineSmall,
           onChanged: (v) => _update(_script.copyWith(title: v)),
         ),
         actions: [
@@ -240,7 +250,7 @@ class _EditorScreenState extends State<EditorScreen> with SingleTickerProviderSt
             padding: const EdgeInsets.only(right: 8),
             child: FilledButton.icon(
               onPressed: () => _open(record: true),
-              icon: const Icon(Icons.fiber_manual_record, color: Colors.redAccent),
+              icon: Icon(Icons.fiber_manual_record_rounded, color: SaTheme.of(context).rec),
               label: const Text('Record'),
             ),
           ),
@@ -288,10 +298,9 @@ class _EditorScreenState extends State<EditorScreen> with SingleTickerProviderSt
           textAlignVertical: TextAlignVertical.top,
           textDirection: _script.language.isRtl ? TextDirection.rtl : TextDirection.ltr,
           keyboardType: TextInputType.multiline,
-          style: const TextStyle(fontSize: 18, height: 1.5),
+          style: SaType.body.copyWith(fontSize: 18, height: 1.6, color: SaTheme.of(context).ink),
           decoration: const InputDecoration(
             hintText: 'Write or paste your script. Blank lines separate paragraphs.',
-            border: OutlineInputBorder(),
           ),
         ),
       );
@@ -302,7 +311,7 @@ class _EditorScreenState extends State<EditorScreen> with SingleTickerProviderSt
     final marked = MarkedText.build(
       tokens: _script.tokens,
       marks: _script.marks,
-      style: TextStyle(fontSize: 22, height: 1.7, color: colors.text),
+      style: (_script.language.isRtl ? SaType.scriptEditAr : SaType.scriptEdit).copyWith(color: colors.text),
       colors: colors,
     );
     final settings = _services.settings;
@@ -319,9 +328,9 @@ class _EditorScreenState extends State<EditorScreen> with SingleTickerProviderSt
           runSpacing: 8,
           crossAxisAlignment: WrapCrossAlignment.center,
           children: [
-            FilledButton.tonalIcon(
+            OutlinedButton.icon(
               onPressed: _marking ? null : _runMarkup,
-              icon: const Icon(Icons.auto_awesome),
+              icon: const Icon(Icons.auto_awesome_rounded, size: 20),
               label: Text(_script.marks.isEmpty ? 'Mark up with $engineName' : 'Mark up again'),
             ),
             if (_marking)
@@ -334,24 +343,10 @@ class _EditorScreenState extends State<EditorScreen> with SingleTickerProviderSt
         ),
         if (pending > 0) ...[
           const SizedBox(height: 12),
-          Card(
-            color: theme.colorScheme.tertiaryContainer,
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 8, 8),
-              child: Row(children: [
-                Expanded(
-                  child: Text('$pending suggested marks are faded until you accept them. Tap a word to edit.'),
-                ),
-                TextButton(
-                  onPressed: () => _update(_script.discardPendingMarks()),
-                  child: const Text('Discard'),
-                ),
-                FilledButton(
-                  onPressed: () => _update(_script.acceptAllMarks()),
-                  child: const Text('Accept all'),
-                ),
-              ]),
-            ),
+          PendingBanner(
+            count: pending,
+            onDiscard: () => _update(_script.discardPendingMarks()),
+            onAcceptAll: () => _update(_script.acceptAllMarks()),
           ),
         ],
         const SizedBox(height: 16),
@@ -359,6 +354,7 @@ class _EditorScreenState extends State<EditorScreen> with SingleTickerProviderSt
           Text('Nothing to mark up yet. Write your script in the Write tab.', style: theme.textTheme.bodyLarge)
         else
           GestureDetector(
+            key: const ValueKey('marked-script'),
             behavior: HitTestBehavior.opaque,
             onTapUp: (d) => _onTapMarked(d, marked),
             child: Text.rich(
@@ -369,7 +365,7 @@ class _EditorScreenState extends State<EditorScreen> with SingleTickerProviderSt
           ),
         if (_script.suggestions.isNotEmpty) ...[
           const SizedBox(height: 28),
-          Text('Suggestions', style: theme.textTheme.titleMedium),
+          Text('Suggestions', style: theme.textTheme.titleLarge),
           const SizedBox(height: 8),
           for (final s in _script.suggestions)
             _SuggestionCard(
@@ -462,36 +458,51 @@ class _SuggestionCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final p = SaTheme.of(context);
     final direction = isRtl ? TextDirection.rtl : TextDirection.ltr;
     final replacement = suggestion.replacement;
+    final icon = switch (suggestion.kind) {
+      SuggestionKind.hook => Icons.campaign_rounded,
+      SuggestionKind.tighten => Icons.compress_rounded,
+    };
     return Card(
-      margin: const EdgeInsets.only(bottom: 8),
+      margin: const EdgeInsets.only(bottom: SaSpace.s2),
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 12, 8, 8),
+        padding: const EdgeInsets.fromLTRB(SaSpace.s4, SaSpace.s3, SaSpace.s3, SaSpace.s3),
         child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-          Text(suggestion.kind.label, style: theme.textTheme.labelLarge),
-          const SizedBox(height: 6),
+          Row(children: [
+            Icon(icon, size: 18, color: p.ink2),
+            const SizedBox(width: SaSpace.s2),
+            Text(suggestion.kind.label, style: theme.textTheme.labelLarge),
+          ]),
+          const SizedBox(height: SaSpace.s2),
           Text(
             suggestion.original,
             textDirection: direction,
-            style: TextStyle(
+            style: theme.textTheme.bodyLarge!.copyWith(
               decoration: replacement == null ? null : TextDecoration.lineThrough,
-              color: theme.colorScheme.onSurfaceVariant,
+              color: p.ink2,
             ),
           ),
           if (replacement != null) ...[
-            const SizedBox(height: 4),
-            Text(replacement, textDirection: direction, style: const TextStyle(fontWeight: FontWeight.w600)),
+            const SizedBox(height: SaSpace.s1),
+            Text(replacement,
+                textDirection: direction, style: theme.textTheme.bodyLarge!.copyWith(fontWeight: FontWeight.w600)),
           ],
           if (suggestion.note != null) ...[
-            const SizedBox(height: 6),
+            const SizedBox(height: SaSpace.s2),
             Text(suggestion.note!, style: theme.textTheme.bodySmall),
           ],
+          const SizedBox(height: SaSpace.s2),
           Align(
             alignment: AlignmentDirectional.centerEnd,
-            child: Wrap(spacing: 4, children: [
-              TextButton(onPressed: onDismiss, child: Text(replacement == null ? 'Got it' : 'Dismiss')),
-              if (replacement != null) FilledButton.tonal(onPressed: onApply, child: const Text('Apply')),
+            child: Wrap(spacing: SaSpace.s2, children: [
+              TextButton(
+                style: plainButtonStyle(context),
+                onPressed: onDismiss,
+                child: Text(replacement == null ? 'Got it' : 'Dismiss'),
+              ),
+              if (replacement != null) OutlinedButton(onPressed: onApply, child: const Text('Apply')),
             ]),
           ),
         ]),

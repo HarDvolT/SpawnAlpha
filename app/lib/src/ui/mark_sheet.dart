@@ -4,6 +4,7 @@ import '../model/mark.dart';
 import '../model/mark_editing.dart';
 import '../model/script_document.dart';
 import '../prompter/marked_text.dart';
+import '../theme/theme.dart';
 
 /// The sheet that opens when a word is tapped in the editor: the marks on
 /// that word, to accept, change or remove, and buttons to add new ones.
@@ -45,6 +46,7 @@ class _MarkSheetState extends State<MarkSheet> {
           else
             for (final m in marks) _MarkRow(
                 mark: m,
+                rtl: _script.language.isRtl,
                 covered: m.kind.isGap ? null : _script.textOf(m.start, m.end),
                 colors: colors,
                 direction: direction,
@@ -82,6 +84,7 @@ class _MarkSheetState extends State<MarkSheet> {
 class _MarkRow extends StatelessWidget {
   const _MarkRow({
     required this.mark,
+    required this.rtl,
     required this.covered,
     required this.colors,
     required this.direction,
@@ -91,6 +94,7 @@ class _MarkRow extends StatelessWidget {
   });
 
   final Mark mark;
+  final bool rtl;
   final String? covered;
   final CueColors colors;
   final TextDirection direction;
@@ -129,8 +133,18 @@ class _MarkRow extends StatelessWidget {
                 },
               ),
               if (covered != null) Text('“$covered”', textDirection: direction, style: theme.textTheme.bodyMedium),
+              // The director's reason, in pencil, as in the script's margin.
+              if (mark.note != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: SaSpace.s1),
+                  child: Text(
+                    mark.note!,
+                    textDirection: rtl ? TextDirection.rtl : TextDirection.ltr,
+                    style: (rtl ? SaType.noteAr : SaType.note).copyWith(color: SaTheme.of(context).ink2),
+                  ),
+                ),
               Text(
-                [if (mark.note != null) mark.note!, 'from $source', if (!mark.accepted) 'not reviewed'].join(' · '),
+                ['from $source', if (!mark.accepted) 'not reviewed'].join(' · '),
                 style: theme.textTheme.bodySmall,
               ),
             ]),

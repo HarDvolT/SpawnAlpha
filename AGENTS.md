@@ -23,7 +23,8 @@ docs/
   status.md            progress log and next steps; keep it current
   architecture.md      how the code fits together, with the key invariants
   design-language.md   entry point to the design language
-  roadmap.md           proposed product direction (Director's Cut), pushback, build order; awaiting the owner
+  roadmap.md           product direction (Director's Cut), pushback, build order (approved)
+  compliance.md        licences, privacy, store and consumer-law rules and checklist (commercial product)
   design/              the design language: brand book, prompter, recording, motion, tokens, components
 app/                   the Flutter app (package name: spawnalpha)
   lib/main.dart
@@ -108,6 +109,17 @@ app/                   the Flutter app (package name: spawnalpha)
   before pumping a duration.
 - In widget tests, anything that calls `WakelockPlus` needs its platform channel mocked (see
   `tool/screenshots_test.dart`).
+
+## Commercial and legal
+
+SpawnAlpha is sold (free tier plus subscription), so licences, privacy law, store rules and
+consumer law are part of every change. Follow the rules in
+[`docs/compliance.md`](docs/compliance.md):
+- check a licence before adding any dependency, font, model or copied code (no GPL or AGPL,
+  no non-commercial assets);
+- keep data on the device unless the user sends it, and say so in the UI;
+- never log scripts, recordings, keys or typed characters;
+- keep the checklist current.
 
 ## Working agreement
 

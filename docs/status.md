@@ -101,6 +101,14 @@ device. Now applying design language v2 to the app.** The build order is in
   - **Core promise:** "Finished when you stop" (the Director's Cut) is the core promise.
   - **Cursor companion:** allowed with the camera on, but docked by default. Following
     on camera needs a one-time warning, and then shows an "Eyes to the lens" reminder.
+- 2026-09-30, the owner: **SpawnAlpha is a commercial product**, so everything must follow
+  licences and laws.
+  - The rules and checklist are in [compliance.md](compliance.md).
+  - Only permissive licences are allowed: no GPL or AGPL, and no non-commercial assets.
+  - Data stays on the device unless the user sends it.
+  - Platform video encoders are preferred for codec patents.
+  - Open: the repository is public; the owner should make it private or add a proprietary
+    notice.
 - 2026-09-30: The Flutter app lives in `app/`, leaving the repo root free for docs and any
   later backend.
 - 2026-09-30: Marks are anchored to token indices, not character offsets or inline tags. Text
@@ -130,7 +138,8 @@ device. Now applying design language v2 to the app.** The build order is in
   the Cut both depend on it.
 - Which cloud model to use for markup, and how much the free tier includes.
 - How reliably stress can be detected from volume and pitch (needs a prototype, step 2).
-- App name.
+- App name (trademark search before launch).
+- Repository visibility: the repo is public; make it private, or add a proprietary notice?
 
 ## Known limitations
 

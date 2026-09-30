@@ -90,7 +90,9 @@ saying plainly.
 - The cursor companion is allowed with the camera, with a warning. It stays docked by
   default when a camera is recording.
 - The next work in the app is to apply design v2.
-- Still open: the render core. Spike it during step 2, so the risk is known early.
+- Still open: the render core. Spike it during step 2, so the risk is known early. Codec
+  patents and licences favour the platform encoders (Media Foundation, MediaCodec,
+  AVFoundation) over a bundled encoder; see [compliance.md](compliance.md).
 
 ## Fonts (design v2)
 

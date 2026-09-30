@@ -183,6 +183,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   value: settings.mirror,
                   onChanged: (v) => settings.update((s) => s.mirror = v),
                 ),
+                const Divider(height: 40),
+                Text('Privacy and licences', style: theme.textTheme.titleMedium),
+                const SizedBox(height: 8),
+                Text(
+                  'Scripts and recordings stay on this device, and API keys are stored securely here and sent only '
+                  'to their own provider. A script leaves the device only when you mark it up with an online '
+                  'provider: its text goes to that provider, under your agreement with them. The on-device coach '
+                  'keeps it here, and a local model (Ollama, LM Studio) keeps it on your own network.',
+                  style: theme.textTheme.bodySmall,
+                ),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.description_outlined),
+                  title: const Text('Licences'),
+                  subtitle: const Text('Fonts, icons and open-source software in this app'),
+                  onTap: () => showLicensePage(context: context, applicationName: 'SpawnAlpha'),
+                ),
               ]),
             ),
           );
