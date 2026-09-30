@@ -23,7 +23,7 @@ v2 applied. It has not yet run on a real device.** The build order is in
 | Storage: scripts as JSON files, settings, API key in secure storage | Done |
 | Design language v2 (four type voices, glass, springs, signature motions, kinetic prompter, cursor companion, Director's Cut; 20 components) | Done in `docs/design/` and the design-system artifact |
 | Design v2 in the app: fonts and generated tokens, Studio theme, script page (marker swipes, margin notes, director's pass), kinetic prompter with Still, glass hold badge, record screen (glass panel, countdown, record button, timecode), privacy and licences in Settings | Done, tested (widget tests plus rendered screenshots). What's left is listed in the next steps |
-| CI (`.github/workflows/build.yml`): analyze, test, then Windows and Android test builds as downloadable artifacts | Added 2026-09-30; see the session log for the first run's result |
+| CI (`.github/workflows/build.yml`): analyze, test, then Windows and Android test builds as downloadable artifacts | Working: the first run (#1, 2026-09-30) passed and produced both builds. The builds are compiled but not yet opened on a real device |
 | Compliance groundwork ([compliance.md](compliance.md)) | Rules and checklist written, licence page in the app, no secrets in the repo. Legal documents and filings are still to do |
 | Screen and Screen + camera recording, cursor companion, telemetry | Designed (`docs/design/recording.md`). Not built. |
 | Director's Cut (auto-edit, captions, auto-zoom, finish screen) | Designed (`docs/design/autoedit.md`). Not built; needs a native render core. |
@@ -187,3 +187,8 @@ v2 applied. It has not yet run on a real device.** The build order is in
   - Bundled the fonts, and generated the tokens from `tokens.json` with a staleness test.
   - Rebuilt the theme, the Studio screens, the script page, the kinetic prompter and the
     record screen. 109 tests pass.
+- 2026-09-30, session 1 (continued), CI:
+  - Added the Build workflow. Its first run passed analysis and all tests on GitHub.
+  - It built the Windows app (13.5 MB zip) and the Android APK (27 MB) in about 8 minutes.
+  - Flutter installs from the official archive with a checksum check, on Linux and Windows.
+  - Next: the owner installs a test build and reports what breaks on real hardware.
