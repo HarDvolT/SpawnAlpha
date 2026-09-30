@@ -1,251 +1,433 @@
-<!-- @dsCard group="Stage" height=500 subtitle="Kinetic prompter: cues come alive as they reach the reading line" -->
+<!-- @dsCard group="Stage" height=700 subtitle="Choose how the prompter guides you: a bouncing dot that acts out each cue, an underline or a spotlight; line step, smooth or one phrase; timed or voice" -->
 <!doctype html>
 <html>
 <head><meta charset="utf-8"><title>Prompter — preview</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anybody:wdth,wght@50..150,100..900&family=Readex+Pro:wght@300..700&family=Martian+Mono:wdth,wght@75..112.5,300..800&family=Reem+Kufi:wght@400..700&family=Caveat:wght@500..700&family=Aref+Ruqaa:wght@400;700&family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,400..600,0..1,0&display=block">
 <style>
-  html, body { margin: 0; height: 100%; }
-  body { display: flex; flex-direction: column; background: var(--stage); }
-  .stage { flex: 1; min-height: 0; }
+  html, body { margin: 0; }
+  body { background: var(--stage); color: var(--stage-text); }
+  /* Style panel */
+  .panel { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; padding: 12px 14px; background: var(--stage-chrome); border-bottom: 1px solid #ffffff14; }
+  .grp { display: flex; align-items: center; gap: 6px; }
+  .grp > span { font-family: var(--font-signal); font-size: 9px; font-weight: 700; letter-spacing: 0.14em; color: var(--stage-chrome-text); text-transform: uppercase; }
+  .seg { display: inline-flex; padding: 2px; gap: 2px; border-radius: 10px; background: #00000066; box-shadow: inset 0 0 0 1px #ffffff1c; }
+  .seg button { font: inherit; font-size: 12px; font-weight: 600; border: 0; background: transparent; color: var(--stage-chrome-text); height: 28px; padding: 0 10px; border-radius: 8px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; }
+  .seg button .sa-i { font-size: 16px; }
+  .seg button[aria-pressed="true"] { background: var(--stage-text); color: #15171c; }
+  .panel .grow { flex: 1; }
+  .iconbtn { font: inherit; width: 34px; height: 34px; border-radius: 10px; border: 0; background: #ffffff12; color: var(--stage-text); display: inline-grid; place-items: center; cursor: pointer; }
+  .iconbtn.primary { background: var(--stage-text); color: #15171c; }
+  /* Stage */
+  .stage { position: relative; height: 470px; overflow: hidden; }
   .layer { position: absolute; left: 0; right: 0; top: 0; will-change: transform; }
-  .col { position: relative; max-width: var(--column-max); margin: 0 auto; padding: 0 56px; font-size: 34px; line-height: 52px; }
-  .col[dir="rtl"] { line-height: 58px; }
-  .w { display: inline-block; transform-origin: 50% 70%; will-change: transform; }
-  .w .p { display: inline-block; }
-  /* A stressed word reserves room for its growth up front, so growing never touches its neighbours or the line. */
-  .w.sa-stress { margin: 0 0.16em; }
-  .w.pop .p { animation: pop 380ms cubic-bezier(0.34, 1.56, 0.64, 1); }
-  @keyframes pop { 0% { transform: scale(1); } 45% { transform: scale(1.16); } 100% { transform: scale(1); } }
-  .read { color: var(--stage-text-read); }
-  .read.sa-stress { color: color-mix(in srgb, var(--stage-stress) 45%, transparent); }
-  .sa-faster.live { background-image: repeating-linear-gradient(115deg, color-mix(in srgb, var(--stage-faster) 22%, transparent) 0 5px, transparent 5px 16px); }
-  .bar { position: absolute; width: 6px; border-radius: 3px; transition: box-shadow 200ms linear; }
-  .bar.slower { background: var(--stage-slower); }
-  .bar.faster { background: var(--stage-faster); }
+  .col { position: relative; max-width: 34ch; margin: 0 auto; padding: 0 56px; font-family: var(--font-reading); font-weight: 500; font-size: 34px; line-height: 66px; }
+  .col[dir="rtl"] { line-height: 70px; }
+  .col p { margin: 0 0 28px; }
+  .w { display: inline-block; position: relative; line-height: 1.12; transition: color 200ms, opacity 240ms; transform-origin: 50% 70%; }
+  .w.stress { color: var(--stage-stress); font-weight: 700; font-size: 1.12em; margin: 0 0.18em; }
+  .w.energy { color: var(--stage-energy); }
+  .w.said { color: var(--stage-text-read); }
+  .w.stress.said { color: color-mix(in srgb, var(--stage-stress) 45%, transparent); }
+  .w.energy.said { color: color-mix(in srgb, var(--stage-energy) 45%, transparent); }
+  .run-slower { background: var(--stage-tint-slower); border-radius: 6px; box-decoration-break: clone; -webkit-box-decoration-break: clone; transition: background-color 400ms; }
+  .run-faster { background: var(--stage-tint-faster); border-radius: 6px; box-decoration-break: clone; -webkit-box-decoration-break: clone; }
+  .sa-g { margin: 0 0.12em; }
+  .sa-g .sa-i { font-size: 0.72em; }
+  /* Kinetic cue effects: each one acts out the instruction */
+  .kin .w.punch { animation: punch 520ms cubic-bezier(0.34, 1.56, 0.64, 1); }
+  @keyframes punch { 0% { transform: scale(1); } 30% { transform: scale(1.3) translateY(-4px); text-shadow: 0 0 22px color-mix(in srgb, var(--stage-stress) 80%, transparent); } 100% { transform: scale(1); } }
+  .w .slam { position: absolute; left: 0; right: 0; bottom: 4px; height: 4px; border-radius: 2px; background: var(--stage-stress); transform: scaleX(0); transform-origin: left; }
+  [dir="rtl"] .w .slam { transform-origin: right; }
+  .kin .w.punch .slam { animation: slam 600ms cubic-bezier(0.2, 0, 0, 1) forwards; }
+  @keyframes slam { 0% { transform: scaleX(0); opacity: 1; } 40% { transform: scaleX(1); opacity: 1; } 100% { transform: scaleX(1); opacity: 0; } }
+  .kin .live-slower .w { animation: float 2.6s ease-in-out infinite; }
+  @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(5px); } }
+  .kin .live-slower { background-color: color-mix(in srgb, var(--stage-slower) 30%, transparent); }
+  .kin .live-faster .w { transform: skewX(-9deg); transition: transform 240ms cubic-bezier(0.34, 1.56, 0.64, 1); }
+  .kin .live-faster { background-image: repeating-linear-gradient(115deg, color-mix(in srgb, var(--stage-faster) 26%, transparent) 0 4px, transparent 4px 18px); background-size: 200% 100%; animation: streak 600ms linear infinite; }
+  @keyframes streak { to { background-position: -36px 0; } }
+  .kin .w.energy.live { text-shadow: 0 0 18px color-mix(in srgb, var(--stage-energy) 65%, transparent); }
+  .kin .w.energy.hop { animation: hop 360ms cubic-bezier(0.34, 1.56, 0.64, 1); }
+  @keyframes hop { 40% { transform: translateY(-7px) scale(1.06); } }
+  .kin .wait { opacity: 0.32; }
   .sa-g.hit .sa-i { animation: hit 520ms cubic-bezier(0.34, 1.56, 0.64, 1); }
-  @keyframes hit { 0% { transform: scale(1); } 40% { transform: scale(1.5); } 100% { transform: scale(1); } }
-  .badge-slot { position: absolute; left: 0; right: 0; display: flex; justify-content: center; pointer-events: none; }
-  .sa-hold { opacity: 0; transform: translateY(6px) scale(0.92); transition: opacity 160ms var(--ease-standard), transform 260ms cubic-bezier(0.34, 1.56, 0.64, 1); }
+  @keyframes hit { 40% { transform: scale(1.7); } }
+  /* Guides */
+  .spot .w { opacity: 0.3; transition: opacity 180ms, color 200ms; }
+  .spot .w.now { opacity: 1; }
+  .spot .w.next1 { opacity: 0.75; }
+  .spot .w.next2 { opacity: 0.55; }
+  .uline { position: absolute; height: 4px; border-radius: 2px; background: color-mix(in srgb, var(--stage-stress) 28%, transparent); pointer-events: none; overflow: hidden; }
+  .uline i { display: block; height: 100%; background: var(--stage-stress); width: 0; }
+  .dot { position: absolute; left: 0; top: 0; width: 18px; height: 18px; margin: -9px 0 0 -9px; border-radius: 50%; background: var(--stage-text); box-shadow: 0 0 16px color-mix(in srgb, var(--stage-text) 40%, transparent); pointer-events: none; transition: background-color 180ms, box-shadow 180ms; z-index: 3; }
+  .dot::after { content: ''; position: absolute; inset: -9px; border-radius: 50%; border: 3px solid currentColor; opacity: 0; color: var(--stage-pause); }
+  .dot.pause::after { opacity: 1; transform: scale(var(--ring, 1)); }
+  .spark { position: absolute; width: 5px; height: 5px; margin: -2.5px; border-radius: 50%; background: var(--stage-energy); pointer-events: none; animation: spark 600ms ease-out forwards; z-index: 2; }
+  @keyframes spark { to { transform: translate(var(--sx), var(--sy)) scale(0.2); opacity: 0; } }
+  .burst { position: absolute; width: 10px; height: 10px; margin: -5px; border-radius: 50%; border: 3px solid var(--stage-stress); pointer-events: none; animation: burst 520ms cubic-bezier(0.2, 0, 0, 1) forwards; z-index: 2; }
+  @keyframes burst { to { transform: scale(5); opacity: 0; } }
+  /* Reading line, fades, badge */
+  .rline { position: absolute; left: 0; right: 0; height: 2px; background: var(--stage-line); pointer-events: none; }
+  .fade-top { position: absolute; left: 0; right: 0; top: 0; pointer-events: none; background: linear-gradient(#000000f0, #00000059); }
+  .fade-bot { position: absolute; left: 0; right: 0; bottom: 0; height: 40%; pointer-events: none; background: linear-gradient(transparent, #000000b3); }
+  .badge-slot { position: absolute; left: 0; right: 0; display: flex; justify-content: center; pointer-events: none; z-index: 4; }
+  .sa-hold { opacity: 0; transform: translateY(6px) scale(0.92); transition: opacity 160ms, transform 300ms cubic-bezier(0.34, 1.56, 0.64, 1); }
   .sa-hold.on { opacity: 1; transform: none; }
-  .controls { display: flex; align-items: center; gap: 4px; padding: 8px 12px; flex-wrap: wrap; }
-  .controls .readout { min-width: 132px; text-align: center; font-size: 11px; letter-spacing: 0.04em; }
-  .controls .spacer { flex: 1; }
-  .controls .sa-seg { background: #00000066; border-color: #ffffff24; }
-  .controls .sa-seg button { color: var(--stage-chrome-text); height: 30px; }
-  .controls .sa-seg button[aria-pressed="true"] { background: var(--stage-text); color: #15171c; box-shadow: none; }
-  .end { position: absolute; left: 0; right: 0; text-align: center; color: var(--stage-chrome-text); opacity: 0; transition: opacity var(--dur-base) var(--ease-standard); }
-  .end.on { opacity: 1; }
+  /* One phrase at a time */
+  .phrase { position: absolute; left: 0; right: 0; top: 50%; transform: translateY(-50%); text-align: center; padding: 0 40px; font-family: var(--font-reading); font-weight: 500; font-size: 42px; line-height: 64px; }
+  .phrase .inner { display: inline-block; max-width: 22ch; animation: phin 420ms cubic-bezier(0.2, 0, 0, 1); }
+  @keyframes phin { from { opacity: 0; transform: translateY(24px); } }
+  .next-phrase { position: absolute; left: 0; right: 0; bottom: 24px; text-align: center; font-size: 18px; color: var(--stage-text-read); padding: 0 40px; }
+  /* Voice */
+  .voice { display: none; align-items: center; gap: 8px; }
+  .voice.on { display: flex; }
+  .meter { display: inline-flex; gap: 2px; align-items: flex-end; height: 16px; }
+  .meter i { width: 3px; border-radius: 2px; background: #ffffff33; }
+  .meter i.lit { background: var(--stage-text); }
+  .meter.hear i.lit { background: var(--stage-stress); }
+  .talk { font: inherit; font-size: 12px; font-weight: 600; height: 30px; padding: 0 12px; border-radius: 15px; border: 1px solid #ffffff33; background: transparent; color: var(--stage-text); cursor: pointer; user-select: none; }
+  .talk.down { background: var(--stage-stress); color: #15171c; border-color: var(--stage-stress); }
+  .hint { position: absolute; left: 0; right: 0; bottom: 10px; text-align: center; font-family: var(--font-signal); font-size: 10px; letter-spacing: 0.1em; color: var(--stage-chrome-text); text-transform: uppercase; pointer-events: none; opacity: 0; transition: opacity 200ms; z-index: 4; }
+  .hint.on { opacity: 1; }
+  @media (prefers-reduced-motion: reduce) { .kin .w, .kin .live-faster, .dot { animation: none !important; } }
 </style>
 </head>
 <body class="sa">
-<div class="sa-stage stage" id="stage">
-  <div class="layer" id="layer"><div class="col" id="col"></div></div>
-  <div class="sa-read-fade" id="fade"></div>
-  <div class="sa-reading-line" id="line"></div>
-  <span class="sa-caret sa-i fill" id="caret">arrow_right</span>
-  <div class="badge-slot" id="slot">
-    <span class="sa-hold sa-hold-pause" id="badge"><svg viewBox="0 0 24 24"><circle class="track" cx="12" cy="12" r="9"></circle><circle id="ring" cx="12" cy="12" r="9" stroke-dasharray="56.55" stroke-dashoffset="0"></circle></svg><span id="badgeText">PAUSE</span></span>
-  </div>
-  <div class="end sa-signal" id="end">End of script</div>
+<div class="panel">
+  <div class="grp"><span>Guide</span><div class="seg" data-k="guide"><button data-v="dot" aria-pressed="true"><span class="sa-i">sports_baseball</span>Dot</button><button data-v="line">Underline</button><button data-v="spot">Spotlight</button><button data-v="off">Off</button></div></div>
+  <div class="grp"><span>Motion</span><div class="seg" data-k="motion"><button data-v="step" aria-pressed="true">Line step</button><button data-v="smooth">Smooth</button><button data-v="phrase">One phrase</button></div></div>
+  <div class="grp"><span>Cues</span><div class="seg" data-k="cues"><button data-v="kinetic" aria-pressed="true">Kinetic</button><button data-v="still">Still</button></div></div>
+  <div class="grp"><span>Pace</span><div class="seg" data-k="pace"><button data-v="timed" aria-pressed="true">Timed</button><button data-v="voice"><span class="sa-i">mic</span>Voice</button></div></div>
+  <div class="voice" id="voice"><span class="meter" id="meter"><i style="height:6px"></i><i style="height:9px"></i><i style="height:12px"></i><i style="height:14px"></i><i style="height:16px"></i></span><button class="talk" id="mic">Use my mic</button><button class="talk" id="talk">Hold to talk (Space)</button></div>
+  <span class="grow"></span>
+  <div class="seg" data-k="lang"><button data-v="en" aria-pressed="true">EN</button><button data-v="ar">عربي</button></div>
+  <button class="iconbtn" id="restart" aria-label="Back to start"><span class="sa-i">replay</span></button>
+  <button class="iconbtn primary" id="play" aria-label="Play"><span class="sa-i fill" id="playIcon">pause</span></button>
 </div>
-<div class="sa-chrome controls">
-  <button class="sa-btn sa-btn-icon" id="restart" title="Back to start"><span class="sa-i">replay</span></button>
-  <button class="sa-btn sa-btn-icon" id="play" title="Play or pause"><span class="sa-i fill" id="playIcon">pause</span></button>
-  <button class="sa-btn sa-btn-icon" id="slower" title="Slower"><span class="sa-i">remove</span></button>
-  <span class="readout sa-mono" id="readout">1.0× · 150 WPM</span>
-  <button class="sa-btn sa-btn-icon" id="faster" title="Faster"><span class="sa-i">add</span></button>
-  <span class="spacer"></span>
-  <div class="sa-seg" role="group" aria-label="Motion">
-    <button aria-pressed="true" data-kin="1">Kinetic</button>
-    <button aria-pressed="false" data-kin="0">Still</button>
-  </div>
-  <div class="sa-seg" role="group" aria-label="Script language">
-    <button aria-pressed="true" data-lang="en">English</button>
-    <button aria-pressed="false" data-lang="ar">العربية</button>
-  </div>
+<div class="stage sa-stage kin" id="stage">
+  <div class="layer" id="layer"><div class="col" id="col"></div></div>
+  <div class="phrase" id="phrase" hidden><span class="inner" id="phraseInner"></span></div>
+  <div class="next-phrase" id="nextPhrase" hidden></div>
+  <div class="fade-top" id="fadeTop"></div>
+  <div class="fade-bot" id="fadeBot"></div>
+  <div class="rline" id="rline"></div>
+  <div class="uline" id="uline" hidden><i></i></div>
+  <div class="dot" id="dot"></div>
+  <div class="badge-slot" id="badgeSlot"><span class="sa-hold" id="badge"><svg viewBox="0 0 24 24"><circle class="track" cx="12" cy="12" r="9"></circle><circle class="ring" id="ring" cx="12" cy="12" r="9" stroke-dasharray="56.55"></circle></svg><span id="badgeText">PAUSE</span></span></div>
+  <div class="hint" id="hint">Waiting for your voice</div>
 </div>
 <script>
 (function () {
-  // Script notation: *word* stress, [s [f [e open a slower, faster or energy run, ] closes it,
-  // | pause, || long pause, ~ breathe, ¶ new paragraph.
+  // Script notation: *word* stress; [s [f [e open a slower, faster or energy run; ] closes it;
+  // | pause, || long pause, ~ breathe (after the word before); ¶ new paragraph.
   var SCRIPTS = {
     en: '[s Last quarter, our support team answered *12,000* tickets. ] || That is *twice* as many as the year before, ~ with the same team. | ¶ [e So how did we do it? ] | We stopped answering the same question twice. ~ [f Every answer goes into a shared library, and the next person gets it in seconds. ] || ¶ Today I want to show you *three* things. |',
-    ar: '[e توقف! ] | هل تعرف أن معظم الناس يضيعون *ساعتين* يومياً على هواتفهم دون أن يشعروا؟ || ¶ [s جرب هذه الحيلة البسيطة: ] | أطفئ *كل* الإشعارات غير المهمة لمدة أسبوع واحد فقط. ~ ¶ [f ستتفاجأ بكمية الوقت التي ستستعيدها. ] | ¶ [e تابعني لمزيد من النصائح. ]'
+    ar: '[s في الربع الأخير، أجاب فريق الدعم على *١٢٬٠٠٠* تذكرة. ] || أي *ضعف* ما أجبنا عليه العام الماضي، ~ بنفس الفريق. | ¶ [e فكيف فعلنا ذلك؟ ] | توقفنا عن الإجابة على السؤال نفسه مرتين. ~ [f كل إجابة تذهب إلى مكتبة مشتركة، ويجدها الشخص التالي في ثوان. ] || ¶ اليوم أريد أن أريكم *ثلاثة* أشياء. |'
   };
-  var HOLD = { pause: 500, long: 1200, breath: 350 };
-  var GLYPH = { pause: ['pause', 'sa-g-pause', 1], long: ['pause_circle', 'sa-g-long', 1], breath: ['air', 'sa-g-breath', 0] };
-  var OPEN = { s: ['slower', 'keyboard_double_arrow_down', 'slow', 'sa-slower'], f: ['faster', 'keyboard_double_arrow_up', 'fast', 'sa-faster'], e: ['energy', 'bolt', '', 'sa-energy'] };
-  var stage = document.getElementById('stage'), layer = document.getElementById('layer'), col = document.getElementById('col');
-  var badge = document.getElementById('badge'), ring = document.getElementById('ring'), badgeText = document.getElementById('badgeText');
+  var GAP = { '|': ['pause', 'sa-g-pause', 'pause', 450], '||': ['long', 'sa-g-long', 'pause_circle', 1000], '~': ['breath', 'sa-g-breath', 'air', 380] };
+  var RUN = { s: ['slower', 'keyboard_double_arrow_down', 'sa-g-slower', 1.25], f: ['faster', 'keyboard_double_arrow_up', 'sa-g-faster', 0.8], e: ['energy', 'bolt', 'sa-g-energy', 1] };
+  var S = { guide: 'dot', motion: 'step', cues: 'kinetic', pace: 'timed', lang: 'en' };
   var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  var words, runs, lines, timeline, total, t = 0, speed = 1, playing = true, lang = 'en', wpm = 150, endHold = 0, kinetic = !reduce;
-  var lastIndex = -1, lastHold = -1, stripe = 0, LH = 52;
+  var stage = document.getElementById('stage'), layer = document.getElementById('layer'), col = document.getElementById('col');
+  var dot = document.getElementById('dot'), uline = document.getElementById('uline'), badge = document.getElementById('badge');
+  var colLeft = 0, words, runs, phrases, t = 0, playing = true, last = performance.now(), wpm = 150;
+  var camY = 0, lastWord = -1, lastHold = -1, heard = false, keyDown = false, micLevel = -100, vad = { floor: -60, loud: 0, quiet: 0, on: false };
 
-  function glyph(icon, cls, fill, label) {
-    var g = document.createElement('span'); g.className = 'sa-g ' + cls;
-    g.innerHTML = '<span class="sa-i' + (fill ? ' fill' : '') + '">' + icon + '</span>' + (label ? '<small>' + label + '</small>' : '');
-    return g;
-  }
+  function g(icon, cls, fill) { var s = document.createElement('span'); s.className = 'sa-g ' + cls; s.innerHTML = '<span class="sa-i' + (fill ? ' fill' : '') + '">' + icon + '</span>'; return s; }
 
   function build() {
-    col.innerHTML = ''; col.dir = lang === 'ar' ? 'rtl' : 'ltr'; LH = lang === 'ar' ? 58 : 52;
-    words = []; runs = [];
-    var parent, run = null, para;
-    function newPara() { para = document.createElement('p'); para.style.margin = '0 0 26px'; col.appendChild(para); parent = para; }
-    newPara();
-    SCRIPTS[lang].split(/\s+/).forEach(function (tok) {
+    words = []; runs = []; phrases = [];
+    col.innerHTML = ''; col.dir = S.lang === 'ar' ? 'rtl' : 'ltr';
+    var p = document.createElement('p'); col.appendChild(p);
+    var parent = p, run = null, pendingGlyph = null;
+    SCRIPTS[S.lang].split(/\s+/).forEach(function (tok) {
       if (!tok) return;
-      if (tok === '¶') { newPara(); return; }
-      if (tok[0] === '[' && OPEN[tok[1]]) {
-        var o = OPEN[tok[1]]; run = { kind: o[0], start: words.length, el: document.createElement('span') };
-        run.el.className = o[3]; para.appendChild(run.el); parent = run.el;
-        run.glyph = glyph(o[1], 'sa-g-' + o[0], o[0] === 'energy', o[2]);
+      if (tok === '¶') { p = document.createElement('p'); col.appendChild(p); parent = p; return; }
+      if (tok[0] === '[') {
+        var r = RUN[tok[1]]; run = { kind: r[0], factor: r[3], words: [] };
+        var span = document.createElement('span'); span.className = r[0] === 'energy' ? '' : 'run-' + r[0]; parent.appendChild(span); run.el = span; parent = span;
+        pendingGlyph = g(r[1], r[2], r[0] === 'energy');
         return;
       }
-      if (tok === ']') { run.end = words.length - 1; runs.push(run); run = null; parent = para; return; }
-      if (tok === '|' || tok === '||' || tok === '~') {
-        var kind = tok === '|' ? 'pause' : tok === '||' ? 'long' : 'breath', w = words[words.length - 1], gg = GLYPH[kind];
-        w.gap = kind; w.gapEl = glyph(gg[0], gg[1], gg[2]); w.wrap.appendChild(w.gapEl);
-        return;
-      }
-      var stress = /^\*.*\*$/.test(tok), text = stress ? tok.slice(1, -1) : tok;
-      var span = document.createElement('span'); span.className = 'w' + (stress ? ' sa-stress' : '');
-      var inner = document.createElement('span'); inner.className = 'p'; inner.textContent = text; span.appendChild(inner);
+      if (tok === ']') { runs.push(run); run = null; parent = p; return; }
+      if (GAP[tok]) { var gw = words[words.length - 1], gg = GAP[tok]; gw.gap = gg[0]; gw.hold = gg[3]; gw.gapEl = g(gg[2], gg[1], gg[0] !== 'breath'); gw.wrap.appendChild(gw.gapEl); return; }
+      var stress = tok[0] === '*', text = tok.replace(/\*/g, '');
+      var el = document.createElement('span'); el.className = 'w' + (stress ? ' stress' : '') + (run && run.kind === 'energy' ? ' energy' : '');
+      el.textContent = text; if (stress) { var sl = document.createElement('i'); sl.className = 'slam'; el.appendChild(sl); }
       var wrap = document.createElement('span'); wrap.className = 'sa-nb';
-      var opener = null;
-      if (run && run.glyph) { opener = run.glyph; wrap.appendChild(opener); run.glyph = null; }
-      wrap.appendChild(span);
-      parent.appendChild(document.createTextNode(' ')); parent.appendChild(wrap);
-      words.push({ text: text, el: span, wrap: wrap, opener: opener, stress: stress, run: run, pace: run ? run.kind : null });
+      if (pendingGlyph) { wrap.appendChild(pendingGlyph); pendingGlyph = null; }
+      wrap.appendChild(el);
+      if (parent.childNodes.length) parent.appendChild(document.createTextNode(' '));
+      parent.appendChild(wrap);
+      var w = { text: text, el: el, wrap: wrap, stress: stress, run: run, i: words.length };
+      if (run) run.words.push(w);
+      words.push(w);
     });
-    plan(); measure();
-  }
-
-  // The delivery timeline: 60/wpm per word weighted by length, pace runs ×1.25 or ×0.8, holds after words.
-  function plan() {
-    var avg = words.reduce(function (s, w) { return s + w.text.length; }, 0) / words.length;
-    var clock = 0, spoken = 0; timeline = [];
+    // The delivery timeline: 60/wpm per word, weighted by length, pace runs stretch or squeeze.
+    var avg = words.reduce(function (a, w) { return a + w.text.length; }, 0) / words.length, clock = 0;
     words.forEach(function (w, i) {
-      var weight = Math.min(1.8, Math.max(0.6, w.text.length / avg));
-      var d = 60000 / wpm * weight * (w.pace === 'slower' ? 1.25 : w.pace === 'faster' ? 0.8 : 1);
-      var natural = /[.!?؟]$/.test(w.text) ? 250 : /[,،:;]$/.test(w.text) ? 120 : 0;
-      var hold = i === words.length - 1 ? 0 : (w.gap ? HOLD[w.gap] : natural);
-      timeline.push({ start: clock, end: clock + d, hold: hold, gap: w.gap, spoken: spoken });
-      spoken += d; clock += d + hold;
+      var d = 60000 / wpm * Math.min(1.7, Math.max(0.6, w.text.length / avg)) * (w.run ? w.run.factor : 1);
+      w.start = clock; w.end = clock + d;
+      var natural = /[.!?؟]$/.test(w.text) ? 260 : /[,،:]$/.test(w.text) ? 120 : 0;
+      clock = w.end + (w.hold || natural);
     });
-    total = clock;
-  }
-
-  function measure() {
-    var tops = [], lineOf = [];
-    words.forEach(function (w, i) {
-      var c = w.wrap.offsetTop + w.wrap.offsetHeight / 2, li = tops.findIndex(function (l) { return Math.abs(l.c - c) < LH / 2.5; });
-      if (li < 0) { tops.push({ c: c, first: i, last: i }); li = tops.length - 1; } else tops[li].last = i;
-      lineOf[i] = li;
-    });
-    lines = tops; words.forEach(function (w, i) { w.line = lineOf[i]; });
-    Array.prototype.slice.call(col.querySelectorAll('.bar')).forEach(function (b) { b.remove(); });
-    runs.forEach(function (r) {
-      if (r.kind === 'energy') return;
-      var a = lines[words[r.start].line], b = lines[words[r.end].line], bar = document.createElement('div');
-      bar.className = 'bar ' + r.kind; bar.style.top = (a.c - 20) + 'px'; bar.style.height = (b.c - a.c + 40) + 'px';
-      bar.style[lang === 'ar' ? 'right' : 'left'] = '20px'; col.appendChild(bar); r.bar = bar;
-    });
+    // Phrases for the one-phrase view: they end at gap cues, sentence ends, or 8 words.
+    var cur = [];
+    words.forEach(function (w) { cur.push(w); w.phrase = phrases.length; if (w.gap || /[.!?؟]$/.test(w.text) || cur.length >= 8) { phrases.push(cur); cur = []; } });
+    if (cur.length) phrases.push(cur);
+    t = 0; lastWord = -1; lastHold = -1; shownPhrase = -1;
     layout();
   }
 
-  function readingY() { return Math.round(stage.clientHeight * 0.3); }
-
   function layout() {
-    var y = readingY();
-    document.getElementById('line').style.top = y + 'px';
-    document.getElementById('fade').style.height = (y - LH / 2) + 'px';
-    var caret = document.getElementById('caret'); caret.style.top = (y - 13) + 'px';
-    caret.textContent = lang === 'ar' ? 'arrow_left' : 'arrow_right';
-    caret.style.left = lang === 'ar' ? '' : '8px'; caret.style.right = lang === 'ar' ? '8px' : '';
-    document.getElementById('slot').style.top = (y - LH - 34) + 'px';
-    document.getElementById('end').style.top = (y + 44) + 'px';
+    var rl = stage.clientHeight * 0.3;
+    document.getElementById('rline').style.top = rl + 'px';
+    document.getElementById('fadeTop').style.height = rl + 'px';
+    document.getElementById('badgeSlot').style.top = (rl - 50) + 'px';
+    // Word and glyph boxes relative to the column, measured at rest (no
+    // animation running), so the dot follows the layout, not the effects.
+    layer.style.transform = '';
+    var colBox = col.getBoundingClientRect(), stageBox = stage.getBoundingClientRect();
+    colLeft = colBox.left - stageBox.left;
+    function rel(el) { var b = el.getBoundingClientRect(); return { x: b.left - colBox.left, y: b.top - colBox.top, w: b.width, h: b.height }; }
+    words.forEach(function (w) {
+      w.box = rel(w.el); w.lineTop = Math.round(w.box.y);
+      if (w.gapEl) w.gapBox = rel(w.gapEl);
+    });
   }
 
-  function indexAt(time) { var i = 0; while (i + 1 < timeline.length && timeline[i + 1].start <= time) i++; return i; }
-  function smooth(a, b, x) { var k = Math.min(1, Math.max(0, (x - a) / (b - a))); return k * k * (3 - 2 * k); }
+  // ---- time -----------------------------------------------------------------
+  function wordAt(time) { var i = 0; for (var k = 0; k < words.length; k++) if (words[k].start <= time) i = k; return i; }
+  function holdOf(i, time) { var w = words[i]; return i < words.length - 1 && time >= w.end ? w : null; }
 
-  function frame(dt) {
-    if (playing) {
-      if (t >= total) { endHold += dt; if (endHold > 1800) { t = 0; endHold = 0; lastIndex = -1; } }
-      else t = Math.min(total, t + dt * speed);
-    }
-    var i = indexAt(t), e = timeline[i], ln = lines[words[i].line];
-    // Speaking time only: the scroll stands still during a hold.
-    var into = Math.min(Math.max(t - e.start, 0), e.end - e.start), spokenNow = e.spoken + into;
-    var first = timeline[ln.first], last = timeline[ln.last];
-    var from = first.spoken, to = last.spoken + (last.end - last.start);
-    var p = to > from ? Math.min(1, Math.max(0, (spokenNow - from) / (to - from))) : 1;
-    var next = ln.last + 1 < words.length ? lines[words[ln.last + 1].line].c : ln.c + LH;
-    var y = ln.c + p * (next - ln.c), shift = readingY() - y;
-    layer.style.transform = 'translateY(' + shift + 'px)';
+  // The same voice detector as the app: an adaptive floor, attack and hangover.
+  function vadUpdate(db, dt) {
+    if (db < vad.floor) vad.floor += (db - vad.floor) * Math.min(1, dt * 8); else vad.floor += Math.min(db - vad.floor, 1.5 * dt);
+    var loud = db > Math.max(vad.floor + 12, -50);
+    if (loud) { vad.loud += dt; vad.quiet = 0; if (vad.loud >= 0.06) vad.on = true; } else { vad.quiet += dt; vad.loud = 0; if (vad.quiet >= 0.35) vad.on = false; }
+    return vad.on;
+  }
 
-    // Kinetic cues: each word's liveness rises as its line nears the reading line (1.8 lines ahead to 0).
-    stripe += dt * 0.03 * speed;
-    words.forEach(function (w, k) {
-      var d = (lines[w.line].c + shift - readingY()) / LH;
-      var live = kinetic ? (d >= 0 ? 1 - smooth(0, 1.8, d) : 1 - smooth(-0.4, -1.4, d)) : 0;
-      var isRead = k < ln.first;
-      w.el.classList.toggle('read', isRead);
-      // Look-ahead focus: text more than three lines ahead steps back.
-      w.wrap.style.opacity = kinetic && d > 3 ? String(Math.max(0.55, 1 - (d - 3) * 0.15)) : '';
-      if (w.stress) w.el.style.transform = live ? 'scale(' + (1 + 0.08 * live).toFixed(3) + ')' : '';
-      if (w.pace === 'energy') w.el.style.textShadow = live ? '0 0 ' + (18 * live).toFixed(1) + 'px color-mix(in srgb, var(--stage-energy) ' + Math.round(60 * live) + '%, transparent)' : '';
-      if (w.opener) {
-        var sig = { slower: 'sa-sig-slower', faster: 'sa-sig-faster', energy: 'sa-sig-energy' }[w.pace];
-        w.opener.classList.toggle(sig, live > 0.4);
-      }
-      if (w.gapEl) w.gapEl.classList.toggle(w.gap === 'breath' ? 'sa-sig-breath' : 'sa-sig-pause', live > 0.5 && k >= i);
+  var shownPhrase = -1;
+  function frame(now) {
+    var dt = Math.min(0.05, (now - last) / 1000); last = now;
+    // Pace: timed runs on; voice runs while you talk, and lets planned pauses run out.
+    var i0 = wordAt(t), inHold = !!holdOf(i0, t);
+    heard = keyDown || (micStream ? vadUpdate(micLevel, dt) : false);
+    var voiceWait = S.pace === 'voice' && !heard && !inHold;
+    if (playing && !voiceWait) t += dt * 1000;
+    var total = words[words.length - 1].end;
+    if (t > total + 1500) t = 0;
+    document.getElementById('hint').classList.toggle('on', playing && voiceWait);
+    updateMeter();
+
+    var i = wordAt(t), w = words[i], hold = holdOf(i, t);
+    // Said and live states, and the spotlight classes.
+    words.forEach(function (x, k) {
+      x.el.classList.toggle('said', k < i || (k === i && t >= x.end));
+      x.el.classList.toggle('now', k === i);
+      x.el.classList.toggle('next1', k === i + 1);
+      x.el.classList.toggle('next2', k === i + 2);
+      x.el.classList.toggle('live', x.run && x.run.kind === 'energy' && Math.abs(x.lineTop - w.lineTop) < 4);
     });
     runs.forEach(function (r) {
-      var lv = 0;
-      for (var k = r.start; k <= r.end; k++) { var d = (lines[words[k].line].c + shift - readingY()) / LH; lv = Math.max(lv, kinetic ? (d >= -0.4 && d <= 1.8 ? 1 : 0) : 0); }
-      if (r.kind === 'faster') { r.el.classList.toggle('live', !!lv); r.el.style.backgroundPosition = lv ? (stripe % 16) + 'px 0' : ''; }
-      if (r.kind === 'slower') r.el.style.backgroundColor = lv ? 'color-mix(in srgb, var(--stage-slower) ' + Math.round(18 + 10 * Math.sin(t / 700)) + '%, transparent)' : '';
-      if (r.bar) r.bar.style.boxShadow = lv ? '0 0 14px ' + (r.kind === 'slower' ? 'var(--stage-slower)' : 'var(--stage-faster)') : '';
+      var live = r.words[0].i <= i + 3 && r.words[r.words.length - 1].i >= i;
+      if (r.el) r.el.classList.toggle('live-' + r.kind, live);
     });
-    // A stressed word pops as it is spoken.
-    if (i !== lastIndex) {
-      if (kinetic && words[i].stress) { words[i].el.classList.remove('pop'); void words[i].el.offsetWidth; words[i].el.classList.add('pop'); }
-      lastIndex = i;
+    // A new word: stressed words punch, energy words hop.
+    if (i !== lastWord) {
+      lastWord = i;
+      if (w.stress) { w.el.classList.remove('punch'); void w.el.offsetWidth; w.el.classList.add('punch'); if (S.guide === 'dot') burstAt(w); }
+      if (w.run && w.run.kind === 'energy') { w.el.classList.remove('hop'); void w.el.offsetWidth; w.el.classList.add('hop'); }
     }
-    // Hold badge, and the gap glyph that caused it hits once.
-    var holding = t >= e.end && e.hold > 0 && e.gap;
-    badge.classList.toggle('on', !!holding);
-    if (holding) {
-      if (lastHold !== i && kinetic) { var g = words[i].gapEl; g.classList.remove('hit'); void g.offsetWidth; g.classList.add('hit'); lastHold = i; }
-      badge.className = 'sa-hold on ' + (e.gap === 'breath' ? 'sa-hold-breath' : 'sa-hold-pause') + (e.gap === 'long' ? ' sa-hold-long' : '');
-      badgeText.textContent = e.gap === 'long' ? 'LONG PAUSE' : e.gap === 'breath' ? 'BREATHE' : 'PAUSE';
-      var left = 1 - (t - e.end) / e.hold;
-      ring.setAttribute('stroke-dashoffset', String(56.55 * (1 - Math.max(0, left))));
-      badge.style.transform = e.gap === 'breath' && kinetic ? 'scale(' + (1 + 0.06 * Math.sin(Math.PI * (1 - left))) + ')' : '';
-    } else { badge.style.transform = ''; lastHold = -1; }
-    document.getElementById('end').classList.toggle('on', t >= total);
+    // A pause starts: its glyph hits, the words after it wait.
+    var holdKey = hold ? i : -1;
+    if (holdKey !== lastHold) {
+      lastHold = holdKey;
+      if (hold && hold.gapEl) { hold.gapEl.classList.remove('hit'); void hold.gapEl.offsetWidth; hold.gapEl.classList.add('hit'); }
+    }
+    words.forEach(function (x, k) { x.el.classList.toggle('wait', !!(hold && hold.gap && hold.gap !== 'breath' && k > i && k <= i + 6)); });
+    // The hold badge.
+    if (hold && hold.gap) {
+      var k2 = Math.min(1, (t - hold.end) / hold.hold);
+      badge.className = 'sa-hold on ' + (hold.gap === 'breath' ? 'sa-hold-breath' : 'sa-hold-pause' + (hold.gap === 'long' ? ' sa-hold-long' : ''));
+      document.getElementById('badgeText').textContent = hold.gap === 'breath' ? 'BREATHE' : hold.gap === 'long' ? 'LONG PAUSE' : 'PAUSE';
+      document.getElementById('ring').setAttribute('stroke-dashoffset', String(56.55 * k2));
+      badge.style.transform = hold.gap === 'breath' && S.cues === 'kinetic' ? 'scale(' + (1 + 0.12 * Math.sin(Math.PI * k2)) + ')' : '';
+    } else { badge.className = 'sa-hold'; badge.style.transform = ''; }
+
+    // Motion.
+    var phraseMode = S.motion === 'phrase';
+    layer.hidden = phraseMode; document.getElementById('phrase').hidden = !phraseMode; document.getElementById('nextPhrase').hidden = !phraseMode;
+    ['rline', 'fadeTop', 'fadeBot'].forEach(function (id) { document.getElementById(id).hidden = phraseMode; });
+    if (phraseMode) {
+      showPhrase(w.phrase);
+    } else {
+      var rl = stage.clientHeight * 0.3, target;
+      if (S.motion === 'smooth') {
+        // Continuous: through the line as it is said.
+        var lineWords = words.filter(function (x) { return x.lineTop === w.lineTop; }), a = lineWords[0], b = lineWords[lineWords.length - 1];
+        var nextTop = words[b.i + 1] ? words[b.i + 1].lineTop : w.lineTop + 66;
+        var spoken = function (x, time) { return Math.min(x.end, time) - x.start; };
+        var from = a.start, to = b.end, p = to > from ? Math.max(0, Math.min(1, (Math.min(t, to) - from) / (to - from))) : 1;
+        target = w.lineTop + p * (nextTop - w.lineTop);
+        camY = target;
+      } else {
+        // Line step: the line being read stays still; glide to the next.
+        target = w.lineTop;
+        camY += (target - camY) * (reduce ? 1 : 1 - Math.exp(-dt / 0.09));
+      }
+      layer.style.transform = 'translateY(' + (rl - camY).toFixed(1) + 'px)';
+    }
+
+    // Guides.
+    stage.classList.toggle('spot', S.guide === 'spot');
+    uline.hidden = S.guide !== 'line';
+    dot.style.display = S.guide === 'dot' ? '' : 'none';
+    if (S.guide === 'line') placeUnderline(wordRect(w), w, hold);
+    if (S.guide === 'dot') placeDot(i, hold, voiceWait, now);
+    requestAnimationFrame(frame);
   }
 
-  var prev = performance.now();
-  function loop(now) { frame(Math.min(100, now - prev)); prev = now; requestAnimationFrame(loop); }
+  function rectIn(el) { var s = stage.getBoundingClientRect(), b = el.getBoundingClientRect(); return { x: b.left - s.left, y: b.top - s.top, w: b.width, h: b.height, cx: b.left - s.left + b.width / 2 }; }
+  // A word's place on the stage: from the layout for the scrolling column,
+  // from the live element in the one-phrase view.
+  function place(box) {
+    var y0 = stage.clientHeight * 0.3 - camY;
+    return { x: colLeft + box.x, y: y0 + box.y, w: box.w, h: box.h, cx: colLeft + box.x + box.w / 2 };
+  }
+  function wordRect(x) { return S.motion === 'phrase' ? rectIn(x.pel || x.el) : place(x.box); }
+  function glyphRect(x) { return place(x.gapBox); }
 
-  function readout() { document.getElementById('readout').textContent = speed.toFixed(1) + '× · ' + Math.round(wpm * speed) + ' WPM'; }
-  function pick(sel, b) { Array.prototype.slice.call(document.querySelectorAll(sel)).forEach(function (x) { x.setAttribute('aria-pressed', String(x === b)); }); }
+  function placeUnderline(r, w, hold) {
+    var k = hold ? 1 : Math.max(0, Math.min(1, (t - w.start) / (w.end - w.start)));
+    uline.style.left = r.x + 'px'; uline.style.top = (r.y + r.h - 2) + 'px'; uline.style.width = r.w + 'px';
+    var fill = uline.firstChild; fill.style.width = (k * 100) + '%'; fill.style.marginInlineStart = S.lang === 'ar' ? 'auto' : '0';
+    uline.style.direction = S.lang === 'ar' ? 'rtl' : 'ltr';
+  }
+
+  // The bouncing dot: it lands on each word as it starts, and acts out the cue after it.
+  function placeDot(i, hold, voiceWait, now) {
+    var w = words[i], nw = words[i + 1];
+    var a = wordRect(w), x, y, scale = 1, cls = '', color = 'var(--stage-text)';
+    var lift = 10;
+    if (hold && hold.gapEl && S.motion !== 'phrase') {
+      // On the cue glyph for the length of the hold.
+      var gr = glyphRect(hold), k = (t - hold.end) / hold.hold;
+      var hopIn = Math.min(1, (t - w.start) / Math.max(1, w.end - w.start));
+      x = gr.cx; y = gr.y - 8;
+      if (hold.gap === 'breath') { scale = 1 + 0.8 * Math.sin(Math.PI * Math.min(1, k)); color = 'var(--stage-breath)'; }
+      else { cls = 'pause'; color = 'var(--stage-pause)'; dot.style.setProperty('--ring', String(1.6 - 0.9 * Math.min(1, k))); }
+      // The last 160 ms: hop on to the next word.
+      var left = hold.end + hold.hold - t;
+      if (nw && left < 160) {
+        var b = wordRect(nw), u = 1 - left / 160;
+        x = gr.cx + (b.cx - gr.cx) * u; y = (gr.y - 8) + (b.y - lift - (gr.y - 8)) * u - 24 * 4 * u * (1 - u);
+        scale = 1; cls = ''; color = 'var(--stage-text)';
+      }
+    } else if (voiceWait) {
+      // Waiting for the voice: hover over the word, bobbing.
+      x = a.cx; y = a.y - lift - 6 + Math.sin(now / 220) * 4;
+    } else {
+      // Arc from this word to the next; land on it as it starts.
+      var target = nw ? wordRect(nw) : a;
+      if (w.gapEl && S.motion !== 'phrase') target = glyphRect(w);
+      var end = w.gapEl ? w.end : (nw ? nw.start : w.end);
+      var u2 = Math.max(0, Math.min(1, (t - w.start) / Math.max(1, end - w.start)));
+      var ease = u2;
+      // Pace shapes the hop: slow runs float low and long, fast runs skip, stress lands high.
+      var h = 22;
+      if (w.run && w.run.kind === 'slower') h = 14;
+      if (w.run && w.run.kind === 'faster') h = 9;
+      if (nw && nw.stress) h = 36;
+      if (target.y < a.y - 10 || target.y > a.y + 10) h = 18;
+      x = a.cx + (target.cx - a.cx) * ease;
+      var ya = a.y - lift, yb = target.y - (w.gapEl ? 8 : lift);
+      y = ya + (yb - ya) * ease - h * 4 * u2 * (1 - u2);
+      // Squash on landing.
+      if (u2 < 0.12) scale = 1 + (0.12 - u2) * 2;
+      // White by default; it takes a cue's colour only while acting that cue out.
+      if (w.stress) color = 'var(--stage-stress)';
+      if (w.run && w.run.kind === 'energy') { color = 'var(--stage-energy)'; if (Math.random() < 0.35) sparkAt(x, y); }
+      if (w.run && w.run.kind === 'slower') color = 'var(--stage-slower)';
+      if (w.run && w.run.kind === 'faster') color = 'var(--stage-faster)';
+    }
+    if (reduce) { x = a.cx; y = a.y - lift; scale = 1; }
+    dot.className = 'dot ' + cls;
+    dot.style.background = color;
+    dot.style.boxShadow = '0 0 16px ' + color;
+    dot.style.transform = 'translate(' + x.toFixed(1) + 'px,' + y.toFixed(1) + 'px) scale(' + scale.toFixed(3) + ')';
+  }
+
+  function burstAt(w) { if (reduce || S.cues !== 'kinetic') return; var r = wordRect(w), b = document.createElement('span'); b.className = 'burst'; b.style.left = r.cx + 'px'; b.style.top = (r.y - 16) + 'px'; stage.appendChild(b); setTimeout(function () { b.remove(); }, 560); }
+  function sparkAt(x, y) { if (reduce || S.cues !== 'kinetic') return; var s = document.createElement('span'); s.className = 'spark'; s.style.left = x + 'px'; s.style.top = y + 'px'; s.style.setProperty('--sx', (Math.random() * 30 - 15) + 'px'); s.style.setProperty('--sy', (Math.random() * 24 + 6) + 'px'); stage.appendChild(s); setTimeout(function () { s.remove(); }, 640); }
+
+  function showPhrase(pi) {
+    if (pi === shownPhrase) return;
+    shownPhrase = pi;
+    var inner = document.getElementById('phraseInner');
+    inner.innerHTML = ''; inner.dir = S.lang === 'ar' ? 'rtl' : 'ltr';
+    words.forEach(function (x) { x.pel = null; });
+    phrases[pi].forEach(function (x, k) {
+      var el = x.el.cloneNode(true); el.classList.remove('said', 'wait', 'punch');
+      if (k) inner.appendChild(document.createTextNode(' '));
+      inner.appendChild(el); x.pel = el;
+      if (x.gapEl) { inner.appendChild(document.createTextNode(' ')); inner.appendChild(x.gapEl.cloneNode(true)); }
+    });
+    // Replay the arrival.
+    inner.style.animation = 'none'; void inner.offsetWidth; inner.style.animation = '';
+    var np = phrases[pi + 1];
+    document.getElementById('nextPhrase').textContent = np ? np.map(function (x) { return x.text; }).join(' ') : '';
+    document.getElementById('nextPhrase').dir = S.lang === 'ar' ? 'rtl' : 'ltr';
+  }
+
+  // ---- voice ----------------------------------------------------------------
+  var micStream = null, analyser = null, buf;
+  function updateMeter() {
+    if (analyser) {
+      analyser.getFloatTimeDomainData(buf);
+      var sum = 0; for (var k = 0; k < buf.length; k++) sum += buf[k] * buf[k];
+      micLevel = 20 * Math.log10(Math.sqrt(sum / buf.length) + 1e-6);
+    }
+    var lvl = keyDown ? 0.8 : Math.max(0, Math.min(1, (micLevel + 60) / 50));
+    var bars = document.getElementById('meter');
+    Array.prototype.forEach.call(bars.children, function (b, k) { b.classList.toggle('lit', lvl > k / 5); });
+    bars.classList.toggle('hear', heard);
+  }
+  document.getElementById('mic').onclick = function () {
+    var btn = this;
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { btn.textContent = 'No microphone here'; return; }
+    navigator.mediaDevices.getUserMedia({ audio: true }).then(function (stream) {
+      micStream = stream;
+      var ctx = new (window.AudioContext || window.webkitAudioContext)();
+      analyser = ctx.createAnalyser(); analyser.fftSize = 1024; buf = new Float32Array(analyser.fftSize);
+      ctx.createMediaStreamSource(stream).connect(analyser);
+      btn.textContent = 'Listening'; btn.classList.add('down');
+    }).catch(function () { btn.textContent = 'Mic blocked: hold to talk'; });
+  };
+  var talk = document.getElementById('talk');
+  function setKey(v) { keyDown = v; talk.classList.toggle('down', v); }
+  talk.onpointerdown = function () { setKey(true); }; talk.onpointerup = talk.onpointerleave = function () { setKey(false); };
+  window.addEventListener('keydown', function (e) { if (e.code === 'Space' && S.pace === 'voice') { e.preventDefault(); setKey(true); } });
+  window.addEventListener('keyup', function (e) { if (e.code === 'Space') setKey(false); });
+
+  // ---- controls -------------------------------------------------------------
+  Array.prototype.slice.call(document.querySelectorAll('.seg[data-k]')).forEach(function (seg) {
+    seg.addEventListener('click', function (e) {
+      var b = e.target.closest('button'); if (!b) return;
+      Array.prototype.forEach.call(seg.children, function (x) { x.setAttribute('aria-pressed', String(x === b)); });
+      var k = seg.getAttribute('data-k'); S[k] = b.getAttribute('data-v');
+      if (k === 'lang') { build(); }
+      if (k === 'cues') stage.classList.toggle('kin', S.cues === 'kinetic' && !reduce);
+      if (k === 'pace') document.getElementById('voice').classList.toggle('on', S.pace === 'voice');
+      if (k === 'motion') { shownPhrase = -1; }
+    });
+  });
   document.getElementById('play').onclick = function () { playing = !playing; document.getElementById('playIcon').textContent = playing ? 'pause' : 'play_arrow'; };
-  document.getElementById('restart').onclick = function () { t = 0; endHold = 0; lastIndex = -1; };
-  document.getElementById('slower').onclick = function () { speed = Math.max(0.5, Math.round((speed - 0.1) * 10) / 10); readout(); };
-  document.getElementById('faster').onclick = function () { speed = Math.min(2, Math.round((speed + 0.1) * 10) / 10); readout(); };
-  Array.prototype.slice.call(document.querySelectorAll('[data-lang]')).forEach(function (b) {
-    b.onclick = function () { lang = b.getAttribute('data-lang'); t = 0; endHold = 0; lastIndex = -1; pick('[data-lang]', b); build(); };
-  });
-  Array.prototype.slice.call(document.querySelectorAll('[data-kin]')).forEach(function (b) {
-    b.onclick = function () { kinetic = b.getAttribute('data-kin') === '1'; pick('[data-kin]', b); };
-  });
-  if (reduce) pick('[data-kin]', document.querySelector('[data-kin="0"]'));
-  window.addEventListener('resize', function () { measure(); });
-  (document.fonts ? document.fonts.ready : Promise.resolve()).then(function () { build(); requestAnimationFrame(loop); });
+  document.getElementById('restart').onclick = function () { t = 0; lastWord = -1; };
+  window.addEventListener('resize', layout);
+  if (reduce) stage.classList.remove('kin');
+  (document.fonts ? document.fonts.ready : Promise.resolve()).then(function () { build(); requestAnimationFrame(function (n) { last = n; requestAnimationFrame(frame); }); });
 })();
 </script>
 </body>

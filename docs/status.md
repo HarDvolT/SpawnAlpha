@@ -5,8 +5,16 @@ Last updated: 2026-09-30
 ## Where we are
 
 **Build step 1 of 7 (script markup and coached prompter): code complete, with design language
-v2 applied. It has not yet run on a real device.** The build order is in
+v2 applied. The owner has run the first test build on Windows; the problems found are fixed in
+the second build, which still needs a retest. Design v3 (the prompter's guide, motion and pace
+choices, a new Home, and the Windows record set-up) is designed as live demos and waiting for
+the owner's choices.** The build order is in
 [product-brief.md](product-brief.md#build-order); it was revised on 2026-09-30.
+
+The owner's first test on Windows (build #1) found: no microphone permission prompt and no
+sound in takes; a prompter that scrolled away from the word being read; effects that were too
+weak and generic; a generic first screen; and no screen recording yet. Build #2 fixes the first
+two (see the session log). The rest is design v3 and build step 2.
 
 | Area | State |
 |---|---|
@@ -17,23 +25,43 @@ v2 applied. It has not yet run on a real device.** The build order is in
 | Settings: provider picker, server address, per-provider keys, model list, connection test | Done, checked in screenshots |
 | Delivery timeline, prompter controller, scroll maths | Done, tested |
 | Prompter widget: cues, reading line, pause badge, pace bars, mirror, RTL | Done, tested (widget tests plus rendered screenshots) |
+| Voice pacing (moves while you speak, level-based), current-word underline, line-step motion | Done, tested. Needs the owner's retest on Windows (build #2) |
 | Editor: write, style and language, markup, review marks and suggestions | Done, tested (widget test of the main flow) |
 | Practice prompter screen with keyboard shortcuts | Done |
-| Camera recording screen (countdown, prompter overlay, saves takes) | Written. **Untested: no camera in CI; needs a real Windows and Android run.** |
+| Camera recording screen (countdown, prompter overlay, saves takes) | Runs on Windows (owner, build #1): video records. **Sound was missing**: fixed in build #2, not yet retested. Android not yet tried |
+| Microphones on Windows: vendored `camera_windows` records from the chosen or default microphone; list, level meter and picker; sound check after each take | Done in build #2 (compiles in CI; unit tests for the Dart side). **Needs the owner's retest** |
 | Storage: scripts as JSON files, settings, API key in secure storage | Done |
-| Design language v2 (four type voices, glass, springs, signature motions, kinetic prompter, cursor companion, Director's Cut; 20 components) | Done in `docs/design/` and the design-system artifact |
+| Design language v2 (four type voices, glass, springs, signature motions, kinetic prompter, cursor companion, Director's Cut) | Done in `docs/design/` and the design-system artifact |
+| Design v3 demos (22 components): Home, the prompter's guide (bouncing dot, underline, spotlight), motion and pace choices, stronger kinetic cues, the Windows record set-up | Designed and published (artifact version 9). **Waiting for the owner to try them and pick defaults.** Not in the app yet |
 | Design v2 in the app: fonts and generated tokens, Studio theme, script page (marker swipes, margin notes, director's pass), kinetic prompter with Still, glass hold badge, record screen (glass panel, countdown, record button, timecode), privacy and licences in Settings | Done, tested (widget tests plus rendered screenshots). What's left is listed in the next steps |
-| CI (`.github/workflows/build.yml`): analyze, test, then Windows and Android test builds as downloadable artifacts | Working: the first run (#1, 2026-09-30) passed and produced both builds. The builds are compiled but not yet opened on a real device |
+| CI (`.github/workflows/build.yml`): analyze, test, then Windows and Android test builds as downloadable artifacts | Working. Run #2 (2026-09-30, <https://github.com/HarDvolT/SpawnAlpha/actions/runs/36780365939>) is green and has the microphone fix |
 | Compliance groundwork ([compliance.md](compliance.md)) | Rules and checklist written, licence page in the app, no secrets in the repo. Legal documents and filings are still to do |
 | Screen and Screen + camera recording, cursor companion, telemetry | Designed (`docs/design/recording.md`). Not built. |
 | Director's Cut (auto-edit, captions, auto-zoom, finish screen) | Designed (`docs/design/autoedit.md`). Not built; needs a native render core. |
 
-109 tests pass (`cd app && flutter test`), and `flutter analyze` is clean.
+120 tests pass (`cd app && flutter test`), and `flutter analyze` is clean.
 
 ## Next steps
 
 1. ~~Get the owner's answer on the roadmap.~~ Done 2026-09-30: approved (see Decisions).
-2. **Finish design v2 in the app.** Done so far: the fonts, tokens, theme, script page,
+2. **The owner retests build #2 on Windows** (download the zip from run #2 above):
+   - the microphone: the chip on the record screen names it and its meter moves; the
+     picker lists every microphone; takes have sound; the save dialog says so if not;
+   - Voice pace: the prompter moves only while you talk, and waits after pauses;
+   - the word guide and the line that stays still.
+   If the meter never moves, Windows is probably blocking desktop apps from the microphone
+   (Settings, Privacy and security, Microphone).
+3. **The owner tries the design v3 demos** in the artifact (Home, Prompter, RecordSetup) and
+   picks the defaults. Proposed: Guide = Dot, Motion = Line step, Pace = Voice (Timed when
+   no microphone works), Cues = Kinetic. Then build v3 into the app:
+   - the guide choice (Dot, Underline, Spotlight, Off) with the bouncing dot's rules from
+     `docs/design/prompter.md`; the motion choice (Line step, Smooth, One phrase); the
+     stronger kinetic cues (punch and slam, lean, float, wait);
+   - the Home screen (director's desk) replacing the library as the start screen;
+   - the Windows record set-up rail: every microphone with its own meter, the sound
+     check, the blocked state with a button that opens `ms-settings:privacy-microphone`,
+     and the record button refusing silence unless chosen.
+4. **Finish design v2 in the app.** Done so far: the fonts, tokens, theme, script page,
    kinetic prompter, hold badge and record screen. Still to do:
    - glyph signature motions in the Studio: arrive on the director's pass, play once when
      pressed;
@@ -41,13 +69,13 @@ v2 applied. It has not yet run on a real device.** The build order is in
    - going on stage: a shared-element move from the editor to the prompter;
    - the countdown ring collapsing into the tally, and phone haptics;
    - the desktop record layout: prompter docked under the webcam and a self-view
-     thumbnail;
+     thumbnail (now part of the v3 record set-up, step 3);
    - the take-saved dialog becomes the Director's Cut finish screen at step 4.
 
    Re-render `app/tool/screenshots_test.dart` after UI changes, and compare with the
    artifact previews.
 
-3. **Run it on real hardware** (can't be done in a Linux container). No Flutter install is
+5. **Run it on real hardware** (can't be done in a Linux container). No Flutter install is
    needed: download the Windows zip or the Android APK from the latest green **Build** run
    (GitHub Actions, Artifacts; see the README).
    - Windows: `flutter run -d windows`. Check camera recording through
@@ -55,16 +83,16 @@ v2 applied. It has not yet run on a real device.** The build order is in
    - Android phone: check the camera and microphone permission prompts, the
      front camera preview with the prompter overlay, and the recording files.
    - iOS: the same checks as Android (needs a Mac).
-4. **Try the AI engines for real.** Use Claude and at least one other cloud
+6. **Try the AI engines for real.** Use Claude and at least one other cloud
    provider with real keys, and Ollama or LM Studio with a small local model
    (for example a 7B or 8B instruct model). Compare the markup on the three
    samples, and note which local models follow the JSON format reliably. Check
    the phone-to-computer case (LAN address) and the error messages (bad key,
    server off, context too small).
-5. Polish found while testing: an in-app list of takes with playback (needs a
+7. Polish found while testing: an in-app list of takes with playback (needs a
    video player that supports Windows), and an easier way to extend a pace or
    energy span beyond one sentence.
-6. Then **build step 2, the Windows recorder**:
+8. Then **build step 2, the Windows recorder**:
    - Camera, Screen, and Screen + camera.
    - The prompter window, HUD and cursor companion, all hidden from capture.
    - Cursor, click and key-burst telemetry.
@@ -112,6 +140,17 @@ v2 applied. It has not yet run on a real device.** The build order is in
   - Platform video encoders are preferred for codec patents.
   - Open: the repository is public; the owner should make it private or add a proprietary
     notice.
+- 2026-09-30, after the owner's first Windows test ("give the option to choose what type of
+  animation or scroll style or per-word animation or a jumping dot"): the prompter offers
+  **choices**, not one style. Guide: Dot, Underline, Spotlight, Off. Motion: Line step,
+  Smooth, One phrase. Pace: Voice, Timed, Manual. Cues: Kinetic, Still. The defaults are
+  proposed (Dot, Line step, Voice, Kinetic) until the owner has tried the demos.
+- 2026-09-30: **A take is never silently soundless.** The set-up shows every microphone with a
+  meter and a sound check; with no working microphone the record button is off unless the
+  user picks "record without sound"; every take's audio is checked when it is saved.
+- 2026-09-30: `camera_windows` is vendored in `app/packages/camera_windows` (BSD-3, licence
+  kept) so takes record from the chosen or the default microphone; upstream always used the
+  first one listed. Drop the copy if upstream adds microphone choice.
 - 2026-09-30: The Flutter app lives in `app/`, leaving the repo root free for docs and any
   later backend.
 - 2026-09-30: Marks are anchored to token indices, not character offsets or inline tags. Text
@@ -147,8 +186,10 @@ v2 applied. It has not yet run on a real device.** The build order is in
 ## Known limitations
 
 - The Windows camera (`camera_windows`) has no pause or resume, and no device orientation.
-- In timed mode the scroll follows a planned pace, not the voice. Voice-following is build
-  step 3.
+- Voice pace follows the microphone level, not the words: it knows when you speak, not
+  which word you are on. Voice-following (speech recognition) is build step 3.
+- On Windows, the level meter opens its own shared-mode stream on the microphone next to the
+  recording. The Windows record set-up and screen recording are not built yet.
 - The on-device markup is heuristic. For example, French and Arabic stress rules are based on
   word lists, not prosody.
 
@@ -192,3 +233,21 @@ v2 applied. It has not yet run on a real device.** The build order is in
   - It built the Windows app (13.5 MB zip) and the Android APK (27 MB) in about 8 minutes.
   - Flutter installs from the official archive with a checksum check, on Linux and Windows.
   - Next: the owner installs a test build and reports what breaks on real hardware.
+- 2026-09-30, session 1 (continued), the owner's first Windows test:
+  - Found: no microphone prompt and silent takes; a prompter that drifted from the word
+    being read; weak, generic effects; a generic first screen; no screen recording.
+  - Root cause of the silence: `camera_windows` always recorded from the first microphone
+    Windows lists, often a virtual or unused one. Vendored the plugin and made it use the
+    chosen or default microphone, with a Core Audio list, a WASAPI level meter, a
+    microphone chip and picker, and a sound check after each take.
+  - Added Voice pace, the current-word underline and line-step motion. 120 tests pass.
+    CI run #2 is green with both builds.
+- 2026-09-30, session 1 (continued), design v3 demos:
+  - At the owner's request, the prompter now offers a choice of guide, motion and pace,
+    including a bouncing dot that acts out each cue (it rests in a ring at a pause, swells
+    at a breath, jumps into a stressed word).
+  - Stronger kinetic cues that act out the instruction.
+  - A new Home (director's desk) and the Windows record set-up (every microphone with a
+    meter, a sound check, the blocked-by-Windows state).
+  - New tokens `stage-ok` and `stage-warn`; `tokens.g.dart` regenerated.
+  - Published as artifact version 9 and mirrored to `docs/design/`.

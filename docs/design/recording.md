@@ -16,7 +16,7 @@ Pick the mode with the mode switcher on the record screen (icons `videocam_round
 
 | State | What the speaker sees | Prompter | Tally |
 |---|---|---|---|
-| **Set up** | Mode, source (display or window), camera, microphone, system audio, prompter placement; a live preview | First lines on the reading line, not moving | off |
+| **Set up** | Mode, source (display or window), camera, microphone with a sound check, system audio, prompter placement, guide and pace; a live preview (see Setting up a take) | First lines on the reading line, not moving | off |
 | **Countdown** | 3, 2, 1 in the centre of what is being recorded (see Motion) | Still; Space cancels | off, then on at "go" |
 | **Recording** | The HUD or bottom bar: `rec` dot and running `timecode`, microphone meter | Scrolls: Timed from the first word, or Voice | `rec` dot, steady |
 | **Paused** | The dot becomes a hollow ring; the timer stops | Holds where it is | ring |
@@ -25,6 +25,22 @@ Pick the mode with the mode switcher on the record screen (icons `videocam_round
 | **Director's Cut** | The finish screen: the edit plays out, the list of changes, one question if the edit is unsure, export (see Director's Cut) | Back to the start | off |
 
 Stopping never loses a take: files are written as fragmented MP4, so a crash keeps what was captured.
+
+## Setting up a take
+
+Set-up is one screen, on the stage: the live preview on the leading side, and four decisions in a rail on the other, top to bottom (see RecordSetup). Everything on it is chosen before the countdown, and nothing on it is hidden in a menu.
+
+1. **What to record:** Camera, Screen or Both.
+2. **Camera:** the device and its format ("1080p · 30 fps"), with its state (ON, or what is wrong).
+3. **Microphone:**
+   - **Every microphone is listed, each with its own live meter**, the Windows default first and labelled. PCs often have several (a headset, a laptop array, virtual devices from other apps), and the right one is the one that moves when you talk.
+   - A **sound check**: "Say a line from your script", with a big meter. Then either "We hear you" (`stage-ok`), "Very quiet" or "Nothing heard from <microphone>. Pick another" (`stage-warn`). Nothing is recorded or saved.
+   - **Blocked by the system:** Windows has no permission prompt for desktop apps; access is a switch in Settings. When no microphone gives a signal, say so plainly ("Windows is blocking the microphone"), name the two switches (Microphone access, Let desktop apps access your microphone), and offer **Open privacy settings** and **Check again**. On phones, the system prompt appears on the first visit to this screen, and a refusal shows the same panel with a link to the app's settings.
+4. **Prompter:** where it sits (Under the lens, Floating, Off), the guide (Dot, Underline, Spotlight) and the pace (My voice, Timed). The preview shows the choice immediately, on the real script.
+
+The **record button** sits at the bottom of the rail with one line under it that says what will happen ("3, 2, 1, then the script follows your voice") or what is missing.
+- **Never record silence without saying so.** With no working microphone the button is off and the line reads "No microphone. Fix access above, or record without sound". Recording without sound is a deliberate choice.
+- After every take, the take's audio is checked (the file has an audio track, and it was not silent), and the result shows in the saved toast: "Sound OK", or a warning with the fix.
 
 ## Where the prompter goes
 
@@ -106,7 +122,8 @@ The set-up screen for Screen and Screen + camera shows the Cut's effects as chip
 
 ## Audio
 
-- The microphone meter is always visible while recording: a 3px bar in `stage-chrome-text` that turns `warning` near clipping.
+- The microphone meter is always visible while recording: a 3px bar in `stage-chrome-text` that turns `stage-warn` near clipping. The microphone's name sits beside it, and a tap opens the list.
+- The take records from the microphone chosen at set-up, never from "the first device". If it disappears mid-take, the take stops safely (the fragmented MP4 keeps what was captured) and says why.
 - System audio is a toggle in the screen modes (loopback on Windows), off by default.
 
 ## Takes

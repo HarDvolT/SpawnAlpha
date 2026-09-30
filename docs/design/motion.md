@@ -82,18 +82,24 @@ Glyphs **arrive** with one shared entrance, `sa-arrive`: from scale 0.3 and 6px 
 - Coming back reverses it.
 
 ### 5. The kinetic prompter
-The scroll follows spoken time, so it stands still during holds. The stillness is the cue.
+The text stands still during holds. The stillness is the cue. How the text moves between holds is the speaker's choice (Line step, Smooth or One phrase; see Prompter).
 
-On top of the scroll, and only when Kinetic is on (the default):
+On top of the motion, and only when Kinetic is on (the default):
 - **Liveness.** Each word has a liveness from 0 to 1: a smoothstep over its distance to the reading line, reaching 0 about 1.8 lines ahead.
 - **Lines ahead.** Text more than three lines ahead sits back at reduced opacity.
-- **Stress.** Stressed words grow toward 1.08 as they near the line, into room reserved by a small side margin. They pop once on `spring-pop` as they are spoken.
-- **Energy runs** gain a soft glow (text-shadow) while live.
-- **Faster runs** show thin speed lines drifting through their tint while live.
-- **Slower runs:** the tint breathes slowly, and the gutter bar glows.
-- **Gap glyphs** play their signature (a quick "hit" at 1.5×) at the moment the hold starts.
+- **Stress** grows toward 1.08 as it nears the line, into room reserved beside it. As it is spoken it **punches** (to 1.3 and back on `spring-pop`, with a glow) while an underline **slams** across it and fades.
+- **Energy runs** glow while live, and each word **hops** as it is spoken.
+- **Faster runs** lean forward (skew −9°) while speed lines stream through their tint.
+- **Slower runs** float gently down and up on a 2.6s cycle, and the tint breathes.
+- **Gap glyphs** play their signature (a quick "hit" at 1.5×) as the hold starts. During a pause the next few words **wait** at 32% until it ends.
 
-Kinetic can be switched to **Still**, which keeps only the scroll and the holds. Reduced motion forces Still.
+Kinetic can be switched to **Still**, which keeps only the motion, the guide and the holds. Reduced motion forces Still.
+
+### 5b. The guide
+- **The bouncing dot** arcs from word to word and lands on each as it starts, squashing a little. It acts out the cues: higher and amber into a stressed word (with a burst), low and long in slow runs, short skips in fast runs, sparks in energy runs. It rests on a pause glyph while a ring closes around it, swells on a breath, and hops on to the next word in the last 160ms of the hold. With Voice pace it bobs while it waits. Full rules in Prompter.
+- **The underline** fills across the current word in the reading direction over the word's time.
+- **The spotlight** fades words in and out over `dur-quick`.
+- Reduced motion: the dot jumps without arcs or effects, and the underline appears full.
 
 ### 6. The hold badge
 - The badge fades and rises into place on `spring-snappy` as the hold starts.

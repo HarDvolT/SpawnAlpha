@@ -50,6 +50,8 @@ class SaPalette {
     required this.stageTintSlower,
     required this.stageTintFaster,
     required this.stageRec,
+    required this.stageOk,
+    required this.stageWarn,
     required this.stageGlass,
     required this.stageGlassEdge,
     required this.captionText,
@@ -148,6 +150,12 @@ class SaPalette {
   final Color stageTintFaster;
   /// The tally on the stage and in the HUD.
   final Color stageRec;
+  /// Device checks on the stage that passed: the camera is on, the microphone is heard. Always with
+  /// a check icon.
+  final Color stageOk;
+  /// Device checks on the stage that need the user: no sound, the microphone is blocked. Always with
+  /// an icon and a way to fix it.
+  final Color stageWarn;
   /// Glass surfaces over live content: the HUD, the cursor companion, the prompter panel over a
   /// camera preview. Always with a 16px backdrop blur.
   final Color stageGlass;
@@ -207,6 +215,8 @@ class SaPalette {
     stageTintSlower: Color(0x2E5CB8FF),
     stageTintFaster: Color(0x2EFF8A3D),
     stageRec: Color(0xFFFF4D42),
+    stageOk: Color(0xFF4ADE80),
+    stageWarn: Color(0xFFFFB547),
     stageGlass: Color(0xB816171B),
     stageGlassEdge: Color(0x1FFFFFFF),
     captionText: Color(0xFFFFFFFF),
@@ -258,6 +268,8 @@ class SaPalette {
     stageTintSlower: Color(0x2E5CB8FF),
     stageTintFaster: Color(0x2EFF8A3D),
     stageRec: Color(0xFFFF4D42),
+    stageOk: Color(0xFF4ADE80),
+    stageWarn: Color(0xFFFFB547),
     stageGlass: Color(0xB816171B),
     stageGlassEdge: Color(0x1FFFFFFF),
     captionText: Color(0xFFFFFFFF),

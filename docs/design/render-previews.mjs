@@ -45,7 +45,7 @@ for (const theme of ['light', 'dark']) {
     await page.setViewportSize({ width: 960, height });
     await page.setContent(html, { waitUntil: 'networkidle' });
     // Animated previews need time to reach a representative frame.
-    const wait = { Prompter: 4200, Countdown: 1500, AutoZoom: 3600, CaptionStyles: 2600, CursorCompanion: 2500, DirectorsCut: 4200, RecordScreen: 5600, GlyphMotion: 1500, MarkedScript: 2400 };
+    const wait = { Prompter: 4200, Countdown: 1500, AutoZoom: 3600, CaptionStyles: 2600, CursorCompanion: 2500, DirectorsCut: 4200, RecordScreen: 5600, GlyphMotion: 1500, MarkedScript: 2400, Home: 2200, RecordSetup: 3400 };
     await page.waitForTimeout(wait[c] ?? 800);
     await page.screenshot({ path: path.join(out, `${c}-${theme}.png`) });
     await page.close();

@@ -1,0 +1,225 @@
+<!-- @dsCard group="Studio" height=1010 subtitle="The first screen: a director's desk. Record next, scripts as marked pages, recent takes" -->
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>Home — preview</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anybody:wdth,wght@50..150,100..900&family=Readex+Pro:wght@300..700&family=Martian+Mono:wdth,wght@75..112.5,300..800&family=Reem+Kufi:wght@400..700&family=Caveat:wght@500..700&family=Aref+Ruqaa:wght@400;700&family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,400..600,0..1,0&display=block">
+<style>
+  html, body { margin: 0; }
+  body { padding: 12px; }
+  .bar { display: flex; justify-content: flex-end; margin-bottom: 10px; }
+  /* The app window */
+  .app { display: grid; grid-template-columns: 208px minmax(0, 1fr); min-height: 690px; border-radius: var(--radius-lg); overflow: hidden; border: 1px solid var(--line); background: var(--paper); }
+  .phone .app { grid-template-columns: 1fr; max-width: 390px; margin: 0 auto; min-height: 700px; border-radius: 36px; border-width: 8px; border-color: #0b0c10; }
+  /* Sidebar */
+  .side { background: var(--surface-sunk); border-inline-end: 1px solid var(--line); padding: 18px 12px; display: flex; flex-direction: column; gap: 4px; }
+  .phone .side { display: none; }
+  .brand { display: flex; align-items: center; gap: 10px; padding: 2px 8px 18px; }
+  .brand i { width: 18px; height: 18px; border-radius: var(--radius-xs); background: var(--cue); display: block; }
+  .brand b { font-family: var(--font-display); font-weight: 800; font-size: 19px; font-variation-settings: 'wdth' 112; letter-spacing: -0.02em; }
+  .nav { display: flex; align-items: center; gap: 10px; height: 38px; padding: 0 10px; border-radius: var(--radius-md); color: var(--ink-2); font-size: 14px; font-weight: 600; cursor: pointer; transition: background-color var(--dur-quick) var(--ease-standard), color var(--dur-quick); }
+  .nav:hover { background: color-mix(in srgb, var(--ink) 5%, transparent); }
+  .nav.on { background: var(--surface); color: var(--ink); box-shadow: 0 0 0 1px var(--line); }
+  .nav .sa-i { font-size: 20px; }
+  .nav .count { margin-inline-start: auto; font-family: var(--font-signal); font-size: 11px; color: var(--ink-3); }
+  .side .grow { flex: 1; }
+  .coach { margin: 0 4px; padding: 10px 12px; border-radius: var(--radius-md); background: var(--surface); border: 1px solid var(--line); font-size: 12px; color: var(--ink-2); line-height: 16px; }
+  .coach .sa-signal { color: var(--ink-3); font-size: 9px; display: block; margin-bottom: 4px; }
+  .coach b { color: var(--ink); }
+  /* Main column */
+  .main { padding: 22px 26px 26px; display: flex; flex-direction: column; gap: 22px; min-width: 0; }
+  .phone .main { padding: 18px 16px 90px; gap: 18px; }
+  .hello { display: flex; align-items: flex-end; gap: 16px; flex-wrap: wrap; }
+  .hello h1 { margin: 0; font-family: var(--font-display); font-weight: 800; font-size: 34px; line-height: 36px; letter-spacing: -0.02em; font-variation-settings: 'wdth' 112; }
+  .phone .hello h1 { font-size: 28px; line-height: 30px; }
+  .hello .sa-signal { color: var(--ink-3); padding-bottom: 5px; }
+  .hello .grow { flex: 1; }
+  /* Hero: a window onto the stage */
+  .hero { position: relative; display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: 22px; padding: 22px; border-radius: var(--radius-lg); background: radial-gradient(90% 120% at 100% 0%, #1b2233, transparent 60%), var(--stage); color: var(--stage-text); overflow: hidden; box-shadow: var(--shadow-float); }
+  .phone .hero { grid-template-columns: 1fr; padding: 18px; }
+  .hero .kicker { font-family: var(--font-signal); font-size: 10px; font-weight: 700; letter-spacing: 0.14em; color: var(--stage-chrome-text); text-transform: uppercase; }
+  .hero h2 { margin: 6px 0 12px; font-family: var(--font-display); font-weight: 800; font-size: 26px; line-height: 28px; font-variation-settings: 'wdth' 106; }
+  .hero .lines { font-size: 18px; line-height: 30px; font-weight: 500; }
+  .hero .lines .read { color: var(--stage-text-read); }
+  .hero .meta { margin-top: 12px; display: flex; gap: 14px; flex-wrap: wrap; font-family: var(--font-signal); font-size: 11px; color: var(--stage-chrome-text); }
+  .hero .meta span { display: inline-flex; align-items: center; gap: 5px; }
+  .hero .meta .sa-i { font-size: 15px; }
+  .go { display: flex; flex-direction: column; gap: 14px; justify-content: space-between; }
+  .modes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  .mode { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 12px 6px 10px; border-radius: var(--radius-md); background: #ffffff0d; box-shadow: inset 0 0 0 1px #ffffff14; color: var(--stage-chrome-text); font-size: 12px; font-weight: 600; cursor: pointer; transition: background-color var(--dur-quick), color var(--dur-quick), transform var(--dur-instant) var(--ease-press); }
+  .mode .sa-i { font-size: 22px; }
+  .mode:active { transform: scale(0.96); }
+  .mode[aria-pressed="true"] { background: var(--stage-text); color: #15171c; }
+  .mode small { font-family: var(--font-signal); font-size: 9px; font-weight: 600; opacity: 0.75; }
+  .launch { display: flex; align-items: center; gap: 14px; }
+  .launch .sa-rec { flex: none; }
+  .launch .txt { flex: 1; min-width: 0; }
+  .launch .txt b { display: block; font-size: 15px; }
+  .hero .sa-rec { border-color: var(--stage-text); }
+  .hero .sa-rec i { background: var(--stage-rec); }
+  .launch .txt span { font-size: 12px; color: var(--stage-chrome-text); }
+  .launch .practice { flex: none; }
+  .ghost { font: inherit; font-size: 12px; font-weight: 600; height: 34px; padding: 0 12px; border-radius: var(--radius-md); border: 1px solid #ffffff2e; background: transparent; color: var(--stage-text); display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+  .ghost .sa-i { font-size: 18px; }
+  .checks { display: flex; gap: 8px; flex-wrap: wrap; }
+  .check { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border-radius: var(--radius-full); background: #ffffff0d; font-size: 11px; color: var(--stage-chrome-text); }
+  .check .sa-i { font-size: 15px; color: var(--stage-breath); }
+  .check .lvl { display: inline-flex; gap: 2px; align-items: flex-end; height: 12px; }
+  .check .lvl i { width: 3px; border-radius: 2px; background: var(--stage-stress); animation: lvl 700ms ease-in-out infinite alternate; }
+  @keyframes lvl { from { height: 3px; } to { height: 12px; } }
+  /* Section heads */
+  .head { display: flex; align-items: baseline; gap: 12px; }
+  .head h3 { margin: 0; font-size: 16px; font-weight: 700; }
+  .head .grow { flex: 1; }
+  .head a { font-size: 12px; font-weight: 600; color: var(--ink-2); text-decoration: none; cursor: pointer; }
+  /* Script pages */
+  .pages { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 12px; }
+  .page { position: relative; padding: 14px 14px 12px; border-radius: var(--radius-md); background: var(--surface); border: 1px solid var(--line); cursor: pointer; transition: transform 380ms cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow var(--dur-base); display: flex; flex-direction: column; gap: 8px; min-height: 176px; }
+  .page:hover { transform: translateY(-3px) rotate(-0.4deg); box-shadow: var(--shadow-float); }
+  .page .t { font-family: var(--font-display); font-weight: 700; font-size: 15px; line-height: 18px; font-variation-settings: 'wdth' 100; }
+  .page .x { font-size: 12.5px; line-height: 21px; color: var(--ink-2); flex: 1; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; }
+  .page .x .sa-marker { color: var(--ink); }
+  .page .x .sa-g { font-size: 13px; margin: 0 0.1em; }
+  .page .foot { display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--ink-3); }
+  .page .foot .sa-i { font-size: 15px; }
+  .page .foot .grow { flex: 1; }
+  .page .takes { display: inline-flex; gap: 3px; }
+  .page .takes i { width: 7px; height: 7px; border-radius: 50%; background: var(--ink-3); opacity: 0.5; }
+  .page .takes i.cut { background: var(--cue); opacity: 1; }
+  .page .note { position: absolute; top: 10px; inset-inline-end: 12px; font-family: var(--font-pencil); font-size: 15px; color: var(--ink-3); transform: rotate(-4deg); }
+  .page[dir="rtl"] .x { font-size: 13.5px; }
+  .new { border: 1.5px dashed var(--line-strong); background: transparent; align-items: center; justify-content: center; text-align: center; color: var(--ink-2); gap: 6px; }
+  .new .plus { width: 40px; height: 40px; border-radius: var(--radius-md); background: var(--primary); color: var(--on-primary); display: grid; place-items: center; }
+  .new b { color: var(--ink); font-size: 14px; }
+  .new span { font-size: 12px; }
+  /* Takes */
+  .takes-row { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+  .take { display: flex; flex-direction: column; gap: 6px; cursor: pointer; }
+  .thumb { position: relative; aspect-ratio: 16 / 9; border-radius: var(--radius-sm); overflow: hidden; background: radial-gradient(40% 55% at 50% 40%, #56607a, transparent 70%), radial-gradient(60% 50% at 80% 100%, #3a2d24, transparent 70%), #12151c; }
+  .thumb.screen { background: linear-gradient(#eceef2 0 14%, #f4f5f7 14%), #fff; }
+  .thumb.screen::after { content: ''; position: absolute; left: 8%; right: 8%; top: 26%; bottom: 14%; background: repeating-linear-gradient(#d9dce3 0 5px, transparent 5px 12px); opacity: 0.8; }
+  .thumb .d { position: absolute; right: 6px; bottom: 6px; font-family: var(--font-signal); font-size: 10px; font-weight: 600; color: #fff; background: #000000a6; padding: 1px 5px; border-radius: 4px; }
+  .thumb .cut { position: absolute; left: 6px; top: 6px; display: inline-flex; align-items: center; gap: 3px; font-size: 10px; font-weight: 700; color: #15171c; background: var(--cue); padding: 2px 6px 2px 4px; border-radius: 6px; }
+  .thumb .cut .sa-i { font-size: 13px; }
+  .take b { font-size: 12px; font-weight: 600; line-height: 15px; }
+  .take span { font-size: 11px; color: var(--ink-3); }
+  /* Phone bottom bar */
+  .tabbar { display: none; }
+  .phone .app { position: relative; }
+  .phone .tabbar { display: flex; position: absolute; left: 0; right: 0; bottom: 0; height: 64px; background: color-mix(in srgb, var(--surface) 92%, transparent); border-top: 1px solid var(--line); justify-content: space-around; align-items: center; -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); }
+  .tabbar div { display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: 10px; font-weight: 600; color: var(--ink-3); }
+  .tabbar div.on { color: var(--ink); }
+  .tabbar .fab { width: 52px; height: 52px; margin-top: -26px; border-radius: 50%; background: var(--stage); display: grid; place-items: center; box-shadow: 0 0 0 4px var(--paper), var(--shadow-float); }
+  .tabbar .fab i { width: 22px; height: 22px; border-radius: 50%; background: var(--stage-rec); }
+  /* Arrival: the desk sets itself, marks drawing in last */
+  .rise { animation: rise 520ms cubic-bezier(0.2, 0, 0, 1) both; }
+  @keyframes rise { from { opacity: 0; transform: translateY(10px); } }
+  @media (prefers-reduced-motion: reduce) { .rise, .check .lvl i { animation: none; } .page, .page:hover { transition: none; transform: none; } }
+</style>
+</head>
+<body class="sa">
+<div class="bar"><div class="sa-seg" role="group" aria-label="Device"><button aria-pressed="true" data-dev="desk"><span class="sa-i">desktop_windows</span>Windows</button><button aria-pressed="false" data-dev="phone"><span class="sa-i">smartphone</span>Phone</button></div></div>
+<div id="wrap">
+<div class="app">
+  <aside class="side">
+    <div class="brand"><i></i><b>SpawnAlpha</b></div>
+    <div class="nav on"><span class="sa-i">home</span>Home</div>
+    <div class="nav"><span class="sa-i">description</span>Scripts<span class="count">3</span></div>
+    <div class="nav"><span class="sa-i">video_library</span>Takes<span class="count">5</span></div>
+    <div class="nav"><span class="sa-i">settings</span>Settings</div>
+    <div class="grow"></div>
+    <div class="coach"><span class="sa-signal">Director</span><b>On-device coach</b><br>Free · works offline</div>
+  </aside>
+  <main class="main">
+    <div class="hello rise">
+      <h1>Ready when you are.</h1>
+      <span class="grow"></span>
+      <span class="sa-signal">3 scripts · 5 takes this week</span>
+    </div>
+
+    <section class="hero rise" style="animation-delay:60ms">
+      <div>
+        <div class="kicker">Record next</div>
+        <h2>Quarterly update</h2>
+        <div class="lines sa-stage" style="background:transparent">
+          <span class="read">Last quarter, our support team answered</span> <span class="sa-stress">12,000</span> <span class="sa-nb">tickets.<span class="sa-g sa-g-long"><span class="sa-i fill">pause_circle</span></span></span>
+          <span class="sa-nb"><span class="sa-g sa-g-slower"><span class="sa-i">keyboard_double_arrow_down</span><small>slow</small></span>That</span> is <span class="sa-stress">twice</span> as many…
+        </div>
+        <div class="meta"><span><span class="sa-i">co_present</span>Presentation</span><span>73 words</span><span>~0:33</span><span>15 cues</span></div>
+      </div>
+      <div class="go">
+        <div class="modes" role="group" aria-label="Recording mode">
+          <div class="mode" aria-pressed="true" data-mode="cam"><span class="sa-i">videocam</span>Camera</div>
+          <div class="mode" aria-pressed="false" data-mode="scr"><span class="sa-i">screen_share</span>Screen<small>next build</small></div>
+          <div class="mode" aria-pressed="false" data-mode="both"><span class="sa-i">picture_in_picture_alt</span>Both<small>next build</small></div>
+        </div>
+        <div class="checks"><span class="check"><span class="sa-i">videocam</span>HD webcam</span><span class="check"><span class="lvl"><i></i><i style="animation-delay:-200ms"></i><i style="animation-delay:-400ms"></i></span>Headset mic</span><span class="check"><span class="sa-i">record_voice_over</span>Follows your voice</span></div>
+        <div class="launch">
+          <button class="sa-rec" aria-label="Record" id="rec"><i></i></button>
+          <div class="txt"><b>Record</b><span>Count of three, then it follows you</span></div>
+          <button class="ghost practice"><span class="sa-i">slideshow</span>Practice</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="rise" style="animation-delay:120ms">
+      <div class="head"><h3>Scripts</h3><span class="grow"></span><a>See all</a></div>
+      <div class="pages" style="margin-top:10px" id="pages">
+        <div class="page">
+          <span class="note">land it</span>
+          <div class="t">Quarterly update</div>
+          <div class="x">Last quarter, our support team answered <span class="mk sa-marker">12,000</span> <span class="sa-nb">tickets.<span class="sa-g sa-g-long cue"><span class="sa-i fill">pause_circle</span></span></span> <span class="sa-nb"><span class="sa-g sa-g-slower cue"><span class="sa-i">keyboard_double_arrow_down</span></span>That</span> is <span class="mk sa-marker">twice</span> as many as the year before.</div>
+          <div class="foot"><span class="sa-i">co_present</span>Presentation · EN<span class="grow"></span><span class="takes"><i class="cut"></i><i></i><i></i></span></div>
+        </div>
+        <div class="page">
+          <div class="t">Exporter une vidéo</div>
+          <div class="x">D'abord, <span class="mk sa-marker">ouvrez</span> le menu Fichier et choisissez <span class="sa-nb">Exporter.<span class="sa-g sa-g-pause cue"><span class="sa-i fill">pause</span></span></span> Ensuite, sélectionnez le format <span class="sa-nb"><span class="sa-g sa-g-slower cue"><span class="sa-i">keyboard_double_arrow_down</span></span>MP4.</span></div>
+          <div class="foot"><span class="sa-i">school</span>Tutorial · FR<span class="grow"></span><span class="takes"><i></i></span></div>
+        </div>
+        <div class="page" dir="rtl">
+          <div class="t">نصيحة سريعة</div>
+          <div class="x"><span class="sa-nb"><span class="sa-g sa-g-energy cue"><span class="sa-i fill">bolt</span></span><span class="sa-energy">توقف!</span></span> هل تعرف أن معظم الناس يضيعون <span class="mk sa-marker">ساعتين</span> يومياً على <span class="sa-nb">هواتفهم؟<span class="sa-g sa-g-pause cue"><span class="sa-i fill">pause</span></span></span></div>
+          <div class="foot"><span class="sa-i">bolt</span>Short video · AR<span class="grow"></span><span class="takes"><i class="cut"></i></span></div>
+        </div>
+        <div class="page new"><span class="plus"><span class="sa-i">add</span></span><b>New script</b><span>Write, paste, or start from a sample</span></div>
+      </div>
+    </section>
+
+    <section class="rise" style="animation-delay:180ms">
+      <div class="head"><h3>Recent takes</h3><span class="grow"></span><a>All takes</a></div>
+      <div class="takes-row" style="margin-top:10px">
+        <div class="take"><div class="thumb"><span class="cut"><span class="sa-i fill">auto_awesome</span>Cut ready</span><span class="d">2:58</span></div><b>Quarterly update · T3</b><span>Today, 18:04</span></div>
+        <div class="take"><div class="thumb screen"><span class="d">1:12</span></div><b>Exporter une vidéo · T1</b><span>Yesterday</span></div>
+        <div class="take"><div class="thumb"><span class="cut"><span class="sa-i fill">auto_awesome</span>Cut ready</span><span class="d">0:19</span></div><b>نصيحة سريعة · T2</b><span>Mon</span></div>
+        <div class="take"><div class="thumb"><span class="d">3:40</span></div><b>Quarterly update · T2</b><span>Mon</span></div>
+      </div>
+    </section>
+  </main>
+  <nav class="tabbar"><div class="on"><span class="sa-i">home</span>Home</div><div><span class="sa-i">description</span>Scripts</div><div class="fab"><i></i></div><div><span class="sa-i">video_library</span>Takes</div><div><span class="sa-i">settings</span>Settings</div></nav>
+</div>
+</div>
+<script>
+(function () {
+  var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  // The director's pass on the pages: marks draw in, in reading order, after the desk has set.
+  var marks = Array.prototype.slice.call(document.querySelectorAll('#pages .mk, #pages .cue'));
+  marks.forEach(function (m) { m.classList.add('sa-off'); });
+  setTimeout(function () {
+    marks.forEach(function (m, i) {
+      setTimeout(function () { m.classList.remove('sa-off'); if (m.classList.contains('cue') && !reduce) m.classList.add('sa-arrive'); }, reduce ? 0 : i * 70);
+    });
+  }, reduce ? 0 : 420);
+  Array.prototype.slice.call(document.querySelectorAll('.mode')).forEach(function (m) {
+    m.onclick = function () { Array.prototype.forEach.call(document.querySelectorAll('.mode'), function (x) { x.setAttribute('aria-pressed', String(x === m)); }); };
+  });
+  var rec = document.getElementById('rec');
+  rec.onclick = function () { rec.setAttribute('data-state', rec.getAttribute('data-state') === 'recording' ? 'idle' : 'recording'); };
+  Array.prototype.slice.call(document.querySelectorAll('[data-dev]')).forEach(function (b) {
+    b.onclick = function () {
+      Array.prototype.forEach.call(document.querySelectorAll('[data-dev]'), function (x) { x.setAttribute('aria-pressed', String(x === b)); });
+      document.getElementById('wrap').className = b.getAttribute('data-dev') === 'phone' ? 'phone' : '';
+    };
+  });
+})();
+</script>
+</body>
+</html>

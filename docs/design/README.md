@@ -71,6 +71,7 @@ This system covers every surface: the **Studio** where scripts are written and r
   - Script text is `stage-text` on `stage`, or on `stage-glass` over live video.
   - Spoken words fade to `stage-text-read`.
   - Cues use the `stage-` twins, and the tally is `stage-rec`.
+  - Device checks (camera on, microphone heard, microphone blocked) use `stage-ok` and `stage-warn`, always with an icon, and a warning always offers the fix.
   - The Stage never changes with the Studio theme.
 - **In the Cut**, captions are `caption-text` with a shadow, stressed caption words are `stage-stress`, Karaoke may use `caption-plate`, and clicks and zooms are `ripple`.
 - **Keyboard focus** is a 2px solid `focus` ring with a 2px gap on every interactive element. On the Stage the ring is `stage-text`.
