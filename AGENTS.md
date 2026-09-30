@@ -28,13 +28,16 @@ docs/
   design/              the design language: brand book, prompter, recording, motion, tokens, components
 app/                   the Flutter app (package name: spawnalpha)
   lib/main.dart
+  assets/fonts/        the design's fonts (OFL) and their licences
+  lib/src/theme/       tokens.g.dart (generated from docs/design/tokens.json) and the theme
   lib/src/model/       pure Dart: tokens, marks, script document, remapping
   lib/src/markup/      markup engines: on-device rules and Claude (cloud)
   lib/src/prompter/    delivery timeline, playback controller, prompter widget
   lib/src/storage/     scripts and settings on disk
   lib/src/ui/          screens
   test/                mirrors lib/src/
-  tool/                dev tools; screenshots_test.dart renders the screens to PNG
+  tool/                dev tools: screenshots_test.dart renders the screens to PNG;
+                       gen_tokens.dart regenerates lib/src/theme/tokens.g.dart
 ```
 
 ## Toolchain and commands
@@ -51,8 +54,12 @@ app/                   the Flutter app (package name: spawnalpha)
   git config --global --add safe.directory '*'
   ```
 - **Seeing the UI without a device:** `flutter test tool/screenshots_test.dart --update-goldens`
-  renders the library, the editor (desktop and phone) and the prompter for all three sample
-  scripts to `app/tool/screenshots/*.png` (git-ignored), using real fonts, including Arabic.
+  renders every main screen to `app/tool/screenshots/*.png` (git-ignored):
+  - the library, the editor (desktop, dark and phone), the mark sheet and settings;
+  - the prompter (kinetic in a hold, and still);
+  - the record screen and the countdown;
+
+  for all three sample scripts, with the bundled fonts, including Arabic.
   Open the PNGs to check layout and right-to-left rendering after UI changes. Add a case there
   for any new screen.
 
@@ -60,7 +67,10 @@ app/                   the Flutter app (package name: spawnalpha)
 
 - **Follow the design language** in [`docs/design/`](docs/design/) (start at
   [`docs/design-language.md`](docs/design-language.md)) for every UI change:
-  - use its tokens, and never add literal colours, sizes or durations;
+  - use its tokens, and never add literal colours, sizes or durations. In Dart they are
+    `SaPalette`, `SaType`, `SaSprings`, `SaSpace` and friends (`lib/src/theme/`). Change a
+    token in `docs/design/tokens.json`, then run `dart run tool/gen_tokens.dart` from
+    `app/`;
   - keep the Studio (themed) and the Stage (always dark) apart;
   - draw cues only with the cue vocabulary's glyphs and colours;
   - keep the prompter hidden from capture in the screen modes;

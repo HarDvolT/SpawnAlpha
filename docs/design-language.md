@@ -40,4 +40,19 @@ The product direction behind it, and the open decisions, are in [roadmap.md](roa
 
 Previews that animate need time before a screenshot; `render-previews.mjs` waits per component. Write invisible characters in previews with `String.fromCharCode(...)`, never literally.
 
-The Flutter app doesn't use these tokens yet; `docs/status.md` tracks that work.
+## In the Flutter app
+
+- **Tokens:** the app reads the tokens through generated code.
+  - After changing `tokens.json`, run `dart run tool/gen_tokens.dart` from `app/`. A test
+    fails until you do.
+  - See `docs/architecture.md`, "Theme", for how the theme, fonts and cue colours are
+    built.
+- **Applied so far:**
+  - the four type voices and the Studio theme;
+  - the pending banner;
+  - the script page, with marker swipes and the director's notes in the margin, and the
+    director's pass;
+  - the kinetic prompter, with its Still switch;
+  - the glass hold badge;
+  - the record screen: glass prompter panel, countdown, record button and timecode.
+- **Not yet:** see `docs/status.md`.

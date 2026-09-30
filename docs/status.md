@@ -4,8 +4,8 @@ Last updated: 2026-09-30
 
 ## Where we are
 
-**Build step 1 of 7 (script markup and coached prompter): code complete, not yet run on a real
-device. Now applying design language v2 to the app.** The build order is in
+**Build step 1 of 7 (script markup and coached prompter): code complete, with design language
+v2 applied. It has not yet run on a real device.** The build order is in
 [product-brief.md](product-brief.md#build-order); it was revised on 2026-09-30.
 
 | Area | State |
@@ -21,30 +21,30 @@ device. Now applying design language v2 to the app.** The build order is in
 | Practice prompter screen with keyboard shortcuts | Done |
 | Camera recording screen (countdown, prompter overlay, saves takes) | Written. **Untested: no camera in CI; needs a real Windows and Android run.** |
 | Storage: scripts as JSON files, settings, API key in secure storage | Done |
-| Design language v2 (four type voices, glass, springs, signature motions, kinetic prompter, cursor companion, Director's Cut; 20 components) | Done in `docs/design/` and the design-system artifact. **Not yet applied to the Flutter app.** |
+| Design language v2 (four type voices, glass, springs, signature motions, kinetic prompter, cursor companion, Director's Cut; 20 components) | Done in `docs/design/` and the design-system artifact |
+| Design v2 in the app: fonts and generated tokens, Studio theme, script page (marker swipes, margin notes, director's pass), kinetic prompter with Still, glass hold badge, record screen (glass panel, countdown, record button, timecode), privacy and licences in Settings | Done, tested (widget tests plus rendered screenshots). What's left is listed in the next steps |
+| Compliance groundwork ([compliance.md](compliance.md)) | Rules and checklist written, licence page in the app, no secrets in the repo. Legal documents and filings are still to do |
 | Screen and Screen + camera recording, cursor companion, telemetry | Designed (`docs/design/recording.md`). Not built. |
 | Director's Cut (auto-edit, captions, auto-zoom, finish screen) | Designed (`docs/design/autoedit.md`). Not built; needs a native render core. |
 
-85 tests pass (`cd app && flutter test`), and `flutter analyze` is clean.
+109 tests pass (`cd app && flutter test`), and `flutter analyze` is clean.
 
 ## Next steps
 
 1. ~~Get the owner's answer on the roadmap.~~ Done 2026-09-30: approved (see Decisions).
-2. **Apply design language v2 to the app** (`docs/design-language.md`):
-   - the tokens as a Flutter theme: `ColorScheme`, `CueColors`, stage and glass colours,
-     `Springs` as `SpringDescription`s;
-   - the fonts bundled as assets: Anybody, Readex Pro, Martian Mono, Caveat, Aref Ruqaa and
-     Reem Kufi, all OFL, with `fontFamilyFallback` for Arabic;
-   - the new cue colours and glyphs (Long pause becomes `pause_circle`);
-   - the marker swipe and margin notes in the editor. Notes need a `note` field on marks,
-     filled by the AI markup.
-   - the kinetic prompter (liveness near the reading line, no reflow) with a Kinetic/Still
-     toggle;
-   - the countdown in the display face, the glass phone prompter panel, and the record
-     screen;
-   - the motion list (director's pass, accept, hold badge ring, countdown, record morph).
+2. **Finish design v2 in the app.** Done so far: the fonts, tokens, theme, script page,
+   kinetic prompter, hold badge and record screen. Still to do:
+   - glyph signature motions in the Studio: arrive on the director's pass, play once when
+     pressed;
+   - the accept animation: the marker painting from 34% to 72%;
+   - going on stage: a shared-element move from the editor to the prompter;
+   - the countdown ring collapsing into the tally, and phone haptics;
+   - the desktop record layout: prompter docked under the webcam and a self-view
+     thumbnail;
+   - the take-saved dialog becomes the Director's Cut finish screen at step 4.
 
-   Re-render `app/tool/screenshots_test.dart` and compare with the artifact previews.
+   Re-render `app/tool/screenshots_test.dart` after UI changes, and compare with the
+   artifact previews.
 
 3. **Run it on real hardware** (can't be done in a Linux container):
    - Windows: `flutter run -d windows`. Check camera recording through
@@ -176,3 +176,11 @@ device. Now applying design language v2 to the app.** The build order is in
     build order.
   - Rendered every preview in both themes and in Arabic, and republished the artifact
     (version 4).
+- 2026-09-30, session 1 (continued), design v2 in the app:
+  - The owner approved the roadmap: the Windows recorder is next, the Director's Cut is the
+    core promise, and the companion may follow on camera after a warning.
+  - The owner stated the app is commercial, so everything must be lawful. Added
+    `docs/compliance.md` and a Privacy and licences section in Settings.
+  - Bundled the fonts, and generated the tokens from `tokens.json` with a staleness test.
+  - Rebuilt the theme, the Studio screens, the script page, the kinetic prompter and the
+    record screen. 109 tests pass.

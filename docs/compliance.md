@@ -50,6 +50,7 @@ paid release, a lawyer should review:
 | Component | Licence | How we use it | Obligations | Status |
 |---|---|---|---|---|
 | Flutter SDK and Dart packages (camera, path_provider, http, flutter_secure_storage, wakelock_plus, cupertino_icons and their dependencies) | BSD-3, MIT, Apache-2.0; `dbus` (Linux only) is MPL-2.0 | Linked into the app | Keep the notices. Flutter bundles them into the app's NOTICES, shown by the licence page | Done: licence page in Settings |
+| camera_platform_interface, plugin_platform_interface (dev only) | BSD-3 | Test and screenshot fakes; not shipped | None | Done |
 | Anybody, Readex Pro, Martian Mono, Caveat, Aref Ruqaa, Reem Kufi | SIL Open Font License 1.1 | Bundled in `app/assets/fonts` | Ship the licence with the fonts. Don't sell the fonts on their own. Rename any modified font | Done: OFL texts bundled and registered |
 | Material Icons and Symbols | Apache-2.0 | Icons and cue glyphs | Notice | Done: comes with Flutter |
 | OpenScreen (reference and parts source) | MIT | Ideas so far; any copied code later | Keep its copyright notice in copied files and in NOTICES | No code copied yet |

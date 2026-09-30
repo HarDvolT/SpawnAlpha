@@ -7,7 +7,8 @@ This covers how the app is built and the rules the code relies on. For what the 
 
 ```
 ui/        screens and widgets       (Flutter)
-prompter/  timeline + controller     (pure Dart)  +  prompter widget (Flutter)
+prompter/  timeline + controller + kinetic maths (pure Dart)  +  prompter widget (Flutter)
+theme/     design tokens (generated) and the Material theme built from them
 markup/    markup engines            (pure Dart, plus package:http)
 storage/   files and secure storage  (Flutter plugins)
 model/     tokens, marks, scripts    (pure Dart)
@@ -100,6 +101,32 @@ The user picks the engine in Settings (`MarkupProvider` in `providers.dart`):
   `NSAllowsLocalNetworking` and `NSLocalNetworkUsageDescription`, so a phone can reach
   Ollama or LM Studio on a computer on the same Wi-Fi.
 
+## Theme (`lib/src/theme/`)
+
+- **`tokens.g.dart` is generated** from `docs/design/tokens.json` by
+  `dart run tool/gen_tokens.dart` (run from `app/`). Never edit it by hand;
+  `test/theme/tokens_test.dart` fails when it is stale. It holds:
+  - `SaPalette.light` and `SaPalette.dark`: every colour and shadow;
+  - `SaType`: every type style;
+  - `SaFonts`: the four families and their Arabic fallbacks;
+  - `SaSprings`: `SpringDescription`s;
+  - `SaDurations`, `SaEasing`, `SaSpace`, `SaRadius`, `SaPrompter` and
+    `SaScreenFx`.
+- **`theme.dart`** has:
+  - `buildTheme(brightness)`, which builds the Studio `ThemeData` from the
+    palette;
+  - `SaTheme.of(context)`, the palette of the current theme, for what
+    `ColorScheme` has no slot for;
+  - `atWidth(style, width)`, which sets a variable font's width axis (it
+    also sets `wght`, because any variation replaces Flutter's automatic
+    weight mapping).
+- **Fonts** are bundled in `app/assets/fonts` with their OFL licences, which
+  `main.dart` registers with the `LicenseRegistry`. They are all variable
+  fonts: `FontWeight` maps to the weight axis automatically.
+- **The Stage never follows the theme.** Stage widgets read
+  `SaPalette.dark.stage*` directly, and `CueColors.stage`. Studio widgets use
+  `CueColors.forStudio(context)`.
+
 ## Prompter (`lib/src/prompter/`)
 
 - **`DeliveryTimeline`** (pure Dart) plans a read-through. Each word gets
@@ -118,16 +145,42 @@ The user picks the engine in Settings (`MarkupProvider` in `providers.dart`):
 - **`PrompterLayout`** maps tokens to screen lines (measured after layout).
   `scrollYAt(timeline, t)` moves evenly through the line being spoken and
   reaches the next line with words as the line's last word ends.
-- **`PrompterView`** is the widget: large type on black, a reading line at 30%
-  of the height, a fade over what has been read, pace bars in the gutter, and
-  a PAUSE, LONG PAUSE or BREATHE badge while the prompter holds. A drag or
-  mouse wheel pauses the timed scroll and moves the reader to the line under
-  the reading line. Mirror mode flips it for teleprompter glass.
+- **`PrompterView`** is the widget. It shows:
+  - large type on `stage` black, or on glass over a camera (`glass: true`);
+  - a reading line at 30% of the height;
+  - a fade over what has been read;
+  - pace bars in the gutter;
+  - a glass PAUSE, LONG PAUSE or BREATHE badge while the prompter holds,
+    whose ring empties over the hold (`DeliveryTimeline.holdAt`).
+
+  A drag or mouse wheel pauses the timed scroll and moves the reader to the
+  line under the reading line. Mirror mode flips it for teleprompter glass.
+- **Kinetic text** (`kinetic: true`, the default) is painted **around a
+  paragraph that never changes layout**:
+  - `_KineticLayout` measures, once per layout, the boxes of stressed words,
+    energy and pace runs, and gap glyphs.
+  - Two painters redraw every frame from the timeline position and the scroll
+    offset. `under` draws the energy glow, speed lines and breathing tints;
+    `over` draws the stressed words (grown and popping) and the rings when a
+    hold starts.
+  - In kinetic mode `MarkedText` leaves stressed words transparent
+    (`StressStyle.stageOverlay`), and the overlay draws them with a
+    `TextPainter` aligned to the paragraph's glyph box.
+  - The motion maths (liveness near the reading line, the pop spring, hits)
+    is pure and tested, in `kinetic.dart`.
+  - Kinetic and Still lay out identically, because the spaces beside a
+    stressed word are widened by `Kinetic.stressRoom` in both. A test checks
+    this. **Never animate anything that changes layout.**
 - **`MarkedText`** builds the styled span shared by the prompter and the
-  editor. Stress is larger, bold and amber; energy runs are coral and open
-  with a bolt; pace runs are tinted and open with a labelled arrow; pauses
-  and breaths are icons after their word. It also records each token's
-  character offset and each cue's range, for measuring and tap hit-testing.
+  editor.
+  - Stress (`StressStyle`) is amber, bold and 1.15× on the stage. In the
+    Studio it is ink at weight 700, and the page paints a marker swipe behind
+    it (`stressRanges`).
+  - Energy runs are coloured and open with a bolt.
+  - Pace runs are tinted and open with a labelled arrow.
+  - Pauses and breaths are icons after their word.
+  - It records each token's character offset and each cue's range, for
+    measuring and tap hit-testing.
 
 ### Right-to-left gotcha
 
@@ -147,7 +200,7 @@ library subtitle does.
   `<documents>/SpawnAlpha/scripts/`, written to a temp file and renamed.
   `ScriptLibrary` is the in-memory list the screens listen to.
 - `Settings`: `<documents>/SpawnAlpha/settings.json` holds the markup source,
-  model, default style, text size and mirror setting. The Claude API key
+  model, default style, text size, mirror and kinetic settings. The Claude API key
   lives in `flutter_secure_storage` (Keychain, Keystore or Windows
   Credential Manager), never in the JSON file.
 - Takes (recordings) go to `<documents>/SpawnAlpha/recordings/`, and their
@@ -163,20 +216,37 @@ recordings folder.
 - **EditorScreen**: a title, a style picker and a language picker (the
   language is detected from the first words typed). It has two tabs:
   - **Write** is the text, remapping marks on every edit.
-  - **Marks** runs the markup, shows faded pending marks, has Accept all and
-    Discard, opens a `MarkSheet` when a word is tapped (accept, change kind,
-    remove, add), and lists suggestion cards (Apply or Dismiss).
+  - **Marks** runs the markup and shows the script as a **`ScriptPage`**
+    (`ui/script_page.dart`). One render object lays out the text and the
+    director's notes, and paints the marker swipes:
+    - notes sit in a trailing margin (the left side for Arabic), level with
+      their lines;
+    - a note that can't sit near its line is left to the word sheet;
+    - the margin folds away below 640px;
+    - after a markup run, the director's pass animates `reveal` from 0 to 1:
+      markers swipe in and notes write on, with no reflow.
+
+    The tab also has the pending banner (Accept all, Discard), a `MarkSheet`
+    when a word is tapped (accept, change kind, remove, add; notes in the
+    pencil face), and suggestion cards (Apply or Dismiss).
 
   Changes autosave after 600 ms. Before opening the prompter or the
   recorder, the editor asks what to do with pending marks.
 - **PrompterScreen**: the practice prompter with controls. Keyboard: Space
   plays or pauses; Up and Down change speed (timed) or move a line
-  (manual); Left and Right move a sentence; T switches mode; Home returns to
-  the start; M mirrors; + and − change the text size.
-- **RecordScreen**: the camera preview with the prompter over its top 45%
-  (near the lens). A 3-2-1 countdown starts the recording and the timed
-  scroll together; the take stops when the script ends or on Space. Each
-  take is saved and added to the script. On mobile, the camera is released
-  when the app goes to the background.
+  (manual); Left and Right move a sentence; T switches mode; K switches
+  Kinetic and Still; Home returns to the start; M mirrors; + and − change
+  the text size.
+- **RecordScreen**: the camera preview with the prompter as a glass panel
+  under the lens (top centre, at most 720px wide).
+  - A 3-2-1 countdown (`CountdownNumeral`: the display face lands wide and
+    settles on the pop spring) starts the recording and the timed scroll
+    together.
+  - The take stops when the script ends or on Space. Each take is saved and
+    added to the script.
+  - Controls: a glass timecode pill, and the take number, `RecordButton`
+    and camera flip in one row (`ui/recording_widgets.dart`).
+  - On mobile, the camera is released when the app goes to the background.
 - **SettingsScreen**: the markup source, API key, model, default style, text
-  size and mirror setting.
+  size and mirror setting, plus **Privacy and licences**: what leaves the
+  device, and the licence page (`showLicensePage`).
