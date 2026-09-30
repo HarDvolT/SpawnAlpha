@@ -7,7 +7,7 @@ Last updated: 2026-09-30
 **Build step 1 of 7 (script markup and coached prompter): code complete, with design language
 v2 applied. The owner has tested builds #1 and #2 on Windows: build #2 records with sound. The
 prompter's guide choice (Dot, Underline, Spotlight, Off) and motion choice (Line step, Smooth)
-from design v3 are now in the app (build #3), waiting for the owner's retest. The rest of v3 (a
+from design v3 are now in the app (build #4), waiting for the owner's retest. The rest of v3 (a
 new Home, the Windows record set-up) is designed as live demos.** The build order is in
 [product-brief.md](product-brief.md#build-order); it was revised on 2026-09-30.
 
@@ -15,7 +15,7 @@ The owner's first test on Windows (build #1) found: no microphone permission pro
 sound in takes; a prompter that scrolled away from the word being read; effects that were too
 weak and generic; a generic first screen; and no screen recording yet. Build #2 fixes the first
 two (see the session log). The owner confirmed the sound works in build #2, and asked for the
-guide choice in the app, which build #3 adds. The rest is design v3 and build step 2.
+guide choice in the app, which build #4 adds. The rest is design v3 and build step 2.
 
 | Area | State |
 |---|---|
@@ -27,7 +27,7 @@ guide choice in the app, which build #3 adds. The rest is design v3 and build st
 | Delivery timeline, prompter controller, scroll maths | Done, tested |
 | Prompter widget: cues, reading line, pause badge, pace bars, mirror, RTL | Done, tested (widget tests plus rendered screenshots) |
 | Voice pacing (moves while you speak, level-based), line-step motion | Done, tested. Tried by the owner on Windows (build #2) |
-| Guide choice (bouncing Dot, Underline, Spotlight, Off; G key) and motion choice (Line step, Smooth) in the prompter's control bar, kept in settings | Done, tested (unit tests of the dot's path, widget tests, screenshots in EN and AR). **Needs the owner's retest (build #3).** One phrase motion is not built yet |
+| Guide choice (bouncing Dot, Underline, Spotlight, Off; G key) and motion choice (Line step, Smooth) in the prompter's control bar, kept in settings | Done, tested (unit tests of the dot's path, widget tests, screenshots in EN and AR). **Needs the owner's retest (build #4).** One phrase motion is not built yet |
 | Editor: write, style and language, markup, review marks and suggestions | Done, tested (widget test of the main flow) |
 | Practice prompter screen with keyboard shortcuts | Done |
 | Camera recording screen (countdown, prompter overlay, saves takes) | Works on Windows (owner, build #2), with sound. Android not yet tried |
@@ -46,14 +46,14 @@ guide choice in the app, which build #3 adds. The rest is design v3 and build st
 ## Next steps
 
 1. ~~Get the owner's answer on the roadmap.~~ Done 2026-09-30: approved (see Decisions).
-2. **The owner tries build #3 on Windows** (the latest green Build run): the Guide row in
+2. **The owner tries build #4 on Windows** (Build run #4, <https://github.com/HarDvolT/SpawnAlpha/actions/runs/36784760155>): the Guide row in
    the prompter's control bar (Dot, Underline, Spotlight, Off, or the G key) and Motion
    (Line step, Smooth), in practice and on the record screen, and says which to keep as
    defaults and what to change about the dot. Build #2 retest: sound works (owner,
    2026-09-30).
 3. **The owner tries the design v3 demos** in the artifact (Home, Prompter, RecordSetup).
    Then build the rest of v3 into the app:
-   - ~~the guide choice with the bouncing dot, and Line step or Smooth~~ (build #3);
+   - ~~the guide choice with the bouncing dot, and Line step or Smooth~~ (build #4);
      still to do: the One phrase motion, and the stronger kinetic cues (punch and slam,
      lean, float, wait);
    - the Home screen (director's desk) replacing the library as the start screen;
