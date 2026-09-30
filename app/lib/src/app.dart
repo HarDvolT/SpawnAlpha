@@ -6,7 +6,7 @@ import 'recording/audio_input.dart';
 import 'storage/script_store.dart';
 import 'theme/theme.dart';
 import 'storage/settings.dart';
-import 'ui/library_screen.dart';
+import 'ui/home_screen.dart';
 
 /// The app's shared services, available to every screen through
 /// [AppScope.of].
@@ -50,7 +50,7 @@ class SpawnAlphaApp extends StatelessWidget {
         debugShowCheckedModeBanner: false,
         theme: buildTheme(Brightness.light),
         darkTheme: buildTheme(Brightness.dark),
-        home: const LibraryScreen(),
+        home: const HomeScreen(),
       ),
     );
   }

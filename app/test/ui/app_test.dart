@@ -35,9 +35,10 @@ void main() {
     await tester.tap(find.textContaining('Add sample scripts'));
     await tester.pumpAndSettle();
     expect(app.library.scripts, hasLength(3));
-    expect(find.text('Sample: quarterly update'), findsOneWidget);
+    // On the Home screen: in the Record next hero, and as a page.
+    expect(find.text('Sample: quarterly update'), findsWidgets);
 
-    await tester.tap(find.text('Sample: quarterly update'));
+    await tester.tap(find.text('Sample: quarterly update').last);
     await tester.pumpAndSettle();
     expect(find.text('Mark up with on-device coach'), findsOneWidget);
 

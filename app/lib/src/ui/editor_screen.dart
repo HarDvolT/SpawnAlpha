@@ -18,6 +18,7 @@ import 'prompter_screen.dart';
 import 'script_page.dart';
 import 'record_screen.dart';
 import 'settings_screen.dart';
+import 'stage_launch.dart';
 
 /// Write a script, choose its style and language, run the markup, and
 /// review the marks and suggestions.
@@ -30,7 +31,6 @@ class EditorScreen extends StatefulWidget {
   State<EditorScreen> createState() => _EditorScreenState();
 }
 
-enum _PendingChoice { acceptAll, skip }
 
 class _EditorScreenState extends State<EditorScreen> with TickerProviderStateMixin {
   late ScriptDocument _script = widget.script;
@@ -184,35 +184,9 @@ class _EditorScreenState extends State<EditorScreen> with TickerProviderStateMix
       showMessage(context, 'Write or paste a script first.');
       return;
     }
-    var script = _script;
-    if (script.pendingCount > 0) {
-      final choice = await showDialog<_PendingChoice>(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('Review the suggested marks?'),
-          content: Text(
-            '${script.pendingCount} suggested marks have not been reviewed. '
-            'The prompter only shows marks you accept.',
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-            TextButton(
-              onPressed: () => Navigator.pop(context, _PendingChoice.skip),
-              child: const Text('Leave them out'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.pop(context, _PendingChoice.acceptAll),
-              child: const Text('Accept all'),
-            ),
-          ],
-        ),
-      );
-      if (choice == null || !mounted) return;
-      if (choice == _PendingChoice.acceptAll) {
-        script = script.acceptAllMarks();
-        _update(script);
-      }
-    }
+    final script = await reviewBeforeStage(context, _script);
+    if (script == null || !mounted) return;
+    if (!identical(script, _script)) _update(script);
     _saveNow();
     await Navigator.of(context).push<void>(MaterialPageRoute(
       builder: (_) => record ? RecordScreen(script: script) : PrompterScreen(script: script),

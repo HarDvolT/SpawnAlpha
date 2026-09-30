@@ -31,6 +31,7 @@ import 'package:spawnalpha/src/storage/script_store.dart';
 import 'package:spawnalpha/src/storage/settings.dart';
 import 'package:spawnalpha/src/theme/theme.dart';
 import 'package:spawnalpha/src/ui/editor_screen.dart';
+import 'package:spawnalpha/src/ui/home_screen.dart';
 import 'package:spawnalpha/src/ui/library_screen.dart';
 import 'package:spawnalpha/src/ui/settings_screen.dart';
 import 'package:spawnalpha/src/ui/prompter_screen.dart';
@@ -151,6 +152,37 @@ void main() {
 
   const phone = Size(430, 900);
   const desktop = Size(1280, 800);
+
+  // The Home screen: a director's desk, with scripts marked up and a few takes.
+  Future<List<ScriptDocument>> desk() async {
+    final now = DateTime.now();
+    final scripts = [for (final s in sampleScripts()) await _markedUp(s)];
+    return [
+      scripts[0].copyWith(takes: [
+        Take(path: 'take1.mp4', recordedAt: now.subtract(const Duration(days: 2)), duration: const Duration(seconds: 40)),
+        Take(path: 'take2.mp4', recordedAt: now.subtract(const Duration(hours: 3)), duration: const Duration(seconds: 36)),
+      ]),
+      scripts[1].copyWith(takes: [
+        Take(path: 'take3.mp4', recordedAt: now.subtract(const Duration(days: 1)), duration: const Duration(minutes: 1, seconds: 12)),
+      ]),
+      scripts[2],
+    ];
+  }
+
+  for (final (name, size, brightness) in [
+    ('home', desktop, Brightness.light),
+    ('home-dark', desktop, Brightness.dark),
+    ('home-phone', phone, Brightness.light),
+  ]) {
+    testWidgets('home ($name)', (tester) async {
+      final scripts = await desk();
+      await shoot(tester, name, size, (_) => const HomeScreen(), scripts, brightness: brightness);
+    });
+  }
+
+  testWidgets('home, first run', (tester) async {
+    await shoot(tester, 'home-empty', phone, (_) => const HomeScreen(), []);
+  });
 
   testWidgets('library', (tester) async {
     await shoot(tester, 'library', phone, (_) => const LibraryScreen(), sampleScripts());

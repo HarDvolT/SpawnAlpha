@@ -64,8 +64,10 @@ app/                   the Flutter app (package name: spawnalpha)
   dependency.
 - **Seeing the UI without a device:** `flutter test tool/screenshots_test.dart --update-goldens`
   renders every main screen to `app/tool/screenshots/*.png` (git-ignored):
-  - the library, the editor (desktop, dark and phone), the mark sheet and settings;
-  - the prompter (kinetic in a hold, and still);
+  - Home (desktop, dark, phone and first run), the library, the editor (desktop, dark and
+    phone), the mark sheet and settings;
+  - the prompter (kinetic in a hold, still, each guide, One phrase, and the dot acting out
+    each cue);
   - the record screen and the countdown;
 
   for all three sample scripts, with the bundled fonts, including Arabic.
