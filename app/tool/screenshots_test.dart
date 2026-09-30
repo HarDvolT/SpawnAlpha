@@ -61,6 +61,8 @@ Future<void> _loadFonts() async {
 }
 
 /// No camera in a container: the record screen shows its chrome and says so.
+// This file runs under `flutter test`, but lives in tool/ rather than test/.
+// ignore: invalid_use_of_visible_for_testing_member
 class _NoCameras extends CameraPlatform with MockPlatformInterfaceMixin {
   @override
   Future<List<CameraDescription>> availableCameras() async => [];
