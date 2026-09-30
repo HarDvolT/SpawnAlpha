@@ -1,0 +1,59 @@
+name: Set up Flutter
+description: >-
+  Installs the Flutter SDK version the project pins from the official release
+  archive, checks it against the published SHA-256, and caches it. No
+  third-party action is involved.
+inputs:
+  version:
+    description: Flutter stable release, for example 3.47.5.
+    required: true
+runs:
+  using: composite
+  steps:
+    - name: Restore the Flutter SDK
+      id: cache
+      uses: actions/cache@v4
+      with:
+        path: ${{ runner.tool_cache }}/flutter-${{ inputs.version }}
+        key: flutter-${{ runner.os }}-${{ inputs.version }}
+
+    - name: Download and verify the Flutter SDK
+      if: steps.cache.outputs.cache-hit != 'true'
+      shell: bash
+      env:
+        VERSION: ${{ inputs.version }}
+        TARGET: ${{ runner.tool_cache }}/flutter-${{ inputs.version }}
+      run: |
+        set -euo pipefail
+        base=https://storage.googleapis.com/flutter_infra_release/releases
+        case "$RUNNER_OS" in
+          Linux) os=linux; ext=tar.xz ;;
+          Windows) os=windows; ext=zip ;;
+          macOS) os=macos; ext=zip ;;
+        esac
+        archive="stable/$os/flutter_${os}_${VERSION}-stable.$ext"
+        cd "$RUNNER_TEMP"
+        curl -sSfL "$base/releases_$os.json" -o releases.json
+        curl -sSfL "$base/$archive" -o "flutter.$ext"
+        py=$(command -v python3 || command -v python)
+        expected=$("$py" -c "import json,sys; r=json.load(open('releases.json')); print(next(x['sha256'] for x in r['releases'] if x['archive']==sys.argv[1]))" "$archive")
+        actual=$(sha256sum "flutter.$ext" | cut -d' ' -f1)
+        if [ "$expected" != "$actual" ]; then
+          echo "::error::Flutter archive checksum mismatch ($actual, expected $expected)"
+          exit 1
+        fi
+        mkdir -p unpacked
+        if [ "$ext" = "tar.xz" ]; then tar -xJf "flutter.$ext" -C unpacked; else 7z x "flutter.$ext" -ounpacked > /dev/null; fi
+        mkdir -p "$(dirname "$TARGET")"
+        mv unpacked/flutter "$TARGET"
+
+    - name: Put Flutter on the path
+      shell: bash
+      run: echo "${{ runner.tool_cache }}/flutter-${{ inputs.version }}/bin" >> "$GITHUB_PATH"
+
+    - name: Turn analytics off and print the version
+      shell: bash
+      run: |
+        flutter="${{ runner.tool_cache }}/flutter-${{ inputs.version }}/bin/flutter"
+        "$flutter" config --no-analytics
+        "$flutter" --version

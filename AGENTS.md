@@ -53,6 +53,14 @@ app/                   the Flutter app (package name: spawnalpha)
   tar xf flutter.tar.xz && export PATH="$PWD/flutter/bin:$PATH"
   git config --global --add safe.directory '*'
   ```
+- **CI:** `.github/workflows/build.yml` runs on every push to `app/` or `.github/`:
+  - `flutter analyze` and `flutter test`;
+  - then a Windows build and an Android APK, uploaded as run artifacts (test builds only).
+
+  Flutter comes from the official release archive, checked against its published SHA-256
+  (`.github/actions/setup-flutter`). Keep `FLUTTER_VERSION` in the workflow equal to the
+  version above. Don't add third-party actions without checking them like any other
+  dependency.
 - **Seeing the UI without a device:** `flutter test tool/screenshots_test.dart --update-goldens`
   renders every main screen to `app/tool/screenshots/*.png` (git-ignored):
   - the library, the editor (desktop, dark and phone), the mark sheet and settings;
