@@ -4,8 +4,9 @@ Last updated: 2026-09-30
 
 ## Where we are
 
-**Build step 1 of 4 (script markup and coached prompter): code complete, not yet run on a real
-device.** (The build order is in [product-brief.md](product-brief.md#build-order).)
+**Build step 1 of 7 (script markup and coached prompter): code complete, not yet run on a real
+device. Now applying design language v2 to the app.** The build order is in
+[product-brief.md](product-brief.md#build-order); it was revised on 2026-09-30.
 
 | Area | State |
 |---|---|
@@ -28,9 +29,7 @@ device.** (The build order is in [product-brief.md](product-brief.md#build-order
 
 ## Next steps
 
-1. **Get the owner's answer on [roadmap.md](roadmap.md)** (move Windows screen recording
-   up, make the Director's Cut the core promise). Then update the brief's build order to
-   match.
+1. ~~Get the owner's answer on the roadmap.~~ Done 2026-09-30: approved (see Decisions).
 2. **Apply design language v2 to the app** (`docs/design-language.md`):
    - the tokens as a Flutter theme: `ColorScheme`, `CueColors`, stage and glass colours,
      `Springs` as `SpringDescription`s;
@@ -62,15 +61,14 @@ device.** (The build order is in [product-brief.md](product-brief.md#build-order
 5. Polish found while testing: an in-app list of takes with playback (needs a
    video player that supports Windows), and an easier way to extend a pace or
    energy span beyond one sentence.
-6. Then the next build step:
-   - If the owner approves the roadmap, it is the **Windows recorder** (screen, camera,
-     both, with the hidden prompter, HUD, cursor companion and telemetry).
-   - Otherwise it is the brief's **step 2, the delivery review**: whisper.cpp
-     transcription with word timings, aligned to the script tokens. The `Take` records
-     already point at the files.
+6. Then **build step 2, the Windows recorder**:
+   - Camera, Screen, and Screen + camera.
+   - The prompter window, HUD and cursor companion, all hidden from capture.
+   - Cursor, click and key-burst telemetry.
+   - Fragmented MP4.
+   - A spike of the render core for the Director's Cut.
 
-   Either way, the word alignment is shared by the review and the Director's Cut. See
-   OpenScreen in the brief for reusable parts.
+   See OpenScreen in the brief for reusable parts.
 
 ## Decisions
 
@@ -96,6 +94,13 @@ device.** (The build order is in [product-brief.md](product-brief.md#build-order
     companion), never with the camera on. The Director's Cut edits the take automatically,
     from the script, the cues and screen telemetry. Proposed, not yet approved as the build
     order: [roadmap.md](roadmap.md).
+- 2026-09-30, **owner's decisions on [roadmap.md](roadmap.md)**:
+  - **Build order:** the Windows recorder comes next (step 2), then word timing, the
+    Director's Cut v1, the delivery review and retakes, voice-follow, and mobile parity.
+    The brief was updated to match.
+  - **Core promise:** "Finished when you stop" (the Director's Cut) is the core promise.
+  - **Cursor companion:** allowed with the camera on, but docked by default. Following
+    on camera needs a one-time warning, and then shows an "Eyes to the lens" reminder.
 - 2026-09-30: The Flutter app lives in `app/`, leaving the repo root free for docs and any
   later backend.
 - 2026-09-30: Marks are anchored to token indices, not character offsets or inline tags. Text
@@ -119,9 +124,6 @@ device.** (The build order is in [product-brief.md](product-brief.md#build-order
 
 ## Open questions (from the brief)
 
-- Should screen recording on Windows (build step 4 in the brief) move up, before the delivery
-  review? It is now a core mode of the recorder. **Proposed: yes**, as step 2 (see
-  [roadmap.md](roadmap.md)).
 - Which render core should the Director's Cut use (native encoders or an LGPL FFmpeg, GPU
   compositing, through FFI)? Spike it early.
 - How good is word alignment for Moroccan Darija and Darija–French switching? The review and

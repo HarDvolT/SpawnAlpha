@@ -51,14 +51,17 @@ Stopping never loses a take: files are written as fragmented MP4, so a crash kee
 - During the countdown only, the recorded area gets a 2px `rec` frame so the speaker sees exactly what will be captured. The frame is excluded from capture and fades out at "go".
 - Source picker: displays and windows as live thumbnails with their names. A window keeps being recorded if it moves.
 
-### The cursor companion (Screen only)
+### The cursor companion
 - **What it is:** a third placement for the Prompter window, set with **Companion** in the HUD. The prompter becomes a small glass card that rides beside the cursor, so a demo can be read without looking away from the work.
 - **Where it sits:**
   - It trails the pointer on `spring-follow`, on the side the pointer is not heading to.
   - It flips away from edges.
   - It docks under the lens after 2s of stillness.
 - **Visibility:** it is hidden from capture like every prompter window, and the "The recording sees" preview proves it.
-- **Camera on:** it is **disabled while a camera is recording**. It stays docked under the lens with the note: "Following is off while the camera is on." A speaker whose eyes chase the mouse looks shifty on camera. This is a deliberate limit, not a missing feature.
+- **Camera on:** with a camera recording, it is **docked under the lens by default**, because a speaker whose eyes chase the mouse looks shifty on camera.
+  - The card offers **Follow anyway**. The first time, a warning explains the eye-contact cost, with Keep docked as the default button and Follow anyway as the other.
+  - The choice is remembered.
+  - While following on camera, the card carries an "Eyes to the lens" reminder.
 
 ### Screen + camera, on a desktop
 - Everything in Screen mode, plus a **camera bubble** (`radius-full`) the speaker can see. The bubble is a preview only and is excluded from capture, because the camera is recorded to its own file.

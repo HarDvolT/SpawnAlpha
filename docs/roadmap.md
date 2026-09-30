@@ -1,8 +1,11 @@
 # Roadmap and product direction
 
-**Status: proposed 2026-09-30, waiting for the owner's decision.** Until the owner decides,
-the build order in [product-brief.md](product-brief.md#build-order) still stands. The
-design for this direction is already in [design/](design/), with the auto-edit in
+**Status: approved by the owner on 2026-09-30.**
+- The build order below is now the brief's build order.
+- The Director's Cut is the core promise.
+- The cursor companion may follow the mouse with the camera on, after a one-time warning.
+
+The design is in [design/](design/), with the auto-edit in
 [design/autoedit.md](design/autoedit.md).
 
 ## The direction: "finished when you stop"
@@ -29,8 +32,9 @@ saying plainly.
 1. **"The prompter follows the mouse."**
    - This is right for screen-only recording. There it became the **cursor companion**: a
      small glass prompter beside the cursor that docks under the lens when you stop moving.
-   - It is **wrong on camera**: eyes that chase the mouse look shifty. So it is disabled
-     whenever a camera is recording, and the app says why.
+   - It is **risky on camera**: eyes that chase the mouse look shifty. **Owner's decision:**
+     it is allowed with the camera on, but docked by default. Turning it on shows a
+     one-time warning, and the card then carries an "eyes to the lens" reminder.
 2. **"Animated text popups and growth."**
    - The big pops belong in the **captions** viewers see (the Cut).
    - On the prompter, motion must stay subtle, because the speaker is reading. The **kinetic
@@ -79,12 +83,14 @@ saying plainly.
 | 6 | **Voice-follow scrolling** | Uses the same recogniser, running live |
 | 7 | **Mobile parity**: Android screen (single-app), iOS companion prompter, face reframing | Platform limits make these slower |
 
-## Decisions needed from the owner
+## Owner's decisions (2026-09-30)
 
-- Move Windows screen recording up to step 2, before the delivery review?
-- Make "finished when you stop" (the Director's Cut) the core promise?
-- Accept that the cursor companion is screen-only?
-- Render core: agree to spike it during step 2, so the risk is known early.
+- The Windows recorder comes next, as step 2. **Yes.**
+- "Finished when you stop" (the Director's Cut) is the core promise. **Yes.**
+- The cursor companion is allowed with the camera, with a warning. It stays docked by
+  default when a camera is recording.
+- The next work in the app is to apply design v2.
+- Still open: the render core. Spike it during step 2, so the risk is known early.
 
 ## Fonts (design v2)
 

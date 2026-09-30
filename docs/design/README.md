@@ -12,7 +12,7 @@ This system covers every surface: the **Studio** where scripts are written and r
 2. **Finished when you stop.** The Director's Cut is ready the moment a take ends. Every automatic change is listed, can be undone, and is never hidden. If the edit is unsure, it asks one clear question instead of guessing.
 3. **Every cue has a shape and a motion.** A cue is known at a glance by its glyph and at the corner of the eye by its signature motion. Colour comes third. A cue is never marked by colour alone.
 4. **Motion you can read.** Everything that moves carries meaning: the scroll carries time, a glyph's motion says what to do with your voice, a number that rolls shows what changed. Nothing moves for decoration.
-5. **Eyes on the lens.** The reading line and a narrow column sit as close to the camera as the device allows. Anything that would pull your eyes away (such as a prompter chasing the mouse) is off while the camera is on.
+5. **Eyes on the lens.** The reading line and a narrow column sit as close to the camera as the device allows. Anything that would pull your eyes away from the lens, such as a prompter chasing the mouse, is docked by default while the camera is on. You can turn it on only after a one-time warning.
 6. **The AI proposes, you decide.** Proposals are drawn faded until you accept them. The script is never rewritten silently.
 7. **Three languages, one system.** English, French and Arabic are first-class. Right to left mirrors layout and placement, never the meaning of a cue.
 
@@ -147,7 +147,7 @@ The type system has four voices, and each has one job.
 ## States
 
 - **Hover** lifts the fill 4% toward `ink`. **Pressed** is 8% with a spring press.
-- **Disabled** is 38% opacity. Never hide a control that exists but can't be used right now; say why beside it, as the cursor companion does when the camera is on.
+- **Disabled** is 38% opacity. Never hide a control that exists but can't be used right now; say why beside it.
 - **Selected word** in the editor has `tint-select` behind it while its sheet is open.
 - **Cue states:** pending is half strength; accepted is full; removed fades out.
 - **Recording** shows the `rec` tally and a running timecode. Nothing else changes colour.

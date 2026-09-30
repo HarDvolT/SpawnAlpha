@@ -1,4 +1,4 @@
-<!-- @dsCard group="Recording" height=570 subtitle="Screen-only: the prompter rides next to the cursor, docks under the lens when you stop, and is never recorded" -->
+<!-- @dsCard group="Recording" height=570 subtitle="The prompter rides next to the cursor, docks under the lens when you stop, and is never recorded. On camera it warns first" -->
 <!doctype html>
 <html>
 <head><meta charset="utf-8"><title>Cursor companion — preview</title>
@@ -53,7 +53,19 @@
   .rec-only .rec-banner { display: inline-flex; }
   .note { max-width: 760px; margin-top: 10px; display: flex; gap: 8px; align-items: flex-start; font-size: 13px; line-height: 18px; color: var(--ink-2); }
   .note .sa-i { color: var(--cue-pause); font-size: 18px; }
-  @media (prefers-reduced-motion: reduce) { .lines .roll, .comp { transition: none; } }
+  .remind { display: none; align-items: center; gap: 4px; margin: -2px 0 4px; font-family: var(--font-signal); font-size: 9px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--stage-stress); }
+  .remind .sa-i { font-size: 13px; }
+  .comp.oncam .remind { display: flex; }
+  .note .sa-btn { margin-left: auto; height: 30px; font-size: 12px; flex: none; }
+  .warn { position: absolute; left: 50%; top: 50%; width: min(360px, 86%); transform: translate(-50%, -46%) scale(0.96); opacity: 0; pointer-events: none; z-index: 9; padding: 16px 18px; border-radius: var(--radius-lg); transition: opacity 160ms var(--ease-standard), transform 320ms cubic-bezier(0.34, 1.56, 0.64, 1); }
+  .warn.on { opacity: 1; transform: translate(-50%, -50%); pointer-events: auto; }
+  .warn h3 { margin: 0 0 6px; font-size: 15px; line-height: 20px; color: var(--stage-text); }
+  .warn p { margin: 0 0 14px; font-size: 13px; line-height: 18px; }
+  .warn .row { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
+  .warn .sa-btn { height: 34px; font-size: 13px; }
+  .warn .ghost { background: transparent; color: var(--stage-chrome-text); border-color: #ffffff33; }
+  .warn .solid { background: var(--stage-text); color: #15171c; border-color: var(--stage-text); }
+  @media (prefers-reduced-motion: reduce) { .lines .roll, .comp, .warn { transition: none; } }
 </style>
 </head>
 <body class="sa">
@@ -82,11 +94,13 @@
   <div class="comp sa-glass" id="comp">
     <div class="head"><span class="sa-tally" style="width:7px;height:7px"></span><span class="sa-signal" id="state">Following</span><span class="grow"></span>
       <svg class="ring" viewBox="0 0 24 24"><circle class="track" cx="12" cy="12" r="9"></circle><circle id="ring" cx="12" cy="12" r="9" stroke-dasharray="56.55" stroke-dashoffset="56.55"></circle></svg></div>
+    <div class="remind"><span class="sa-i">visibility</span>Eyes to the lens</div>
     <div class="lines"><div class="roll sa-stage" id="roll" style="background:transparent;overflow:visible"></div></div>
   </div>
+  <div class="warn sa-glass" id="warn" role="dialog" aria-labelledby="warnT"><h3 id="warnT">Follow the mouse on camera?</h3><p>Viewers will see your eyes move with the cursor, which can look like you are reading or distracted. Docked under the lens, your eyes stay on the camera.</p><div class="row"><button class="sa-btn ghost" id="warnFollow">Follow anyway</button><button class="sa-btn solid" id="warnKeep">Keep docked</button></div></div>
   <span class="rec-banner sa-glass"><span class="sa-hidden-tag"><span class="sa-i">visibility_off</span>Companion hidden from capture</span></span>
 </div>
-<div class="note" id="note"><span class="sa-i">info</span><span id="noteText">Screen only: the script rides beside your cursor, so your eyes never leave the work. Stop moving for two seconds and it docks under the lens.</span></div>
+<div class="note" id="note"><span class="sa-i">info</span><span id="noteText">Screen only: the script rides beside your cursor, so your eyes never leave the work. Stop moving for two seconds and it docks under the lens.</span><button class="sa-btn" id="followBtn" hidden>Follow anyway</button></div>
 <script>
 (function () {
   // Script lines. *x* stress, | pause, || long pause, ~ breath, [f ... ] a faster run.
@@ -117,7 +131,7 @@
   var PATH = [[0, .30, .74], [1.2, .31, .13, 1], [2.8, .34, .31, 1], [3.9, .34, .43, 1], [5.4, .88, .31, 1], [9.2, .88, .31], [10.4, .52, .86], [11.8, .30, .74], [TOTAL / 1000, .30, .74]];
   var desk = document.getElementById('desk'), comp = document.getElementById('comp'), cursorEl = document.getElementById('cursor');
   var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  var view = 'you', cam = 'off', real = null, realAt = -1e9, t0 = performance.now(), prev = t0;
+  var view = 'you', cam = 'off', camFollow = false, warned = false, real = null, realAt = -1e9, t0 = performance.now(), prev = t0;
   var p = { x: 0, y: 0, vx: 0, vy: 0 }, c = { x: .3, y: .74 }, lastMoveAt = 0, side = 1, lastC = null, velX = 0, fired = {}, placed = false;
 
   function ease(k) { return k < .5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2; }
@@ -150,7 +164,7 @@
     }
 
     // Where the companion wants to be.
-    var cw = comp.offsetWidth, ch = comp.offsetHeight, idle = now - lastMoveAt > 2000 || cam === 'on', tx, ty;
+    var cw = comp.offsetWidth, ch = comp.offsetHeight, idle = now - lastMoveAt > 2000 || (cam === 'on' && !camFollow), tx, ty;
     if (idle) {
       // Docked: centred just under the lens, so your eyes sit where the camera is.
       tx = W / 2 - cw / 2; ty = 20;
@@ -171,7 +185,8 @@
     }
     comp.style.transform = 'translate(' + p.x.toFixed(1) + 'px,' + p.y.toFixed(1) + 'px)';
     comp.classList.toggle('docked', idle);
-    document.getElementById('state').textContent = cam === 'on' ? 'Under the lens' : idle ? 'Docked' : 'Following';
+    document.getElementById('state').textContent = cam === 'on' && !camFollow ? 'Under the lens' : idle ? 'Docked' : 'Following';
+    comp.classList.toggle('oncam', cam === 'on' && camFollow);
     document.getElementById('dockline').style.height = idle ? '10px' : '0';
 
     // The script moves on at the delivery pace; read words dim, the line rolls up.
@@ -190,11 +205,26 @@
   });
   var NOTES = {
     off: 'Screen only: the script rides beside your cursor, so your eyes never leave the work. Stop moving for two seconds and it docks under the lens.',
-    on: 'Camera on: following is off. Eyes that chase the mouse look shifty on camera, so the companion stays docked under the lens and the scroll does the moving.'
+    on: 'Camera on: the companion starts docked under the lens, because eyes that chase the mouse look shifty on camera. You can still follow, after one warning.',
+    follow: 'Camera on, following: the card reminds you to bring your eyes back to the lens, and still docks when you stop moving.'
   };
+  var warn = document.getElementById('warn'), followBtn = document.getElementById('followBtn'), noteText = document.getElementById('noteText');
+  function sync() {
+    noteText.textContent = cam === 'off' ? NOTES.off : camFollow ? NOTES.follow : NOTES.on;
+    followBtn.hidden = cam === 'off';
+    followBtn.textContent = camFollow ? 'Keep docked' : 'Follow anyway';
+  }
   Array.prototype.slice.call(document.querySelectorAll('[data-cam]')).forEach(function (b) {
-    b.onclick = function () { cam = b.getAttribute('data-cam'); pick('[data-cam]', b); document.getElementById('lens').classList.toggle('live', cam === 'on'); document.getElementById('noteText').textContent = NOTES[cam]; };
+    b.onclick = function () { cam = b.getAttribute('data-cam'); pick('[data-cam]', b); document.getElementById('lens').classList.toggle('live', cam === 'on'); warn.classList.remove('on'); sync(); };
   });
+  // The warning shows once; after that the choice is remembered and the button just toggles.
+  followBtn.onclick = function () {
+    if (camFollow) { camFollow = false; sync(); return; }
+    if (warned) { camFollow = true; sync(); return; }
+    warn.classList.add('on'); document.getElementById('warnKeep').focus();
+  };
+  document.getElementById('warnKeep').onclick = function () { warned = true; warn.classList.remove('on'); sync(); };
+  document.getElementById('warnFollow').onclick = function () { warned = true; camFollow = true; warn.classList.remove('on'); sync(); };
   (document.fonts ? document.fonts.ready : Promise.resolve()).then(function () { requestAnimationFrame(frame); });
 })();
 </script>

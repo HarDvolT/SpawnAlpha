@@ -16,5 +16,5 @@ The floating glass pill that controls a desktop recording.
 - **Type and colour:** the timer is `timecode` in the signal face, in `stage-text`. Stop's icon is `stage-rec`.
 - **Tally:** steady `stage-rec` with a soft glow. It never blinks, and becomes a hollow ring while paused.
 - **Meter:** the microphone meter is a 40 × 3px bar in `stage-chrome-text` that turns `warning` near clipping.
-- **Lock** makes the Prompter window click-through, and the global shortcuts (Ctrl+Shift+Space and friends) keep working. **Companion** switches the Prompter window to the cursor companion, in Screen mode only.
+- **Lock** makes the Prompter window click-through, and the global shortcuts (Ctrl+Shift+Space and friends) keep working. **Companion** switches the Prompter window to the cursor companion. With a camera on, it starts docked and warns before following.
 - **Don't** put the script, the countdown or notifications in the HUD.

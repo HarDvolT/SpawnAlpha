@@ -61,13 +61,27 @@ The app is for three kinds of speaker, and each script gets a coaching style tha
   - Script markup and review can also use a cloud model, for higher quality.
 - **Business model:** a free tier plus a subscription. The subscription is the natural home for the online AI, because it costs money per use.
 - **Name:** to be decided later. The repo is called SpawnAlpha for now.
+- **Core promise:** "finished when you stop". The Director's Cut edits every take automatically from the script, its cues and screen telemetry, so most takes publish without manual editing. Decided 2026-09-30; spec in [design/autoedit.md](design/autoedit.md).
 
 ## Build order
 
-1. **Script markup and coached prompter.** This includes timed or manual scroll and camera recording on mobile and Windows. It delivers the core value on its own.
-2. **Delivery review.** Transcription and analysis run on the recorded file after the fact, which is simpler than doing it in real time.
-3. **Voice-following scroll.** This needs real-time speech recognition on the device, so it's the hardest step.
-4. **Screen and webcam recording on desktop, plus section retakes** that are stitched back into the full recording.
+Revised 2026-09-30 by the owner. Screen recording moves up, and the automatic edit becomes the core promise. The reasons are in [roadmap.md](roadmap.md).
+
+1. **Script markup and coached prompter.** This includes timed or manual scroll and camera recording on mobile and Windows. It delivers the core value on its own. Then apply design language v2.
+2. **Windows recorder.**
+   - Camera, Screen, and Screen + camera.
+   - The prompter window, HUD and cursor companion, all hidden from capture.
+   - Cursor, click and key-burst telemetry for the edit.
+3. **Word timing.** Word-level transcription aligned to the script. The review, the Director's Cut, retakes and voice-follow all build on it.
+4. **Director's Cut v1.** The automatic edit, ready when you stop:
+   - trims that keep marked pauses, and filler removal;
+   - captions from the script;
+   - auto-zoom and a smooth cursor;
+   - 16:9 and 9:16 export;
+   - the finish screen.
+5. **Delivery review and section retakes.** The best take is chosen by how well it matches the script.
+6. **Voice-following scroll.** This needs real-time speech recognition on the device.
+7. **Mobile parity.** Android screen recording (single-app sharing), a companion prompter for iOS, and face reframing.
 
 ## Reference project: OpenScreen
 

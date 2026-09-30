@@ -118,7 +118,7 @@ Kinetic can be switched to **Still**, which keeps only the scroll and the holds.
 ### 10. The cursor companion
 - The companion trails the pointer on `spring-follow`, on the side the pointer is **not** heading towards, and flips away from screen edges.
 - After 2s without movement it docks under the lens and widens to three lines. It re-attaches on the next move.
-- With the camera on it stays docked and never follows.
+- With the camera on, it stays docked by default. If you turn following on (after the one-time warning), it follows, and it shows an "eyes to the lens" reminder under the header.
 
 ### 11. Finishing: the Director's Cut arrives
 - When you stop, the finish screen rises on `spring-smooth` and the edit **plays out in front of you** instead of behind a spinner:

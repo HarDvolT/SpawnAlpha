@@ -84,11 +84,14 @@ For beam-splitter teleprompter glass, Mirror flips the whole stage horizontally:
 
 ## The cursor companion (screen only)
 
-For screen recordings without a camera, the prompter can ride beside the mouse, so your eyes never leave the work. For the placement rules, see Recording.
+For screen recordings, the prompter can ride beside the mouse, so your eyes never leave the work. For the placement rules, see Recording.
 - **Shape:** a glass card, 300px wide, two lines of `stage-s`-sized text (16px on desktop). It has a tally, a state label (FOLLOWING, DOCKED) and a small hold ring.
 - **Movement:**
   - It trails the pointer on `spring-follow`, 26px to the side and 22px below.
   - It sits on the side the pointer is **not** heading to, and flips away from screen edges and upward near the bottom.
   - After 2s without movement it docks under the lens, widens to three lines, and re-attaches on the next move.
 - **Visibility:** it is always hidden from capture, like every prompter window.
-- **Camera on:** following is disabled, and the card stays docked under the lens with a note saying why. Eyes that follow the mouse look shifty on camera.
+- **Camera on:**
+  - The card stays docked under the lens by default, because eyes that follow the mouse look shifty on camera.
+  - **Follow anyway** turns following on after a one-time warning.
+  - While following on camera, the card shows an "Eyes to the lens" reminder, and docks after 2s of stillness as usual.
