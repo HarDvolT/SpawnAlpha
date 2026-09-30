@@ -9,6 +9,7 @@ import 'package:flutter/scheduler.dart';
 import '../model/mark.dart';
 import '../model/token.dart';
 import '../theme/theme.dart';
+import 'guide.dart';
 import 'kinetic.dart';
 import 'marked_text.dart';
 import 'prompter_controller.dart';
@@ -31,6 +32,8 @@ class PrompterView extends StatefulWidget {
     this.backgroundOpacity = 1,
     this.kinetic = true,
     this.glass = false,
+    this.guide = PrompterGuide.dot,
+    this.motion = PrompterMotion.lineStep,
   });
 
   final PrompterController controller;
@@ -56,6 +59,13 @@ class PrompterView extends StatefulWidget {
   /// only the scroll and the holds move.
   final bool kinetic;
 
+  /// How the word to say now is shown: a bouncing dot, an underline, a
+  /// spotlight, or nothing but the reading line.
+  final PrompterGuide guide;
+
+  /// Line step (the line being read stays still) or a smooth scroll.
+  final PrompterMotion motion;
+
   @override
   State<PrompterView> createState() => PrompterViewState();
 }
@@ -73,6 +83,10 @@ class PrompterViewState extends State<PrompterView> with SingleTickerProviderSta
   final _textKey = GlobalKey();
   late final Ticker _ticker;
   Duration _lastTick = Duration.zero;
+
+  /// Wall-clock seconds while the ticker runs, for motion that goes on
+  /// while the read-through waits (the dot bobbing for the voice).
+  double _clock = 0;
 
   MarkedText? _marked;
   Object? _markedKey;
@@ -133,6 +147,7 @@ class PrompterViewState extends State<PrompterView> with SingleTickerProviderSta
   void _onTick(Duration elapsed) {
     final delta = elapsed - _lastTick;
     _lastTick = elapsed;
+    _clock += delta.inMicroseconds / 1e6;
     _c.advance(delta);
     _scrollToController(glide: delta);
     _frame.value++;
@@ -145,7 +160,9 @@ class PrompterViewState extends State<PrompterView> with SingleTickerProviderSta
   void _scrollToController({bool animate = false, Duration? glide}) {
     final layout = _layout;
     if (layout == null || !_scroll.hasClients) return;
-    final y = layout.scrollYAt(_c.timeline, _c.position).clamp(0.0, _scroll.position.maxScrollExtent);
+    final y = layout
+        .scrollYAt(_c.timeline, _c.position, motion: widget.motion)
+        .clamp(0.0, _scroll.position.maxScrollExtent);
     if ((y - _scroll.offset).abs() < 0.5) return;
     _programmaticScroll = true;
     if (glide != null) {
@@ -257,6 +274,7 @@ class PrompterViewState extends State<PrompterView> with SingleTickerProviderSta
       style: _style,
       colors: _colors,
       textScaler: MediaQuery.textScalerOf(context),
+      rtl: _c.script.language.isRtl,
     );
     setState(() {
       _layoutKey = key;
@@ -290,7 +308,10 @@ class PrompterViewState extends State<PrompterView> with SingleTickerProviderSta
         layout: measured ? _layout : null,
         kinetic: measured ? _kineticLayout : null,
         effects: widget.kinetic,
+        guide: widget.guide,
+        calm: MediaQuery.disableAnimationsOf(context),
         rtl: isRtl,
+        clock: () => _clock,
         controller: _c,
         scroll: _scroll,
         origin: Offset(gutter, readingY),
@@ -324,7 +345,14 @@ class PrompterViewState extends State<PrompterView> with SingleTickerProviderSta
             onPointerSignal: _onPointerSignal,
             child: NotificationListener<ScrollNotification>(
               onNotification: _onScroll,
-              child: SingleChildScrollView(controller: _scroll, child: text),
+              // Its own layer, so the guide can fade words out (dstOut)
+              // without cutting through the glass behind them. The mask
+              // itself changes nothing: any opaque colour keeps every pixel.
+              child: ShaderMask(
+                blendMode: BlendMode.dstIn,
+                shaderCallback: (bounds) => LinearGradient(colors: [_stage.stage, _stage.stage]).createShader(bounds),
+                child: SingleChildScrollView(controller: _scroll, child: text),
+              ),
             ),
           ),
         ),
@@ -384,6 +412,7 @@ class PrompterViewState extends State<PrompterView> with SingleTickerProviderSta
             ),
           ),
         ),
+        Positioned.fill(child: IgnorePointer(child: CustomPaint(painter: kineticPainter.dot))),
         Positioned(
           top: readingY - widget.fontSize * 1.6,
           left: 0,
@@ -591,6 +620,8 @@ class _KineticLayout {
     required this.gapGlyphs,
     required this.lineHeight,
     required this.tokenBoxes,
+    required this.bounce,
+    required this.textWidth,
   });
 
   factory _KineticLayout.measure({
@@ -601,6 +632,7 @@ class _KineticLayout {
     required TextStyle style,
     required CueColors colors,
     required TextScaler textScaler,
+    required bool rtl,
   }) {
     List<Rect> boxes(int start, int end) => [
           for (final b in paragraph.getBoxesForSelection(TextSelection(baseOffset: start, extentOffset: end))) b.toRect(),
@@ -617,6 +649,23 @@ class _KineticLayout {
     final faster = <(int, List<Rect>)>[];
     final slower = <(int, List<Rect>)>[];
     final gapGlyphs = <(int, MarkKind, Rect)>[];
+    // Per word, for the bouncing dot.
+    final stressed = List<bool>.filled(tokens.length, false);
+    final run = List<MarkKind?>.filled(tokens.length, null);
+    final gap = List<MarkKind?>.filled(tokens.length, null);
+    final glyphOf = List<Rect?>.filled(tokens.length, null);
+    for (final m in marks) {
+      if (m.end >= tokens.length) continue;
+      if (m.kind == MarkKind.stress) {
+        for (var i = m.start; i <= m.end; i++) {
+          stressed[i] = true;
+        }
+      } else if (m.kind == MarkKind.energy || m.kind.isPace) {
+        for (var i = m.start; i <= m.end; i++) {
+          run[i] = m.kind;
+        }
+      }
+    }
     for (final m in marks) {
       if (m.end >= tokens.length) continue;
       switch (m.kind) {
@@ -648,7 +697,11 @@ class _KineticLayout {
           for (final (start, end, token) in marked.cueRanges) {
             if (token == m.end && start >= endOf(m.end)) {
               final found = boxes(start + 1, end);
-              if (found.isNotEmpty) gapGlyphs.add((m.end, m.kind, found.first));
+              if (found.isNotEmpty) {
+                gapGlyphs.add((m.end, m.kind, found.first));
+                gap[m.end] = m.kind;
+                glyphOf[m.end] = found.first;
+              }
             }
           }
       }
@@ -662,8 +715,18 @@ class _KineticLayout {
           return found.isEmpty ? null : found.first;
         }(),
     ];
+    final bounce = BouncePath(
+      words: [
+        for (var i = 0; i < tokens.length; i++)
+          DotWord(box: tokenBoxes[i], stressed: stressed[i], run: run[i], gap: gap[i], gapGlyph: glyphOf[i]),
+      ],
+      fontSize: fontSize,
+      rtl: rtl,
+    );
     return _KineticLayout(
       tokenBoxes: tokenBoxes,
+      bounce: bounce,
+      textWidth: paragraph.size.width,
       stressWords: stressWords,
       energy: energy,
       faster: faster,
@@ -682,6 +745,12 @@ class _KineticLayout {
 
   /// The first box of every token, or null for tokens with no box.
   final List<Rect?> tokenBoxes;
+
+  /// The bouncing dot's path through the words.
+  final BouncePath bounce;
+
+  /// The paragraph's width, for fading whole lines.
+  final double textWidth;
 
   void dispose() {
     for (final w in stressWords) {
@@ -707,7 +776,10 @@ class _KineticPainter {
     required this.colors,
     required this.repaint,
     required this.effects,
+    required this.guide,
+    required this.calm,
     required this.rtl,
+    required this.clock,
   });
 
   final PrompterLayout? layout;
@@ -715,6 +787,15 @@ class _KineticPainter {
 
   /// Kinetic effects on. Off (Still), only the current-word guide is drawn.
   final bool effects;
+
+  /// How the word to say now is shown.
+  final PrompterGuide guide;
+
+  /// Reduced motion: the dot jumps from word to word without arcs.
+  final bool calm;
+
+  /// Wall-clock seconds, for the dot bobbing while it waits for the voice.
+  final double Function() clock;
 
   /// The script runs right to left: the guide fills from the right.
   final bool rtl;
@@ -728,6 +809,7 @@ class _KineticPainter {
 
   late final under = _KineticLayer(this, over: false);
   late final over = _KineticLayer(this, over: true);
+  late final dot = _DotLayer(this);
 
   /// Lines between the reading line and [box] (negative once read).
   double linesAhead(Rect box, double lineHeight) {
@@ -764,46 +846,88 @@ class _KineticLayer extends CustomPainter {
     canvas.restore();
   }
 
-  /// The current-word guide: words already said on the reading line dim,
-  /// and an amber underline fills across the word to say now, over its
-  /// planned length. In voice mode it stops when the speaker stops.
+  /// The guide to the word to say now (docs/design/prompter.md, "The
+  /// guide"). Fading uses [BlendMode.dstOut] on the text's own layer, so
+  /// words fade without darkening the glass behind them.
   void _paintGuide(Canvas canvas, _KineticLayout k) {
     final c = p.controller;
     final timeline = c.timeline;
     final layout = p.layout;
-    if (timeline.isEmpty || layout == null || c.state == PlaybackState.ready) return;
+    if (p.guide == PrompterGuide.off || timeline.isEmpty || layout == null) return;
+    if (timeline.length != k.tokenBoxes.length) return;
     final current = c.currentToken.clamp(0, k.tokenBoxes.length - 1);
     final box = k.tokenBoxes[current];
     if (box == null) return;
-    // Dim what has been said on this line.
-    final line = layout.lineOfToken[current];
-    final dim = Paint()..color = SaPalette.dark.stage.withValues(alpha: 0.55);
-    for (var i = layout.firstTokenOn(line); i < current; i++) {
-      final b = k.tokenBoxes[i];
-      if (b != null) canvas.drawRect(b.inflate(2), dim);
+    final started = c.state != PlaybackState.ready;
+    switch (p.guide) {
+      case PrompterGuide.dot:
+        // The dot itself is painted above everything (see _DotLayer).
+        if (started) _fadeSaid(canvas, k, layout, current, box);
+      case PrompterGuide.underline:
+        if (started) _fadeSaid(canvas, k, layout, current, box);
+        _paintUnderline(canvas, box, current, started);
+      case PrompterGuide.spotlight:
+        _paintSpotlight(canvas, k, current, box);
+      case PrompterGuide.off:
+        break;
     }
-    // Fill the underline across the word as it is said.
+  }
+
+  /// Fades out [alpha] of what is under [rect] on the text's layer.
+  static Paint _fade(double alpha) => Paint()
+    ..blendMode = BlendMode.dstOut
+    ..color = SaPalette.dark.stage.withValues(alpha: alpha);
+
+  /// Words already said on the line being read fade back.
+  void _fadeSaid(Canvas canvas, _KineticLayout k, PrompterLayout layout, int current, Rect box) {
+    final line = layout.lineOfToken[current];
+    final top = layout.lineTops[line];
+    final bottom = layout.lineBottoms[line];
+    final rect = p.rtl
+        ? Rect.fromLTRB(box.right + 1, top, k.textWidth + 8, bottom)
+        : Rect.fromLTRB(-8, top, box.left - 1, bottom);
+    if (rect.width > 0) canvas.drawRect(rect, _fade(0.55));
+  }
+
+  /// A bar fills across the word as it is said, in the reading direction.
+  void _paintUnderline(Canvas canvas, Rect box, int current, bool started) {
+    final c = p.controller;
+    final timeline = c.timeline;
     final start = timeline.startOf(current);
     final length = timeline.endOf(current) - start;
-    final said = length.inMicroseconds <= 0
-        ? 1.0
-        : ((c.position - start).inMicroseconds / length.inMicroseconds).clamp(0.0, 1.0);
-    final rtl = p.rtl;
+    final said = !started
+        ? 0.0
+        : length.inMicroseconds <= 0
+            ? 1.0
+            : ((c.position - start).inMicroseconds / length.inMicroseconds).clamp(0.0, 1.0);
     final y = box.bottom + 3;
-    final track = Paint()
-      ..color = p.colors.stress.withValues(alpha: 0.28)
+    final text = SaPalette.dark.stageText;
+    final paint = Paint()
+      ..color = text.withValues(alpha: 0.25)
       ..strokeWidth = 4
       ..strokeCap = StrokeCap.round;
-    canvas.drawLine(Offset(box.left, y), Offset(box.right, y), track);
-    final fill = track..color = p.colors.stress;
+    canvas.drawLine(Offset(box.left, y), Offset(box.right, y), paint);
     final w = box.width * said;
     if (w > 0) {
       canvas.drawLine(
-        Offset(rtl ? box.right - w : box.left, y),
-        Offset(rtl ? box.right : box.left + w, y),
-        fill,
+        Offset(p.rtl ? box.right - w : box.left, y),
+        Offset(p.rtl ? box.right : box.left + w, y),
+        paint..color = text,
       );
     }
+  }
+
+  /// Everything fades back except the word to say (full) and the next one.
+  void _paintSpotlight(Canvas canvas, _KineticLayout k, int current, Rect box) {
+    final next = current + 1 < k.tokenBoxes.length ? k.tokenBoxes[current + 1] : null;
+    final all = Rect.fromLTRB(-p.origin.dx, -p.origin.dy, k.textWidth + p.origin.dx, k.lineHeight * 4 + (p.layout?.lineBottoms.last ?? 0));
+    final lit = Path()
+      ..fillType = PathFillType.evenOdd
+      ..addRect(all)
+      ..addRect(box.inflate(3));
+    if (next != null) lit.addRect(next.inflate(3));
+    canvas.drawPath(lit, _fade(0.68));
+    if (next != null) canvas.drawRect(next.inflate(3), _fade(0.3));
   }
 
   void _paintGlows(Canvas canvas, _KineticLayout k) {
@@ -897,7 +1021,107 @@ class _KineticLayer extends CustomPainter {
   bool shouldRepaint(_KineticLayer old) =>
       old.p.kinetic != p.kinetic ||
       old.p.effects != p.effects ||
+      old.p.guide != p.guide ||
+      old.p.calm != p.calm ||
       old.p.origin != p.origin ||
       old.p.layout != p.layout ||
       old.p.colors != p.colors;
+}
+
+/// The bouncing dot, painted over the whole prompter so the fades over
+/// the read zone never dim it. It follows the text as it scrolls.
+class _DotLayer extends CustomPainter {
+  _DotLayer(this.p) : super(repaint: p.repaint);
+
+  final _KineticPainter p;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final k = p.kinetic;
+    if (k == null || p.guide != PrompterGuide.dot || p.layout == null) return;
+    final c = p.controller;
+    if (c.timeline.isEmpty || c.timeline.length != k.tokenBoxes.length) return;
+    final reading = p.scroll.hasClients ? p.scroll.offset : 0.0;
+    canvas.save();
+    canvas.clipRect(Offset.zero & size);
+    canvas.translate(p.origin.dx, p.origin.dy - reading);
+    _paintDot(canvas, k);
+    canvas.restore();
+  }
+
+  /// The bouncing dot, and what it throws: a burst on a stressed word, a
+  /// ring closing at a pause, sparks in an energy run.
+  void _paintDot(Canvas canvas, _KineticLayout k) {
+    final p = this.p;
+    final c = p.controller;
+    final bounce = k.bounce;
+    final frame = bounce.at(c.timeline, c.position, waiting: c.waitingForVoice, clock: p.clock(), calm: p.calm);
+    if (frame == null) return;
+    final r = bounce.radius;
+    final color = switch (frame.tint) {
+      DotTint.plain => p.colors.text,
+      DotTint.stress => p.colors.stress,
+      DotTint.energy => p.colors.energy,
+      DotTint.slower => p.colors.slower,
+      DotTint.faster => p.colors.faster,
+      DotTint.pause => p.colors.pause,
+      DotTint.breath => p.colors.breath,
+    };
+    // Kinetic off (Still) or reduced motion: the dot moves, and nothing else.
+    if (p.effects) {
+      if (frame.sparks) {
+        for (var n = 1; n <= 3; n++) {
+          final back = c.position - Duration(milliseconds: 45 * n);
+          final trail = bounce.at(c.timeline, back.isNegative ? Duration.zero : back);
+          if (trail == null) continue;
+          canvas.drawCircle(trail.center, r * (0.5 - 0.1 * n), Paint()..color = p.colors.energy.withValues(alpha: 0.7 - 0.18 * n));
+        }
+      }
+      final burst = frame.burst;
+      if (burst != null) {
+        final eased = Curves.easeOutCubic.transform(burst);
+        canvas.drawCircle(
+          frame.center,
+          r * (1.2 + 3.5 * eased),
+          Paint()
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = r * 0.3 * (1 - burst) + 1
+            ..color = p.colors.stress.withValues(alpha: 1 - burst),
+        );
+      }
+    }
+    final ring = frame.ring;
+    if (ring != null) {
+      // The ring closes in around the dot over the hold.
+      canvas.drawCircle(
+        frame.center,
+        r * (2.6 - 1.3 * ring),
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = math.max(2, r * 0.22)
+          ..color = color,
+      );
+    }
+    canvas.save();
+    canvas.translate(frame.center.dx, frame.center.dy);
+    canvas.scale(frame.scaleX, frame.scaleY);
+    canvas.drawCircle(
+      Offset.zero,
+      r * 1.4,
+      Paint()
+        ..color = color.withValues(alpha: 0.45)
+        ..maskFilter = MaskFilter.blur(BlurStyle.normal, r * 0.8),
+    );
+    canvas.drawCircle(Offset.zero, r, Paint()..color = color);
+    canvas.restore();
+  }
+
+  @override
+  bool shouldRepaint(_DotLayer old) =>
+      old.p.kinetic != p.kinetic ||
+      old.p.guide != p.guide ||
+      old.p.calm != p.calm ||
+      old.p.effects != p.effects ||
+      old.p.origin != p.origin ||
+      old.p.layout != p.layout;
 }

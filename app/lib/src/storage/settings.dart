@@ -7,6 +7,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../markup/markup_engine.dart';
 import '../markup/providers.dart';
 import '../model/coaching_style.dart';
+import '../prompter/guide.dart';
 
 /// Somewhere to keep API keys out of plain files: the Keychain on iOS, the
 /// Keystore on Android and the Credential Manager on Windows.
@@ -60,6 +61,13 @@ class Settings extends ChangeNotifier {
   /// Kinetic text on the prompter (words wake up near the reading line);
   /// off is Still. Reduced motion forces Still whatever this says.
   bool kinetic = true;
+
+  /// How the prompter shows the word to say: a bouncing dot, an underline,
+  /// a spotlight, or nothing but the reading line.
+  PrompterGuide guide = PrompterGuide.dot;
+
+  /// How the prompter moves between holds: line step or smooth.
+  PrompterMotion motion = PrompterMotion.lineStep;
 
   /// The microphone takes record from (Windows endpoint ID); null for the
   /// system default.
@@ -134,6 +142,8 @@ class Settings extends ChangeNotifier {
     fontSize = (json['fontSize'] as num?)?.toDouble() ?? fontSize;
     mirror = json['mirror'] as bool? ?? mirror;
     kinetic = json['kinetic'] as bool? ?? kinetic;
+    guide = PrompterGuide.fromName(json['guide'] as String?);
+    motion = PrompterMotion.fromName(json['motion'] as String?);
     audioInputId = json['audioInputId'] as String?;
   }
 
@@ -144,6 +154,8 @@ class Settings extends ChangeNotifier {
         'fontSize': fontSize,
         'mirror': mirror,
         'kinetic': kinetic,
+        'guide': guide.name,
+        'motion': motion.name,
         if (audioInputId != null) 'audioInputId': audioInputId,
       };
 

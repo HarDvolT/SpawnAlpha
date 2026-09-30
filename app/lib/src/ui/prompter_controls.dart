@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../prompter/guide.dart';
 import '../prompter/prompter_controller.dart';
 import '../prompter/prompter_view.dart';
 import '../theme/theme.dart';
@@ -16,6 +17,7 @@ import 'format.dart';
 /// - Home: back to the start
 /// - M: mirror
 /// - K: kinetic or still text
+/// - G: the next guide (dot, underline, spotlight, off)
 /// - Plus and Minus: text size
 class PrompterShortcuts extends StatelessWidget {
   const PrompterShortcuts({
@@ -27,6 +29,7 @@ class PrompterShortcuts extends StatelessWidget {
     required this.child,
     this.onPlayPause,
     this.onKinetic,
+    this.onNextGuide,
     this.voiceAvailable = false,
   });
 
@@ -40,6 +43,9 @@ class PrompterShortcuts extends StatelessWidget {
 
   /// Switches between kinetic and still text.
   final VoidCallback? onKinetic;
+
+  /// Moves to the next guide.
+  final VoidCallback? onNextGuide;
 
   /// Whether voice pacing can be chosen (a microphone level is available).
   final bool voiceAvailable;
@@ -74,6 +80,8 @@ class PrompterShortcuts extends StatelessWidget {
           onMirror();
         } else if (key == LogicalKeyboardKey.keyK && onKinetic != null) {
           onKinetic!();
+        } else if (key == LogicalKeyboardKey.keyG && onNextGuide != null) {
+          onNextGuide!();
         } else if (key == LogicalKeyboardKey.equal || key == LogicalKeyboardKey.numpadAdd) {
           onFontSize(4);
         } else if (key == LogicalKeyboardKey.minus || key == LogicalKeyboardKey.numpadSubtract) {
@@ -88,7 +96,8 @@ class PrompterShortcuts extends StatelessWidget {
   }
 }
 
-/// The bar under the prompter: play, speed, scroll mode, mirror and size.
+/// The bar under the prompter: play and speed, then the speaker's
+/// choices (pace, guide, motion, kinetic or still), size and mirror.
 class PrompterControls extends StatelessWidget {
   const PrompterControls({
     super.key,
@@ -99,6 +108,10 @@ class PrompterControls extends StatelessWidget {
     this.showPlay = true,
     this.kinetic,
     this.onKinetic,
+    this.guide,
+    this.onGuide,
+    this.motion,
+    this.onMotion,
     this.voiceAvailable = false,
   });
 
@@ -110,6 +123,14 @@ class PrompterControls extends StatelessWidget {
   /// Kinetic or still text; null hides the switch (reduced motion).
   final bool? kinetic;
   final ValueChanged<bool>? onKinetic;
+
+  /// The guide to the word to say; null hides the choice.
+  final PrompterGuide? guide;
+  final ValueChanged<PrompterGuide>? onGuide;
+
+  /// Line step or smooth; null hides the choice.
+  final PrompterMotion? motion;
+  final ValueChanged<PrompterMotion>? onMotion;
 
   /// Whether to offer voice pacing.
   final bool voiceAvailable;
@@ -143,6 +164,7 @@ class PrompterControls extends StatelessWidget {
               alignment: WrapAlignment.center,
               crossAxisAlignment: WrapCrossAlignment.center,
               spacing: 4,
+              runSpacing: SaSpace.s2,
               children: [
                 if (showPlay) ...[
                   IconButton(
@@ -183,7 +205,7 @@ class PrompterControls extends StatelessWidget {
                   Text(formatDuration(c.remaining), style: SaType.timecode.copyWith(color: stage.stageText)),
                 ],
                 const SizedBox(width: 8),
-                SegmentedButton<ScrollMode>(
+                _Group(label: 'Pace', child: SegmentedButton<ScrollMode>(
                   style: segmentStyle,
                   showSelectedIcon: false,
                   segments: [
@@ -198,7 +220,30 @@ class PrompterControls extends StatelessWidget {
                   ],
                   selected: {c.mode},
                   onSelectionChanged: (s) => c.setMode(s.single),
-                ),
+                )),
+                if (guide != null)
+                  _Group(label: 'Guide', child: SegmentedButton<PrompterGuide>(
+                    key: const ValueKey('guide'),
+                    style: segmentStyle,
+                    showSelectedIcon: false,
+                    segments: [
+                      for (final g in PrompterGuide.values)
+                        ButtonSegment(value: g, label: Text(g.label), tooltip: '${g.hint} (G)'),
+                    ],
+                    selected: {guide!},
+                    onSelectionChanged: (s) => onGuide?.call(s.single),
+                  )),
+                if (motion != null)
+                  _Group(label: 'Motion', child: SegmentedButton<PrompterMotion>(
+                    key: const ValueKey('motion'),
+                    style: segmentStyle,
+                    showSelectedIcon: false,
+                    segments: [
+                      for (final m in PrompterMotion.values) ButtonSegment(value: m, label: Text(m.label), tooltip: m.hint),
+                    ],
+                    selected: {motion!},
+                    onSelectionChanged: (s) => onMotion?.call(s.single),
+                  )),
                 if (kinetic != null)
                   SegmentedButton<bool>(
                     style: segmentStyle,
@@ -233,4 +278,29 @@ class PrompterControls extends StatelessWidget {
       },
     );
   }
+}
+
+/// A group of choices with a small stage label before it, in the signal
+/// face. The label and its choices always wrap together.
+class _Group extends StatelessWidget {
+  const _Group({required this.label, required this.child});
+
+  final String label;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsetsDirectional.only(start: SaSpace.s2),
+        // On a narrow screen the label goes above its choices.
+        child: Wrap(
+          spacing: SaSpace.s2,
+          runSpacing: SaSpace.s1,
+          alignment: WrapAlignment.center,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            Text(label.toUpperCase(), style: SaType.signalLabel.copyWith(color: SaPalette.dark.stageChromeText)),
+            child,
+          ],
+        ),
+      );
 }

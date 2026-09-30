@@ -6,6 +6,7 @@ import 'package:spawnalpha/src/markup/claude_markup_engine.dart';
 import 'package:spawnalpha/src/markup/local_markup_engine.dart';
 import 'package:spawnalpha/src/markup/openai_compatible_engine.dart';
 import 'package:spawnalpha/src/markup/providers.dart';
+import 'package:spawnalpha/src/prompter/guide.dart';
 import 'package:spawnalpha/src/storage/settings.dart';
 
 void main() {
@@ -46,6 +47,19 @@ void main() {
     await reloaded.load();
     expect(reloaded.kinetic, isFalse);
     expect(reloaded.mirror, isTrue);
+  });
+
+  test('keeps the guide and the motion, with the dot and line step by default', () async {
+    final settings = Settings(file: file(), secrets: MemorySecretStore());
+    expect(settings.guide, PrompterGuide.dot);
+    expect(settings.motion, PrompterMotion.lineStep);
+    await settings.update((s) => s
+      ..guide = PrompterGuide.spotlight
+      ..motion = PrompterMotion.smooth);
+    final reloaded = Settings(file: file(), secrets: MemorySecretStore());
+    await reloaded.load();
+    expect(reloaded.guide, PrompterGuide.spotlight);
+    expect(reloaded.motion, PrompterMotion.smooth);
   });
 
   test('reads settings from before providers existed', () async {

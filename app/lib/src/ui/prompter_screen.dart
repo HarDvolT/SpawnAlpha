@@ -3,6 +3,7 @@ import 'package:wakelock_plus/wakelock_plus.dart';
 
 import '../app.dart';
 import '../model/script_document.dart';
+import '../prompter/guide.dart';
 import '../prompter/prompter_controller.dart';
 import '../prompter/prompter_view.dart';
 import '../recording/mic_monitor.dart';
@@ -72,6 +73,8 @@ class _PrompterScreenState extends State<PrompterScreen> {
     // Reduced motion forces Still, and hides the switch.
     final reduceMotion = MediaQuery.disableAnimationsOf(context);
     void setKinetic(bool v) => settings.update((s) => s.kinetic = v);
+    void setGuide(PrompterGuide g) => settings.update((s) => s.guide = g);
+    void setMotion(PrompterMotion m) => settings.update((s) => s.motion = m);
 
     return Scaffold(
       backgroundColor: SaPalette.dark.stage,
@@ -83,9 +86,10 @@ class _PrompterScreenState extends State<PrompterScreen> {
           onMirror: toggleMirror,
           onFontSize: changeFont,
           onKinetic: reduceMotion ? null : () => setKinetic(!settings.kinetic),
+          onNextGuide: () => setGuide(settings.guide.next),
           voiceAvailable: _voiceAvailable,
           child: SafeArea(
-            child: Column(children: [
+            child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
               Expanded(
                 child: Stack(children: [
                   Positioned.fill(
@@ -99,6 +103,8 @@ class _PrompterScreenState extends State<PrompterScreen> {
                         fontSize: settings.fontSize,
                         mirror: settings.mirror,
                         kinetic: settings.kinetic && !reduceMotion,
+                      guide: settings.guide,
+                      motion: settings.motion,
                       ),
                     ),
                   ),
@@ -131,6 +137,10 @@ class _PrompterScreenState extends State<PrompterScreen> {
                     onFontSize: changeFont,
                     kinetic: reduceMotion ? null : settings.kinetic,
                     onKinetic: setKinetic,
+                    guide: settings.guide,
+                    onGuide: setGuide,
+                    motion: settings.motion,
+                    onMotion: setMotion,
                     voiceAvailable: _voiceAvailable,
                   ),
                 ),

@@ -5,16 +5,17 @@ Last updated: 2026-09-30
 ## Where we are
 
 **Build step 1 of 7 (script markup and coached prompter): code complete, with design language
-v2 applied. The owner has run the first test build on Windows; the problems found are fixed in
-the second build, which still needs a retest. Design v3 (the prompter's guide, motion and pace
-choices, a new Home, and the Windows record set-up) is designed as live demos and waiting for
-the owner's choices.** The build order is in
+v2 applied. The owner has tested builds #1 and #2 on Windows: build #2 records with sound. The
+prompter's guide choice (Dot, Underline, Spotlight, Off) and motion choice (Line step, Smooth)
+from design v3 are now in the app (build #3), waiting for the owner's retest. The rest of v3 (a
+new Home, the Windows record set-up) is designed as live demos.** The build order is in
 [product-brief.md](product-brief.md#build-order); it was revised on 2026-09-30.
 
 The owner's first test on Windows (build #1) found: no microphone permission prompt and no
 sound in takes; a prompter that scrolled away from the word being read; effects that were too
 weak and generic; a generic first screen; and no screen recording yet. Build #2 fixes the first
-two (see the session log). The rest is design v3 and build step 2.
+two (see the session log). The owner confirmed the sound works in build #2, and asked for the
+guide choice in the app, which build #3 adds. The rest is design v3 and build step 2.
 
 | Area | State |
 |---|---|
@@ -25,11 +26,12 @@ two (see the session log). The rest is design v3 and build step 2.
 | Settings: provider picker, server address, per-provider keys, model list, connection test | Done, checked in screenshots |
 | Delivery timeline, prompter controller, scroll maths | Done, tested |
 | Prompter widget: cues, reading line, pause badge, pace bars, mirror, RTL | Done, tested (widget tests plus rendered screenshots) |
-| Voice pacing (moves while you speak, level-based), current-word underline, line-step motion | Done, tested. Needs the owner's retest on Windows (build #2) |
+| Voice pacing (moves while you speak, level-based), line-step motion | Done, tested. Tried by the owner on Windows (build #2) |
+| Guide choice (bouncing Dot, Underline, Spotlight, Off; G key) and motion choice (Line step, Smooth) in the prompter's control bar, kept in settings | Done, tested (unit tests of the dot's path, widget tests, screenshots in EN and AR). **Needs the owner's retest (build #3).** One phrase motion is not built yet |
 | Editor: write, style and language, markup, review marks and suggestions | Done, tested (widget test of the main flow) |
 | Practice prompter screen with keyboard shortcuts | Done |
-| Camera recording screen (countdown, prompter overlay, saves takes) | Runs on Windows (owner, build #1): video records. **Sound was missing**: fixed in build #2, not yet retested. Android not yet tried |
-| Microphones on Windows: vendored `camera_windows` records from the chosen or default microphone; list, level meter and picker; sound check after each take | Done in build #2 (compiles in CI; unit tests for the Dart side). **Needs the owner's retest** |
+| Camera recording screen (countdown, prompter overlay, saves takes) | Works on Windows (owner, build #2), with sound. Android not yet tried |
+| Microphones on Windows: vendored `camera_windows` records from the chosen or default microphone; list, level meter and picker; sound check after each take | Done. The owner confirmed takes have sound in build #2 |
 | Storage: scripts as JSON files, settings, API key in secure storage | Done |
 | Design language v2 (four type voices, glass, springs, signature motions, kinetic prompter, cursor companion, Director's Cut) | Done in `docs/design/` and the design-system artifact |
 | Design v3 demos (22 components): Home, the prompter's guide (bouncing dot, underline, spotlight), motion and pace choices, stronger kinetic cues, the Windows record set-up | Designed and published (artifact version 9). **Waiting for the owner to try them and pick defaults.** Not in the app yet |
@@ -39,24 +41,21 @@ two (see the session log). The rest is design v3 and build step 2.
 | Screen and Screen + camera recording, cursor companion, telemetry | Designed (`docs/design/recording.md`). Not built. |
 | Director's Cut (auto-edit, captions, auto-zoom, finish screen) | Designed (`docs/design/autoedit.md`). Not built; needs a native render core. |
 
-120 tests pass (`cd app && flutter test`), and `flutter analyze` is clean.
+137 tests pass (`cd app && flutter test`), and `flutter analyze` is clean.
 
 ## Next steps
 
 1. ~~Get the owner's answer on the roadmap.~~ Done 2026-09-30: approved (see Decisions).
-2. **The owner retests build #2 on Windows** (download the zip from run #2 above):
-   - the microphone: the chip on the record screen names it and its meter moves; the
-     picker lists every microphone; takes have sound; the save dialog says so if not;
-   - Voice pace: the prompter moves only while you talk, and waits after pauses;
-   - the word guide and the line that stays still.
-   If the meter never moves, Windows is probably blocking desktop apps from the microphone
-   (Settings, Privacy and security, Microphone).
-3. **The owner tries the design v3 demos** in the artifact (Home, Prompter, RecordSetup) and
-   picks the defaults. Proposed: Guide = Dot, Motion = Line step, Pace = Voice (Timed when
-   no microphone works), Cues = Kinetic. Then build v3 into the app:
-   - the guide choice (Dot, Underline, Spotlight, Off) with the bouncing dot's rules from
-     `docs/design/prompter.md`; the motion choice (Line step, Smooth, One phrase); the
-     stronger kinetic cues (punch and slam, lean, float, wait);
+2. **The owner tries build #3 on Windows** (the latest green Build run): the Guide row in
+   the prompter's control bar (Dot, Underline, Spotlight, Off, or the G key) and Motion
+   (Line step, Smooth), in practice and on the record screen, and says which to keep as
+   defaults and what to change about the dot. Build #2 retest: sound works (owner,
+   2026-09-30).
+3. **The owner tries the design v3 demos** in the artifact (Home, Prompter, RecordSetup).
+   Then build the rest of v3 into the app:
+   - ~~the guide choice with the bouncing dot, and Line step or Smooth~~ (build #3);
+     still to do: the One phrase motion, and the stronger kinetic cues (punch and slam,
+     lean, float, wait);
    - the Home screen (director's desk) replacing the library as the start screen;
    - the Windows record set-up rail: every microphone with its own meter, the sound
      check, the blocked state with a button that opens `ms-settings:privacy-microphone`,
@@ -251,3 +250,12 @@ two (see the session log). The rest is design v3 and build step 2.
     meter, a sound check, the blocked-by-Windows state).
   - New tokens `stage-ok` and `stage-warn`; `tokens.g.dart` regenerated.
   - Published as artifact version 9 and mirrored to `docs/design/`.
+- 2026-09-30, session 1 (continued), the guide in the app:
+  - The owner, testing build #2 on Windows: sound works; the underline shows, but there was
+    no way to choose a dot or anything else (the choice only existed in the design demo).
+  - Built the guide choice into the app: `BouncePath` (the dot's path, pure Dart) and
+    `PrompterGuide` / `PrompterMotion` in `lib/src/prompter/guide.dart`; Dot, Underline,
+    Spotlight and Off, plus Line step and Smooth, in the control bar (G cycles the guide),
+    kept in settings. The text got its own layer so fading never darkens the glass, and
+    the dot is painted above the read-zone fades.
+  - 137 tests pass; screenshots checked in English and Arabic, phone and desktop.

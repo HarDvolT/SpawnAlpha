@@ -2,17 +2,21 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:spawnalpha/src/app.dart';
 import 'package:spawnalpha/src/model/coaching_style.dart';
 import 'package:spawnalpha/src/model/mark.dart';
 import 'package:spawnalpha/src/model/script_document.dart';
+import 'package:spawnalpha/src/model/mark_editing.dart';
 import 'package:spawnalpha/src/model/script_language.dart';
+import 'package:spawnalpha/src/prompter/guide.dart';
 import 'package:spawnalpha/src/prompter/marked_text.dart';
 import 'package:spawnalpha/src/prompter/prompter_controller.dart';
 import 'package:spawnalpha/src/prompter/prompter_view.dart';
 import 'package:spawnalpha/src/storage/script_store.dart';
 import 'package:spawnalpha/src/storage/settings.dart';
+import 'package:spawnalpha/src/ui/prompter_screen.dart';
 
 AppServices services() => AppServices(
       library: ScriptLibrary(MemoryScriptStore()),
@@ -157,6 +161,66 @@ void main() {
         (w) => w is RichText && w.text.toPlainText().contains('مرحبا'),
       ));
       expect(text.textDirection, TextDirection.rtl);
+    });
+
+    testWidgets('every guide and motion paints while playing, without moving a word', (tester) async {
+      final words = List.generate(40, (i) => 'word$i').join(' ');
+      final c = PrompterController(script(ScriptLanguage.en, 'Hello there, $words.').acceptAllMarks());
+      Rect? first;
+      for (final motion in PrompterMotion.values) {
+        for (final guide in PrompterGuide.values) {
+          c.restart();
+          await tester.pumpWidget(MaterialApp(
+            home: SizedBox(
+              width: 400,
+              height: 600,
+              child: PrompterView(controller: c, fontSize: 32, guide: guide, motion: motion),
+            ),
+          ));
+          await tester.pump();
+          c.play();
+          await tester.pump();
+          await tester.pump(const Duration(milliseconds: 900));
+          expect(tester.takeException(), isNull, reason: '$guide, $motion');
+          final paragraph = tester.renderObject<RenderParagraph>(find.byType(RichText).first);
+          final text = paragraph.text.toPlainText();
+          final box = paragraph
+              .getBoxesForSelection(TextSelection(baseOffset: text.indexOf('word7'), extentOffset: text.indexOf('word7') + 5))
+              .first
+              .toRect();
+          first ??= box;
+          expect(box, first, reason: 'the guide never reflows the text ($guide, $motion)');
+          c.pause();
+        }
+      }
+    });
+
+    testWidgets('the control bar and the G key choose the guide', (tester) async {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMessageHandler(
+        'dev.flutter.pigeon.wakelock_plus_platform_interface.WakelockPlusApi.toggle',
+        (_) async => const StandardMessageCodec().encodeMessage(<Object?>[null]),
+      );
+      tester.view.physicalSize = const Size(1280, 800);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final app = services();
+      final doc = script(ScriptLanguage.en, 'Hello there, friends.');
+      await tester.pumpWidget(AppScope(services: app, child: MaterialApp(home: PrompterScreen(script: doc))));
+      await tester.pumpAndSettle();
+      expect(app.settings.guide, PrompterGuide.dot);
+
+      await tester.tap(find.text('Spotlight'));
+      await tester.pumpAndSettle();
+      expect(app.settings.guide, PrompterGuide.spotlight);
+      expect(tester.widget<PrompterView>(find.byType(PrompterView)).guide, PrompterGuide.spotlight);
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyG);
+      await tester.pumpAndSettle();
+      expect(app.settings.guide, PrompterGuide.off);
+
+      await tester.tap(find.text('Smooth'));
+      await tester.pumpAndSettle();
+      expect(tester.widget<PrompterView>(find.byType(PrompterView)).motion, PrompterMotion.smooth);
     });
 
     testWidgets('manual scroll moves the reader', (tester) async {

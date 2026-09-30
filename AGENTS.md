@@ -32,7 +32,8 @@ app/                   the Flutter app (package name: spawnalpha)
   lib/src/theme/       tokens.g.dart (generated from docs/design/tokens.json) and the theme
   lib/src/model/       pure Dart: tokens, marks, script document, remapping
   lib/src/markup/      markup engines: on-device rules and Claude (cloud)
-  lib/src/prompter/    delivery timeline, playback controller, prompter widget
+  lib/src/prompter/    delivery timeline, playback controller, guides (the bouncing dot),
+                       prompter widget
   lib/src/storage/     scripts and settings on disk
   lib/src/ui/          screens
   test/                mirrors lib/src/

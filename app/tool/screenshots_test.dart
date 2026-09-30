@@ -22,6 +22,7 @@ import 'package:spawnalpha/src/markup/providers.dart';
 import 'package:spawnalpha/src/model/mark_editing.dart';
 import 'package:spawnalpha/src/model/samples.dart';
 import 'package:spawnalpha/src/model/script_document.dart';
+import 'package:spawnalpha/src/prompter/guide.dart';
 import 'package:spawnalpha/src/prompter/prompter_controller.dart';
 import 'package:spawnalpha/src/prompter/prompter_view.dart';
 import 'package:spawnalpha/src/recording/audio_input.dart';
@@ -195,6 +196,46 @@ void main() {
     }, [script], before: (tester) async {
       tester.widget<PrompterView>(find.byType(PrompterView)).controller.seekToToken(9);
       await tester.pumpAndSettle();
+    });
+  });
+
+  // Each guide on a Windows-sized window, half-way through the word before
+  // "12,000", with the whole control bar.
+  for (final guide in PrompterGuide.values) {
+    testWidgets('prompter, ${guide.name} guide', (tester) async {
+      final script = await _markedUp(sampleScripts()[0]);
+      await shoot(tester, 'prompter-guide-${guide.name}', desktop, (app) {
+        app.settings.guide = guide;
+        return PrompterScreen(script: script);
+      }, [script], settle: false, before: (tester) async {
+        await tester.pump(const Duration(milliseconds: 300));
+        final controller = tester.widget<PrompterView>(find.byType(PrompterView)).controller;
+        final word = controller.tokens.indexWhere((t) => t.text == '12,000') - 1;
+        controller.seekToToken(word);
+        controller.play();
+        await tester.pump();
+        await tester.pump((controller.timeline.startOf(word + 1) - controller.timeline.startOf(word)) * 0.5);
+        controller.pause();
+        await tester.pump(const Duration(milliseconds: 250));
+      });
+    });
+  }
+
+  testWidgets('prompter, the dot lands on a stressed word', (tester) async {
+    final script = await _markedUp(sampleScripts()[0]);
+    await shoot(tester, 'prompter-dot-stress', phone, (_) => PrompterScreen(script: script), [script], settle: false,
+        before: (tester) async {
+      await tester.pump(const Duration(milliseconds: 300));
+      final controller = tester.widget<PrompterView>(find.byType(PrompterView)).controller;
+      final word = controller.tokens.indexWhere((t) => t.text == '12,000');
+      controller.seekToToken(word);
+      controller.play();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 120));
+      controller.pause();
+      // The view glides on to the word's line.
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
     });
   });
 

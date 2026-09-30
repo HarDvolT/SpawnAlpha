@@ -7,6 +7,7 @@ import 'package:wakelock_plus/wakelock_plus.dart';
 
 import '../app.dart';
 import '../model/script_document.dart';
+import '../prompter/guide.dart';
 import '../prompter/prompter_controller.dart';
 import '../prompter/prompter_view.dart';
 import '../recording/mic_monitor.dart';
@@ -336,6 +337,8 @@ class _RecordScreenState extends State<RecordScreen> with WidgetsBindingObserver
     void toggleMirror() => settings.update((s) => s.mirror = !s.mirror);
     final reduceMotion = MediaQuery.disableAnimationsOf(context);
     void setKinetic(bool v) => settings.update((s) => s.kinetic = v);
+    void setGuide(PrompterGuide g) => settings.update((s) => s.guide = g);
+    void setMotion(PrompterMotion m) => settings.update((s) => s.motion = m);
     final camera = _camera;
     final stage = SaPalette.dark;
     final size = MediaQuery.sizeOf(context);
@@ -356,9 +359,10 @@ class _RecordScreenState extends State<RecordScreen> with WidgetsBindingObserver
             onFontSize: changeFont,
             onPlayPause: _toggleRecording,
             onKinetic: reduceMotion ? null : () => setKinetic(!settings.kinetic),
+            onNextGuide: () => setGuide(settings.guide.next),
             voiceAvailable: _voiceAvailable,
             child: SafeArea(
-              child: Column(children: [
+              child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
                 Expanded(
                   child: Stack(fit: StackFit.expand, children: [
                     if (camera != null && camera.value.isInitialized)
@@ -397,6 +401,8 @@ class _RecordScreenState extends State<RecordScreen> with WidgetsBindingObserver
                                 readingLine: 0.3,
                                 glass: true,
                                 kinetic: settings.kinetic && !reduceMotion,
+                              guide: settings.guide,
+                              motion: settings.motion,
                               ),
                             ),
                           ),
@@ -445,6 +451,10 @@ class _RecordScreenState extends State<RecordScreen> with WidgetsBindingObserver
                         showPlay: false,
                         kinetic: reduceMotion ? null : settings.kinetic,
                         onKinetic: setKinetic,
+                        guide: settings.guide,
+                        onGuide: setGuide,
+                        motion: settings.motion,
+                        onMotion: setMotion,
                         voiceAvailable: _voiceAvailable,
                       ),
                       const SizedBox(height: SaSpace.s2),

@@ -143,10 +143,13 @@ The user picks the engine in Settings (`MarkupProvider` in `providers.dart`):
   only on discrete changes: the current word, the pause being held, play
   state, speed or mode. The prompter shows **accepted marks only**.
 - **`PrompterLayout`** maps tokens to screen lines (measured after layout).
-  `scrollYAt(timeline, t)` is the top of the line being spoken. The line being
-  read stays still under the reading line, and the view glides to the next
-  line (about 300 ms, no overshoot) as its first word starts. Testers found a
-  continuous drift hard to read.
+  `scrollYAt(timeline, t, motion:)` follows the speaker's **motion** choice
+  (`PrompterMotion` in `guide.dart`):
+  - **Line step** (the default): the top of the line being spoken. The line
+    being read stays still under the reading line, and the view glides to the
+    next line (about 300 ms, no overshoot) as its first word starts. Testers
+    found a continuous drift hard to read.
+  - **Smooth**: an even scroll through each line while it is spoken.
 - **Voice pacing** (`ScrollMode.voice`, the default where a microphone level is
   available, Windows for now):
   - The timeline advances only while `speaking` is true.
@@ -155,11 +158,24 @@ The user picks the engine in Settings (`MarkupProvider` in `providers.dart`):
   - `VoiceActivity` (pure Dart) turns microphone levels into "speaking", with an
     adaptive noise floor and hangover.
   - `MicMonitor` (`lib/src/recording/`) polls the level at 20 Hz.
-- **The current-word guide** is drawn in every mode:
-  - an amber underline fills across the word to say now, over its planned
-    length;
-  - words already said on that line dim;
-  - the reading caret lights amber while the voice is heard.
+- **The guide** to the word to say now is the speaker's choice
+  (`PrompterGuide` in `guide.dart`, kept in `Settings.guide`, G key):
+  - **Dot** (the default): `BouncePath` (pure Dart) turns the word boxes, the
+    cues and the timeline into a `DotFrame` at any moment: where the dot is,
+    its squash, its tint, the ring at a pause and the burst on a stressed
+    word. Painting is stateless, so seeking, pausing and voice waits need no
+    bookkeeping. The rules are in `docs/design/prompter.md`, "The bouncing
+    dot".
+  - **Underline:** a white bar fills across the word over its planned length.
+  - **Spotlight:** everything fades back except the word to say (full) and
+    the next one (70%).
+  - **Off:** only the reading line.
+  - With Dot and Underline, words already said on the line fade back, and the
+    reading caret lights amber while the voice is heard.
+  - **Layers:** fading uses `BlendMode.dstOut`, so the text sits in its own
+    layer (a no-op `ShaderMask` around the scroll view); otherwise it would cut
+    holes in the glass behind it. The dot is painted by `_DotLayer` above the
+    read-zone fades, so they never dim it, translated by the scroll offset.
 - **`PrompterView`** is the widget. It shows:
   - large type on `stage` black, or on glass over a camera (`glass: true`);
   - a reading line at 30% of the height;
