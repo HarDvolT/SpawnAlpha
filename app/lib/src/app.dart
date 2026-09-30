@@ -1,0 +1,55 @@
+import 'dart:io';
+
+import 'package:flutter/material.dart';
+
+import 'storage/script_store.dart';
+import 'storage/settings.dart';
+import 'ui/library_screen.dart';
+
+/// The app's shared services, available to every screen through
+/// [AppScope.of].
+class AppServices {
+  AppServices({required this.library, required this.settings, required this.recordingsDir});
+
+  final ScriptLibrary library;
+  final Settings settings;
+
+  /// Where camera takes are saved.
+  final Directory recordingsDir;
+}
+
+class AppScope extends InheritedWidget {
+  const AppScope({super.key, required this.services, required super.child});
+
+  final AppServices services;
+
+  static AppServices of(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<AppScope>()!.services;
+
+  @override
+  bool updateShouldNotify(AppScope old) => old.services != services;
+}
+
+class SpawnAlphaApp extends StatelessWidget {
+  const SpawnAlphaApp({super.key, required this.services});
+
+  final AppServices services;
+
+  @override
+  Widget build(BuildContext context) {
+    ThemeData theme(Brightness brightness) => ThemeData(
+          colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF6D4AFF), brightness: brightness),
+          useMaterial3: true,
+        );
+    return AppScope(
+      services: services,
+      child: MaterialApp(
+        title: 'SpawnAlpha',
+        debugShowCheckedModeBanner: false,
+        theme: theme(Brightness.light),
+        darkTheme: theme(Brightness.dark),
+        home: const LibraryScreen(),
+      ),
+    );
+  }
+}

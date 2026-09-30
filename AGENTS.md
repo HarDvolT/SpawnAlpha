@@ -30,6 +30,7 @@ app/                   the Flutter app (package name: spawnalpha)
   lib/src/storage/     scripts and settings on disk
   lib/src/ui/          screens
   test/                mirrors lib/src/
+  tool/                dev tools; screenshots_test.dart renders the screens to PNG
 ```
 
 ## Toolchain and commands
@@ -45,6 +46,11 @@ app/                   the Flutter app (package name: spawnalpha)
   tar xf flutter.tar.xz && export PATH="$PWD/flutter/bin:$PATH"
   git config --global --add safe.directory '*'
   ```
+- **Seeing the UI without a device:** `flutter test tool/screenshots_test.dart --update-goldens`
+  renders the library, the editor (desktop and phone) and the prompter for all three sample
+  scripts to `app/tool/screenshots/*.png` (git-ignored), using real fonts, including Arabic.
+  Open the PNGs to check layout and right-to-left rendering after UI changes. Add a case there
+  for any new screen.
 
 ## Conventions
 
@@ -67,6 +73,21 @@ app/                   the Flutter app (package name: spawnalpha)
   with the current API docs, and never put model names in commit messages.
 - Tests sit under `app/test/`, mirroring `lib/src/`. Add or update tests with every change.
 - Lints: `flutter_lints` plus the rules in `app/analysis_options.yaml`.
+
+## Gotchas
+
+- **Don't put `WidgetSpan`s inside script text.** Flutter misplaces them in right-to-left
+  paragraphs. Cue icons are icon-font glyphs (`cueSpans` in `prompter/marked_text.dart`).
+  The reason is in `docs/architecture.md`.
+- **Write invisible or bidi characters as escapes** (`'\u202F'`, `'\u2068'`), never as
+  literal characters. Some editing tools turn an escape into the raw character, which is
+  invisible in review; check with a search for the code point after editing.
+- Some Material icon code points lie outside the basic plane and take two UTF-16 units.
+  Measure text offsets with `toPlainText().length`, never by counting spans.
+- In widget tests, a `Ticker`'s first frame has elapsed time zero. Pump once after `play()`
+  before pumping a duration.
+- In widget tests, anything that calls `WakelockPlus` needs its platform channel mocked (see
+  `tool/screenshots_test.dart`).
 
 ## Working agreement
 

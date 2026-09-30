@@ -98,6 +98,13 @@ class _Pass {
     return false;
   }
 
+  bool _hasDigits(TokenRange r) {
+    for (var i = r.start; i <= r.end; i++) {
+      if (tokens[i].hasDigit) return true;
+    }
+    return false;
+  }
+
   bool _hasShouted(TokenRange r) {
     for (var i = r.start; i <= r.end; i++) {
       if (tokens[i].isShouted) return true;
@@ -273,8 +280,9 @@ class _Pass {
         }
         if (runStart != null) _span(MarkKind.slower, runStart, runEnd, 'Technical term: slow down');
       case CoachingStyle.presentation:
+        // Figures written in digits carry the data; slow down for them.
         for (final s in sentences) {
-          if (_hasNumber(s)) _span(MarkKind.slower, s.start, s.end, 'Let the numbers land');
+          if (_hasDigits(s)) _span(MarkKind.slower, s.start, s.end, 'Let the numbers land');
         }
       case CoachingStyle.shortSocial:
         for (var k = 1; k < sentences.length; k++) {

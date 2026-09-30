@@ -70,3 +70,84 @@ replaces the old pending proposals, and replaces the suggestions.
   exact original text. It retries 429 and 5xx responses twice, honouring `retry-after`, and
   turns refusals, `max_tokens` stops and HTTP errors into `MarkupException` messages fit to show
   the user.
+
+## Prompter (`lib/src/prompter/`)
+
+- **`DeliveryTimeline`** (pure Dart) plans a read-through. Each word gets
+  `60 / wpm` seconds, weighted by its length (weights average to 1, so the
+  words per minute hold). Slower spans stretch a word ×1.25 and faster spans
+  squeeze it ×0.8. After each word the timeline holds for the gap mark's
+  length (the style's short or long pause, or 350 ms for a breath), or for a
+  natural beat: 500 ms at a paragraph end, 250 ms at a sentence or line end,
+  120 ms at a comma. `spokenAt(t)` is speaking time with the holds left out;
+  the scroll follows it, so it stands still at pauses.
+- **`PrompterController`** (a `ChangeNotifier`) holds the position in the
+  timeline, play state, speed (0.5× to 2.0×) and scroll mode (timed or
+  manual). The view calls `advance(dt)` every frame; listeners are notified
+  only on discrete changes: the current word, the pause being held, play
+  state, speed or mode. The prompter shows **accepted marks only**.
+- **`PrompterLayout`** maps tokens to screen lines (measured after layout).
+  `scrollYAt(timeline, t)` moves evenly through the line being spoken and
+  reaches the next line with words as the line's last word ends.
+- **`PrompterView`** is the widget: large type on black, a reading line at 30%
+  of the height, a fade over what has been read, pace bars in the gutter, and
+  a PAUSE, LONG PAUSE or BREATHE badge while the prompter holds. A drag or
+  mouse wheel pauses the timed scroll and moves the reader to the line under
+  the reading line. Mirror mode flips it for teleprompter glass.
+- **`MarkedText`** builds the styled span shared by the prompter and the
+  editor. Stress is larger, bold and amber; energy runs are coral and open
+  with a bolt; pace runs are tinted and open with a labelled arrow; pauses
+  and breaths are icons after their word. It also records each token's
+  character offset and each cue's range, for measuring and tap hit-testing.
+
+### Right-to-left gotcha
+
+Cue icons are **glyphs of the Material Icons font inside the text**, not
+`WidgetSpan`s. In right-to-left paragraphs Flutter swaps widget spans between
+slots, which put Arabic cues on the wrong side of their words. Icon glyphs are
+private-use characters (bidi class L), so each becomes its own run and stays
+where it is written. A narrow no-break space (U+202F) joins each icon to its
+word so a line can't break between them. `test/prompter/marked_text_test.dart`
+checks the placement in both directions; keep it passing. Wrap
+mixed-direction strings in UI chrome in isolates (U+2068 … U+2069), as the
+library subtitle does.
+
+## Storage (`lib/src/storage/`)
+
+- `FileScriptStore`: one JSON file per script in
+  `<documents>/SpawnAlpha/scripts/`, written to a temp file and renamed.
+  `ScriptLibrary` is the in-memory list the screens listen to.
+- `Settings`: `<documents>/SpawnAlpha/settings.json` holds the markup source,
+  model, default style, text size and mirror setting. The Claude API key
+  lives in `flutter_secure_storage` (Keychain, Keystore or Windows
+  Credential Manager), never in the JSON file.
+- Takes (recordings) go to `<documents>/SpawnAlpha/recordings/`, and their
+  paths go in the script's `takes`.
+
+## Screens (`lib/src/ui/`)
+
+`AppScope` (an InheritedWidget) provides the library, the settings and the
+recordings folder.
+
+- **LibraryScreen**: the script list, with a button that adds one sample
+  script per language and style.
+- **EditorScreen**: a title, a style picker and a language picker (the
+  language is detected from the first words typed). It has two tabs:
+  - **Write** is the text, remapping marks on every edit.
+  - **Marks** runs the markup, shows faded pending marks, has Accept all and
+    Discard, opens a `MarkSheet` when a word is tapped (accept, change kind,
+    remove, add), and lists suggestion cards (Apply or Dismiss).
+
+  Changes autosave after 600 ms. Before opening the prompter or the
+  recorder, the editor asks what to do with pending marks.
+- **PrompterScreen**: the practice prompter with controls. Keyboard: Space
+  plays or pauses; Up and Down change speed (timed) or move a line
+  (manual); Left and Right move a sentence; T switches mode; Home returns to
+  the start; M mirrors; + and − change the text size.
+- **RecordScreen**: the camera preview with the prompter over its top 45%
+  (near the lens). A 3-2-1 countdown starts the recording and the timed
+  scroll together; the take stops when the script ends or on Space. Each
+  take is saved and added to the script. On mobile, the camera is released
+  when the app goes to the background.
+- **SettingsScreen**: the markup source, API key, model, default style, text
+  size and mirror setting.

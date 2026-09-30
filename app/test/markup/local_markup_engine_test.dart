@@ -29,16 +29,16 @@ void main() {
   });
 
   group('presentation', () {
-    test('stresses numbers with their unit and slows down around them', () async {
+    test('stresses numbers with their unit and slows down for figures', () async {
       final s = await markedUp(
-        'Last year we grew revenue by forty percent. Our team did it. So what comes next?',
+        'Last year we grew revenue by forty percent. Our team did it in 12 months. So what comes next?',
         ScriptLanguage.en,
         CoachingStyle.presentation,
       );
-      expect(marked(s, MarkKind.stress), contains('forty percent.'));
-      expect(marked(s, MarkKind.slower), ['Last year we grew revenue by forty percent.']);
+      expect(marked(s, MarkKind.stress), containsAll(['forty percent.', '12 months.']));
+      expect(marked(s, MarkKind.slower), ['Our team did it in 12 months.']);
       expect(marked(s, MarkKind.pauseLong), contains('percent.'));
-      expect(marked(s, MarkKind.pauseShort), contains('it.'));
+      expect(marked(s, MarkKind.pauseLong), contains('months.'));
       expect(marked(s, MarkKind.energy), ['So what comes next?']);
     });
 

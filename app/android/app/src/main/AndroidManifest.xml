@@ -1,6 +1,11 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Camera and microphone for recording takes; internet for cloud markup. -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
     <application
-        android:label="spawnalpha"
+        android:label="SpawnAlpha"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity
