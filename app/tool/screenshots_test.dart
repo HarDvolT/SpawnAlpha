@@ -28,6 +28,7 @@ import 'package:spawnalpha/src/ui/editor_screen.dart';
 import 'package:spawnalpha/src/ui/library_screen.dart';
 import 'package:spawnalpha/src/ui/settings_screen.dart';
 import 'package:spawnalpha/src/ui/prompter_screen.dart';
+import 'package:spawnalpha/src/ui/script_page.dart';
 
 Future<void> _loadFonts() async {
   final fontDir = Platform.environment['SCREENSHOT_FONT_DIR'] ?? '/usr/share/fonts/truetype/dejavu';
@@ -118,7 +119,9 @@ void main() {
     final script = await _markedUp(sampleScripts()[0]);
     await shoot(tester, 'mark-sheet', phone, (_) => EditorScreen(script: script), [script], before: (tester) async {
       // "12,000": a stressed word whose mark carries the director's note.
-      await tester.tap(find.byKey(const ValueKey('marked-script')), warnIfMissed: false);
+      final page = tester.renderObject<RenderScriptPage>(find.byType(ScriptPage));
+      final start = page.plainText.indexOf('12,000');
+      await tester.tapAt(page.localToGlobal(page.rectOf(start, start + 6)!.center));
       await tester.pumpAndSettle();
     });
   });

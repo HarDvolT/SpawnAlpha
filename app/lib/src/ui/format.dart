@@ -52,3 +52,13 @@ void showMessage(BuildContext context, String message, {SnackBarAction? action})
     ..hideCurrentSnackBar()
     ..showSnackBar(SnackBar(content: Text(message), action: action));
 }
+
+/// A director's note as the pencil writes it: lower case, unless it opens
+/// with an acronym or a name the case would break ("AI", "iPhone").
+String pencilCase(String note) {
+  if (note.length < 2) return note;
+  final first = note[0];
+  final second = note[1];
+  final startsWord = second.toLowerCase() == second && second.toUpperCase() != second;
+  return startsWord ? first.toLowerCase() + note.substring(1) : note;
+}

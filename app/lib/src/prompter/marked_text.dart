@@ -138,10 +138,21 @@ List<TextSpan> cueSpans(MarkKind kind, CueColors colors, double fontSize, {bool 
   ];
 }
 
+/// How stressed words are drawn.
+enum StressStyle {
+  /// On the stage: `stage-stress` amber, heavier and 1.15× larger.
+  stage,
+
+  /// In the Studio: ink at weight 700, with an amber marker swipe painted
+  /// behind it by the page (see [MarkedText.stressRanges]). The text itself
+  /// carries no colour, so the marker can animate without re-laying out.
+  marker,
+}
+
 /// A script rendered with its cues, plus where each token starts in the
 /// rendered text, so callers can measure and hit-test words.
 class MarkedText {
-  const MarkedText(this.span, this.tokenOffsets, this.cueRanges);
+  const MarkedText(this.span, this.tokenOffsets, this.cueRanges, [this.stressRanges = const []]);
 
   final InlineSpan span;
 
@@ -152,6 +163,10 @@ class MarkedText {
   /// to: the word a pace or energy run opens on, or the word a pause
   /// follows.
   final List<(int start, int end, int token)> cueRanges;
+
+  /// The character range of each stress mark, in reading order, with
+  /// whether it is accepted: where the Studio paints its marker swipes.
+  final List<(int start, int end, bool accepted)> stressRanges;
 
   /// The token at character [offset] of the rendered text, or null.
   int? tokenAtOffset(int offset, List<Token> tokens) {
@@ -200,7 +215,9 @@ class MarkedText {
     required TextStyle style,
     required CueColors colors,
     Set<int> selected = const {},
+    StressStyle stressStyle = StressStyle.stage,
   }) {
+    final marker = stressStyle == StressStyle.marker;
     final n = tokens.length;
     final stress = List<Mark?>.filled(n, null);
     final energy = List<Mark?>.filled(n, null);
@@ -263,7 +280,7 @@ class MarkedText {
       final stressMark = stress[i];
       final energyMark = energy[i];
       Color? color;
-      if (stressMark != null) {
+      if (stressMark != null && !marker) {
         color = _fade(colors.stress, stressMark);
       } else if (energyMark != null) {
         color = _fade(colors.energy, energyMark);
@@ -272,12 +289,9 @@ class MarkedText {
         text: t.text,
         style: TextStyle(
           color: color,
-          fontWeight: stressMark != null ? FontWeight.w800 : null,
-          fontSize: stressMark != null ? fontSize * 1.15 : null,
+          fontWeight: stressMark == null ? null : FontWeight.w700,
+          fontSize: stressMark != null && !marker ? fontSize * 1.15 : null,
           backgroundColor: selected.contains(i) ? colors.selection : paceTint?.backgroundColor,
-          decoration: stressMark != null && !stressMark.accepted ? TextDecoration.underline : null,
-          decorationStyle: TextDecorationStyle.dotted,
-          decorationColor: colors.stress,
         ),
       ));
 
@@ -292,10 +306,16 @@ class MarkedText {
       }
     }
 
+    final stressRanges = [
+      for (final m in marks.where((m) => m.kind == MarkKind.stress && m.end < n).toList()
+        ..sort((a, b) => a.start.compareTo(b.start)))
+        (offsets[m.start], offsets[m.end] + tokens[m.end].text.length, m.accepted),
+    ];
     return MarkedText(
       TextSpan(style: style.copyWith(color: style.color ?? colors.text), children: children),
       offsets,
       cueRanges,
+      stressRanges,
     );
   }
 
@@ -305,12 +325,76 @@ class MarkedText {
   static Color _tint(Color tint, Mark mark) => mark.accepted ? tint : tint.withValues(alpha: tint.a / 2);
 }
 
+/// Paints the marker swipe behind a stressed word: a band over the lower
+/// part of the glyph [box] (from 50% to 92% of its height), drawn
+/// [progress] of the way across in the reading direction.
+void paintMarkerBand(Canvas canvas, Rect box, Color color, {double progress = 1, bool rtl = false}) {
+  if (progress <= 0) return;
+  final pad = box.height * 0.06;
+  final full = Rect.fromLTRB(box.left - pad, box.top + box.height * 0.5, box.right + pad, box.top + box.height * 0.92);
+  final width = full.width * progress.clamp(0.0, 1.0);
+  final band = rtl
+      ? Rect.fromLTRB(full.right - width, full.top, full.right, full.bottom)
+      : Rect.fromLTRB(full.left, full.top, full.left + width, full.bottom);
+  canvas.drawRRect(RRect.fromRectAndRadius(band, Radius.circular(box.height * 0.08)), Paint()..color = color);
+}
+
+/// A short text with the Studio's marker swipe behind it, for legends and
+/// sheets (the script page paints its own).
+class MarkerText extends StatelessWidget {
+  const MarkerText(this.text, {super.key, required this.color, required this.style});
+
+  final String text;
+  final Color color;
+  final TextStyle style;
+
+  @override
+  Widget build(BuildContext context) => CustomPaint(
+        painter: _MarkerPainter(color, Directionality.of(context) == TextDirection.rtl),
+        child: Text(text, style: style.copyWith(fontWeight: FontWeight.w700)),
+      );
+}
+
+class _MarkerPainter extends CustomPainter {
+  _MarkerPainter(this.color, this.rtl);
+
+  final Color color;
+  final bool rtl;
+
+  @override
+  void paint(Canvas canvas, Size size) => paintMarkerBand(canvas, Offset.zero & size, color, rtl: rtl);
+
+  @override
+  bool shouldRepaint(_MarkerPainter old) => old.color != color || old.rtl != rtl;
+}
+
+/// A cue's symbol at icon size, for sheets and chips: its glyph, or for
+/// stress (which has no glyph; the word is the cue) a marked "Aa".
+class CueBadge extends StatelessWidget {
+  const CueBadge(this.kind, {super.key, required this.colors, this.size = 20});
+
+  final MarkKind kind;
+  final CueColors colors;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    if (kind == MarkKind.stress) {
+      return MarkerText('Aa', color: colors.marker, style: TextStyle(color: colors.text, fontSize: size * 0.8, height: 1.2));
+    }
+    return Icon(cueIcon(kind), color: colors.of(kind), size: size);
+  }
+}
+
 /// A key to the cue symbols.
 class CueLegend extends StatelessWidget {
-  const CueLegend({super.key, required this.colors, this.fontSize = 14});
+  const CueLegend({super.key, required this.colors, this.fontSize = 14, this.stressStyle = StressStyle.stage});
 
   final CueColors colors;
   final double fontSize;
+
+  /// Draw the stress sample as the stage does, or as the Studio's marker.
+  final StressStyle stressStyle;
 
   @override
   Widget build(BuildContext context) {
@@ -323,9 +407,15 @@ class CueLegend extends StatelessWidget {
       runSpacing: 6,
       crossAxisAlignment: WrapCrossAlignment.center,
       children: [
-        item([
-          TextSpan(text: 'Word', style: TextStyle(color: colors.stress, fontWeight: FontWeight.w800, fontSize: fontSize)),
-        ], 'stress'),
+        if (stressStyle == StressStyle.marker)
+          Row(mainAxisSize: MainAxisSize.min, children: [
+            MarkerText('Word', color: colors.marker, style: TextStyle(color: colors.text, fontSize: fontSize)),
+            Text(' stress', style: TextStyle(color: colors.text, fontSize: fontSize * 0.85)),
+          ])
+        else
+          item([
+            TextSpan(text: 'Word', style: TextStyle(color: colors.stress, fontWeight: FontWeight.w700, fontSize: fontSize)),
+          ], 'stress'),
         for (final (kind, label) in [
           (MarkKind.pauseShort, 'pause'),
           (MarkKind.pauseLong, 'long pause'),

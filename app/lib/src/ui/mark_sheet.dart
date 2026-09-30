@@ -5,6 +5,7 @@ import '../model/mark_editing.dart';
 import '../model/script_document.dart';
 import '../prompter/marked_text.dart';
 import '../theme/theme.dart';
+import 'format.dart';
 
 /// The sheet that opens when a word is tapped in the editor: the marks on
 /// that word, to accept, change or remove, and buttons to add new ones.
@@ -60,7 +61,7 @@ class _MarkSheetState extends State<MarkSheet> {
           Wrap(spacing: 8, runSpacing: 8, children: [
             for (final kind in MarkKind.values)
               ActionChip(
-                avatar: Icon(cueIcon(kind), color: colors.of(kind), size: 18),
+                avatar: CueBadge(kind, colors: colors, size: 18),
                 label: Text(_addLabel(kind)),
                 onPressed: _script.canAddMark(kind, token) ? () => _apply(_script.addMark(kind, token)) : null,
               ),
@@ -117,7 +118,7 @@ class _MarkRow extends StatelessWidget {
         child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Padding(
             padding: const EdgeInsets.only(top: 10),
-            child: Icon(cueIcon(mark.kind), color: colors.of(mark.kind)),
+            child: CueBadge(mark.kind, colors: colors),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -138,7 +139,7 @@ class _MarkRow extends StatelessWidget {
                 Padding(
                   padding: const EdgeInsets.only(top: SaSpace.s1),
                   child: Text(
-                    mark.note!,
+                    pencilCase(mark.note!),
                     textDirection: rtl ? TextDirection.rtl : TextDirection.ltr,
                     style: (rtl ? SaType.noteAr : SaType.note).copyWith(color: SaTheme.of(context).ink2),
                   ),

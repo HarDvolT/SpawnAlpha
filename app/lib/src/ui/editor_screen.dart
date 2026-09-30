@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
 
 import '../app.dart';
 import '../markup/markup_engine.dart';
@@ -16,6 +15,7 @@ import 'components.dart';
 import 'format.dart';
 import 'mark_sheet.dart';
 import 'prompter_screen.dart';
+import 'script_page.dart';
 import 'record_screen.dart';
 import 'settings_screen.dart';
 
@@ -32,12 +32,16 @@ class EditorScreen extends StatefulWidget {
 
 enum _PendingChoice { acceptAll, skip }
 
-class _EditorScreenState extends State<EditorScreen> with SingleTickerProviderStateMixin {
+class _EditorScreenState extends State<EditorScreen> with TickerProviderStateMixin {
   late ScriptDocument _script = widget.script;
   late final _text = TextEditingController(text: _script.text);
   late final _title = TextEditingController(text: _script.title);
   late final _tabs = TabController(length: 2, vsync: this, initialIndex: _script.text.trim().isEmpty ? 0 : 1);
   final _markedKey = GlobalKey();
+
+  /// The director's pass: marks and notes drawing onto the page after a
+  /// markup run. At 1 everything is in place.
+  late final _pass = AnimationController(vsync: this, duration: const Duration(milliseconds: 1600), value: 1);
   Timer? _saveTimer;
   bool _marking = false;
   int _received = 0;
@@ -63,6 +67,7 @@ class _EditorScreenState extends State<EditorScreen> with SingleTickerProviderSt
     _text.dispose();
     _title.dispose();
     _tabs.dispose();
+    _pass.dispose();
     super.dispose();
   }
 
@@ -128,6 +133,7 @@ class _EditorScreenState extends State<EditorScreen> with SingleTickerProviderSt
         return;
       }
       _update(applyMarkup(_script, result));
+      if (!MediaQuery.disableAnimationsOf(context)) _pass.forward(from: 0);
       final suggestions = result.suggestions.isEmpty ? '' : ' and ${result.suggestions.length} suggestions';
       var message = '${engine.name} proposed ${result.marks.length} marks$suggestions. Tap a word to review.';
       if (problem != null) message = '${chosen.label} isn\'t set up yet ($problem), so the on-device markup ran. $message';
@@ -157,9 +163,10 @@ class _EditorScreenState extends State<EditorScreen> with SingleTickerProviderSt
   // ---- marks --------------------------------------------------------------
 
   void _onTapMarked(TapUpDetails details, MarkedText marked) {
-    final paragraph = _markedKey.currentContext?.findRenderObject();
-    if (paragraph is! RenderParagraph) return;
-    final offset = paragraph.getPositionForOffset(paragraph.globalToLocal(details.globalPosition)).offset;
+    final page = _markedKey.currentContext?.findRenderObject();
+    if (page is! RenderScriptPage) return;
+    final offset = page.textOffsetAt(page.globalToLocal(details.globalPosition));
+    if (offset == null) return;
     final token = marked.tokenForTap(offset, _script.tokens);
     if (token == null) return;
     showModalBottomSheet<void>(
@@ -313,7 +320,17 @@ class _EditorScreenState extends State<EditorScreen> with SingleTickerProviderSt
       marks: _script.marks,
       style: (_script.language.isRtl ? SaType.scriptEditAr : SaType.scriptEdit).copyWith(color: colors.text),
       colors: colors,
+      stressStyle: StressStyle.marker,
     );
+    // The director's notes, in reading order. A director doesn't repeat
+    // themself: each note shows once, beside its first use.
+    final seen = <String>{};
+    final notes = [
+      for (final m in [..._script.marks]..sort((a, b) => a.start.compareTo(b.start)))
+        if (m.note != null && m.end < _script.tokens.length && seen.add(pencilCase(m.note!)))
+          PageNote(offset: marked.tokenOffsets[m.kind.isGap ? m.end : m.start], text: pencilCase(m.note!)),
+    ]..sort((a, b) => a.offset.compareTo(b.offset));
+    final isRtl = _script.language.isRtl;
     final settings = _services.settings;
     final engineName = settings.provider.isRemote && settings.setupProblemForProvider == null
         ? '${settings.provider.label} (${settings.configOf(settings.provider).model})'
@@ -353,14 +370,27 @@ class _EditorScreenState extends State<EditorScreen> with SingleTickerProviderSt
         if (_script.tokens.isEmpty)
           Text('Nothing to mark up yet. Write your script in the Write tab.', style: theme.textTheme.bodyLarge)
         else
-          GestureDetector(
-            key: const ValueKey('marked-script'),
-            behavior: HitTestBehavior.opaque,
-            onTapUp: (d) => _onTapMarked(d, marked),
-            child: Text.rich(
-              key: _markedKey,
-              marked.span,
-              textDirection: _script.language.isRtl ? TextDirection.rtl : TextDirection.ltr,
+          MouseRegion(
+            cursor: SystemMouseCursors.click,
+            child: GestureDetector(
+              key: const ValueKey('marked-script'),
+              behavior: HitTestBehavior.opaque,
+              onTapUp: (d) => _onTapMarked(d, marked),
+              child: AnimatedBuilder(
+                animation: _pass,
+                builder: (context, _) => ScriptPage(
+                  key: _markedKey,
+                  text: marked.span,
+                  textDirection: isRtl ? TextDirection.rtl : TextDirection.ltr,
+                  markers: marked.stressRanges,
+                  notes: notes,
+                  markerColor: colors.marker,
+                  noteStyle: (isRtl ? SaType.noteAr : SaType.note).copyWith(color: SaTheme.of(context).ink2),
+                  ruleColor: SaTheme.of(context).line,
+                  reveal: _pass.value,
+                  textScaler: MediaQuery.textScalerOf(context),
+                ),
+              ),
             ),
           ),
         if (_script.suggestions.isNotEmpty) ...[
@@ -380,7 +410,7 @@ class _EditorScreenState extends State<EditorScreen> with SingleTickerProviderSt
             ),
         ],
         const SizedBox(height: 28),
-        CueLegend(colors: colors),
+        CueLegend(colors: colors, stressStyle: StressStyle.marker),
       ],
     );
   }
