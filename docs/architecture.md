@@ -318,6 +318,13 @@ recordings folder.
     while the speaker reads a line: heard, quiet or silent.
   - After a take, `mp4HasAudioTrack` and the loudest level during the take
     catch silent recordings, and the save dialog says so.
+- **Windows screen sources (first recorder slice):** `ScreenSources` talks to the
+   runner's `spawnalpha/screen_sources` channel. `EnumDisplayMonitors` and `EnumWindows`
+   read names and dimensions only, filtering the app's own, hidden, minimized, cloaked,
+   tool and protected windows. Display IDs use the Windows device name; window IDs
+   include process ID and HWND. Never persist these handles. `SourceSelection` owns
+   refresh/selection/confirmation outside the widget, rejects vanished sources and
+   suppresses private error details. No capture, thumbnails or input hooks yet.
 - **SettingsScreen**: the markup source, API key, model, default style, text
   size and mirror setting, plus **Privacy and licences**: what leaves the
   device, and the licence page (`showLicensePage`).

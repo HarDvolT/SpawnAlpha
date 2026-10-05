@@ -67,6 +67,20 @@ The **record button** sits at the bottom of the rail with one line under it that
 - During the countdown only, the recorded area gets a 2px `rec` frame so the speaker sees exactly what will be captured. The frame is excluded from capture and fades out at "go".
 - Source picker: displays and windows as live thumbnails with their names. A window keeps being recorded if it moves.
 
+### Source selection: first Windows slice
+
+The first slice exposes **Choose screen** in the desktop setup rail. It opens a Stage
+page with two lists, **Displays** and **Windows**, their names and pixel dimensions.
+The main display is labelled. Choose a row, then **Use this source**; **Refresh** checks
+the current list. Selection is explicit, keyboard accessible and checked again on
+confirmation. Closed or minimized windows cannot be selected; restore them and Refresh.
+Source names stay on the device and are neither saved nor logged. SpawnAlpha's own
+windows are excluded from this list.
+
+This slice reads metadata only. Camera remains the only enabled recording mode until
+live thumbnails, screen capture and the excluded floating prompter are verified. The
+selected source is held for this setup session; it does not start a recording.
+
 ### The cursor companion
 - **What it is:** a third placement for the Prompter window, set with **Companion** in the HUD. The prompter becomes a small glass card that rides beside the cursor, so a demo can be read without looking away from the work.
 - **Where it sits:**

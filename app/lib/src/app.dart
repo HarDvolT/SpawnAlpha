@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 
 import 'recording/audio_input.dart';
+import 'recording/screen_source.dart';
 import 'storage/script_store.dart';
 import 'theme/theme.dart';
 import 'storage/settings.dart';
@@ -11,14 +12,16 @@ import 'ui/home_screen.dart';
 /// The app's shared services, available to every screen through
 /// [AppScope.of].
 class AppServices {
-  AppServices({required this.library, required this.settings, required this.recordingsDir, AudioInputs? audio})
-      : audio = audio ?? AudioInputs.platform();
+  AppServices({required this.library, required this.settings, required this.recordingsDir, AudioInputs? audio, ScreenSources? screens})
+      : audio = audio ?? AudioInputs.platform(), screens = screens ?? ScreenSources.platform();
 
   final ScriptLibrary library;
   final Settings settings;
 
   /// Microphones: listing, choosing and levels (Windows for now).
   final AudioInputs audio;
+
+  final ScreenSources screens;
 
   /// Where camera takes are saved.
   final Directory recordingsDir;

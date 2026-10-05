@@ -7,7 +7,7 @@ Last updated: 2026-10-05
 **Build step 1 of 7 (script markup and coached prompter): code complete and the main Windows
 retest is owner-confirmed. Dot, One phrase, Center, Kinetic and Voice pace are the approved
 starting choices. Build step 2 has started with a Windows display/window source picker;
-the local build is ready for the owner's trial. Screen capture and the excluded floating
+the owner confirmed source selection. Screen capture and the excluded floating
 prompter are not built yet.** The build order is in
 [product-brief.md](product-brief.md#build-order); it was revised on 2026-09-30.
 
@@ -77,10 +77,9 @@ build step 2 (screen recording).
   in the desktop setup rail; selection is checked again when confirmed and held in memory.
   Native smoke check found both monitors (including the portrait display), omitted SpawnAlpha,
   and returned Display 1 to the setup rail. Nothing is captured by this slice. Camera remains
-  the only enabled recording mode. The picker is open with Display 1 selected for the owner
-  to try another display/window and **Use this source**. Ask if the choices and selection work.
-  Picker code/design/test changes are uncommitted pending that trial; commit/push after their
-  answer and any fixes. Next slice: Windows Graphics Capture live preview/thumbnails, then
+  the only enabled recording mode. The owner chose a source, confirmed it, and reported that
+  setup shows the chosen name. Source selection is complete and ready to commit/push.
+  Next slice: Windows Graphics Capture live preview/thumbnails, then
   the excluded floating prompter and recording pipeline (mic, fragmented MP4, Screen/Both).
   Normal Flutter launch session is currently `51118`; cue-check session `6068` was closed.
   Do not record window titles, scripts or private capture content in logs. No new dependency.
@@ -341,7 +340,8 @@ build step 2 (screen recording).
     No capture starts, no source IDs are persisted, and no dependencies were added.
   - Analysis is clean, all 181 tests and 63 screenshot cases pass, and the Windows debug
     build succeeds. EN/AR picker PNGs inspected; the real two-monitor source list and
-    selection return work. The owner trial is next, followed by committing/pushing this slice.
+    selection return work. The owner confirmed the chosen name returns to setup; this slice
+    is complete. Live preview is next.
 
 - 2026-10-05, desktop retest:
   - One phrase feedback: the owner sees text initially lit, then darkening as the dot

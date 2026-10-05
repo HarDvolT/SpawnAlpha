@@ -13,11 +13,13 @@ import '../prompter/prompter_view.dart';
 import '../recording/mic_monitor.dart';
 import '../recording/mp4.dart';
 import '../recording/sound_check.dart';
+import '../recording/screen_source.dart';
 import '../theme/theme.dart';
 import 'format.dart';
 import 'prompter_controls.dart';
 import 'record_setup.dart';
 import 'recording_widgets.dart';
+import 'screen_source_picker.dart';
 
 /// Records the camera with the coached prompter over the preview. The
 /// prompter starts when the recording starts, after a countdown. Each
@@ -55,6 +57,16 @@ class _RecordScreenState extends State<RecordScreen> with WidgetsBindingObserver
 
   /// The user chose to record although no microphone works.
   bool _allowSilent = false;
+
+  ScreenSource? _screenSource;
+
+  Future<void> _chooseScreen() async {
+    final sources = AppScope.of(context).screens;
+    final selected = await Navigator.of(context).push<ScreenSource>(MaterialPageRoute(
+      builder: (_) => ScreenSourcePicker(sources: sources, selected: _screenSource),
+    ));
+    if (mounted && selected != null) setState(() => _screenSource = selected);
+  }
 
   /// Wider than this, the set-up is a rail beside the preview.
   static const _wideLayout = 1000.0;
@@ -610,7 +622,16 @@ class _RecordScreenState extends State<RecordScreen> with WidgetsBindingObserver
         );
 
     final steps = <Widget>[
-      const SetupStep(number: 1, title: 'What to record', child: RecordModeTiles()),
+      SetupStep(number: 1, title: 'What to record', child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        const RecordModeTiles(),
+        if (AppScope.of(context).screens.supported) ...[
+          const SizedBox(height: SaSpace.s2),
+          OutlinedButton.icon(onPressed: busy ? null : _chooseScreen,
+            icon: const Icon(Icons.desktop_windows_rounded), label: const Text('Choose screen')),
+          if (_screenSource != null) Text(_screenSource!.name, maxLines: 2, overflow: TextOverflow.ellipsis,
+            style: SaType.caption.copyWith(color: stage.stageChromeText)),
+        ],
+      ])),
       SetupStep(
         number: 2,
         title: 'Camera',

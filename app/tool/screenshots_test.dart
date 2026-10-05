@@ -28,6 +28,7 @@ import 'package:spawnalpha/src/prompter/guide.dart';
 import 'package:spawnalpha/src/prompter/prompter_controller.dart';
 import 'package:spawnalpha/src/prompter/prompter_view.dart';
 import 'package:spawnalpha/src/recording/audio_input.dart';
+import 'package:spawnalpha/src/recording/screen_source.dart';
 import 'package:spawnalpha/src/storage/script_store.dart';
 import 'package:spawnalpha/src/storage/settings.dart';
 import 'package:spawnalpha/src/theme/theme.dart';
@@ -39,8 +40,22 @@ import 'package:spawnalpha/src/ui/prompter_screen.dart';
 import 'package:spawnalpha/src/ui/record_screen.dart';
 import 'package:spawnalpha/src/ui/recording_widgets.dart';
 import 'package:spawnalpha/src/ui/script_page.dart';
+import 'package:spawnalpha/src/ui/screen_source_picker.dart';
 
 import 'fixtures/cue_check_scripts.dart';
+
+class _ScreenCandidates implements ScreenSources {
+  const _ScreenCandidates(this.name);
+  final String name;
+  @override
+  bool get supported => true;
+  @override
+  Future<List<ScreenSource>> list() async => [
+    const ScreenSource(id: 'display:main', name: 'Display 1', kind: ScreenSourceKind.display,
+      width: 1920, height: 1080, primary: true),
+    ScreenSource(id: 'window:presentation', name: name, kind: ScreenSourceKind.window, width: 1280, height: 720),
+  ];
+}
 
 Future<void> _loadFonts() async {
   final fontDir = Platform.environment['SCREENSHOT_FONT_DIR'] ?? '/usr/share/fonts/truetype/dejavu';
@@ -415,6 +430,13 @@ void main() {
         await tester.pump(const Duration(milliseconds: 300));
         await tester.pump(const Duration(milliseconds: 300));
       });
+    });
+  }
+
+  for (final (language, name) in [('en', 'My presentation'), ('fr', 'Présentation française'), ('ar', 'عرض تقديمي')]) {
+    testWidgets('screen source picker $language', (tester) async {
+      await shoot(tester, 'screen-sources-$language', desktop,
+        (_) => ScreenSourcePicker(sources: _ScreenCandidates(name)), []);
     });
   }
 
