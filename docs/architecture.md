@@ -367,6 +367,19 @@ recordings folder.
   pins the chosen/default capture endpoint and uses Windows shared-mode conversion
   to mono PCM16 at 48 kHz; QPC packet timestamps are in 100 ns units. Failed chosen
   IDs never fall back. Real capture/common-clock/UI integration is still pending.
+- **Windows recording pipeline (sixth slice, UI integration pending):**
+  `ScreenRecordingCore` owns a dedicated MTA worker, free-threaded WGC frame pool,
+  copied GPU snapshots, chosen microphone and writer. It never borrows a reusable
+  capture-pool surface beyond the frame callback. Video cadence and microphone packet
+  times share QPC in 100 ns units; pre-start audio is trimmed, overlaps are removed,
+  missing timestamps or discontinuous audio stop explicitly. Output bounds are fixed
+  from the first frame, within 1920 px on the long edge, 30 fps. Stop/source loss
+  closes capture and finalizes; status retains counts/duration/reason but no private
+  content. Native `ScreenRecorder` exposes asynchronous start/status/stop; only matching
+  session IDs stop an active worker, and engine shutdown joins it. Dart `ScreenRecordings`
+  validates replies and exposes partial results. The explicit native check records its
+  own generated window and verifies decoded pixels, resize and audio/video endpoints.
+  Durable metadata, recovery, hidden recording controls and setup integration are next.
 - **SettingsScreen**: the markup source, API key, model, default style, text
   size and mirror setting, plus **Privacy and licences**: what leaves the
   device, and the licence page (`showLicensePage`).

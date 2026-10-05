@@ -33,7 +33,7 @@ build step 2 (screen recording).
   `flutter_secure_storage_windows`). `flutter doctor -v` passes Windows, Visual Studio,
   desktop device and network checks. Android is intentionally not installed yet.
 - **Local checks and launch:** `flutter pub get` succeeds; `flutter analyze` prints
-  **No issues found!**; all **206 tests pass** (194 before floating prompter).
+  **No issues found!**; all **210 tests pass** (206 before recording channel).
   All **72 screenshot cases pass**, including the source picker, unavailable-preview
   and default/minimum floating prompter in EN/FR/AR. The Windows debug build succeeds.
   Windows Git checkout converted generated
@@ -144,6 +144,21 @@ build step 2 (screen recording).
   recording another microphone. This core is not wired to capture/the UI yet. The
   next slice must align real screen and microphone clocks and safely finalize on stop,
   source closure/minimization or microphone loss. Video core was pushed in `490648d`.
+- **Resume here (screen recorder slice 6, capture/save pipeline):** the dedicated MTA
+  worker now captures the selected window/display on the GPU and writes H.264 + optional
+  chosen-microphone AAC against a common QPC clock. Output fits the initial aspect ratio
+  within a 1920 px long edge at 30 fps; source resizing is letterboxed and a static source
+  keeps its latest frame. Startup waits for a real frame before creating a file; stop
+  finalizes outside the UI thread. Closed/minimized sources stop with a recoverable result.
+  Microphone access/loss, missing timestamps or sample loss produce explicit reasons.
+  `spawnalpha/screen_recording` and the tested Dart `ScreenRecordings` backend expose
+  start/status/stop with session guards. This pipeline is not enabled in the setup UI yet.
+  Native checks record only a generated-color fixture window, including resize, normal
+  stop, real default-microphone PCM/AAC and source closure/minimization; saved outputs
+  decode with ordered times and close audio/video endpoints. Output stays in ignored
+  `app/build/encoder-fixtures`; no private window titles or samples are logged.
+  Durable take metadata/recovery, capture-excluded HUD/countdown, synchronized floating
+  reader and Screen/Both setup integration are next. Sound core was pushed in `9652e11`.
 - **Cue retest history (superseded by normal-app launch above):** `app/tool/cue_check.dart` is a development-only launch target.
   It uses the real Home/practice screens with memory-only scripts, settings and keys;
   optional recordings go under `app/build/cue-check/recordings`, on E: on this PC.
@@ -396,6 +411,20 @@ build step 2 (screen recording).
   word lists, not prosody.
 
 ## Session log
+
+- 2026-10-05, Windows recorder slice 6 (capture/save pipeline):
+  - Joined free-threaded WGC GPU snapshots and selected-endpoint PCM/AAC on a dedicated
+    worker, fixed output bounds and common QPC timestamps. Static sources repeat their
+    latest GPU snapshot; slow encoding drops cadence slots without unbounded queues.
+  - Startup requires a frame and a working chosen microphone; stop and source loss
+    finalize partial output. Native fixture-window recording/decode checks pass for resize,
+    chosen/default audio, normal stop and closed/minimized source recovery.
+  - Added guarded native start/status/stop and Dart channel tests. No setup mode is
+    enabled yet; durable metadata/recovery, hidden HUD/countdown and floating-reader
+    synchronization remain next before owner trials of actual screen takes.
+    Analysis is clean, all 210 tests pass and the Windows debug build succeeds.
+    Decoded WGC fixture pixels match the generated colors and resize margins;
+    early cancellation and missing chosen microphone leave no output file.
 
 - 2026-10-05, Windows recorder slice 5 (sound saver core):
   - Added optional platform AAC audio to the fragmented MP4 writer; generated-tone

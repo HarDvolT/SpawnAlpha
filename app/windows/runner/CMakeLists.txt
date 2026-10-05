@@ -13,6 +13,8 @@ add_executable(${BINARY_NAME} WIN32
   "floating_prompter.cpp"
   "gpu_video_writer.cpp"
   "microphone_capture.cpp"
+  "screen_recording_core.cpp"
+  "screen_recorder.cpp"
   "main.cpp"
   "utils.cpp"
   "win32_window.cpp"
@@ -66,3 +68,10 @@ target_compile_features(microphone_capture_check PRIVATE cxx_std_17)
 target_compile_options(microphone_capture_check PRIVATE /W4 /WX /EHsc /wd"4100")
 target_compile_definitions(microphone_capture_check PRIVATE "NOMINMAX")
 target_link_libraries(microphone_capture_check PRIVATE "ole32.lib" "windowsapp.lib")
+
+# Captures only its own generated-color window; no private desktop capture.
+add_executable(screen_recording_check EXCLUDE_FROM_ALL "screen_recording_core.cpp" "gpu_video_writer.cpp" "microphone_capture.cpp" "tests/screen_recording_check.cpp")
+target_compile_features(screen_recording_check PRIVATE cxx_std_17)
+target_compile_options(screen_recording_check PRIVATE /W4 /WX /EHsc /wd"4100")
+target_compile_definitions(screen_recording_check PRIVATE "NOMINMAX")
+target_link_libraries(screen_recording_check PRIVATE "d3d11.lib" "dxgi.lib" "mf.lib" "mfplat.lib" "mfreadwrite.lib" "mfuuid.lib" "ole32.lib" "oleaut32.lib" "windowsapp.lib" "user32.lib" "gdi32.lib")

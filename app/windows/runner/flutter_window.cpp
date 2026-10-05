@@ -31,6 +31,7 @@ bool FlutterWindow::OnCreate() {
       ->GetRegistrar<flutter::PluginRegistrarWindows>(flutter_controller_->engine()->GetRegistrarForPlugin("ScreenPreview"));
   screen_preview_ = std::make_unique<ScreenPreview>(registrar->messenger(), registrar->texture_registrar());
   floating_prompter_ = std::make_unique<FloatingPrompterHost>(GetHandle(), project_, registrar->messenger());
+  screen_recorder_ = std::make_unique<ScreenRecorder>(registrar->messenger());
   SetChildContent(flutter_controller_->view()->GetNativeWindow());
 
   flutter_controller_->engine()->SetNextFrameCallback([&]() {
@@ -46,6 +47,7 @@ bool FlutterWindow::OnCreate() {
 }
 
 void FlutterWindow::OnDestroy() {
+  screen_recorder_.reset();
   floating_prompter_.reset();
   screen_preview_.reset();
   screen_sources_.reset();
