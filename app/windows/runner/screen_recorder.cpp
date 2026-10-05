@@ -1,10 +1,13 @@
 #include "screen_recorder.h"
 #include "screen_recording_core.h"
 #include "screen_sources.h"
+#include "recording_probe.h"
 #include <flutter/encodable_value.h>
 #include <flutter/method_channel.h>
 #include <flutter/standard_method_codec.h>
 #include <winrt/base.h>
+#include <thread>
+#include <mutex>
 
 namespace {
 using flutter::EncodableMap;
@@ -52,6 +55,31 @@ EncodableMap Status(const ScreenRecordingStatus& status) {
     {EncodableValue("loudestRmsDb"), EncodableValue(status.loudest_rms_db)},
   };
 }
+struct ProbeJob {
+  explicit ProbeJob(std::wstring path) {
+    worker = std::thread([this, path] {
+      const auto result = ProbeRecording(path, cancelled);
+      std::lock_guard<std::mutex> lock(mutex);
+      info = result; ready = true;
+    });
+  }
+  ~ProbeJob() { cancelled = true; if (worker.joinable()) worker.join(); }
+  EncodableMap Status() {
+    std::lock_guard<std::mutex> lock(mutex);
+    return {{EncodableValue("ready"), EncodableValue(ready)},
+      {EncodableValue("readable"), EncodableValue(info.readable)},
+      {EncodableValue("hasAudio"), EncodableValue(info.has_audio)},
+      {EncodableValue("width"), EncodableValue(static_cast<int32_t>(info.width))},
+      {EncodableValue("height"), EncodableValue(static_cast<int32_t>(info.height))},
+      {EncodableValue("durationUs"), EncodableValue(info.duration_100ns / 10)}};
+  }
+  bool Ready() { std::lock_guard<std::mutex> lock(mutex); return ready; }
+  std::atomic<bool> cancelled{false};
+  std::mutex mutex;
+  RecordingInfo info{};
+  bool ready = false;
+  std::thread worker;
+};
 }  // namespace
 
 struct ScreenRecorder::Impl {
@@ -61,7 +89,25 @@ struct ScreenRecorder::Impl {
       const auto* args = call.arguments() ? std::get_if<EncodableMap>(call.arguments()) : nullptr;
       if (!args) { result->Error("invalid", "Choose the screen and microphone first."); return; }
       try {
-        if (call.method_name() == "start") {
+        if (call.method_name() == "inspectStart") {
+          const auto path = StringArgument(*args, "path");
+          if (!path || path->size() < 4 || (*path)[1] != ':' ||
+              ((*path)[2] != '\\' && (*path)[2] != '/') || path->find('\0') != std::string::npos) {
+            result->Error("invalid", "Choose a local recording."); return;
+          }
+          if (probe && !probe->Ready()) { result->Error("busy", "A recording is being checked."); return; }
+          probe.reset();
+          probe = std::make_unique<ProbeJob>(winrt::to_hstring(*path).c_str());
+          result->Success(EncodableValue(++probe_generation));
+        } else if (call.method_name() == "inspectStatus") {
+          if (!probe || SessionId(*args) != probe_generation) {
+            result->Error("expired", "Recording check expired."); return;
+          }
+          result->Success(EncodableValue(probe->Status()));
+        } else if (call.method_name() == "inspectCancel") {
+          if (probe && SessionId(*args) == probe_generation) probe->cancelled = true;
+          result->Success();
+        } else if (call.method_name() == "start") {
           if (active) {
             const auto state = active->Status().state;
             if (state != ScreenRecordingState::finished && state != ScreenRecordingState::failed) {
@@ -98,10 +144,12 @@ struct ScreenRecorder::Impl {
       }
     });
   }
-  ~Impl() { channel.SetMethodCallHandler(nullptr); active.reset(); }
+  ~Impl() { channel.SetMethodCallHandler(nullptr); active.reset(); probe.reset(); }
   flutter::MethodChannel<EncodableValue> channel;
   std::unique_ptr<ScreenRecordingCore> active;
   int64_t generation = 0;
+  std::unique_ptr<ProbeJob> probe;
+  int64_t probe_generation = 0;
 };
 ScreenRecorder::ScreenRecorder(flutter::BinaryMessenger* messenger) : impl_(std::make_unique<Impl>(messenger)) {}
 ScreenRecorder::~ScreenRecorder() = default;

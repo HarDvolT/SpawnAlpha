@@ -380,6 +380,16 @@ recordings folder.
   validates replies and exposes partial results. The explicit native check records its
   own generated window and verifies decoded pixels, resize and audio/video endpoints.
   Durable metadata, recovery, hidden recording controls and setup integration are next.
+- **Durable screen takes (seventh slice):** `ScreenTakeStore` reserves a random local
+  video name and flushes a pending manifest before native capture. The manifest snapshots
+  the script/presentation, source description and audio choice, excluding volatile handles,
+  old takes, suggestions and secrets. Finish uses the native `ProbeRecording` worker to
+  decode one frame and verify visible aperture, audio track and duration; unfinished
+  fragmented MP4 can fall back to encoded-sample times. The library is saved before the
+  manifest changes from pending, allowing idempotent retries without losing later edits.
+  Startup recovery is serialized with reservations/finishes, ignores external paths and
+  symlinks, leaves unreadable files local, and never resurrects deleted scripts. Take's
+  extra mode/metadata/camera/recovered fields preserve legacy camera-file compatibility.
 - **SettingsScreen**: the markup source, API key, model, default style, text
   size and mirror setting, plus **Privacy and licences**: what leaves the
   device, and the licence page (`showLicensePage`).

@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -25,13 +26,16 @@ Future<void> main() async {
   final settings = Settings(file: File(under('settings.json')));
   await Future.wait([library.load(), settings.load()]);
 
-  runApp(SpawnAlphaApp(
-    services: AppServices(
+  final services = AppServices(
       library: library,
       settings: settings,
       recordingsDir: Directory(under('recordings')),
-    ),
-  ));
+    );
+  runApp(SpawnAlphaApp(services: services));
+  if (services.recorder.supported) {
+    // Recover in the background. The store serializes recovery with new takes.
+    unawaited(services.screenTakes.recover().catchError((Object error) => 0));
+  }
 }
 
 /// The bundled fonts are under the SIL Open Font License, which asks for

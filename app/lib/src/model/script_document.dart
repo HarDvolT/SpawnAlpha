@@ -77,18 +77,35 @@ class Suggestion {
 }
 
 /// A recording made from a script.
+enum TakeMode { camera, screen, both }
+
 class Take {
-  const Take({required this.path, required this.recordedAt, required this.duration});
+  const Take({
+    required this.path,
+    required this.recordedAt,
+    required this.duration,
+    this.mode = TakeMode.camera,
+    this.cameraPath,
+    this.metadataPath,
+    this.recovered = false,
+  });
 
   final String path;
   final DateTime recordedAt;
   final Duration duration;
+  final TakeMode mode;
+  final String? cameraPath, metadataPath;
+  final bool recovered;
 
   Map<String, Object?> toJson() => {
-        'path': path,
-        'recordedAt': recordedAt.toIso8601String(),
-        'durationMs': duration.inMilliseconds,
-      };
+    'path': path,
+    'recordedAt': recordedAt.toIso8601String(),
+    'durationMs': duration.inMilliseconds,
+    'mode': mode.name,
+    'cameraPath': ?cameraPath,
+    'metadataPath': ?metadataPath,
+    if (recovered) 'recovered': true,
+  };
 
   static Take? fromJson(Map<String, Object?> json) {
     final path = json['path'];
@@ -98,6 +115,12 @@ class Take {
       path: path,
       recordedAt: at,
       duration: Duration(milliseconds: json['durationMs'] as int? ?? 0),
+      mode:
+          TakeMode.values.where((v) => v.name == json['mode']).firstOrNull ??
+          TakeMode.camera,
+      cameraPath: json['cameraPath'] as String?,
+      metadataPath: json['metadataPath'] as String?,
+      recovered: json['recovered'] == true,
     );
   }
 }

@@ -33,7 +33,7 @@ build step 2 (screen recording).
   `flutter_secure_storage_windows`). `flutter doctor -v` passes Windows, Visual Studio,
   desktop device and network checks. Android is intentionally not installed yet.
 - **Local checks and launch:** `flutter pub get` succeeds; `flutter analyze` prints
-  **No issues found!**; all **210 tests pass** (206 before recording channel).
+  **No issues found!**; all **220 tests pass** (210 before durable takes).
   All **72 screenshot cases pass**, including the source picker, unavailable-preview
   and default/minimum floating prompter in EN/FR/AR. The Windows debug build succeeds.
   Windows Git checkout converted generated
@@ -159,6 +159,21 @@ build step 2 (screen recording).
   `app/build/encoder-fixtures`; no private window titles or samples are logged.
   Durable take metadata/recovery, capture-excluded HUD/countdown, synchronized floating
   reader and Screen/Both setup integration are next. Sound core was pushed in `9652e11`.
+- **Resume here (screen recorder slice 7, durable takes/recovery):** `ScreenTakeStore`
+  flushes a local pending manifest before capture, including the script/presentation
+  version, source name/kind/size and explicit audio choice; it excludes native source IDs,
+  old takes, suggestions and keys. Finish verifies a decoded frame and file details on
+  a native worker before saving the library and marking the manifest complete. Startup
+  recovers readable pending videos without duplicating takes, resurrecting deleted scripts
+  or replacing later script edits. Unreadable files remain local for retry. Recovery is
+  serialized with new reservations/finishes and never follows arbitrary manifest paths
+  or video symlinks. Take now records mode, metadata path, optional camera path and a
+  recovered flag; legacy camera takes still load. EN/FR/AR snapshot, crash/retry, failed
+  library write and path/deletion tests pass. Native probing reads an unfinished generated
+  fragmented MP4 correctly, including its visible aperture rather than decoder padding.
+  Startup recovery is wired; no screen mode is enabled yet. Excluded HUD/countdown,
+  recording-time floating reader and Screen/Both setup integration remain next.
+  Capture/save pipeline was pushed in `f16d256`.
 - **Cue retest history (superseded by normal-app launch above):** `app/tool/cue_check.dart` is a development-only launch target.
   It uses the real Home/practice screens with memory-only scripts, settings and keys;
   optional recordings go under `app/build/cue-check/recordings`, on E: on this PC.
@@ -245,7 +260,7 @@ build step 2 (screen recording).
 | Screen and Screen + camera recording, cursor companion, telemetry | Designed (`docs/design/recording.md`). Source selection, preview and floating trial started; saving screen takes, recording HUD and integration remain to build. |
 | Director's Cut (auto-edit, captions, auto-zoom, finish screen) | Designed (`docs/design/autoedit.md`). Not built; needs a native render core. |
 
-206 tests pass (`cd app && flutter test`), 72 screenshot cases pass, and `flutter analyze` is clean.
+220 tests pass (`cd app && flutter test`), 72 screenshot cases pass, and `flutter analyze` is clean.
 
 ## Next steps
 
@@ -403,14 +418,28 @@ build step 2 (screen recording).
   which word you are on. Voice-following (speech recognition) is build step 3.
 - On Windows, the level meter opens its own shared-mode stream on the microphone next to the
   recording, and during the set-up one more per microphone. Screen capture preview works;
-  saving screen recordings is not built yet.
+  the native screen/audio save pipeline passes tests. Screen/Both are still disabled
+  in setup until excluded controls and reader synchronization are integrated.
 - Live preview uses an 8-bit SDR, 15 fps CPU readback path. Full-display preview can show
-  recursion because the setup/preview window is not excluded yet. Recording needs a GPU
-  pipeline, platform encoders and integration with the excluded floating prompter.
+  recursion because the setup/preview window is not excluded yet. The recording GPU/
+  platform-encoder pipeline passes native tests; excluded controls, the floating
+  prompter and setup integration remain pending.
 - The on-device markup is heuristic. For example, French and Arabic stress rules are based on
   word lists, not prosody.
 
 ## Session log
+
+- 2026-10-05, Windows recorder slice 7 (durable takes/recovery):
+  - Added flushed local pending manifests and script/presentation snapshots, file
+    verification on a native worker, mode/path metadata and idempotent crash recovery.
+    Recovery preserves later edits, deleted scripts and unreadable local files, and
+    rejects external paths/symlinks. A library save failure leaves recovery information.
+  - Native verification decodes one frame, checks visible dimensions/audio and reads
+    completed-fragment duration after a crash. Fixed padded decoder-height reporting.
+    EN/FR/AR snapshots and recovery/retry/compatibility tests pass. Startup recovery is
+    serialized with reservations/finishes. No screen recording UI is enabled yet.
+    Analysis is clean, all 220 tests pass and the Windows debug build succeeds;
+    native probing passes unfinished video-only and finalized AAC fixtures.
 
 - 2026-10-05, Windows recorder slice 6 (capture/save pipeline):
   - Joined free-threaded WGC GPU snapshots and selected-endpoint PCM/AAC on a dedicated
