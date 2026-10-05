@@ -397,6 +397,16 @@ recordings folder.
   on the same timeline; no timestamp reset or growing paused queue. The native/Dart pause
   method uses matching session IDs. Pure clock and decoded silent/audio fixture checks
   verify trimming, fixed paused counts and resumed endpoint alignment.
+- **Excluded recording HUD (ninth slice):** `RecordingHud` creates a separate Flutter
+  engine at `recordingHudMain`, verifies its own and the main setup window's capture
+  exclusion before visibility, and restores the owner's prior affinity on close/failure.
+  Native bounds centre countdown on the chosen source and dock HUD on that monitor;
+  the widget tolerates native resize arriving one frame before the new phase. The child
+  receives only phase/time/mic display data and returns guarded commands; no script or
+  file paths. Flutter reports interactive control/grip rectangles, and an in-process
+  timer toggles native click-through outside them using transient cursor positions only.
+  No input hook or persisted telemetry. Engine shutdown finalizes the recorder before
+  destroying the HUD/restoring affinity. Normal setup integration remains next.
 - **SettingsScreen**: the markup source, API key, model, default style, text
   size and mirror setting, plus **Privacy and licences**: what leaves the
   device, and the licence page (`showLicensePage`).

@@ -328,6 +328,8 @@ abstract final class SaDurations {
   static const Duration slow = Duration(milliseconds: 400);
   /// One countdown beat.
   static const Duration beat = Duration(milliseconds: 1000);
+  /// Refresh click-through around the recording HUD's interactive controls.
+  static const Duration hudHitPoll = Duration(milliseconds: 16);
   /// Delay between cues when a markup pass draws in; cap the whole pass at 800ms.
   static const Duration stagger = Duration(milliseconds: 18);
   /// Check live-preview size and source availability; this does not drive capture frames.
@@ -388,6 +390,14 @@ abstract final class SaPrompter {
   static const double floatingMinHeight = 280.0;
   /// Lowest desktop prompter opacity. The capture exclusion applies at every opacity.
   static const double floatingMinOpacity = 0.6;
+  /// Excluded recording HUD width, with timer, microphone and controls.
+  static const double hudWidth = 720.0;
+  /// Excluded recording HUD height.
+  static const double hudHeight = 96.0;
+  /// Excluded countdown size before the HUD docks at the bottom.
+  static const double countdownWindowSize = 320.0;
+  /// Live microphone meter in the recording HUD.
+  static const double micMeterHeight = 3.0;
 }
 
 /// Defaults for the automatic edit of screen recordings.

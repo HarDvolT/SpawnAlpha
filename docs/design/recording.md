@@ -119,6 +119,20 @@ is already used by another app, keep Lock off and explain why. Closing the previ
 also closes the floating trial and releases its shortcuts. Recording integration,
 the separate recording HUD and Companion follow in the next slices.
 
+### Recording controls: Windows slice
+
+The recording HUD is a separate frameless, topmost tool window. Windows capture
+exclusion is verified before its first visible frame. Its countdown uses the
+existing spring-driven numeral in a `countdown-window-size` square at the centre
+of the selected display/window; at go, it becomes the `hud-width` × `hud-height`
+pill at the bottom of that source's display, inset by `space-6`. It offers a live
+timer and tally, microphone name/meter, Pause/Resume, Stop, and reader visibility/
+Lock controls. Waiting during Pause is removed from the saved picture and sound.
+Closing the HUD asks to stop; the recording owner finalizes before destroying it.
+The setup/main window is excluded for the same session, and restored afterward.
+If any required exclusion fails, recording stays off and explains why. The source
+capture border stays enabled. Companion and the excluded camera bubble follow.
+
 ### The cursor companion
 - **What it is:** a third placement for the Prompter window, set with **Companion** in the HUD. The prompter becomes a small glass card that rides beside the cursor, so a demo can be read without looking away from the work.
 - **Where it sits:**

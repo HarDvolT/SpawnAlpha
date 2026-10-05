@@ -33,8 +33,8 @@ build step 2 (screen recording).
   `flutter_secure_storage_windows`). `flutter doctor -v` passes Windows, Visual Studio,
   desktop device and network checks. Android is intentionally not installed yet.
 - **Local checks and launch:** `flutter pub get` succeeds; `flutter analyze` prints
-  **No issues found!**; all **220 tests pass** (210 before durable takes).
-  All **72 screenshot cases pass**, including the source picker, unavailable-preview
+  **No issues found!**; all **226 tests pass** (220 before recording controls).
+  All **81 screenshot cases pass**, including the source picker, unavailable-preview
   and default/minimum floating prompter in EN/FR/AR. The Windows debug build succeeds.
   Windows Git checkout converted generated
   tokens to CRLF, causing the exact-generation test to fail: `.gitattributes` now keeps
@@ -184,6 +184,21 @@ build step 2 (screen recording).
   pre-start trim, crossed boundaries and repeated pauses. The guarded Dart/native pause
   API is ready; controls/setup integration remain next. Durable recovery was pushed in
   `fc8f608`.
+- **Resume here (screen recorder slice 9, excluded HUD/countdown):** a separate retained
+  `recordingHudMain` Flutter engine renders the countdown and recording HUD. The native
+  host verifies HUD and main/setup window capture exclusion before visibility; close
+  restores the owner's previous affinity. Countdown centres on the source and the HUD
+  docks at the source display's bottom. It shows tally/time, selected microphone/meter,
+  Pause/Resume, Stop and reader visibility/Lock controls. Only controls and the drag grip
+  take mouse input; other HUD areas use native click-through, with transient cursor
+  checks and no hooks/logging. Rounded bounds and input/layout timing use design tokens.
+  EN/FR/AR microphone layout/control tests pass, and countdown-to-HUD resizing keeps the
+  old state usable for its transition frame. `tool/native_hud_check.dart` is a memory-only
+  smoke launcher: no script, file, microphone or capture access. It checks visibility,
+  exclusion, phase/docking updates, close/reopen and main-window affinity restoration.
+  Reader synchronization, recording controls integration and Screen/Both setup enablement
+  remain next; the HUD is not accessible from normal setup yet. Pause was pushed in
+  `4890fc8`. Real HUD click-through/placement and owner trials remain pending.
 - **Cue retest history (superseded by normal-app launch above):** `app/tool/cue_check.dart` is a development-only launch target.
   It uses the real Home/practice screens with memory-only scripts, settings and keys;
   optional recordings go under `app/build/cue-check/recordings`, on E: on this PC.
@@ -438,6 +453,19 @@ build step 2 (screen recording).
   word lists, not prosody.
 
 ## Session log
+
+- 2026-10-05, Windows recorder slice 9 (excluded HUD/countdown):
+  - Added a separate protected HUD engine/window and protected setup-window ownership,
+    source-centred countdown, docked timer/meter/controls, rounded bounds and click-through
+    outside controls/grip. No script, private files, capture or microphone in HUD transfer.
+  - Added EN/FR/AR layout/control/state/exclusion tests and nine screenshot cases.
+    Fixed low-contrast controls and the single-frame countdown/docking overflow.
+    Native smoke checks cover verified visibility/exclusion, close/reopen and restored
+    main-window affinity; owner click-through/placement trials remain pending.
+  - Normal setup still has Screen/Both disabled until reader/control integration.
+    Analysis is clean, all 226 tests and 81 screenshots pass; EN recording and AR
+    countdown PNGs were inspected. The Windows native check passes without layout
+    overflow and restores the main window after two protected HUD sessions.
 
 - 2026-10-05, Windows recorder slice 8 (pause/resume):
   - Added a shared QPC clock with paused intervals removed, including exact PCM packet

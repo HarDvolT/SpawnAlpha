@@ -45,6 +45,8 @@ import 'package:spawnalpha/src/ui/script_page.dart';
 import 'package:spawnalpha/src/ui/screen_source_picker.dart';
 import 'package:spawnalpha/src/ui/screen_preview_screen.dart';
 import 'package:spawnalpha/src/ui/floating_prompter_screen.dart';
+import 'package:spawnalpha/src/ui/recording_hud_screen.dart';
+import 'package:spawnalpha/src/recording/recording_hud.dart';
 
 import 'fixtures/cue_check_scripts.dart';
 
@@ -474,6 +476,18 @@ void main() {
         final script = cueCheckScript(language);
         await shoot(tester, 'floating-prompter-${language.name}-$sizeName', size,
           (_) => FloatingPrompterScreen(presentation: FloatingPresentation(script: script)), [script]);
+      });
+    }
+  }
+
+  for (final (language, microphone) in [('en', 'Wireless microphone'), ('fr', 'Microphone sans fil'), ('ar', 'ميكروفون لاسلكي')]) {
+    for (final phase in [HudPhase.recording, HudPhase.paused, HudPhase.countdown]) {
+      testWidgets('recording HUD $language ${phase.name}', (tester) async {
+        final size = phase == HudPhase.countdown ? Size.square(SaPrompter.countdownWindowSize)
+          : Size(SaPrompter.hudWidth, SaPrompter.hudHeight);
+        await shoot(tester, 'recording-hud-$language-${phase.name}', size,
+          (_) => RecordingHudScreen(initial: HudState(phase: phase, microphone: microphone,
+            duration: const Duration(seconds: 8), peakDb: -9)), []);
       });
     }
   }

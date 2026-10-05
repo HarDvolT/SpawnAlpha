@@ -16,6 +16,7 @@ add_executable(${BINARY_NAME} WIN32
   "screen_recording_core.cpp"
   "screen_recorder.cpp"
   "recording_probe.cpp"
+  "recording_hud.cpp"
   "main.cpp"
   "utils.cpp"
   "win32_window.cpp"
