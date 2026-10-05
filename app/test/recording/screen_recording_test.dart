@@ -102,6 +102,9 @@ void main() {
       await backend.stop(handle);
       expect(request!.method, 'stop');
       expect(request!.arguments, {'sessionId': 3});
+    await backend.pause(handle, true);
+    expect(request!.method, 'pause');
+    expect(request!.arguments, {'sessionId': 3, 'paused': true});
     },
   );
 

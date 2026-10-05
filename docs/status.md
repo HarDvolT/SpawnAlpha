@@ -174,6 +174,16 @@ build step 2 (screen recording).
   Startup recovery is wired; no screen mode is enabled yet. Excluded HUD/countdown,
   recording-time floating reader and Screen/Both setup integration remain next.
   Capture/save pipeline was pushed in `f16d256`.
+- **Resume here (screen recorder slice 8, real pause/resume):** the recording clock now
+  removes paused intervals from both video cadence and microphone timestamps, trimming
+  audio packets that cross pause/resume boundaries. Recording continues to monitor source
+  and microphone availability while paused; picture writes and saved duration stop, while
+  the live meter can still move. Native generated-window checks with and without real
+  default-microphone AAC verify an unchanged paused timer/frame count, removed pause gap
+  and aligned decoded audio/video endpoints after resume. Pure C++ clock checks cover
+  pre-start trim, crossed boundaries and repeated pauses. The guarded Dart/native pause
+  API is ready; controls/setup integration remain next. Durable recovery was pushed in
+  `fc8f608`.
 - **Cue retest history (superseded by normal-app launch above):** `app/tool/cue_check.dart` is a development-only launch target.
   It uses the real Home/practice screens with memory-only scripts, settings and keys;
   optional recordings go under `app/build/cue-check/recordings`, on E: on this PC.
@@ -428,6 +438,16 @@ build step 2 (screen recording).
   word lists, not prosody.
 
 ## Session log
+
+- 2026-10-05, Windows recorder slice 8 (pause/resume):
+  - Added a shared QPC clock with paused intervals removed, including exact PCM packet
+    trimming at pause/resume boundaries. Paused capture keeps the source snapshot/meter
+    current but writes no picture/sound and holds saved duration.
+  - Native silent/audio fixture checks verify a stable paused timer/frame count, removed
+    gap, correct resized pixels and aligned decoded endpoints; pure clock checks pass.
+    Pause API has the same session guards as Stop. Recording controls/UI are next.
+    Analysis is clean, all 220 tests pass and the Windows debug build succeeds;
+    normal microphone recording also passes after the clock change.
 
 - 2026-10-05, Windows recorder slice 7 (durable takes/recovery):
   - Added flushed local pending manifests and script/presentation snapshots, file

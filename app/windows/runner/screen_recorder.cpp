@@ -27,6 +27,7 @@ std::string State(ScreenRecordingState state) {
   switch (state) {
     case ScreenRecordingState::starting: return "starting";
     case ScreenRecordingState::recording: return "recording";
+    case ScreenRecordingState::paused: return "paused";
     case ScreenRecordingState::saving: return "saving";
     case ScreenRecordingState::finished: return "finished";
     default: return "failed";
@@ -135,6 +136,13 @@ struct ScreenRecorder::Impl {
           result->Success(EncodableValue(active && SessionId(*args) == generation ? Status(active->Status()) :
             EncodableMap{{EncodableValue("state"), EncodableValue("failed")},
                          {EncodableValue("reason"), EncodableValue("cancelled")}}));
+        } else if (call.method_name() == "pause") {
+          const auto paused = args->find(EncodableValue("paused"));
+          if (paused == args->end() || !std::holds_alternative<bool>(paused->second)) {
+            result->Error("invalid", "Choose pause or resume."); return;
+          }
+          if (active && SessionId(*args) == generation) active->SetPaused(std::get<bool>(paused->second));
+          result->Success();
         } else if (call.method_name() == "stop") {
           if (active && SessionId(*args) == generation) active->RequestStop();
           result->Success();

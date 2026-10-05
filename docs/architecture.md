@@ -390,6 +390,13 @@ recordings folder.
   Startup recovery is serialized with reservations/finishes, ignores external paths and
   symlinks, leaves unreadable files local, and never resurrects deleted scripts. Take's
   extra mode/metadata/camera/recovered fields preserve legacy camera-file compatibility.
+- **Recording pause clock (eighth slice):** `RecordingClock` removes QPC pause intervals
+  from the shared video/audio timeline and splits microphone packets at pause/resume
+  boundaries. The worker keeps monitoring source/microphone health and current pixels/
+  levels while paused, but saves no paused audio/video or elapsed duration. Cadence resumes
+  on the same timeline; no timestamp reset or growing paused queue. The native/Dart pause
+  method uses matching session IDs. Pure clock and decoded silent/audio fixture checks
+  verify trimming, fixed paused counts and resumed endpoint alignment.
 - **SettingsScreen**: the markup source, API key, model, default style, text
   size and mirror setting, plus **Privacy and licences**: what leaves the
   device, and the licence page (`showLicensePage`).

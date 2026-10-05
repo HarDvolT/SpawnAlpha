@@ -96,12 +96,13 @@ void Decode(const std::wstring& path, const ScreenRecordingStatus& status, bool 
 
 int wmain(int count, wchar_t** args) {
   if (count != 2 && count != 3) return 2;
-  const bool audio = count == 3 && std::wcscmp(args[2], L"--microphone") == 0;
+  const bool pause = count == 3 && (std::wcscmp(args[2], L"--pause") == 0 || std::wcscmp(args[2], L"--microphone-pause") == 0);
+  const bool audio = count == 3 && (std::wcscmp(args[2], L"--microphone") == 0 || std::wcscmp(args[2], L"--microphone-pause") == 0);
   const bool minimize = count == 3 && std::wcscmp(args[2], L"--minimize") == 0;
   const bool close = count == 3 && std::wcscmp(args[2], L"--close") == 0;
   const bool cancel = count == 3 && std::wcscmp(args[2], L"--cancel") == 0;
   const bool bad_mic = count == 3 && std::wcscmp(args[2], L"--missing-microphone") == 0;
-  if (count == 3 && !audio && !minimize && !close && !cancel && !bad_mic) return 2;
+  if (count == 3 && !audio && !minimize && !close && !cancel && !bad_mic && !pause) return 2;
   const HRESULT com = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
   if (FAILED(com)) return 3;
   HWND window = nullptr;
@@ -121,6 +122,8 @@ int wmain(int count, wchar_t** args) {
     if (cancel) recorder.RequestStop();
     ULONGLONG recording_start = 0, start = GetTickCount64();
     bool resized = false, stopped = false;
+    bool requested_pause = false, requested_resume = false, saw_pause = false;
+    UINT64 paused_frames = 0; LONGLONG paused_duration = -1;
     while (GetTickCount64() - start < 15000) {
       MSG message{};
       while (PeekMessage(&message, nullptr, 0, 0, PM_REMOVE)) { TranslateMessage(&message); DispatchMessage(&message); }
@@ -130,13 +133,20 @@ int wmain(int count, wchar_t** args) {
         stage = "recording failed"; throw winrt::hresult_error(E_FAIL);
       }
       if (status.state == ScreenRecordingState::finished) break;
-      if (status.state == ScreenRecordingState::recording) {
+      if (status.state == ScreenRecordingState::recording || status.state == ScreenRecordingState::paused) {
         if (!recording_start) recording_start = GetTickCount64();
         const auto elapsed = GetTickCount64() - recording_start;
         if (!resized && elapsed > 1000) {
           SetWindowPos(window, nullptr, 120, 120, 320, 240, SWP_NOZORDER | SWP_NOACTIVATE); resized = true;
         }
-        if (!stopped && elapsed > 2400) {
+        if (pause && !requested_pause && elapsed > 800) { recorder.SetPaused(true); requested_pause = true; }
+        if (status.state == ScreenRecordingState::paused) {
+          saw_pause = true;
+          if (paused_duration < 0) { paused_duration = status.duration_100ns; paused_frames = status.frames; }
+          Require(status.duration_100ns == paused_duration && status.frames == paused_frames);
+        }
+        if (pause && !requested_resume && elapsed > 1800) { recorder.SetPaused(false); requested_resume = true; }
+        if (!stopped && elapsed > (pause ? 3400U : 2400U)) {
           if (minimize) ShowWindow(window, SW_MINIMIZE);
           else if (close) { DestroyWindow(window); window = nullptr; }
           else recorder.RequestStop();
@@ -159,6 +169,7 @@ int wmain(int count, wchar_t** args) {
     Require(status.state == ScreenRecordingState::finished);
     Require(status.reason == ((minimize || close) ? ScreenRecordingReason::source : ScreenRecordingReason::none));
     Require(status.width == 640 && status.height == 360 && status.duration_100ns >= 20000000);
+    if (pause) Require(saw_pause && requested_resume && status.duration_100ns < 28000000);
     Require(audio ? status.audio_frames >= 48000 : status.audio_frames == 0);
     stage = "decode saved recording";
     Decode(args[1], status, audio);
@@ -166,6 +177,7 @@ int wmain(int count, wchar_t** args) {
     std::cout << "Screen recording check passed: generated window, resize, safe stop, decoded frames";
     if (audio) std::cout << ", microphone track and aligned endpoints";
     if (minimize || close) std::cout << ", source-loss recovery";
+    if (pause) std::cout << ", pause gap removed";
     std::cout << ".\n";
     CoUninitialize(); return 0;
   } catch (...) {

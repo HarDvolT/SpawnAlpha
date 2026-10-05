@@ -82,3 +82,7 @@ target_compile_features(recording_probe_check PRIVATE cxx_std_17)
 target_compile_options(recording_probe_check PRIVATE /W4 /WX /EHsc /wd"4100")
 target_compile_definitions(recording_probe_check PRIVATE "NOMINMAX")
 target_link_libraries(recording_probe_check PRIVATE "mfplat.lib" "mfreadwrite.lib" "mfuuid.lib" "ole32.lib" "windowsapp.lib")
+
+add_executable(recording_clock_check EXCLUDE_FROM_ALL "tests/recording_clock_check.cpp")
+target_compile_features(recording_clock_check PRIVATE cxx_std_17)
+target_compile_options(recording_clock_check PRIVATE /W4 /WX /EHsc)

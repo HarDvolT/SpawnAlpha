@@ -1,6 +1,7 @@
 #include "screen_recording_core.h"
 #include "gpu_video_writer.h"
 #include "microphone_capture.h"
+#include "recording_clock.h"
 #include <d3d11_4.h>
 #include <dxgi.h>
 #include <windows.graphics.capture.interop.h>
@@ -115,7 +116,7 @@ struct ScreenRecordingCore::Impl : std::enable_shared_from_this<Impl> {
     latest.reset();
   }
   void DrainAudio(MicrophoneCapture& microphone, GpuVideoWriter& writer,
-                  LONGLONG origin, LONGLONG end, LONGLONG& written_audio_frames,
+                  const RecordingClock& clock, LONGLONG end, LONGLONG& written_audio_frames,
                   bool& got_audio) {
     while (true) {
       MicrophonePacket packet;
@@ -128,36 +129,39 @@ struct ScreenRecordingCore::Impl : std::enable_shared_from_this<Impl> {
         Fail(ScreenRecordingReason::microphone); throw hresult_error(E_FAIL);
       }
       got_audio = true;
-      const LONGLONG relative = static_cast<LONGLONG>(packet.qpc_100ns) - origin;
-      // Express audio positions as sample indices on the common QPC clock.
-      LONGLONG first = static_cast<LONGLONG>(std::llround(static_cast<double>(relative) * kAudioRate / kSecond));
-      size_t offset = 0;
-      if (first < written_audio_frames) {
-        offset = static_cast<size_t>(written_audio_frames - first);
-        first = written_audio_frames;
-      }
-      if (offset >= packet.pcm.size()) continue;
-      size_t count = packet.pcm.size() - offset;
-      if (end >= 0) {
-        const LONGLONG limit = end * kAudioRate / kSecond;
-        if (first >= limit) continue;
-        count = std::min(count, static_cast<size_t>(limit - first));
-      }
-      if (!count) continue;
-      const auto* pcm = packet.pcm.data() + offset;
-      const LONGLONG time = first * kSecond / kAudioRate;
-      const HRESULT saved = writer.WriteAudio(pcm, static_cast<UINT>(count), time);
-      if (FAILED(saved)) { Fail(ScreenRecordingReason::encoder); check_hresult(saved); }
-      written_audio_frames = first + static_cast<LONGLONG>(count);
       double peak = 0, squares = 0;
-      for (size_t i = 0; i < count; ++i) {
-        const double value = pcm[i] / 32768.0;
+      for (const auto sample : packet.pcm) {
+        const double value = sample / 32768.0;
         peak = std::max(peak, std::abs(value)); squares += value * value;
       }
-      std::lock_guard<std::mutex> lock(status_mutex);
-      status.audio_frames += count;
-      status.peak_db = Db(peak); status.rms_db = Db(std::sqrt(squares / static_cast<double>(count)));
-      status.loudest_rms_db = std::max(status.loudest_rms_db, status.rms_db);
+      {
+        std::lock_guard<std::mutex> lock(status_mutex);
+        status.peak_db = Db(peak);
+        status.rms_db = Db(std::sqrt(squares / static_cast<double>(packet.pcm.size())));
+      }
+      for (const auto& slice : clock.Audio(static_cast<LONGLONG>(packet.qpc_100ns), packet.pcm.size(), kAudioRate)) {
+        LONGLONG first = static_cast<LONGLONG>(std::llround(static_cast<double>(slice.time_100ns) * kAudioRate / kSecond));
+        size_t trim = 0;
+        if (first < written_audio_frames) {
+          trim = static_cast<size_t>(written_audio_frames - first);
+          first = written_audio_frames;
+        }
+        if (trim >= slice.count) continue;
+        size_t count = slice.count - trim;
+        if (end >= 0) {
+          const LONGLONG limit = end * kAudioRate / kSecond;
+          if (first >= limit) continue;
+          count = std::min(count, static_cast<size_t>(limit - first));
+        }
+        if (!count) continue;
+        const auto* pcm = packet.pcm.data() + slice.offset + trim;
+        const HRESULT saved = writer.WriteAudio(pcm, static_cast<UINT>(count), first * kSecond / kAudioRate);
+        if (FAILED(saved)) { Fail(ScreenRecordingReason::encoder); check_hresult(saved); }
+        written_audio_frames = first + static_cast<LONGLONG>(count);
+        std::lock_guard<std::mutex> lock(status_mutex);
+        status.audio_frames += count;
+        status.loudest_rms_db = std::max(status.loudest_rms_db, status.rms_db);
+      }
     }
   }
   void Run(HMONITOR monitor, HWND window, const std::wstring& path,
@@ -217,6 +221,8 @@ struct ScreenRecordingCore::Impl : std::enable_shared_from_this<Impl> {
         check_hresult(microphone.Start());
       }
       const LONGLONG origin = QpcTime();
+      RecordingClock clock(origin);
+      bool paused = false;
       { std::lock_guard<std::mutex> lock(status_mutex); status.width = width; status.height = height; }
       SetState(ScreenRecordingState::recording);
       UINT64 next_frame = 0;
@@ -226,9 +232,15 @@ struct ScreenRecordingCore::Impl : std::enable_shared_from_this<Impl> {
         if (source_closed || capture_failed || (window && (!IsWindow(window) || IsIconic(window)))) {
           Fail(ScreenRecordingReason::source); break;
         }
-        const LONGLONG elapsed = QpcTime() - origin;
-        if (record_audio) DrainAudio(microphone, writer, origin, -1, audio_frames, got_audio);
-        if (elapsed >= static_cast<LONGLONG>(next_frame) * kSecond / kFramesPerSecond) {
+        const LONGLONG now = QpcTime();
+        if (paused != wanted_paused.load()) {
+          paused = wanted_paused.load();
+          clock.Pause(paused, now);
+          SetState(paused ? ScreenRecordingState::paused : ScreenRecordingState::recording);
+        }
+        const LONGLONG elapsed = clock.Time(now);
+        if (record_audio) DrainAudio(microphone, writer, clock, -1, audio_frames, got_audio);
+        if (!paused && elapsed >= static_cast<LONGLONG>(next_frame) * kSecond / kFramesPerSecond) {
           // If the encoder fell behind, drop to the latest cadence slot instead
           // of building an unbounded queue. Audio and video keep common times.
           next_frame = std::max(next_frame, static_cast<UINT64>(elapsed * kFramesPerSecond / kSecond));
@@ -246,7 +258,7 @@ struct ScreenRecordingCore::Impl : std::enable_shared_from_this<Impl> {
         Sleep(2);
       }
       SetState(ScreenRecordingState::saving);
-      if (record_audio) DrainAudio(microphone, writer, origin, Status().duration_100ns, audio_frames, got_audio);
+      if (record_audio) DrainAudio(microphone, writer, clock, Status().duration_100ns, audio_frames, got_audio);
     } catch (...) {
       if (Status().reason == ScreenRecordingReason::none) Fail(stage);
     }
@@ -265,7 +277,7 @@ struct ScreenRecordingCore::Impl : std::enable_shared_from_this<Impl> {
     SetState(result.frames ? ScreenRecordingState::finished : ScreenRecordingState::failed);
   }
   std::thread worker;
-  std::atomic<bool> stop{false}, source_closed{false}, capture_failed{false};
+  std::atomic<bool> stop{false}, source_closed{false}, capture_failed{false}, wanted_paused{false};
   mutable std::mutex status_mutex;
   ScreenRecordingStatus status{};
   std::mutex frame_mutex;
@@ -287,4 +299,5 @@ HRESULT ScreenRecordingCore::Start(HMONITOR monitor, HWND window, const std::wst
   return impl_->Start(monitor, window, path, microphone_id, record_audio);
 }
 void ScreenRecordingCore::RequestStop() { impl_->stop = true; }
+void ScreenRecordingCore::SetPaused(bool paused) { impl_->wanted_paused = paused; }
 ScreenRecordingStatus ScreenRecordingCore::Status() const { return impl_->Status(); }

@@ -5,7 +5,7 @@
 #include <memory>
 #include <string>
 
-enum class ScreenRecordingState { starting, recording, saving, finished, failed };
+enum class ScreenRecordingState { starting, recording, paused, saving, finished, failed };
 enum class ScreenRecordingReason { none, cancelled, source, microphone, encoder };
 struct ScreenRecordingStatus {
   ScreenRecordingState state = ScreenRecordingState::starting;
@@ -25,6 +25,7 @@ class ScreenRecordingCore {
   HRESULT Start(HMONITOR monitor, HWND window, const std::wstring& path,
                 const std::wstring& microphone_id, bool record_audio);
   void RequestStop();
+  void SetPaused(bool paused);
   ScreenRecordingStatus Status() const;
  private:
   struct Impl;
