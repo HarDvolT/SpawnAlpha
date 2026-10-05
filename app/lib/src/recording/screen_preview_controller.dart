@@ -50,7 +50,9 @@ class ScreenPreviewController extends ChangeNotifier {
     _height = source.height;
     notifyListeners();
     _firstFrameDeadline = Timer(SaDurations.beat * 5, () {
-      if (!_disposed && generation == _generation && _phase == PreviewPhase.starting) {
+      if (!_disposed &&
+          generation == _generation &&
+          _phase == PreviewPhase.starting) {
         ++_generation;
         _poll?.cancel();
         unawaited(_release(_handle));
@@ -69,16 +71,32 @@ class ScreenPreviewController extends ChangeNotifier {
       _handle = handle;
       _width = handle.width;
       _height = handle.height;
-      _poll = Timer.periodic(SaDurations.previewPoll, (_) => unawaited(checkStatus()));
+      _poll = Timer.periodic(
+        SaDurations.previewPoll,
+        (_) => unawaited(checkStatus()),
+      );
       await checkStatus();
     } on Object {
       if (!_disposed && generation == _generation) {
         _firstFrameDeadline?.cancel();
         _phase = PreviewPhase.unavailable;
-        _problem = 'Could not preview this source. Restore the window and try again.';
+        _problem =
+            'Could not preview this source. Restore the window and try again.';
         notifyListeners();
       }
     }
+  }
+
+  Future<void> stop() async {
+    ++_generation;
+    _poll?.cancel();
+    _firstFrameDeadline?.cancel();
+    final handle = _handle;
+    _handle = null;
+    _phase = PreviewPhase.unavailable;
+    _problem = 'Preview paused.';
+    if (!_disposed) notifyListeners();
+    await _release(handle);
   }
 
   Future<void> checkStatus() async {

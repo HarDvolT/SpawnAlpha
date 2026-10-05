@@ -51,6 +51,21 @@ class PrompterWindow : public Win32Window {
     return GetHandle() && GetWindowDisplayAffinity(GetHandle(), &affinity) && affinity == WDA_EXCLUDEFROMCAPTURE;
   }
   bool Visible() { return GetHandle() && IsWindowVisible(GetHandle()); }
+  bool Show(bool visible) {
+    if (!visible) { Hide(); return true; }
+    if (!Excluded()) return false;
+    wanted_ = true;
+    RegisterShortcuts();
+    SetWindowPos(GetHandle(), HWND_TOPMOST, 0, 0, 0, 0,
+                 SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_SHOWWINDOW);
+    return Visible();
+  }
+  void Update(const Value& state) {
+    if (channel_) channel_->InvokeMethod("recordingState", std::make_unique<Value>(state));
+  }
+  void Lock() {
+    if (channel_) channel_->InvokeMethod("command", std::make_unique<Value>("lock"));
+  }
   void Hide() {
     wanted_ = false;
     SetLocked(false);
@@ -251,6 +266,22 @@ struct FloatingPrompterHost::Impl {
         const bool active = Session(call.arguments()) == session && window;
         result->Success(Value(Map{{Value("excluded"), Value(active && window->Excluded())},
           {Value("visible"), Value(active && window->Visible())}}));
+      } else if (call.method_name() == "update" || call.method_name() == "show" || call.method_name() == "lock") {
+        if (Session(call.arguments()) != session || !window || !window->Excluded()) {
+          result->Error("session", "Prompter unavailable"); return;
+        }
+        const auto& args = std::get<Map>(*call.arguments());
+        if (call.method_name() == "update") {
+          const auto* state = Field(args, "state");
+          if (!state || !std::holds_alternative<Map>(*state)) { result->Error("invalid", "Invalid reader state"); return; }
+          window->Update(*state);
+        } else if (call.method_name() == "show") {
+          const auto* visible = Field(args, "visible");
+          if (!visible || !std::holds_alternative<bool>(*visible) || !window->Show(std::get<bool>(*visible))) {
+            result->Error("excluded", "Hidden reader unavailable"); return;
+          }
+        } else { window->Lock(); }
+        result->Success();
       } else { result->NotImplemented(); }
     });
   }

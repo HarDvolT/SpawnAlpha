@@ -8,9 +8,12 @@ Last updated: 2026-10-05
 retest is owner-confirmed. Dot, One phrase, Center, Kinetic and Voice pace are the approved
 starting choices. Build step 2 has a Windows display/window source picker, confirmed by
 the owner and pushed, plus a live capture preview confirmed by the owner. An excluded
-floating prompter trial is built, tested and pushed. The Windows GPU video saver passes
-generated-frame and abrupt-exit checks; microphone/capture integration and actual screen
-takes remain next.** The build order is in
+floating prompter and protected countdown/HUD are built and tested. Screen mode is now
+enabled in normal Windows setup: chosen-source GPU video, chosen-microphone AAC, Voice
+pace, pause/resume, reader hide/show/Lock and durable local saving/recovery are connected.
+The full silent generated-window take passes on this PC. Screen + camera, system audio,
+cursor companion and telemetry remain next; owner hardware trials are deferred until
+they return.** The build order is in
 [product-brief.md](product-brief.md#build-order); it was revised on 2026-09-30.
 
 The owner's first test on Windows (build #1) found: no microphone permission prompt and no
@@ -33,8 +36,8 @@ build step 2 (screen recording).
   `flutter_secure_storage_windows`). `flutter doctor -v` passes Windows, Visual Studio,
   desktop device and network checks. Android is intentionally not installed yet.
 - **Local checks and launch:** `flutter pub get` succeeds; `flutter analyze` prints
-  **No issues found!**; all **226 tests pass** (220 before recording controls).
-  All **81 screenshot cases pass**, including the source picker, unavailable-preview
+  **No issues found!**; all **239 tests pass** (226 before Screen integration).
+  All **84 screenshot cases pass**, including the source picker, unavailable-preview
   and default/minimum floating prompter in EN/FR/AR. The Windows debug build succeeds.
   Windows Git checkout converted generated
   tokens to CRLF, causing the exact-generation test to fail: `.gitattributes` now keeps
@@ -199,6 +202,27 @@ build step 2 (screen recording).
   Reader synchronization, recording controls integration and Screen/Both setup enablement
   remain next; the HUD is not accessible from normal setup yet. Pause was pushed in
   `4890fc8`. Real HUD click-through/placement and owner trials remain pending.
+- **Resume here (screen recorder slice 10, normal Screen mode):** Screen is enabled in
+  Home and record setup and remembered per device. Setup has a chosen-source live preview
+  and the existing mic/check/guide/motion/alignment/pace choices; no camera is required.
+  `ScreenTakeController` owns preparation, verified exclusion of main/HUD/reader,
+  countdown, flushed manifest, native capture, pause/resume, stopping, file verification
+  and save. The native release acknowledgement joins the worker before unprotecting the
+  main window. Cancellation/disposal keeps late windows/capture replies under that owner;
+  a failed release retains protection and blocks another take. Voice uses the recording
+  microphone's own levels; the reader holds during Pause, resumes at the same word and
+  does not stop a screen take at the end of the script. Reader visibility and Lock work
+  from the HUD. A missing microphone requires an explicit Record without sound choice,
+  which uses Timed pace; partial source/microphone stops save readable video with a warning.
+  Takes show their mode and recovered state. Preview route handoff/reopen is tested.
+  `tool/native_screen_take_check.dart` captures only a separate generated blue fixture
+  window, silently, into ignored `app/build/screen-ui-fixtures`: real protected windows,
+  countdown, pause gap removal, reader hide/show, durable save and cleanup all pass.
+  No owner data or private desktop/camera/mic is used by that launcher. Analysis is clean,
+  all 239 tests and 84 screenshots pass; EN/AR setup PNGs were inspected and button
+  contrast/Arabic metadata typography corrected. HUD slice was pushed in `cbfdad5`.
+  **Next:** Screen + camera with separate crash-safe files and a shared pause clock;
+  then system audio, companion and privacy-limited telemetry. Both remains disabled.
 - **Cue retest history (superseded by normal-app launch above):** `app/tool/cue_check.dart` is a development-only launch target.
   It uses the real Home/practice screens with memory-only scripts, settings and keys;
   optional recordings go under `app/build/cue-check/recordings`, on E: on this PC.
@@ -282,7 +306,7 @@ build step 2 (screen recording).
 | Compliance groundwork ([compliance.md](compliance.md)) | Rules and checklist written, licence page in the app, no secrets in the repo. Legal documents and filings are still to do |
 | Windows display/window selection and live preview | Built/tested locally and owner-confirmed; pushed in `d85687e` / `18170a6` |
 | Excluded floating prompter trial | Built/tested locally, native exclusion smoke check passed; owner trial and recording integration pending |
-| Screen and Screen + camera recording, cursor companion, telemetry | Designed (`docs/design/recording.md`). Source selection, preview and floating trial started; saving screen takes, recording HUD and integration remain to build. |
+| Screen and Screen + camera recording, cursor companion, telemetry | Screen mode enabled and native-tested with protected HUD/reader, chosen audio, pause, save/recovery. Both, system audio, companion and telemetry remain to build; owner trials deferred. |
 | Director's Cut (auto-edit, captions, auto-zoom, finish screen) | Designed (`docs/design/autoedit.md`). Not built; needs a native render core. |
 
 220 tests pass (`cd app && flutter test`), 72 screenshot cases pass, and `flutter analyze` is clean.
@@ -443,16 +467,26 @@ build step 2 (screen recording).
   which word you are on. Voice-following (speech recognition) is build step 3.
 - On Windows, the level meter opens its own shared-mode stream on the microphone next to the
   recording, and during the set-up one more per microphone. Screen capture preview works;
-  the native screen/audio save pipeline passes tests. Screen/Both are still disabled
-  in setup until excluded controls and reader synchronization are integrated.
+  the native screen/audio save pipeline passes tests. Screen is enabled; Both is disabled
+  until separate camera capture and common pause timing are integrated.
 - Live preview uses an 8-bit SDR, 15 fps CPU readback path. Full-display preview can show
   recursion because the setup/preview window is not excluded yet. The recording GPU/
-  platform-encoder pipeline passes native tests; excluded controls, the floating
-  prompter and setup integration remain pending.
+  platform-encoder pipeline and protected main/HUD/reader pass native tests and are
+  connected to Screen mode. Live picker thumbnails and HDR capture remain pending.
 - The on-device markup is heuristic. For example, French and Arabic stress rules are based on
   word lists, not prosody.
 
 ## Session log
+
+- 2026-10-05, Windows recorder slice 10 (normal Screen recording):
+  - Connected protected countdown/HUD/reader, chosen capture/audio, Voice, pause,
+    safe native release and durable saving to normal setup; persisted mode and showed
+    screen/recovered takes. Screen requires no camera. Both is still disabled.
+  - EN/FR/AR setup, ownership/cancel/dispose/save order, source loss and Voice/end-of-script
+    tests pass. Fixed a null live-preview handle during route handoff and low-contrast
+    Stage controls/Arabic metadata. Full silent generated-window native take passes.
+    Analysis is clean, 239 tests and 84 screenshot cases pass. Owner trials deferred
+    by request; Screen + camera is next.
 
 - 2026-10-05, Windows recorder slice 9 (excluded HUD/countdown):
   - Added a separate protected HUD engine/window and protected setup-window ownership,

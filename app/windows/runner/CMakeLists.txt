@@ -87,3 +87,8 @@ target_link_libraries(recording_probe_check PRIVATE "mfplat.lib" "mfreadwrite.li
 add_executable(recording_clock_check EXCLUDE_FROM_ALL "tests/recording_clock_check.cpp")
 target_compile_features(recording_clock_check PRIVATE cxx_std_17)
 target_compile_options(recording_clock_check PRIVATE /W4 /WX /EHsc)
+
+add_executable(recording_fixture_window WIN32 EXCLUDE_FROM_ALL "tests/recording_fixture_window.cpp")
+target_compile_features(recording_fixture_window PRIVATE cxx_std_17)
+target_compile_options(recording_fixture_window PRIVATE /W4 /WX /EHsc /wd"4100")
+target_link_libraries(recording_fixture_window PRIVATE "user32.lib" "gdi32.lib")

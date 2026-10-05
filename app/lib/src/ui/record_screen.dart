@@ -15,6 +15,8 @@ import '../recording/mp4.dart';
 import '../recording/sound_check.dart';
 import '../recording/screen_source.dart';
 import '../recording/floating_prompter.dart';
+import '../recording/screen_preview_controller.dart';
+import '../recording/screen_take_controller.dart';
 import '../theme/theme.dart';
 import 'format.dart';
 import 'prompter_controls.dart';
@@ -36,7 +38,8 @@ class RecordScreen extends StatefulWidget {
   State<RecordScreen> createState() => _RecordScreenState();
 }
 
-class _RecordScreenState extends State<RecordScreen> with WidgetsBindingObserver {
+class _RecordScreenState extends State<RecordScreen>
+    with WidgetsBindingObserver {
   late ScriptDocument _script = widget.script;
   late final _prompter = PrompterController(widget.script);
   final _view = GlobalKey<PrompterViewState>();
@@ -62,13 +65,63 @@ class _RecordScreenState extends State<RecordScreen> with WidgetsBindingObserver
 
   ScreenSource? _screenSource;
   bool _openingScreenPreview = false;
+  TakeMode _mode = TakeMode.camera;
+  ScreenTakeController? _screenTake;
+  ScreenPreviewController? _screenPreview;
+  bool _changingMode = false;
+
+  void _onScreenTake() {
+    if (mounted) setState(() {});
+  }
+
+  Duration get _elapsed => _mode == TakeMode.camera
+      ? _stopwatch.elapsed
+      : _screenTake?.status?.duration ?? Duration.zero;
+  bool get _savingTake =>
+      _saving || _screenTake?.phase == ScreenTakePhase.saving;
+  bool get _canRecord =>
+      _mode == TakeMode.camera ? _camera != null : _screenSource != null;
+
+  Future<void> _setMode(TakeMode mode) async {
+    if (_busy || mode == _mode || mode == TakeMode.both) return;
+    setState(() {
+      _mode = mode;
+      _changingMode = true;
+    });
+    try {
+      await AppScope.of(context).settings.update((s) => s.recordMode = mode);
+      if (mode == TakeMode.screen) {
+        final camera = _camera;
+        _camera = null;
+        await camera?.dispose();
+        if (_screenSource case final source?) {
+          await _screenPreview?.show(source);
+        }
+      } else {
+        await _screenPreview?.stop();
+        if (_cameras.isEmpty) {
+          await _setUpCameras();
+        } else {
+          await _openCamera(_cameraIndex);
+        }
+      }
+    } finally {
+      if (mounted) setState(() => _changingMode = false);
+    }
+  }
 
   Future<void> _chooseScreen() async {
     final sources = AppScope.of(context).screens;
-    final selected = await Navigator.of(context).push<ScreenSource>(MaterialPageRoute(
-      builder: (_) => ScreenSourcePicker(sources: sources, selected: _screenSource),
-    ));
-    if (mounted && selected != null) setState(() => _screenSource = selected);
+    final selected = await Navigator.of(context).push<ScreenSource>(
+      MaterialPageRoute(
+        builder: (_) =>
+            ScreenSourcePicker(sources: sources, selected: _screenSource),
+      ),
+    );
+    if (mounted && selected != null) {
+      setState(() => _screenSource = selected);
+      if (_mode == TakeMode.screen) await _screenPreview?.show(selected);
+    }
   }
 
   Future<void> _previewScreen() async {
@@ -76,7 +129,10 @@ class _RecordScreenState extends State<RecordScreen> with WidgetsBindingObserver
     if (source == null || _openingScreenPreview) return;
     final services = AppScope.of(context);
     final previews = services.previews;
-    final presentation = FloatingPresentation.fromSettings(_script, services.settings);
+    final presentation = FloatingPresentation.fromSettings(
+      _script,
+      services.settings,
+    );
     // Release the camera while viewing screen pixels, then reopen on return.
     final camera = _camera;
     setState(() {
@@ -85,12 +141,22 @@ class _RecordScreenState extends State<RecordScreen> with WidgetsBindingObserver
     });
     try {
       await camera?.dispose();
+      if (_mode == TakeMode.screen) await _screenPreview?.stop();
       if (!mounted) return;
-      await Navigator.of(context).push<void>(MaterialPageRoute(
-        builder: (_) => ScreenPreviewScreen(source: source, previews: previews,
-          floating: services.floating, presentation: presentation),
-      ));
-      if (mounted && _cameras.isNotEmpty) await _openCamera(_cameraIndex);
+      await Navigator.of(context).push<void>(
+        MaterialPageRoute(
+          builder: (_) => ScreenPreviewScreen(
+            source: source,
+            previews: previews,
+            floating: services.floating,
+            presentation: presentation,
+          ),
+        ),
+      );
+      if (mounted && _mode == TakeMode.camera && _cameras.isNotEmpty) {
+        await _openCamera(_cameraIndex);
+      }
+      if (mounted && _mode == TakeMode.screen) await _screenPreview?.show(source);
     } finally {
       if (mounted) setState(() => _openingScreenPreview = false);
     }
@@ -99,7 +165,9 @@ class _RecordScreenState extends State<RecordScreen> with WidgetsBindingObserver
   /// Wider than this, the set-up is a rail beside the preview.
   static const _wideLayout = 1000.0;
 
-  bool get _recording => _camera?.value.isRecordingVideo ?? false;
+  bool get _recording =>
+      (_camera?.value.isRecordingVideo ?? false) ||
+      (_screenTake?.recording ?? false);
 
   bool get _voiceAvailable => _mic?.supported ?? false;
 
@@ -115,7 +183,20 @@ class _RecordScreenState extends State<RecordScreen> with WidgetsBindingObserver
   void didChangeDependencies() {
     super.didChangeDependencies();
     if (_mic != null) return;
-    _mic = MicMonitor(AppScope.of(context).audio)..addListener(_onMic);
+    final services = AppScope.of(context);
+    _mode =
+        services.settings.recordMode == TakeMode.screen &&
+            services.recorder.supported
+        ? TakeMode.screen
+        : TakeMode.camera;
+    _screenTake = ScreenTakeController(
+      recorder: services.recorder,
+      huds: services.huds,
+      floating: services.floating,
+      store: services.screenTakes,
+    )..addListener(_onScreenTake);
+    _screenPreview = ScreenPreviewController(services.previews);
+    _mic = MicMonitor(services.audio)..addListener(_onMic);
     _setUp();
   }
 
@@ -129,10 +210,10 @@ class _RecordScreenState extends State<RecordScreen> with WidgetsBindingObserver
       if (mic.supported) _prompter.setMode(ScrollMode.voice);
       // Meter every microphone while setting up, so the right one is easy to spot.
       await mic.watchEveryMic();
-    } on Object catch (e) {
-      debugPrint('Microphone monitor unavailable: $e');
+    } on Object {
+      debugPrint('Microphone monitor unavailable.');
     }
-    if (mounted) await _setUpCameras();
+    if (mounted && _mode == TakeMode.camera) await _setUpCameras();
   }
 
   void _onMic() => _prompter.speaking = _mic!.speaking;
@@ -144,13 +225,22 @@ class _RecordScreenState extends State<RecordScreen> with WidgetsBindingObserver
     await mic.choose(id);
     if (mounted) setState(() => _check = SoundCheckState.idle);
     // Reopen the camera so the next take records from this microphone.
-    if (!_recording && _countdown == null && _cameras.isNotEmpty && mounted) await _openCamera(_cameraIndex);
+    _allowSilent = false;
+    if (_mode == TakeMode.camera &&
+        !_recording &&
+        _countdown == null &&
+        _cameras.isNotEmpty &&
+        mounted) {
+      await _openCamera(_cameraIndex);
+    }
   }
 
   /// Listens while the speaker reads a line, then says what it heard.
   Future<void> _runSoundCheck() async {
     final mic = _mic;
-    if (mic == null || !mic.supported || _check == SoundCheckState.listening) return;
+    if (mic == null || !mic.supported || _check == SoundCheckState.listening) {
+      return;
+    }
     setState(() => _check = SoundCheckState.listening);
     mic.resetLoudest();
     await Future<void>.delayed(SoundCheck.listenFor);
@@ -163,16 +253,26 @@ class _RecordScreenState extends State<RecordScreen> with WidgetsBindingObserver
     if (!mounted) return;
     setState(() => _check = SoundCheckState.idle);
     // The camera opened while access was off records silence: reopen it.
-    if (!_recording && _cameras.isNotEmpty) await _openCamera(_cameraIndex);
+    _allowSilent = false;
+    if (_mode == TakeMode.camera && !_recording && _cameras.isNotEmpty) {
+      await _openCamera(_cameraIndex);
+    }
   }
 
   /// Why a take would have no sound, or null. A take is never silently
   /// soundless: the user fixes it, or chooses to record without sound.
   String? get _noSound {
     final mic = _mic;
-    if (mic == null || !mic.supported || _allowSilent) return null;
+    if (_allowSilent) return null;
+    if (_mode == TakeMode.screen &&
+        (mic == null || !mic.supported || mic.available.isEmpty)) {
+      return 'No microphone found';
+    }
+    if (mic == null || !mic.supported) return null;
     if (mic.blocked) return 'Windows is blocking the microphone';
-    if (_check == SoundCheckState.silent) return 'No sound from ${mic.input?.name ?? 'the microphone'}';
+    if (_check == SoundCheckState.silent) {
+      return 'No sound from ${mic.input?.name ?? 'the microphone'}';
+    }
     return null;
   }
 
@@ -187,6 +287,9 @@ class _RecordScreenState extends State<RecordScreen> with WidgetsBindingObserver
     _camera?.dispose();
     _mic?.removeListener(_onMic);
     _mic?.dispose();
+    _screenTake?.removeListener(_onScreenTake);
+    _screenTake?.dispose();
+    _screenPreview?.dispose();
     super.dispose();
   }
 
@@ -221,7 +324,9 @@ class _RecordScreenState extends State<RecordScreen> with WidgetsBindingObserver
       return;
     }
     // Face the speaker when there is a choice.
-    final front = _cameras.indexWhere((c) => c.lensDirection == CameraLensDirection.front);
+    final front = _cameras.indexWhere(
+      (c) => c.lensDirection == CameraLensDirection.front,
+    );
     await _openCamera(front >= 0 ? front : 0);
   }
 
@@ -229,7 +334,11 @@ class _RecordScreenState extends State<RecordScreen> with WidgetsBindingObserver
     final old = _camera;
     _camera = null;
     await old?.dispose();
-    final camera = CameraController(_cameras[index], ResolutionPreset.high, enableAudio: true);
+    final camera = CameraController(
+      _cameras[index],
+      ResolutionPreset.high,
+      enableAudio: true,
+    );
     try {
       await camera.initialize();
       await camera.prepareForVideoRecording();
@@ -238,7 +347,7 @@ class _RecordScreenState extends State<RecordScreen> with WidgetsBindingObserver
       if (mounted) setState(() => _error = _describe(e));
       return;
     }
-    if (!mounted) {
+    if (!mounted || _mode != TakeMode.camera) {
       await camera.dispose();
       return;
     }
@@ -250,22 +359,33 @@ class _RecordScreenState extends State<RecordScreen> with WidgetsBindingObserver
   }
 
   static String _describe(CameraException e) => switch (e.code) {
-        'CameraAccessDenied' || 'CameraAccessDeniedWithoutPrompt' || 'CameraAccessRestricted' =>
-          'Camera access is off. Allow it for this app in your system settings.',
-        'AudioAccessDenied' || 'AudioAccessDeniedWithoutPrompt' || 'AudioAccessRestricted' =>
-          'Microphone access is off. Allow it for this app in your system settings.',
-        _ => 'The camera could not start: ${e.description ?? e.code}',
-      };
+    'CameraAccessDenied' ||
+    'CameraAccessDeniedWithoutPrompt' ||
+    'CameraAccessRestricted' =>
+      'Camera access is off. Allow it for this app in your system settings.',
+    'AudioAccessDenied' ||
+    'AudioAccessDeniedWithoutPrompt' ||
+    'AudioAccessRestricted' => 'Microphone access is off. Allow it for this app in your system settings.',
+    _ => 'The camera could not start: ${e.description ?? e.code}',
+  };
 
   // ---- recording ----------------------------------------------------------
 
   void _onPrompter() {
     // The last word has scrolled past: wrap up the take.
-    if (_prompter.state == PlaybackState.finished && _recording) _stop();
+    if (_mode == TakeMode.camera &&
+        _prompter.state == PlaybackState.finished &&
+        _recording) {
+      _stop();
+    }
   }
 
   void _toggleRecording() {
-    if (_saving) return;
+    if (_savingTake || _changingMode) return;
+    if (_mode == TakeMode.screen && (_screenTake?.busy ?? false)) {
+      _screenTake!.stop();
+      return;
+    }
     if (_countdown != null) {
       _countdownTimer?.cancel();
       setState(() => _countdown = null);
@@ -292,6 +412,10 @@ class _RecordScreenState extends State<RecordScreen> with WidgetsBindingObserver
   }
 
   void _startCountdown() {
+    if (_mode == TakeMode.screen) {
+      unawaited(_startScreen());
+      return;
+    }
     if (_camera == null) return;
     setState(() => _countdown = 3);
     _countdownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
@@ -304,6 +428,37 @@ class _RecordScreenState extends State<RecordScreen> with WidgetsBindingObserver
       setState(() => _countdown = null);
       _start();
     });
+  }
+
+  Future<void> _startScreen() async {
+    final source = _screenSource, owner = _screenTake;
+    if (source == null || owner == null || owner.busy) return;
+    final services = AppScope.of(context);
+    final presentation = FloatingPresentation.fromSettings(
+      _script,
+      services.settings,
+      pace: _allowSilent && _prompter.mode == ScrollMode.voice
+          ? ScrollMode.timed
+          : _prompter.mode,
+    );
+    await owner.start(
+      presentation: presentation,
+      source: source,
+      recordAudio: !_allowSilent,
+      microphoneId: _mic?.input?.id,
+      microphoneName: _mic?.input?.name ?? 'Microphone',
+      prepare: () async { await _screenPreview?.stop(); await _mic?.stopWatchingAll(); },
+    );
+    if (!mounted) return;
+    _script = services.library.byId(_script.id) ?? _script;
+    final take = owner.take;
+    if (take != null) {
+      _showSaved(take, owner.problem);
+    } else if (owner.problem != null) {
+      showMessage(context, owner.problem!);
+    }
+    await _mic?.watchEveryMic();
+    if (mounted && !owner.busy) await _screenPreview?.show(source);
   }
 
   Future<void> _start() async {
@@ -321,7 +476,10 @@ class _RecordScreenState extends State<RecordScreen> with WidgetsBindingObserver
     _stopwatch
       ..reset()
       ..start();
-    _clock = Timer.periodic(const Duration(milliseconds: 500), (_) => setState(() {}));
+    _clock = Timer.periodic(
+      const Duration(milliseconds: 500),
+      (_) => setState(() {}),
+    );
     if (_prompter.state == PlaybackState.finished) _prompter.restart();
     if (_prompter.mode != ScrollMode.manual) _prompter.play();
     setState(() {});
@@ -338,7 +496,11 @@ class _RecordScreenState extends State<RecordScreen> with WidgetsBindingObserver
     final loudest = _mic?.loudestRmsDb;
     try {
       final file = await camera.stopVideoRecording();
-      final take = await _keep(file, _stopwatch.elapsed, services.recordingsDir);
+      final take = await _keep(
+        file,
+        _stopwatch.elapsed,
+        services.recordingsDir,
+      );
       _script = _script.copyWith(takes: [..._script.takes, take]);
       await services.library.save(_script);
       if (mounted) _showSaved(take, await _soundProblem(take, loudest));
@@ -362,8 +524,11 @@ class _RecordScreenState extends State<RecordScreen> with WidgetsBindingObserver
         .toLowerCase()
         .replaceAll(RegExp(r'[^\p{L}\p{N}]+', unicode: true), '-')
         .replaceAll(RegExp(r'^-+|-+$'), '');
-    final extension = file.path.contains('.') ? file.path.split('.').last : 'mp4';
-    final name = '${slug.isEmpty ? 'take' : slug.substring(0, slug.length.clamp(0, 40))}-$stamp.$extension';
+    final extension = file.path.contains('.')
+        ? file.path.split('.').last
+        : 'mp4';
+    final name =
+        '${slug.isEmpty ? 'take' : slug.substring(0, slug.length.clamp(0, 40))}-$stamp.$extension';
     final target = '${dir.path}${Platform.pathSeparator}$name';
     try {
       await File(file.path).rename(target);
@@ -386,7 +551,10 @@ class _RecordScreenState extends State<RecordScreen> with WidgetsBindingObserver
       return 'This take has no sound track. Check the microphone, then record again.';
     }
     final mic = _mic;
-    if (mic != null && mic.supported && loudestRmsDb != null && loudestRmsDb < -55) {
+    if (mic != null &&
+        mic.supported &&
+        loudestRmsDb != null &&
+        loudestRmsDb < -55) {
       final name = mic.input?.name ?? 'the microphone';
       return '$name heard almost nothing during this take. If you spoke, choose another microphone '
           'and record again.';
@@ -398,18 +566,33 @@ class _RecordScreenState extends State<RecordScreen> with WidgetsBindingObserver
     showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(soundProblem == null ? 'Take saved' : 'Take saved, but check the sound'),
-        content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-          if (soundProblem != null) ...[
-            Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Icon(Icons.mic_off_rounded, color: SaTheme.of(context).danger, size: 20),
-              const SizedBox(width: SaSpace.s2),
-              Expanded(child: Text(soundProblem)),
-            ]),
-            const SizedBox(height: SaSpace.s3),
+        title: Text(
+          soundProblem == null
+              ? 'Take saved'
+              : 'Take saved, but check the sound',
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (soundProblem != null) ...[
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(
+                    Icons.mic_off_rounded,
+                    color: SaTheme.of(context).danger,
+                    size: 20,
+                  ),
+                  const SizedBox(width: SaSpace.s2),
+                  Expanded(child: Text(soundProblem)),
+                ],
+              ),
+              const SizedBox(height: SaSpace.s3),
+            ],
+            Text('${formatDuration(take.duration)} recorded.\n\n${take.path}'),
           ],
-          Text('${formatDuration(take.duration)} recorded.\n\n${take.path}'),
-        ]),
+        ),
         actions: [
           TextButton(
             onPressed: () {
@@ -435,15 +618,22 @@ class _RecordScreenState extends State<RecordScreen> with WidgetsBindingObserver
   @override
   Widget build(BuildContext context) {
     final settings = AppScope.of(context).settings;
-    void changeFont(int delta) => settings.update((s) => s.fontSize = (s.fontSize + delta).clamp(24, 96));
+    void changeFont(int delta) =>
+        settings.update((s) => s.fontSize = (s.fontSize + delta).clamp(24, 96));
     void toggleMirror() => settings.update((s) => s.mirror = !s.mirror);
     final reduceMotion = MediaQuery.disableAnimationsOf(context);
     void setKinetic(bool v) => settings.update((s) => s.kinetic = v);
     void setGuide(PrompterGuide g) => settings.update((s) => s.guide = g);
     final stage = SaPalette.dark;
 
-    return PopScope(
-      canPop: !_recording,
+    return Theme(data: Theme.of(context).copyWith(
+      outlinedButtonTheme: OutlinedButtonThemeData(style: OutlinedButton.styleFrom(
+        foregroundColor: stage.stageText, disabledForegroundColor: stage.stageLine,
+        side: BorderSide(color: stage.stageGlassEdge))),
+      textButtonTheme: TextButtonThemeData(style: TextButton.styleFrom(foregroundColor: stage.stageChromeText)),
+      iconButtonTheme: IconButtonThemeData(style: IconButton.styleFrom(foregroundColor: stage.stageChromeText)),
+    ), child: PopScope(
+      canPop: !_busy,
       onPopInvokedWithResult: (didPop, _) {
         if (!didPop) showMessage(context, 'Stop the recording first.');
       },
@@ -457,31 +647,59 @@ class _RecordScreenState extends State<RecordScreen> with WidgetsBindingObserver
             onMirror: toggleMirror,
             onFontSize: changeFont,
             onPlayPause: _toggleRecording,
-            onKinetic: reduceMotion ? null : () => setKinetic(!settings.kinetic),
+            onKinetic: reduceMotion
+                ? null
+                : () => setKinetic(!settings.kinetic),
             onNextGuide: () => setGuide(settings.guide.next),
             voiceAvailable: _voiceAvailable,
             child: SafeArea(
-              child: LayoutBuilder(builder: (context, constraints) {
-                if (constraints.maxWidth >= _wideLayout) {
-                  // Desktop: the preview, and the set-up in a rail beside it.
-                  return Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-                    Expanded(child: _preview(context, constraints.maxHeight, wide: true)),
-                    SizedBox(width: 400, child: _rail(context)),
-                  ]);
-                }
-                return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-                  Expanded(child: _preview(context, constraints.maxHeight, wide: false)),
-                  _bottomBar(context),
-                ]);
-              }),
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  if (constraints.maxWidth >= _wideLayout) {
+                    // Desktop: the preview, and the set-up in a rail beside it.
+                    return Row(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Expanded(
+                          child: _preview(
+                            context,
+                            constraints.maxHeight,
+                            wide: true,
+                          ),
+                        ),
+                        SizedBox(width: 400, child: _rail(context)),
+                      ],
+                    );
+                  }
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Expanded(
+                        child: _preview(
+                          context,
+                          constraints.maxHeight,
+                          wide: false,
+                        ),
+                      ),
+                      _bottomBar(context),
+                    ],
+                  );
+                },
+              ),
             ),
           ),
         ),
       ),
-    );
+    ));
   }
 
-  bool get _busy => _recording || _countdown != null || _saving || _openingScreenPreview;
+  bool get _busy =>
+      _recording ||
+      _countdown != null ||
+      _saving ||
+      _openingScreenPreview ||
+      _changingMode ||
+      (_screenTake?.busy ?? false);
 
   /// What the camera sees, with the prompter docked under the lens.
   Widget _preview(BuildContext context, double height, {required bool wide}) {
@@ -490,80 +708,194 @@ class _RecordScreenState extends State<RecordScreen> with WidgetsBindingObserver
     final camera = _camera;
     final stage = SaPalette.dark;
     final panelHeight = height * (wide ? 0.4 : 0.42);
-    return Stack(fit: StackFit.expand, children: [
-      if (camera != null && camera.value.isInitialized)
-        Center(child: CameraPreview(camera))
-      else
-        // Below the prompter panel, so it stays readable.
-        Align(
-          alignment: const Alignment(0, 0.5),
-          child: Padding(
-            padding: const EdgeInsets.all(SaSpace.s5),
-            child: _error == null
-                ? const CircularProgressIndicator()
-                : Text(_error!, textAlign: TextAlign.center, style: SaType.body.copyWith(color: stage.stageText)),
-          ),
-        ),
-      // The prompter: a glass panel right under the lens, top centre. On
-      // wide screens it keeps to a narrow column, so the eyes don't sweep
-      // across the screen.
-      Positioned(
-        top: SaSpace.s2,
-        left: 0,
-        right: 0,
-        height: panelHeight,
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 720),
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        if (_mode == TakeMode.screen)
+          _screenPixels()
+        else if (camera != null && camera.value.isInitialized)
+          Center(child: CameraPreview(camera))
+        else
+          // Below the prompter panel, so it stays readable.
+          Align(
+            alignment: const Alignment(0, 0.5),
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: SaSpace.s2),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(SaRadius.lg),
-                child: PrompterView(
-                  key: _view,
-                  controller: _prompter,
-                  fontSize: settings.fontSize * 0.8,
-                  mirror: settings.mirror,
-                  readingLine: 0.3,
-                  glass: true,
-                  kinetic: settings.kinetic && !reduceMotion,
-                  guide: settings.guide,
-                  motion: settings.motion,
-                  alignment: settings.alignment,
+              padding: const EdgeInsets.all(SaSpace.s5),
+              child: _error == null
+                  ? const CircularProgressIndicator()
+                  : Text(
+                      _error!,
+                      textAlign: TextAlign.center,
+                      style: SaType.body.copyWith(color: stage.stageText),
+                    ),
+            ),
+          ),
+        // The prompter: a glass panel right under the lens, top centre. On
+        // wide screens it keeps to a narrow column, so the eyes don't sweep
+        // across the screen.
+        Positioned(
+          top: SaSpace.s2,
+          left: 0,
+          right: 0,
+          height: panelHeight,
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 720),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: SaSpace.s2),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(SaRadius.lg),
+                  child: PrompterView(
+                    key: _view,
+                    controller: _prompter,
+                    fontSize: settings.fontSize * 0.8,
+                    mirror: settings.mirror,
+                    readingLine: 0.3,
+                    glass: true,
+                    kinetic: settings.kinetic && !reduceMotion,
+                    guide: settings.guide,
+                    motion: settings.motion,
+                    alignment: settings.alignment,
+                  ),
                 ),
               ),
             ),
           ),
         ),
-      ),
-      Positioned(
-        top: SaSpace.s2,
-        left: SaSpace.s2,
-        child: IconButton(
-          tooltip: 'Close',
-          color: stage.stageChromeText,
-          icon: const Icon(Icons.close_rounded),
-          onPressed: _recording ? null : () => Navigator.pop(context, _script),
+        Positioned(
+          top: SaSpace.s2,
+          left: SaSpace.s2,
+          child: IconButton(
+            tooltip: 'Close',
+            color: stage.stageChromeText,
+            icon: const Icon(Icons.close_rounded),
+            onPressed: _busy ? null : () => Navigator.pop(context, _script),
+          ),
+        ),
+        // The timecode sits under the prompter, on glass.
+        Positioned(
+          top: panelHeight + SaSpace.s4,
+          left: 0,
+          right: 0,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              TimecodePill(
+                elapsed: _recording ? _elapsed : Duration.zero,
+                recording: _recording,
+              ),
+              if (_voiceAvailable && !wide) ...[
+                const SizedBox(width: SaSpace.s2),
+                MicChip(
+                  monitor: _mic!,
+                  onTap: _recording
+                      ? () {}
+                      : () => showMicPicker(context, _mic!, _chooseMic),
+                ),
+              ],
+            ],
+          ),
+        ),
+        if (_countdown != null)
+          Center(child: CountdownNumeral(value: _countdown!)),
+      ],
+    );
+  }
+
+  Widget _screenPixels() {
+    final preview = _screenPreview!;
+    final owner = _screenTake!;
+    final stage = SaPalette.dark;
+    return ListenableBuilder(
+      listenable: preview,
+      builder: (context, _) => Center(
+        child: Padding(
+          padding: const EdgeInsets.all(SaSpace.s5),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (owner.busy) ...[
+                Text(
+                  switch (owner.phase) {
+                    ScreenTakePhase.countdown =>
+                      'Countdown · ${owner.countdown}',
+                    ScreenTakePhase.preparing ||
+                    ScreenTakePhase.starting => 'Preparing hidden controls…',
+                    ScreenTakePhase.paused =>
+                      'Paused · picture and sound are held',
+                    ScreenTakePhase.saving => 'Saving take…',
+                    _ => 'Recording · the floating reader and controls are hidden from the video',
+                  },
+                  textAlign: TextAlign.center,
+                  style: SaType.body.copyWith(color: stage.stageText),
+                ),
+                const SizedBox(height: SaSpace.s3),
+                if (owner.recording)
+                  OutlinedButton.icon(
+                    onPressed: owner.togglePause,
+                    icon: Icon(
+                      owner.phase == ScreenTakePhase.paused
+                          ? Icons.play_arrow_rounded
+                          : Icons.pause_rounded,
+                    ),
+                    label: Text(
+                      owner.phase == ScreenTakePhase.paused
+                          ? 'Resume'
+                          : 'Pause',
+                    ),
+                  ),
+              ] else if (_screenSource == null) ...[
+                Icon(Icons.screen_share_rounded, color: stage.stageChromeText),
+                const SizedBox(height: SaSpace.s3),
+                Text(
+                  'Choose the display or window to record.',
+                  textAlign: TextAlign.center,
+                  style: SaType.body.copyWith(color: stage.stageText),
+                ),
+                const SizedBox(height: SaSpace.s3),
+                OutlinedButton.icon(
+                  onPressed: _chooseScreen,
+                  icon: const Icon(Icons.desktop_windows_rounded),
+                  label: const Text('Choose screen'),
+                ),
+              ] else ...[
+                Text(
+                  _screenSource!.name,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: SaType.body.copyWith(color: stage.stageText),
+                ),
+                const SizedBox(height: SaSpace.s2),
+                Text(
+                  'Live preview · recordings stay on this PC',
+                  style: SaType.caption.copyWith(color: stage.stageChromeText),
+                ),
+                const SizedBox(height: SaSpace.s3),
+                if (preview.phase == PreviewPhase.live)
+                  Flexible(
+                    child: AspectRatio(
+                      aspectRatio: preview.aspectRatio,
+                      child: Texture(textureId: preview.handle!.textureId),
+                    ),
+                  )
+                else if (preview.phase == PreviewPhase.starting)
+                  const CircularProgressIndicator()
+                else ...[
+                  Text(
+                    preview.problem ?? 'Preview stopped.',
+                    style: SaType.caption.copyWith(color: stage.stageWarn),
+                  ),
+                  TextButton(
+                    onPressed: () => preview.show(_screenSource!),
+                    child: const Text('Try again'),
+                  ),
+                ],
+              ],
+            ],
+          ),
         ),
       ),
-      // The timecode sits under the prompter, on glass.
-      Positioned(
-        top: panelHeight + SaSpace.s4,
-        left: 0,
-        right: 0,
-        child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-          TimecodePill(elapsed: _recording ? _stopwatch.elapsed : Duration.zero, recording: _recording),
-          if (_voiceAvailable && !wide) ...[
-            const SizedBox(width: SaSpace.s2),
-            MicChip(
-              monitor: _mic!,
-              onTap: _recording ? () {} : () => showMicPicker(context, _mic!, _chooseMic),
-            ),
-          ],
-        ]),
-      ),
-      if (_countdown != null) Center(child: CountdownNumeral(value: _countdown!)),
-    ]);
+    );
   }
 
   /// Phones: the prompter's controls, then the take number, record and
@@ -575,58 +907,86 @@ class _RecordScreenState extends State<RecordScreen> with WidgetsBindingObserver
     return ColoredBox(
       color: stage.stageChrome,
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(SaSpace.s2, SaSpace.s2, SaSpace.s2, SaSpace.s3),
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          PrompterControls(
-            controller: _prompter,
-            mirror: settings.mirror,
-            onMirror: () => settings.update((s) => s.mirror = !s.mirror),
-            onFontSize: (d) => settings.update((s) => s.fontSize = (s.fontSize + d).clamp(24, 96)),
-            showPlay: false,
-            kinetic: reduceMotion ? null : settings.kinetic,
-            onKinetic: (v) => settings.update((s) => s.kinetic = v),
-            guide: settings.guide,
-            onGuide: (g) => settings.update((s) => s.guide = g),
-            motion: settings.motion,
-            onMotion: (m) => settings.update((s) => s.motion = m),
-            alignment: PrompterAlignment.resolve(settings.alignment,
-                rtl: widget.script.language.isRtl, motion: settings.motion),
-            onAlignment: (a) => settings.update((s) => s.alignment = a),
-            voiceAvailable: _voiceAvailable,
-          ),
-          const SizedBox(height: SaSpace.s2),
-          Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
-            SizedBox(width: 56, child: _takeNumber()),
-            RecordButton(
-              recording: _recording || _countdown != null,
-              saving: _saving,
-              enabled: _camera != null && !_saving,
-              onPressed: _toggleRecording,
+        padding: const EdgeInsets.fromLTRB(
+          SaSpace.s2,
+          SaSpace.s2,
+          SaSpace.s2,
+          SaSpace.s3,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            PrompterControls(
+              controller: _prompter,
+              mirror: settings.mirror,
+              onMirror: () => settings.update((s) => s.mirror = !s.mirror),
+              onFontSize: (d) => settings.update(
+                (s) => s.fontSize = (s.fontSize + d).clamp(24, 96),
+              ),
+              showPlay: false,
+              kinetic: reduceMotion ? null : settings.kinetic,
+              onKinetic: (v) => settings.update((s) => s.kinetic = v),
+              guide: settings.guide,
+              onGuide: (g) => settings.update((s) => s.guide = g),
+              motion: settings.motion,
+              onMotion: (m) => settings.update((s) => s.motion = m),
+              alignment: PrompterAlignment.resolve(
+                settings.alignment,
+                rtl: widget.script.language.isRtl,
+                motion: settings.motion,
+              ),
+              onAlignment: (a) => settings.update((s) => s.alignment = a),
+              voiceAvailable: _voiceAvailable,
             ),
-            SizedBox(
-              width: 56,
-              child: _cameras.length > 1
-                  ? IconButton(
-                      tooltip: 'Switch camera',
-                      color: stage.stageText,
-                      icon: const Icon(Icons.cameraswitch_rounded),
-                      onPressed: _busy ? null : () => _openCamera((_cameraIndex + 1) % _cameras.length),
-                    )
-                  : null,
+            const SizedBox(height: SaSpace.s2),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                SizedBox(width: 56, child: _takeNumber()),
+                RecordButton(
+                  recording:
+                      _recording ||
+                      _countdown != null ||
+                      (_screenTake?.busy ?? false),
+                  saving: _savingTake,
+                  enabled: _canRecord && !_savingTake,
+                  onPressed: _toggleRecording,
+                ),
+                SizedBox(
+                  width: 56,
+                  child: _cameras.length > 1
+                      ? IconButton(
+                          tooltip: 'Switch camera',
+                          color: stage.stageText,
+                          icon: const Icon(Icons.cameraswitch_rounded),
+                          onPressed: _busy
+                              ? null
+                              : () => _openCamera(
+                                  (_cameraIndex + 1) % _cameras.length,
+                                ),
+                        )
+                      : null,
+                ),
+              ],
             ),
-          ]),
-        ]),
+          ],
+        ),
       ),
     );
   }
 
   Widget _takeNumber() => Text(
-        'T${_script.takes.length + 1}',
-        textAlign: TextAlign.center,
-        style: atWidth(SaType.title.copyWith(fontFamily: SaFonts.display, fontWeight: FontWeight.w800), 118)
-            .copyWith(color: SaPalette.dark.stageText),
-        semanticsLabel: 'Take ${_script.takes.length + 1}',
-      );
+    'T${_script.takes.length + 1}',
+    textAlign: TextAlign.center,
+    style: atWidth(
+      SaType.title.copyWith(
+        fontFamily: SaFonts.display,
+        fontWeight: FontWeight.w800,
+      ),
+      118,
+    ).copyWith(color: SaPalette.dark.stageText),
+    semanticsLabel: 'Take ${_script.takes.length + 1}',
+  );
 
   /// Desktop: the set-up rail (docs/design/components/RecordSetup). What to
   /// record, the camera, the microphone with a sound check, and the
@@ -641,52 +1001,109 @@ class _RecordScreenState extends State<RecordScreen> with WidgetsBindingObserver
     final busy = _busy;
     // A label above its choices, which get the full width of the rail.
     Widget row(String label, Widget child) => Padding(
-          padding: const EdgeInsets.only(top: SaSpace.s2),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-            Text(label.toUpperCase(), style: SaType.signalLabel.copyWith(color: stage.stageChromeText)),
-            const SizedBox(height: SaSpace.s1),
-            child,
-          ]),
-        );
+      padding: const EdgeInsets.only(top: SaSpace.s2),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            label.toUpperCase(),
+            style: SaType.signalLabel.copyWith(color: stage.stageChromeText),
+          ),
+          const SizedBox(height: SaSpace.s1),
+          child,
+        ],
+      ),
+    );
 
     final steps = <Widget>[
-      SetupStep(number: 1, title: 'What to record', child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        const RecordModeTiles(),
-        if (AppScope.of(context).screens.supported) ...[
-          const SizedBox(height: SaSpace.s2),
-          OutlinedButton.icon(onPressed: busy ? null : _chooseScreen,
-            icon: const Icon(Icons.desktop_windows_rounded), label: const Text('Choose screen')),
-          if (_screenSource != null) ...[
-            Text(_screenSource!.name, maxLines: 2, overflow: TextOverflow.ellipsis,
-              style: SaType.caption.copyWith(color: stage.stageChromeText)),
-            if (AppScope.of(context).previews.supported)
-              OutlinedButton.icon(onPressed: busy ? null : _previewScreen,
-                icon: const Icon(Icons.visibility_rounded), label: const Text('Preview screen')),
-          ],
-        ],
-      ])),
       SetupStep(
-        number: 2,
-        title: 'Camera',
-        state: camera != null && camera.value.isInitialized ? 'ON' : (_error != null ? 'CHECK' : null),
-        ok: camera != null && camera.value.isInitialized ? true : (_error != null ? false : null),
-        child: _cameras.isEmpty
-            ? Text(_error ?? 'Looking for cameras…', style: SaType.caption.copyWith(color: stage.stageChromeText))
-            : DropdownButtonHideUnderline(
-                child: DropdownButton<int>(
-                  isExpanded: true,
-                  dropdownColor: stage.stageChrome,
-                  value: _cameraIndex,
-                  style: SaType.label.copyWith(color: stage.stageText),
-                  iconEnabledColor: stage.stageChromeText,
-                  items: [
-                    for (var i = 0; i < _cameras.length; i++)
-                      DropdownMenuItem(value: i, child: Text(_cameraName(_cameras[i]), overflow: TextOverflow.ellipsis)),
-                  ],
-                  onChanged: busy ? null : (i) => i == null || i == _cameraIndex ? null : _openCamera(i),
-                ),
+        number: 1,
+        title: 'What to record',
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            RecordModeTiles(
+              mode: _mode,
+              screenReady: AppScope.of(context).recorder.supported,
+              onChanged: busy ? null : _setMode,
+            ),
+            if (_mode == TakeMode.screen &&
+                AppScope.of(context).screens.supported) ...[
+              const SizedBox(height: SaSpace.s2),
+              OutlinedButton.icon(
+                onPressed: busy ? null : _chooseScreen,
+                icon: const Icon(Icons.desktop_windows_rounded),
+                label: const Text('Choose screen'),
               ),
+              if (_screenSource != null) ...[
+                Text(
+                  _screenSource!.name,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: SaType.caption.copyWith(color: stage.stageChromeText),
+                ),
+                if (AppScope.of(context).previews.supported)
+                  OutlinedButton.icon(
+                    onPressed: busy ? null : _previewScreen,
+                    icon: const Icon(Icons.visibility_rounded),
+                    label: const Text('Preview screen'),
+                  ),
+              ],
+            ],
+          ],
+        ),
       ),
+      if (_mode == TakeMode.camera)
+        SetupStep(
+          number: 2,
+          title: 'Camera',
+          state: camera != null && camera.value.isInitialized
+              ? 'ON'
+              : (_error != null ? 'CHECK' : null),
+          ok: camera != null && camera.value.isInitialized
+              ? true
+              : (_error != null ? false : null),
+          child: _cameras.isEmpty
+              ? Text(
+                  _error ?? 'Looking for cameras…',
+                  style: SaType.caption.copyWith(color: stage.stageChromeText),
+                )
+              : DropdownButtonHideUnderline(
+                  child: DropdownButton<int>(
+                    isExpanded: true,
+                    dropdownColor: stage.stageChrome,
+                    value: _cameraIndex,
+                    style: SaType.label.copyWith(color: stage.stageText),
+                    iconEnabledColor: stage.stageChromeText,
+                    items: [
+                      for (var i = 0; i < _cameras.length; i++)
+                        DropdownMenuItem(
+                          value: i,
+                          child: Text(
+                            _cameraName(_cameras[i]),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                    ],
+                    onChanged: busy
+                        ? null
+                        : (i) => i == null || i == _cameraIndex
+                              ? null
+                              : _openCamera(i),
+                  ),
+                ),
+        ),
+      if (_mode == TakeMode.screen)
+        SetupStep(
+          number: 2,
+          title: 'Screen',
+          state: _screenSource == null ? 'CHOOSE' : 'READY',
+          ok: _screenSource != null,
+          child: Text(
+            _screenSource == null ? 'Choose a display or window above.' : 'The floating reader and controls are hidden from the recording. System audio is off.',
+            style: SaType.caption.copyWith(color: stage.stageChromeText),
+          ),
+        ),
       if (mic != null && mic.supported)
         ListenableBuilder(
           listenable: mic,
@@ -696,7 +1113,8 @@ class _RecordScreenState extends State<RecordScreen> with WidgetsBindingObserver
                 ? ('BLOCKED', false)
                 : switch (_check) {
                     SoundCheckState.heard => ('HEARD', true),
-                    SoundCheckState.quiet || SoundCheckState.silent => ('CHECK', false),
+                    SoundCheckState.quiet ||
+                    SoundCheckState.silent => ('CHECK', false),
                     SoundCheckState.listening => ('LISTENING', null),
                     SoundCheckState.idle => ('NOT CHECKED', null),
                   };
@@ -707,57 +1125,109 @@ class _RecordScreenState extends State<RecordScreen> with WidgetsBindingObserver
               ok: ok,
               child: blocked
                   ? BlockedPanel(onRetry: _retryMic)
-                  : Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-                      MicList(monitor: mic, onChoose: _chooseMic, enabled: !busy),
-                      SoundCheckRow(
-                        state: _check,
-                        micName: mic.input?.name ?? 'the microphone',
-                        level: mic.level.meter,
-                        onCheck: busy ? null : _runSoundCheck,
-                      ),
-                    ]),
+                  : Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        MicList(
+                          monitor: mic,
+                          onChoose: _chooseMic,
+                          enabled: !busy,
+                        ),
+                        SoundCheckRow(
+                          state: _check,
+                          micName: mic.input?.name ?? 'the microphone',
+                          level: mic.level.meter,
+                          onCheck: busy ? null : _runSoundCheck,
+                        ),
+                      ],
+                    ),
             );
           },
         ),
       SetupStep(
         number: mic != null && mic.supported ? 4 : 3,
         title: 'Prompter',
-        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-          row('Guide', GuideChoice(guide: settings.guide, onChanged: (g) => settings.update((s) => s.guide = g))),
-          row('Motion', MotionChoice(motion: settings.motion, onChanged: (m) => settings.update((s) => s.motion = m))),
-          row('Align', AlignmentChoice(
-            alignment: PrompterAlignment.resolve(settings.alignment,
-                rtl: widget.script.language.isRtl, motion: settings.motion),
-            onChanged: (a) => settings.update((s) => s.alignment = a),
-          )),
-          row('Pace', PaceChoice(controller: _prompter, voiceAvailable: _voiceAvailable, manual: false)),
-          if (!reduceMotion)
-            row('Cues', CuesChoice(kinetic: settings.kinetic, onChanged: (v) => settings.update((s) => s.kinetic = v))),
-          row(
-            'Size and mirror',
-            IconButtonTheme(
-              data: IconButtonThemeData(style: IconButton.styleFrom(foregroundColor: stage.stageChromeText)),
-              child: Row(children: [
-                IconButton(
-                  tooltip: 'Smaller text (−)',
-                  icon: const Icon(Icons.text_decrease_rounded),
-                  onPressed: () => settings.update((s) => s.fontSize = (s.fontSize - 4).clamp(24, 96)),
-                ),
-                IconButton(
-                  tooltip: 'Larger text (+)',
-                  icon: const Icon(Icons.text_increase_rounded),
-                  onPressed: () => settings.update((s) => s.fontSize = (s.fontSize + 4).clamp(24, 96)),
-                ),
-                IconButton(
-                  tooltip: 'Mirror (M)',
-                  isSelected: settings.mirror,
-                  icon: const Icon(Icons.flip_rounded),
-                  onPressed: () => settings.update((s) => s.mirror = !s.mirror),
-                ),
-              ]),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            row(
+              'Guide',
+              GuideChoice(
+                guide: settings.guide,
+                onChanged: (g) => settings.update((s) => s.guide = g),
+              ),
             ),
-          ),
-        ]),
+            row(
+              'Motion',
+              MotionChoice(
+                motion: settings.motion,
+                onChanged: (m) => settings.update((s) => s.motion = m),
+              ),
+            ),
+            row(
+              'Align',
+              AlignmentChoice(
+                alignment: PrompterAlignment.resolve(
+                  settings.alignment,
+                  rtl: widget.script.language.isRtl,
+                  motion: settings.motion,
+                ),
+                onChanged: (a) => settings.update((s) => s.alignment = a),
+              ),
+            ),
+            row(
+              'Pace',
+              PaceChoice(
+                controller: _prompter,
+                voiceAvailable: _voiceAvailable,
+                manual: false,
+              ),
+            ),
+            if (!reduceMotion)
+              row(
+                'Cues',
+                CuesChoice(
+                  kinetic: settings.kinetic,
+                  onChanged: (v) => settings.update((s) => s.kinetic = v),
+                ),
+              ),
+            row(
+              'Size and mirror',
+              IconButtonTheme(
+                data: IconButtonThemeData(
+                  style: IconButton.styleFrom(
+                    foregroundColor: stage.stageChromeText,
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    IconButton(
+                      tooltip: 'Smaller text (−)',
+                      icon: const Icon(Icons.text_decrease_rounded),
+                      onPressed: () => settings.update(
+                        (s) => s.fontSize = (s.fontSize - 4).clamp(24, 96),
+                      ),
+                    ),
+                    IconButton(
+                      tooltip: 'Larger text (+)',
+                      icon: const Icon(Icons.text_increase_rounded),
+                      onPressed: () => settings.update(
+                        (s) => s.fontSize = (s.fontSize + 4).clamp(24, 96),
+                      ),
+                    ),
+                    IconButton(
+                      tooltip: 'Mirror (M)',
+                      isSelected: settings.mirror,
+                      icon: const Icon(Icons.flip_rounded),
+                      onPressed: () =>
+                          settings.update((s) => s.mirror = !s.mirror),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     ];
 
@@ -773,25 +1243,42 @@ class _RecordScreenState extends State<RecordScreen> with WidgetsBindingObserver
     Widget footer(BuildContext context) {
       final problem = _noSound;
       final Widget line;
-      if (_recording) {
-        line = Text('Recording ${formatDuration(_stopwatch.elapsed)}. Space or the button stops.',
-            style: SaType.caption.copyWith(color: stage.stageChromeText));
+      if (_screenTake?.busy == true && _mode == TakeMode.screen) {
+        line = Text(
+          _screenTake!.phase == ScreenTakePhase.saving
+              ? 'Saving take…'
+              : 'Use the hidden controls. Space or this button stops.',
+          style: SaType.caption.copyWith(color: stage.stageChromeText),
+        );
+      } else if (_recording) {
+        line = Text(
+          'Recording ${formatDuration(_elapsed)}. Space or the button stops.',
+          style: SaType.caption.copyWith(color: stage.stageChromeText),
+        );
+      } else if (!_canRecord && _mode == TakeMode.screen) {
+        line = Text('Choose a display or window above to record.', style: SaType.caption.copyWith(color: stage.stageWarn));
       } else if (problem != null) {
-        line = Wrap(crossAxisAlignment: WrapCrossAlignment.center, children: [
-          Text('$problem. Fix it above, or ', style: SaType.caption.copyWith(color: stage.stageWarn)),
-          InkWell(
-            onTap: () => setState(() => _allowSilent = true),
-            child: Text(
-              'record without sound',
-              style: SaType.caption.copyWith(
-                color: stage.stageText,
-                fontWeight: FontWeight.w700,
-                decoration: TextDecoration.underline,
-                decorationColor: stage.stageText,
+        line = Wrap(
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            Text(
+              '$problem. Fix it above, or ',
+              style: SaType.caption.copyWith(color: stage.stageWarn),
+            ),
+            InkWell(
+              onTap: () => setState(() => _allowSilent = true),
+              child: Text(
+                'record without sound',
+                style: SaType.caption.copyWith(
+                  color: stage.stageText,
+                  fontWeight: FontWeight.w700,
+                  decoration: TextDecoration.underline,
+                  decorationColor: stage.stageText,
+                ),
               ),
             ),
-          ),
-        ]);
+          ],
+        );
       } else {
         line = Text(
           '3, 2, 1, then $guide${_prompter.mode == ScrollMode.voice ? ', at the pace of your voice' : ''}.',
@@ -799,30 +1286,51 @@ class _RecordScreenState extends State<RecordScreen> with WidgetsBindingObserver
         );
       }
       return Container(
-        padding: const EdgeInsets.fromLTRB(SaSpace.s4, SaSpace.s3, SaSpace.s4, SaSpace.s4),
-        decoration: BoxDecoration(border: Border(top: BorderSide(color: stage.stageLine))),
-        child: Row(children: [
-          RecordButton(
-            recording: _recording || _countdown != null,
-            saving: _saving,
-            enabled: camera != null && !_saving && (problem == null || _recording),
-            onPressed: _toggleRecording,
-          ),
-          const SizedBox(width: SaSpace.s3),
-          Expanded(
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Row(children: [
-                Text(
-                  _recording ? 'Stop' : 'Record',
-                  style: SaType.body.copyWith(color: stage.stageText, fontWeight: FontWeight.w700),
-                ),
-                const SizedBox(width: SaSpace.s2),
-                _takeNumber(),
-              ]),
-              line,
-            ]),
-          ),
-        ]),
+        padding: const EdgeInsets.fromLTRB(
+          SaSpace.s4,
+          SaSpace.s3,
+          SaSpace.s4,
+          SaSpace.s4,
+        ),
+        decoration: BoxDecoration(
+          border: Border(top: BorderSide(color: stage.stageLine)),
+        ),
+        child: Row(
+          children: [
+            RecordButton(
+              recording:
+                  _recording ||
+                  _countdown != null ||
+                  (_screenTake?.busy ?? false),
+              saving: _savingTake,
+              enabled:
+                  _canRecord && !_savingTake && (problem == null || _recording),
+              onPressed: _toggleRecording,
+            ),
+            const SizedBox(width: SaSpace.s3),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Text(
+                        _recording ? 'Stop' : 'Record',
+                        style: SaType.body.copyWith(
+                          color: stage.stageText,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(width: SaSpace.s2),
+                      _takeNumber(),
+                    ],
+                  ),
+                  line,
+                ],
+              ),
+            ),
+          ],
+        ),
       );
     }
 
@@ -831,42 +1339,68 @@ class _RecordScreenState extends State<RecordScreen> with WidgetsBindingObserver
         color: stage.stageChrome,
         border: BorderDirectional(start: BorderSide(color: stage.stageLine)),
       ),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(SaSpace.s4, SaSpace.s4, SaSpace.s4, SaSpace.s2),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text('SET THE STAGE', style: SaType.signalLabel.copyWith(color: stage.stageChromeText)),
-            const SizedBox(height: SaSpace.s1),
-            Text(
-              _script.displayTitle,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: SaType.titleLg.copyWith(color: stage.stageText, fontWeight: FontWeight.w800),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              SaSpace.s4,
+              SaSpace.s4,
+              SaSpace.s4,
+              SaSpace.s2,
             ),
-            Text(
-              '\u2068${_script.language.label}\u2069 · ${_script.wordCount} words · ~${formatDuration(estimatedDuration(_script))}',
-              style: SaType.meter.copyWith(color: stage.stageChromeText),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'SET THE STAGE',
+                  style: SaType.signalLabel.copyWith(
+                    color: stage.stageChromeText,
+                  ),
+                ),
+                const SizedBox(height: SaSpace.s1),
+                Text(
+                  _script.displayTitle,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: SaType.titleLg.copyWith(
+                    color: stage.stageText,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                Text(
+                  '\u2068${_script.language.label}\u2069 · ${_script.wordCount} words · ~${formatDuration(estimatedDuration(_script))}',
+                  style: SaType.caption.copyWith(color: stage.stageChromeText),
+                ),
+              ],
             ),
-          ]),
-        ),
-        Expanded(
-          // While recording, the set-up steps back.
-          child: AnimatedOpacity(
-            opacity: busy ? 0.35 : 1,
-            duration: SaDurations.base,
-            child: IgnorePointer(
-              ignoring: busy,
-              child: ListView.separated(
-                padding: const EdgeInsets.symmetric(horizontal: SaSpace.s3),
-                itemCount: steps.length,
-                separatorBuilder: (_, _) => const SizedBox(height: SaSpace.s2),
-                itemBuilder: (_, i) => steps[i],
+          ),
+          Expanded(
+            // While recording, the set-up steps back.
+            child: AnimatedOpacity(
+              opacity: busy ? 0.35 : 1,
+              duration: SaDurations.base,
+              child: IgnorePointer(
+                ignoring: busy,
+                child: ListView.separated(
+                  padding: const EdgeInsets.symmetric(horizontal: SaSpace.s3),
+                  itemCount: steps.length,
+                  separatorBuilder: (_, _) =>
+                      const SizedBox(height: SaSpace.s2),
+                  itemBuilder: (_, i) => steps[i],
+                ),
               ),
             ),
           ),
-        ),
-        if (mic == null) footer(context) else ListenableBuilder(listenable: mic, builder: (context, _) => footer(context)),
-      ]),
+          if (mic == null)
+            footer(context)
+          else
+            ListenableBuilder(
+              listenable: mic,
+              builder: (context, _) => footer(context),
+            ),
+        ],
+      ),
     );
   }
 

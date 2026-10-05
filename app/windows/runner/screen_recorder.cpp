@@ -146,6 +146,11 @@ struct ScreenRecorder::Impl {
         } else if (call.method_name() == "stop") {
           if (active && SessionId(*args) == generation) active->RequestStop();
           result->Success();
+        } else if (call.method_name() == "release") {
+          // Destruction requests Stop and joins the worker/finalizer. Dart must
+          // await this acknowledgement before restoring main-window affinity.
+          if (active && SessionId(*args) == generation) active.reset();
+          result->Success();
         } else { result->NotImplemented(); }
       } catch (...) {
         result->Error("unavailable", "Could not start recording. Check the source and microphone.");

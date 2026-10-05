@@ -10,6 +10,7 @@ import 'package:spawnalpha/src/model/script_document.dart';
 import 'package:spawnalpha/src/recording/audio_input.dart';
 import 'package:spawnalpha/src/recording/screen_preview.dart';
 import 'package:spawnalpha/src/recording/screen_source.dart';
+import 'package:spawnalpha/src/recording/screen_recording.dart';
 import 'package:spawnalpha/src/ui/screen_preview_screen.dart';
 import 'package:spawnalpha/src/ui/record_screen.dart';
 import 'package:spawnalpha/src/storage/script_store.dart';
@@ -41,30 +42,32 @@ void main() {
     );
     final backend = FakeScreenPreviews();
     final services = AppServices(library: ScriptLibrary(MemoryScriptStore()),
-      settings: Settings(secrets: MemorySecretStore()), recordingsDir: Directory.systemTemp,
-      audio: const UnsupportedAudioInputs(), screens: FakeScreenSources(), previews: backend);
+      settings: Settings(secrets: MemorySecretStore())..recordMode = TakeMode.screen, recordingsDir: Directory.systemTemp,
+      audio: const UnsupportedAudioInputs(), screens: FakeScreenSources(), previews: backend, recorder: const WindowsScreenRecordings());
     await tester.pumpWidget(AppScope(services: services, child: MaterialApp(
       home: RecordScreen(script: ScriptDocument.create(text: 'Hello there.')))));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Choose screen'));
+    await tester.tap(find.text('Choose screen').last);
     await tester.pumpAndSettle();
     await tester.tap(find.text('Display 1'));
     await tester.pump();
     await tester.tap(find.text('Use this source'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Preview screen'));
-    await tester.tap(find.text('Preview screen'));
+    // The first push already covers the setup hit region; a second physical
+    // tap is intentionally swallowed by that transition surface.
+    await tester.tap(find.text('Preview screen'), warnIfMissed: false);
     await tester.pumpAndSettle();
-    expect(backend.nextId, 1);
+    expect(backend.nextId, 2);
     expect(find.byType(ScreenPreviewScreen), findsOneWidget);
     await tester.tap(find.byTooltip('Back'));
     await tester.pumpAndSettle();
-    expect(backend.stopped, [1]);
+    expect(backend.stopped, [1, 2]);
     await tester.tap(find.text('Preview screen'));
     await tester.pumpAndSettle();
-    expect(backend.nextId, 2);
+    expect(backend.nextId, 4);
     await tester.pumpWidget(const SizedBox());
-    expect(backend.stopped, [1, 2]);
+    expect(backend.stopped, [1, 2, 3, 4]);
   });
   for (final name in ['My presentation', 'Présentation française', 'عرض تقديمي']) {
     testWidgets('preview is local, sized correctly and releases when closed: $name', (tester) async {

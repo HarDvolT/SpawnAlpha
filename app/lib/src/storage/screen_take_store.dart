@@ -34,7 +34,10 @@ class ScreenTakeStore {
 
   Future<T> _exclusive<T>(Future<T> Function() action) {
     final next = _tail.then((_) => action());
-    _tail = next.then<void>((_) {}, onError: (Object error, StackTrace stack) {});
+    _tail = next.then<void>(
+      (_) {},
+      onError: (Object error, StackTrace stack) {},
+    );
     return next;
   }
 
@@ -103,6 +106,17 @@ class ScreenTakeStore {
       reason: status.reason.name,
       loudestRmsDb: status.loudestRmsDb,
     );
+  });
+
+  /// Cancellation before capture creates no video. Keep a small explicit local
+  /// record of the cancellation, rather than retrying an empty take on startup.
+  Future<void> abandon(PendingScreenTake pending) => _exclusive(() async {
+    if (await File(pending.videoPath).exists()) return;
+    final metadata = jsonDecode(
+      await File(pending.metadataPath).readAsString(),
+    ) as Map<String, dynamic>;
+    metadata['state'] = 'cancelled';
+    await _write(File(pending.metadataPath), metadata);
   });
 
   Future<Take> _save(

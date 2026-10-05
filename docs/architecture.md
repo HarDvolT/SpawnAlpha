@@ -406,7 +406,18 @@ recordings folder.
   file paths. Flutter reports interactive control/grip rectangles, and an in-process
   timer toggles native click-through outside them using transient cursor positions only.
   No input hook or persisted telemetry. Engine shutdown finalizes the recorder before
-  destroying the HUD/restoring affinity. Normal setup integration remains next.
+  destroying the HUD/restoring affinity.
+- **Normal Screen recording:** `ScreenTakeController` owns protected windows, countdown,
+  pending manifest, native capture and save. Native `release` joins finalization before
+  HUD close restores main affinity, including cancellation/disposal and exception paths.
+  A failed release keeps protection and prevents a second take. Polling at `recording-poll`
+  sends only recording/pause/speech state to the reader and timer/meter to the HUD. Voice
+  uses the capture microphone's own RMS and pure `VoiceActivity`; repeated updates never
+  restart a manually paused or finished read. Screen capture continues at end of script.
+  Setup releases camera in Screen mode and owns inline preview, stopping/reopening it
+  around the detailed preview route or recording. Saved/recovered takes are mode-labelled.
+  `native_screen_take_check.dart` uses an independently generated window and ignored files
+  to test the whole protected silent take; it reads no owner data or private desktop.
 - **SettingsScreen**: the markup source, API key, model, default style, text
   size and mirror setting, plus **Privacy and licences**: what leaves the
   device, and the licence page (`showLicensePage`).

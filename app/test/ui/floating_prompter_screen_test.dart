@@ -10,6 +10,37 @@ import 'package:spawnalpha/src/theme/theme.dart';
 import 'package:spawnalpha/src/ui/floating_prompter_screen.dart';
 
 void main() {
+  testWidgets('recording state holds Voice pace, resumes, and does not restart at the end', (tester) async {
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(floatingViewChannel, (_) async => null);
+    addTearDown(() => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(floatingViewChannel, null));
+    await tester.pumpWidget(MaterialApp(home: FloatingPrompterScreen(presentation:
+      FloatingPresentation(script: ScriptDocument.create(text: 'One short phrase.'), pace: ScrollMode.voice))));
+    final controller = tester.widget<PrompterView>(find.byType(PrompterView)).controller;
+    Future<void> send({bool active = true, bool paused = false, bool speaking = false}) async {
+      await tester.binding.defaultBinaryMessenger.handlePlatformMessage(floatingViewChannel.name,
+        const StandardMethodCodec().encodeMethodCall(MethodCall('recordingState',
+          {'active': active, 'paused': paused, 'speaking': speaking})), (_) {});
+      await tester.pump();
+    }
+    await send();
+    await tester.pump(const Duration(milliseconds: 700));
+    expect(controller.position, Duration.zero);
+    await send(speaking: true);
+    await tester.pump(const Duration(milliseconds: 500));
+    expect(controller.position, greaterThan(Duration.zero));
+    await send(paused: true, speaking: true);
+    final position = controller.position;
+    await tester.pump(const Duration(seconds: 1));
+    expect(controller.position, position);
+    await send(speaking: true);
+    expect(controller.isPlaying, isTrue);
+    await tester.pump(const Duration(seconds: 30));
+    expect(controller.state, PlaybackState.finished);
+    await send(speaking: true);
+    expect(controller.state, PlaybackState.finished);
+    await send(active: false);
+    await tester.pumpWidget(const SizedBox());
+  });
   for (final language in ScriptLanguage.values) {
     testWidgets('floating prompter reads $language with controls and correct direction', (tester) async {
       tester.view.physicalSize = Size(SaPrompter.floatingMinWidth, SaPrompter.floatingMinHeight);

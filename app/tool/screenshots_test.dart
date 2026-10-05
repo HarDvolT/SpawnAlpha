@@ -31,6 +31,7 @@ import 'package:spawnalpha/src/recording/audio_input.dart';
 import 'package:spawnalpha/src/recording/screen_source.dart';
 import 'package:spawnalpha/src/recording/screen_preview.dart';
 import 'package:spawnalpha/src/recording/floating_prompter.dart';
+import 'package:spawnalpha/src/recording/screen_recording.dart';
 import 'package:spawnalpha/src/storage/script_store.dart';
 import 'package:spawnalpha/src/storage/settings.dart';
 import 'package:spawnalpha/src/theme/theme.dart';
@@ -446,6 +447,22 @@ void main() {
       final script = await _markedUp(sampleScripts()[0]);
       await shoot(tester, name, desktop, (_) => RecordScreen(script: script), [script],
           audio: _TalkingMic(denied: denied), settle: false, before: (tester) async {
+        await tester.pump(const Duration(milliseconds: 300));
+        await tester.pump(const Duration(milliseconds: 300));
+      });
+    });
+  }
+
+  for (final (index, language) in [(0, 'en'), (1, 'fr'), (2, 'ar')]) {
+    testWidgets('Screen recording setup $language', (tester) async {
+      final script = await _markedUp(sampleScripts()[index]);
+      await shoot(tester, 'record-screen-setup-$language', desktop, (services) {
+        services.settings.recordMode = TakeMode.screen;
+        // No native recorder command is made by this setup-only screenshot.
+        return AppScope(services: AppServices(library: services.library, settings: services.settings,
+          recordingsDir: Directory.systemTemp, audio: _TalkingMic(), recorder: const WindowsScreenRecordings(),
+          screens: _ScreenCandidates(script.displayTitle)), child: RecordScreen(script: script));
+      }, [script], settle: false, before: (tester) async {
         await tester.pump(const Duration(milliseconds: 300));
         await tester.pump(const Duration(milliseconds: 300));
       });

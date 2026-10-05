@@ -105,6 +105,9 @@ void main() {
     await backend.pause(handle, true);
     expect(request!.method, 'pause');
     expect(request!.arguments, {'sessionId': 3, 'paused': true});
+    await backend.release(handle);
+    expect(request!.method, 'release');
+    expect(request!.arguments, {'sessionId': 3});
     },
   );
 

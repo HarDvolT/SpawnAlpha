@@ -495,10 +495,12 @@ class _RecordNext extends StatelessWidget {
       ),
     ]);
     final right = Column(crossAxisAlignment: CrossAxisAlignment.stretch, mainAxisSize: MainAxisSize.min, children: [
-      const RecordModeTiles(),
+      RecordModeTiles(mode: settings.recordMode, screenReady: AppScope.of(context).recorder.supported,
+        onChanged: (mode) => settings.update((s) => s.recordMode = mode)),
       const SizedBox(height: SaSpace.s3),
       Wrap(spacing: SaSpace.s2, runSpacing: SaSpace.s2, children: [
-        const _Check(icon: Icons.videocam_outlined, text: 'Camera'),
+        _Check(icon: settings.recordMode == TakeMode.screen ? Icons.screen_share_rounded : Icons.videocam_outlined,
+          text: settings.recordMode == TakeMode.screen ? 'Screen' : 'Camera'),
         _Check(icon: Icons.mic_none_rounded, text: settings.audioInputId == null ? 'System microphone' : 'Your microphone'),
         _Check(icon: Icons.record_voice_over_outlined, text: 'Guide: ${settings.guide.label}'),
       ]),
@@ -924,6 +926,9 @@ class TakeThumb extends StatelessWidget {
             style: SaType.label.copyWith(color: p.ink, fontWeight: FontWeight.w600),
           ),
           Text(_when(take.recordedAt), style: SaType.caption.copyWith(color: p.ink3)),
+          if (take.mode != TakeMode.camera || take.recovered)
+            Text('${take.mode == TakeMode.both ? 'Screen + camera' : take.mode == TakeMode.screen ? 'Screen' : 'Camera'}${take.recovered ? ' · Recovered' : ''}',
+              style: SaType.caption.copyWith(color: p.ink2)),
         ]),
       ),
     );

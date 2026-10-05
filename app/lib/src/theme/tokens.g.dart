@@ -334,6 +334,9 @@ abstract final class SaDurations {
   static const Duration stagger = Duration(milliseconds: 18);
   /// Check live-preview size and source availability; this does not drive capture frames.
   static const Duration previewPoll = Duration(milliseconds: 250);
+  /// Read recording state and microphone level for the HUD and Voice pace; capture uses its own
+  /// clock.
+  static const Duration recordingPoll = Duration(milliseconds: 50);
 }
 
 /// Easing curves.

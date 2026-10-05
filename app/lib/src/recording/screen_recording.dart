@@ -4,7 +4,14 @@ import 'package:flutter/services.dart';
 
 import 'screen_source.dart';
 
-enum ScreenRecordingPhase { starting, recording, paused, saving, finished, failed }
+enum ScreenRecordingPhase {
+  starting,
+  recording,
+  paused,
+  saving,
+  finished,
+  failed,
+}
 
 enum ScreenRecordingReason { none, cancelled, source, microphone, encoder }
 
@@ -52,6 +59,9 @@ abstract class ScreenRecordings {
   Future<ScreenRecordingStatus> status(ScreenRecordingHandle handle);
   Future<void> stop(ScreenRecordingHandle handle);
   Future<void> pause(ScreenRecordingHandle handle, bool paused);
+
+  /// Stops and joins the native worker before any capture protection is removed.
+  Future<void> release(ScreenRecordingHandle handle);
 }
 
 class WindowsScreenRecordings implements ScreenRecordings {
@@ -131,7 +141,13 @@ class WindowsScreenRecordings implements ScreenRecordings {
       channel.invokeMethod<void>('stop', {'sessionId': handle.sessionId});
   @override
   Future<void> pause(ScreenRecordingHandle handle, bool paused) =>
-      channel.invokeMethod<void>('pause', {'sessionId': handle.sessionId, 'paused': paused});
+      channel.invokeMethod<void>('pause', {
+        'sessionId': handle.sessionId,
+        'paused': paused,
+      });
+  @override
+  Future<void> release(ScreenRecordingHandle handle) =>
+      channel.invokeMethod<void>('release', {'sessionId': handle.sessionId});
 }
 
 class UnsupportedScreenRecordings implements ScreenRecordings {
@@ -155,4 +171,6 @@ class UnsupportedScreenRecordings implements ScreenRecordings {
   Future<void> stop(ScreenRecordingHandle handle) async {}
   @override
   Future<void> pause(ScreenRecordingHandle handle, bool paused) async {}
+  @override
+  Future<void> release(ScreenRecordingHandle handle) async {}
 }

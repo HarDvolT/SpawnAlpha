@@ -7,6 +7,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../markup/markup_engine.dart';
 import '../markup/providers.dart';
 import '../model/coaching_style.dart';
+import '../model/script_document.dart';
 import '../prompter/guide.dart';
 
 /// Somewhere to keep API keys out of plain files: the Keychain on iOS, the
@@ -26,8 +27,9 @@ class PlatformSecretStore implements SecretStore {
   Future<String?> read(String key) => _storage.read(key: key);
 
   @override
-  Future<void> write(String key, String? value) =>
-      value == null ? _storage.delete(key: key) : _storage.write(key: key, value: value);
+  Future<void> write(String key, String? value) => value == null
+      ? _storage.delete(key: key)
+      : _storage.write(key: key, value: value);
 }
 
 class MemorySecretStore implements SecretStore {
@@ -57,6 +59,7 @@ class Settings extends ChangeNotifier {
   CoachingStyle defaultStyle = CoachingStyle.presentation;
   double fontSize = 44;
   bool mirror = false;
+  TakeMode recordMode = TakeMode.camera;
 
   /// Kinetic text on the prompter (words wake up near the reading line);
   /// off is Still. Reduced motion forces Still whatever this says.
@@ -78,20 +81,27 @@ class Settings extends ChangeNotifier {
 
   static String _keyName(MarkupProvider p) => 'api_key_${p.name}';
 
-  ProviderConfig configOf(MarkupProvider p) => _configs[p] ?? ProviderConfig.defaults(p);
+  ProviderConfig configOf(MarkupProvider p) =>
+      _configs[p] ?? ProviderConfig.defaults(p);
 
   String? apiKeyOf(MarkupProvider p) => _keys[p];
 
   bool hasApiKey(MarkupProvider p) => (_keys[p] ?? '').isNotEmpty;
 
   /// Why the chosen provider can't run yet, or null when it can.
-  String? get setupProblemForProvider => setupProblem(provider, configOf(provider), apiKeyOf(provider));
+  String? get setupProblemForProvider =>
+      setupProblem(provider, configOf(provider), apiKeyOf(provider));
 
   /// The engine to mark up with: the chosen provider when it is set up,
   /// else the on-device rules. Remote engines must be closed after use.
-  MarkupEngine engine({MarkupProvider? use, void Function(int received)? onProgress}) {
+  MarkupEngine engine({
+    MarkupProvider? use,
+    void Function(int received)? onProgress,
+  }) {
     final p = use ?? provider;
-    if (setupProblem(p, configOf(p), apiKeyOf(p)) != null) return buildEngine(MarkupProvider.onDevice, configOf(p), null);
+    if (setupProblem(p, configOf(p), apiKeyOf(p)) != null) {
+      return buildEngine(MarkupProvider.onDevice, configOf(p), null);
+    }
     return buildEngine(p, configOf(p), apiKeyOf(p), onProgress: onProgress);
   }
 
@@ -101,7 +111,11 @@ class Settings extends ChangeNotifier {
     if (!p.isRemote) return null;
     final config = configOf(p);
     // A placeholder model lets the engine be built; listing ignores it.
-    final engine = buildEngine(p, config.model.isEmpty ? config.copyWith(model: '-') : config, apiKeyOf(p));
+    final engine = buildEngine(
+      p,
+      config.model.isEmpty ? config.copyWith(model: '-') : config,
+      apiKeyOf(p),
+    );
     return engine is RemoteMarkupEngine ? engine : null;
   }
 
@@ -119,7 +133,9 @@ class Settings extends ChangeNotifier {
       try {
         var key = await _secrets.read(_keyName(p));
         // Before providers existed, the Claude key had its own name.
-        if ((key ?? '').isEmpty && p == MarkupProvider.claude) key = await _secrets.read('anthropic_api_key');
+        if ((key ?? '').isEmpty && p == MarkupProvider.claude) {
+          key = await _secrets.read('anthropic_api_key');
+        }
         if (key != null && key.isNotEmpty) _keys[p] = key;
       } on Exception catch (e) {
         debugPrint('Could not read the ${p.label} API key: $e');
@@ -129,40 +145,57 @@ class Settings extends ChangeNotifier {
   }
 
   void _read(Map<String, Object?> json) {
-    provider = MarkupProvider.fromName((json['markupProvider'] ?? json['markupSource']) as String?);
+    provider = MarkupProvider.fromName(
+      (json['markupProvider'] ?? json['markupSource']) as String?,
+    );
     final providers = json['providers'];
     if (providers is Map) {
       for (final p in MarkupProvider.values.where((p) => p.isRemote)) {
-        if (providers.containsKey(p.name)) _configs[p] = ProviderConfig.fromJson(p, providers[p.name]);
+        if (providers.containsKey(p.name)) {
+          _configs[p] = ProviderConfig.fromJson(p, providers[p.name]);
+        }
       }
     }
     // Settings written before providers existed kept only a Claude model.
     final claudeModel = json['claudeModel'];
     if (claudeModel is String && !_configs.containsKey(MarkupProvider.claude)) {
-      _configs[MarkupProvider.claude] = configOf(MarkupProvider.claude).copyWith(model: claudeModel);
+      _configs[MarkupProvider.claude] = configOf(MarkupProvider.claude)
+          .copyWith(model: claudeModel);
     }
     defaultStyle = CoachingStyle.fromName(json['defaultStyle'] as String?);
     fontSize = (json['fontSize'] as num?)?.toDouble() ?? fontSize;
     mirror = json['mirror'] as bool? ?? mirror;
     kinetic = json['kinetic'] as bool? ?? kinetic;
     guide = PrompterGuide.fromName(json['guide'] as String?);
-    if (json.containsKey('motion')) motion = PrompterMotion.fromName(json['motion'] as String?);
-    if (json.containsKey('alignment')) alignment = PrompterAlignment.fromName(json['alignment'] as String?);
+    if (json.containsKey('motion')) {
+      motion = PrompterMotion.fromName(json['motion'] as String?);
+    }
+    if (json.containsKey('alignment')) {
+      alignment = PrompterAlignment.fromName(json['alignment'] as String?);
+    }
     audioInputId = json['audioInputId'] as String?;
+    recordMode =
+        TakeMode.values
+            .where((v) => v.name == json['recordMode'])
+            .firstOrNull ??
+        TakeMode.camera;
   }
 
   Map<String, Object?> toJson() => {
-        'markupProvider': provider.name,
-        'providers': {for (final e in _configs.entries) e.key.name: e.value.toJson()},
-        'defaultStyle': defaultStyle.name,
-        'fontSize': fontSize,
-        'mirror': mirror,
-        'kinetic': kinetic,
-        'guide': guide.name,
-        'motion': motion.name,
-        if (alignment != null) 'alignment': alignment!.name,
-        if (audioInputId != null) 'audioInputId': audioInputId,
-      };
+    'markupProvider': provider.name,
+    'providers': {
+      for (final e in _configs.entries) e.key.name: e.value.toJson(),
+    },
+    'defaultStyle': defaultStyle.name,
+    'fontSize': fontSize,
+    'mirror': mirror,
+    'recordMode': recordMode.name,
+    'kinetic': kinetic,
+    'guide': guide.name,
+    'motion': motion.name,
+    if (alignment != null) 'alignment': alignment!.name,
+    if (audioInputId != null) 'audioInputId': audioInputId,
+  };
 
   Future<void> update(void Function(Settings s) change) async {
     change(this);
@@ -173,7 +206,8 @@ class Settings extends ChangeNotifier {
     await file.writeAsString(jsonEncode(toJson()));
   }
 
-  Future<void> setConfig(MarkupProvider p, ProviderConfig config) => update((s) => s._configs[p] = config);
+  Future<void> setConfig(MarkupProvider p, ProviderConfig config) =>
+      update((s) => s._configs[p] = config);
 
   Future<void> setApiKey(MarkupProvider p, String? key) async {
     final trimmed = key?.trim() ?? '';

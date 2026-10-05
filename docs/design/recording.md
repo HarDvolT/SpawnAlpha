@@ -133,6 +133,25 @@ The setup/main window is excluded for the same session, and restored afterward.
 If any required exclusion fails, recording stays off and explains why. The source
 capture border stays enabled. Companion and the excluded camera bubble follow.
 
+### Normal Windows Screen mode
+
+Screen is enabled in the Home mode choice and recording setup, and remembered per
+device. The chosen display/window has an inline live preview; source changes and
+the detailed preview page release and reopen that preview cleanly. Screen needs no
+camera. Its setup and recording windows use explicit Stage control colours so choices
+remain legible in either Studio theme. Language metadata uses the reading face to
+include French accents and Arabic glyphs.
+
+At Record, stop preview and unchosen mic meters, protect setup/HUD/reader, count down,
+then capture to a flushed local manifest and fragmented MP4. Voice follows the recording
+microphone's level at `recording-poll`; Pause holds the reader and saved picture/sound,
+and Resume continues at that word. Reader hide/show preserves its position. Reaching
+the last word never stops a Screen take. Stop saves it, then removes capture protection.
+Partial source/mic stops keep readable video and explain why. Saved take cards show
+Screen and, after crash recovery, Recovered. A missing mic requires Record without sound
+and uses Timed pace. System audio remains off until loopback is implemented. Both is
+disabled until separate camera files share this clock and recovery flow.
+
 ### The cursor companion
 - **What it is:** a third placement for the Prompter window, set with **Companion** in the HUD. The prompter becomes a small glass card that rides beside the cursor, so a demo can be read without looking away from the work.
 - **Where it sits:**

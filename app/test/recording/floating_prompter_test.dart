@@ -14,6 +14,12 @@ import 'package:spawnalpha/src/theme/theme.dart';
 
 class FakeFloatingPrompters implements FloatingPrompters {
   @override
+  Future<void> update(FloatingHandle handle, FloatingRecordingState state) async {}
+  @override
+  Future<void> show(FloatingHandle handle, bool visible) async {}
+  @override
+  Future<void> lock(FloatingHandle handle) async {}
+  @override
   bool get supported => true;
   Completer<FloatingHandle>? pending;
   Object? problem;
@@ -47,7 +53,7 @@ void main() {
       final wire = FloatingPresentation.fromSettings(script, settings).encode();
       expect(wire, isNot(contains('private.mp4')));
       final fields = jsonDecode(wire) as Map;
-      expect(fields.keys, unorderedEquals(['script', 'guide', 'motion', 'alignment', 'kinetic', 'mirror']));
+      expect(fields.keys, unorderedEquals(['script', 'guide', 'motion', 'alignment', 'kinetic', 'mirror', 'pace']));
       final decoded = FloatingPresentation.decode(wire);
       expect(decoded.script.text, script.text);
       expect(decoded.script.language, language);
