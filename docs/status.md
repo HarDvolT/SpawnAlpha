@@ -7,8 +7,9 @@ Last updated: 2026-10-05
 **Build step 1 of 7 (script markup and coached prompter): code complete and the main Windows
 retest is owner-confirmed. Dot, One phrase, Center, Kinetic and Voice pace are the approved
 starting choices. Build step 2 has a Windows display/window source picker, confirmed by
-the owner and pushed, plus a live capture preview confirmed by the owner. Saving screen
-takes and the excluded floating prompter are not built yet.** The build order is in
+the owner and pushed, plus a live capture preview confirmed by the owner. An excluded
+floating prompter trial is now built/tested locally; recording integration and saving
+screen takes remain next.** The build order is in
 [product-brief.md](product-brief.md#build-order); it was revised on 2026-09-30.
 
 The owner's first test on Windows (build #1) found: no microphone permission prompt and no
@@ -31,9 +32,9 @@ build step 2 (screen recording).
   `flutter_secure_storage_windows`). `flutter doctor -v` passes Windows, Visual Studio,
   desktop device and network checks. Android is intentionally not installed yet.
 - **Local checks and launch:** `flutter pub get` succeeds; `flutter analyze` prints
-  **No issues found!**; all **194 tests pass** (181 before live preview).
-  All **66 screenshot cases pass**, including the source picker and unavailable-preview
-  screen in EN/FR/AR. The Windows debug build succeeds with the native capture backend.
+  **No issues found!**; all **206 tests pass** (194 before floating prompter).
+  All **72 screenshot cases pass**, including the source picker, unavailable-preview
+  and default/minimum floating prompter in EN/FR/AR. The Windows debug build succeeds.
   Windows Git checkout converted generated
   tokens to CRLF, causing the exact-generation test to fail: `.gitattributes` now keeps
   `tokens.g.dart` in LF and the tokens were regenerated without changing design values.
@@ -80,8 +81,8 @@ build step 2 (screen recording).
   and returned Display 1 to the setup rail. Nothing is captured by this slice. Camera remains
   the only enabled recording mode. The owner chose a source, confirmed it, and reported that
   setup shows the chosen name. Source selection is complete and pushed in `d85687e`.
-  Normal Flutter launch session is currently `12765`; old normal session `51118` and
-  cue-check session `6068` were closed.
+  Normal Flutter launch sessions `12765`, `51118` and `46560`, and cue-check session
+  `6068`, were closed for native rebuilds. Relaunch from `app/` for the next trial.
   Do not record window titles, scripts or private capture content in logs. No new dependency.
   Flutter accessibility AXTree errors also occurred in the old cue launcher (node 279);
   screenshot-only inspection remains usable. No SDK changes or accessibility suppression.
@@ -100,12 +101,29 @@ build step 2 (screen recording).
   complete. The owner is going to sleep and explicitly asked Codex to keep building;
   further hardware trials can wait until they return. Continue tests/builds and small
   commits/pushes without waiting for an owner trial after each slice during this session.
-  Next comes the excluded floating prompter and recording pipeline (mic, fragmented MP4,
-  Screen/Both); source thumbnails can follow. Preview uses 8-bit SDR pixels and caps CPU
+  Live preview was committed and pushed in `18170a6`. Next comes recording integration
+  and the pipeline (mic, fragmented MP4, Screen/Both); source thumbnails can follow.
+  Preview uses 8-bit SDR pixels and caps CPU
   readback at 15 fps; recording should keep frames on the GPU and use platform encoders.
   A full-display preview can include the setup/preview app and show recursion until
   excluded-window handling is added. Design docs are updated; the Claude artifact needs
   republishing by a Claude session.
+- **Resume here (screen recorder slice 3, floating prompter):** preview now offers
+  **Show floating prompter**, opening a separate Flutter engine on the real script with
+  the saved guide/motion/alignment/kinetic/mirror choices, in Timed trial pace. The native
+  frameless/topmost tool window verifies Windows capture exclusion before showing any
+  frame; unsupported or failed exclusion stays hidden. Native display smoke check opened
+  it, confirmed the visible/excluded status, showed no prompter in captured display pixels,
+  then closed it cleanly. The window has drag/resize/dock/snap, 60–100% opacity, controls,
+  global play/speed/sentence shortcuts and click-through Lock with Ctrl+Shift+L unlock.
+  Lock requires every shortcut to register, and hide/destroy releases them. It remains
+  independent of the main window so minimizing the app should not hide the reader.
+  Controller tests cover duplicate/late opens, exit cleanup, external close, generic
+  errors/retry and exclusion failure. All 206 tests and 72 screenshots pass; EN minimum
+  and AR default PNGs inspected. Real drag/resize/opacity/Lock/shortcut/minimize and the
+  owner's trial are pending (owner explicitly deferred them until after sleeping).
+  Recording synchronization, voice pacing in the child, separate HUD, Companion and
+  actual screen/audio saving are still to build. No new package, input hooks or files.
 - **Cue retest history (superseded by normal-app launch above):** `app/tool/cue_check.dart` is a development-only launch target.
   It uses the real Home/practice screens with memory-only scripts, settings and keys;
   optional recordings go under `app/build/cue-check/recordings`, on E: on this PC.
@@ -187,11 +205,12 @@ build step 2 (screen recording).
 | Design v2 in the app: fonts and generated tokens, Studio theme, script page (marker swipes, margin notes, director's pass), kinetic prompter with Still, glass hold badge, record screen (glass panel, countdown, record button, timecode), privacy and licences in Settings | Done, tested (widget tests plus rendered screenshots). What's left is listed in the next steps |
 | CI (`.github/workflows/build.yml`): analyze, test, then Windows and Android test builds as downloadable artifacts | Working. Run #9 (2026-09-30, <https://github.com/HarDvolT/SpawnAlpha/actions/runs/36788754590>) is green with everything above, including the new native microphone code |
 | Compliance groundwork ([compliance.md](compliance.md)) | Rules and checklist written, licence page in the app, no secrets in the repo. Legal documents and filings are still to do |
-| Windows display/window selection and live preview | Built/tested locally and owner-confirmed |
-| Screen and Screen + camera recording, excluded floating prompter, cursor companion, telemetry | Designed (`docs/design/recording.md`). Source selection and preview started; saving screen takes and the floating prompter remain to build. |
+| Windows display/window selection and live preview | Built/tested locally and owner-confirmed; pushed in `d85687e` / `18170a6` |
+| Excluded floating prompter trial | Built/tested locally, native exclusion smoke check passed; owner trial and recording integration pending |
+| Screen and Screen + camera recording, cursor companion, telemetry | Designed (`docs/design/recording.md`). Source selection, preview and floating trial started; saving screen takes, recording HUD and integration remain to build. |
 | Director's Cut (auto-edit, captions, auto-zoom, finish screen) | Designed (`docs/design/autoedit.md`). Not built; needs a native render core. |
 
-194 tests pass (`cd app && flutter test`), 66 screenshot cases pass, and `flutter analyze` is clean.
+206 tests pass (`cd app && flutter test`), 72 screenshot cases pass, and `flutter analyze` is clean.
 
 ## Next steps
 
@@ -352,11 +371,24 @@ build step 2 (screen recording).
   saving screen recordings is not built yet.
 - Live preview uses an 8-bit SDR, 15 fps CPU readback path. Full-display preview can show
   recursion because the setup/preview window is not excluded yet. Recording needs a GPU
-  pipeline, platform encoders and an excluded floating prompter.
+  pipeline, platform encoders and integration with the excluded floating prompter.
 - The on-device markup is heuristic. For example, French and Arabic stress rules are based on
   word lists, not prosody.
 
 ## Session log
+
+- 2026-10-05, Windows recorder slice 3 (excluded floating prompter trial):
+  - Added a second Flutter engine/window, verified capture exclusion before visibility,
+    privacy-minimized in-process presentation transfer and native placement/opacity/Lock
+    with global shortcuts. The preview owns its lifetime, including late replies and
+    external close; navigation destroys the child and releases shortcuts.
+  - Fixed the minimum-width control bar after tests caught an overflow; EN/FR/AR control,
+    direction, timing and minimum-layout checks now pass. Analysis is clean, all 206 tests
+    and 72 screenshots pass, and the Windows debug build succeeds. EN/AR PNGs inspected.
+  - Native display preview showed no prompter while the native session reported visible
+    and excluded; closing worked. Real placement/Lock/shortcut/minimize and owner trials
+    remain pending. The owner asked to defer further trials and keep building while asleep.
+    Screen/audio saving and recording integration are next; no actual screen takes yet.
 
 - 2026-10-05, Windows recorder slice 2 (live preview):
   - Pushed owner-confirmed source selection as `d85687e`.

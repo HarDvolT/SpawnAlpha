@@ -98,6 +98,27 @@ This is a preview, not a take. Camera remains the only recording mode until the 
 prompter is excluded and the audio/video recording pipeline is verified. Live thumbnails
 for every picker row will use this same capture backend in a later slice.
 
+### Floating prompter: third Windows slice
+
+The live-preview page offers **Show floating prompter**. This opens the real coached
+script in a separate, frameless, always-on-top Stage window. Its header says **Hidden
+from recording** only after Windows confirms capture exclusion; if exclusion cannot
+be set, keep the window hidden and show an error in the preview. Dock it at the top
+centre of the app's display initially. Drag the header to move it, use the bottom-right
+resize handle to resize, or **Dock** to return it under the lens. Movement snaps to
+nearby work-area edges and top centre using `space-6` as the snap distance.
+Initial and minimum sizes use the `floating-*` prompter tokens. An opacity slider
+ranges from `floating-min-opacity` to full opacity.
+
+This trial runs in Timed pace and does not open another microphone or save a take.
+The existing guide, motion, alignment, mirror and kinetic choices are copied into it.
+It offers Play/Pause, Restart and speed buttons. Global Ctrl+Shift+Space, arrows and L
+control play/pause, speed, sentences and Lock. Lock is click-through and only works
+when all global shortcuts are registered; Ctrl+Shift+L always unlocks. If a shortcut
+is already used by another app, keep Lock off and explain why. Closing the preview
+also closes the floating trial and releases its shortcuts. Recording integration,
+the separate recording HUD and Companion follow in the next slices.
+
 ### The cursor companion
 - **What it is:** a third placement for the Prompter window, set with **Companion** in the HUD. The prompter becomes a small glass card that rides beside the cursor, so a demo can be read without looking away from the work.
 - **Where it sits:**

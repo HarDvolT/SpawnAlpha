@@ -30,6 +30,7 @@ import 'package:spawnalpha/src/prompter/prompter_view.dart';
 import 'package:spawnalpha/src/recording/audio_input.dart';
 import 'package:spawnalpha/src/recording/screen_source.dart';
 import 'package:spawnalpha/src/recording/screen_preview.dart';
+import 'package:spawnalpha/src/recording/floating_prompter.dart';
 import 'package:spawnalpha/src/storage/script_store.dart';
 import 'package:spawnalpha/src/storage/settings.dart';
 import 'package:spawnalpha/src/theme/theme.dart';
@@ -43,6 +44,7 @@ import 'package:spawnalpha/src/ui/recording_widgets.dart';
 import 'package:spawnalpha/src/ui/script_page.dart';
 import 'package:spawnalpha/src/ui/screen_source_picker.dart';
 import 'package:spawnalpha/src/ui/screen_preview_screen.dart';
+import 'package:spawnalpha/src/ui/floating_prompter_screen.dart';
 
 import 'fixtures/cue_check_scripts.dart';
 
@@ -461,6 +463,19 @@ void main() {
         (_) => ScreenPreviewScreen(previews: const _ClosedScreenPreview(), source: ScreenSource(
           id: 'window:test', name: name, kind: ScreenSourceKind.window, width: 1280, height: 720)), []);
     });
+  }
+
+  for (final language in ScriptLanguage.values) {
+    for (final (sizeName, size) in [
+      ('default', Size(SaPrompter.floatingWidth, SaPrompter.floatingHeight)),
+      ('minimum', Size(SaPrompter.floatingMinWidth, SaPrompter.floatingMinHeight)),
+    ]) {
+      testWidgets('floating prompter ${language.name}, $sizeName', (tester) async {
+        final script = cueCheckScript(language);
+        await shoot(tester, 'floating-prompter-${language.name}-$sizeName', size,
+          (_) => FloatingPrompterScreen(presentation: FloatingPresentation(script: script)), [script]);
+      });
+    }
   }
 
   testWidgets('record screen, no camera', (tester) async {

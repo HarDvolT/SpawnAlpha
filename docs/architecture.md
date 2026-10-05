@@ -338,6 +338,22 @@ recordings folder.
   while screen preview is open and reopened afterward. No files, audio, hooks or network.
   Recording will use GPU surfaces and platform encoders; the preview CPU readback is
   not the recording pipeline. Windows capture border remains enabled.
+- **Excluded Windows prompter (third slice):** the runner owns one separate Flutter
+  engine/window, started at the retained `floatingPrompterMain` entry point. The main
+  engine passes only an in-memory script/presentation over `spawnalpha/floating_prompter`;
+  the child reads it over `spawnalpha/floating_view`. No file paths, API keys or recordings
+  are sent. The host checks Windows 10 build 19041 or newer and confirms
+  `WDA_EXCLUDEFROMCAPTURE` before the first frame can show. Unsupported or failed exclusion
+  keeps the window hidden. The preview's `FloatingTrialController` owns its lifetime,
+  polls visibility and releases late opens after navigation/disposal. Matching session IDs
+  stop an old close from closing a replacement. Closing the page destroys the child engine.
+  The native window is an independent, frameless, layered tool window with global shortcuts
+  (minimizing the main app must not hide it);
+  all shortcuts must register before click-through Lock is allowed. Hide/destroy releases
+  them and always clears click-through. Drag/resize/dock/snap use native window movement;
+  geometry, snap distance and minimum opacity come from design tokens. The child runs
+  Timed preview playback using the same controller/view; microphone and recording
+  synchronization, a separate HUD and cursor companion still need integration.
 - **SettingsScreen**: the markup source, API key, model, default style, text
   size and mirror setting, plus **Privacy and licences**: what leaves the
   device, and the licence page (`showLicensePage`).

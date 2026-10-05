@@ -5,18 +5,24 @@ import 'package:flutter/material.dart';
 import '../recording/screen_preview.dart';
 import '../recording/screen_preview_controller.dart';
 import '../recording/screen_source.dart';
+import '../recording/floating_prompter.dart';
+import '../recording/floating_trial_controller.dart';
 import '../theme/theme.dart';
 
 class ScreenPreviewScreen extends StatefulWidget {
-  const ScreenPreviewScreen({super.key, required this.source, required this.previews});
+  const ScreenPreviewScreen({super.key, required this.source, required this.previews, this.floating, this.presentation});
   final ScreenSource source;
   final ScreenPreviews previews;
+  final FloatingPrompters? floating;
+  final FloatingPresentation? presentation;
   @override
   State<ScreenPreviewScreen> createState() => _ScreenPreviewScreenState();
 }
 
 class _ScreenPreviewScreenState extends State<ScreenPreviewScreen> {
   late final _preview = ScreenPreviewController(widget.previews);
+  late final FloatingTrialController? _floating = widget.floating?.supported == true && widget.presentation != null
+      ? FloatingTrialController(widget.floating!, widget.presentation!) : null;
   @override
   void initState() {
     super.initState();
@@ -25,6 +31,7 @@ class _ScreenPreviewScreenState extends State<ScreenPreviewScreen> {
 
   @override
   void dispose() {
+    _floating?.dispose();
     _preview.dispose();
     super.dispose();
   }
@@ -55,6 +62,15 @@ class _ScreenPreviewScreenState extends State<ScreenPreviewScreen> {
                 ),
                 const SizedBox(height: SaSpace.s2),
                 Text('Live preview only · nothing saved', style: SaType.caption.copyWith(color: stage.stageChromeText)),
+                if (_floating case final floating?) ListenableBuilder(listenable: floating,
+                  builder: (context, _) => Column(children: [
+                    TextButton.icon(onPressed: floating.opening ? null : floating.toggle,
+                      icon: const Icon(Icons.visibility_off_rounded),
+                      label: Text(floating.opening ? 'Opening prompter…' : floating.visible
+                        ? 'Hide floating prompter' : 'Show floating prompter')),
+                    if (floating.problem != null) Text(floating.problem!,
+                      style: SaType.caption.copyWith(color: stage.stageWarn)),
+                  ])),
                 const SizedBox(height: SaSpace.s4),
                 Expanded(
                   child: Center(

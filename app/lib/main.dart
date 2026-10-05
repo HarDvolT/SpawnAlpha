@@ -8,6 +8,10 @@ import 'package:path_provider/path_provider.dart';
 import 'src/app.dart';
 import 'src/storage/script_store.dart';
 import 'src/storage/settings.dart';
+import 'src/ui/floating_prompter_screen.dart';
+
+@pragma('vm:entry-point')
+Future<void> floatingPrompterMain() => runFloatingPrompter();
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();

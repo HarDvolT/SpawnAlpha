@@ -378,6 +378,16 @@ abstract final class SaPrompter {
   static const double gutter = 0.06;
   /// Opacity of the words above the reading line.
   static const double readFade = 0.35;
+  /// Initial logical width of the excluded desktop prompter.
+  static const double floatingWidth = 720.0;
+  /// Initial logical height of the excluded desktop prompter.
+  static const double floatingHeight = 360.0;
+  /// Smallest excluded prompter width that keeps its controls readable.
+  static const double floatingMinWidth = 640.0;
+  /// Smallest excluded prompter height that leaves room for the reading line.
+  static const double floatingMinHeight = 280.0;
+  /// Lowest desktop prompter opacity. The capture exclusion applies at every opacity.
+  static const double floatingMinOpacity = 0.6;
 }
 
 /// Defaults for the automatic edit of screen recordings.

@@ -14,6 +14,7 @@ import '../recording/mic_monitor.dart';
 import '../recording/mp4.dart';
 import '../recording/sound_check.dart';
 import '../recording/screen_source.dart';
+import '../recording/floating_prompter.dart';
 import '../theme/theme.dart';
 import 'format.dart';
 import 'prompter_controls.dart';
@@ -73,7 +74,9 @@ class _RecordScreenState extends State<RecordScreen> with WidgetsBindingObserver
   Future<void> _previewScreen() async {
     final source = _screenSource;
     if (source == null || _openingScreenPreview) return;
-    final previews = AppScope.of(context).previews;
+    final services = AppScope.of(context);
+    final previews = services.previews;
+    final presentation = FloatingPresentation.fromSettings(_script, services.settings);
     // Release the camera while viewing screen pixels, then reopen on return.
     final camera = _camera;
     setState(() {
@@ -84,7 +87,8 @@ class _RecordScreenState extends State<RecordScreen> with WidgetsBindingObserver
       await camera?.dispose();
       if (!mounted) return;
       await Navigator.of(context).push<void>(MaterialPageRoute(
-        builder: (_) => ScreenPreviewScreen(source: source, previews: previews),
+        builder: (_) => ScreenPreviewScreen(source: source, previews: previews,
+          floating: services.floating, presentation: presentation),
       ));
       if (mounted && _cameras.isNotEmpty) await _openCamera(_cameraIndex);
     } finally {
