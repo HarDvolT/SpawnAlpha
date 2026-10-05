@@ -50,6 +50,8 @@ The product direction behind it, and the open decisions, are in [roadmap.md](roa
 2. Run `node docs/design/render-previews.mjs` and look at `docs/design/screenshots/` in both themes.
 3. Republish the artifact from the same files: the Artifact tool, `url` above, `root` = a folder whose `project/` is a copy of `docs/design/` (plus the artifact's `project/design-system.json`, read from the artifact first). Only send the files you changed.
 
+   The artifact is a claude.ai artifact, so only Claude sessions can republish it. Other agents (Codex, or anyone on the PC) skip this step: `docs/design/` is the source of truth, and the previews open in any browser. Note in `docs/status.md` that the artifact is behind, so the next Claude session can republish it.
+
 Previews that animate need time before a screenshot; `render-previews.mjs` waits per component. Write invisible characters in previews with `String.fromCharCode(...)`, never literally.
 
 ## In the Flutter app

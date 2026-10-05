@@ -48,7 +48,28 @@ app/                   the Flutter app (package name: spawnalpha)
   (must pass).
 - Run it: `flutter run -d windows`, or an Android or iOS device. Windows builds need a Windows
   host and iOS builds need macOS; a Linux container can only analyze and test.
-- Claude Code cloud containers don't include Flutter. Install it into the session scratchpad:
+- **On a Windows PC** (the owner's machine, and the only place the Windows app can be built,
+  run and tried with a real camera and microphone):
+  1. Install Git for Windows.
+  2. Install Visual Studio 2022 (Community is fine) with the **Desktop development with C++**
+     workload. Flutter needs it for Windows builds, including the vendored camera plugin's
+     C++ code in `app/packages/camera_windows/windows/`.
+  3. Turn on **Developer Mode** (Settings › System › For developers): Flutter needs symlinks
+     for plugins.
+  4. Download Flutter 3.47.5 for Windows,
+     <https://storage.googleapis.com/flutter_infra_release/releases/stable/windows/flutter_windows_3.47.5-stable.zip>,
+     unzip it to a folder without spaces (for example `C:\dev\flutter`), and add
+     `C:\dev\flutter\bin` to `PATH`. Then `flutter config --no-analytics`.
+  5. Optional, for the Android APK: Android Studio with the Android SDK, then
+     `flutter doctor --android-licenses`.
+  6. `flutter doctor` must show Windows desktop as ready.
+
+  From `app/` in PowerShell: `flutter pub get`, `flutter analyze`, `flutter test`, then
+  `flutter run -d windows`. `flutter build windows --release` writes the app to
+  `app\build\windows\x64\runner\Release\`. Scripts and takes are saved in
+  `Documents\SpawnAlpha\` (`scripts\` and `recordings\`; see `lib/main.dart`).
+- **Cloud containers** (Claude Code on the web, Codex cloud, any Linux box) don't include
+  Flutter. Install it into a scratch folder:
   ```sh
   curl -sSL -o flutter.tar.xz https://storage.googleapis.com/flutter_infra_release/releases/stable/linux/flutter_linux_3.47.5-stable.tar.xz
   tar xf flutter.tar.xz && export PATH="$PWD/flutter/bin:$PATH"

@@ -1,6 +1,6 @@
 # Status
 
-Last updated: 2026-09-30
+Last updated: 2026-10-05
 
 ## Where we are
 
@@ -19,6 +19,23 @@ two (see the session log). The owner confirmed the sound works in build #2, and 
 guide choice in the app, which build #4 adds. After trying build #4 the owner asked for the
 dot to grow and act out each cue in the cue's colour, and for the next features. The rest is
 build step 2 (screen recording).
+
+## Handover (2026-10-05): from here, Codex on the owner's Windows PC
+
+- **The code:** all the work so far is on the branch `claude/inspiring-euler-3v24zv`, 26
+  commits ahead of `main` (which holds only the initial commit). Merge it into `main` with a
+  pull request on GitHub, or check the branch out, before starting.
+- **The guide:** Codex reads [AGENTS.md](../AGENTS.md) on its own. Set up the PC from its "On a
+  Windows PC" section (Visual Studio 2022 with C++, Developer Mode, Flutter 3.47.5), then run
+  `flutter analyze` and `flutter test` from `app/`.
+- **Testing changes on the PC:** `flutter run -d windows` replaces waiting for a CI build.
+  The owner's camera and microphones are the real test for everything marked "needs the owner's
+  retest" below. CI still builds the Windows zip and the Android APK on every push.
+- **Where to start:** next step 2 (try the latest build and pick what to change), then build
+  step 2, screen recording (next step 8).
+- **The design artifact** (claude.ai) is private to the owner, and only Claude sessions can
+  republish it. `docs/design/` holds the same files and is the source of truth; its
+  `preview.html` files open in any browser.
 
 | Area | State |
 |---|---|
@@ -195,7 +212,8 @@ build step 2 (screen recording).
 - Voice pace follows the microphone level, not the words: it knows when you speak, not
   which word you are on. Voice-following (speech recognition) is build step 3.
 - On Windows, the level meter opens its own shared-mode stream on the microphone next to the
-  recording. The Windows record set-up and screen recording are not built yet.
+  recording, and during the set-up one more per microphone. Screen recording is not built
+  yet.
 - The on-device markup is heuristic. For example, French and Arabic stress rules are based on
   word lists, not prosody.
 
@@ -280,3 +298,7 @@ build step 2 (screen recording).
   - The Windows record set-up rail, with one meter per microphone and access-denied
     detection in the vendored plugin, a sound check, and the no-silent-take rule.
   - 149 tests pass. Design docs (prompter.md, motion.md) updated for the dot and One phrase.
+- 2026-10-05, handover: the owner will finish the project with Codex on their Windows PC.
+  Added Windows PC set-up to AGENTS.md, a note on the design artifact for agents that can't
+  republish it, and the handover section above. Nothing is half done: the branch is clean,
+  pushed, and green in CI (run #9).
