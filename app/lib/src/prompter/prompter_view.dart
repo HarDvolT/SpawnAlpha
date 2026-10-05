@@ -34,6 +34,7 @@ class PrompterView extends StatefulWidget {
     this.glass = false,
     this.guide = PrompterGuide.dot,
     this.motion = PrompterMotion.lineStep,
+    this.alignment,
   });
 
   final PrompterController controller;
@@ -65,6 +66,9 @@ class PrompterView extends StatefulWidget {
 
   /// Line step (the line being read stays still) or a smooth scroll.
   final PrompterMotion motion;
+
+  /// Physical text alignment; null uses language and motion defaults.
+  final PrompterAlignment? alignment;
 
   @override
   State<PrompterView> createState() => PrompterViewState();
@@ -316,7 +320,7 @@ class PrompterViewState extends State<PrompterView> with SingleTickerProviderSta
       final gutter = (width * 0.06).clamp(20.0, 64.0);
       final marked = _markedText();
 
-      final layoutKey = (_markedKey, width);
+      final layoutKey = (_markedKey, width, widget.alignment);
       if (layoutKey != _layoutKey) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (mounted) _measure(layoutKey);
@@ -357,7 +361,11 @@ class PrompterViewState extends State<PrompterView> with SingleTickerProviderSta
               key: _textKey,
               marked.span,
               textDirection: direction,
-              textAlign: _phrase ? TextAlign.center : TextAlign.start,
+              textAlign: switch (PrompterAlignment.resolve(widget.alignment, rtl: isRtl, motion: widget.motion)) {
+                PrompterAlignment.left => TextAlign.left,
+                PrompterAlignment.center => TextAlign.center,
+                PrompterAlignment.right => TextAlign.right,
+              },
             ),
           ),
         ),

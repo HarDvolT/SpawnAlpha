@@ -69,6 +69,9 @@ class Settings extends ChangeNotifier {
   /// How the prompter moves between holds: line step or smooth.
   PrompterMotion motion = PrompterMotion.lineStep;
 
+  /// Null keeps language-aware defaults until the user chooses alignment.
+  PrompterAlignment? alignment;
+
   /// The microphone takes record from (Windows endpoint ID); null for the
   /// system default.
   String? audioInputId;
@@ -144,6 +147,7 @@ class Settings extends ChangeNotifier {
     kinetic = json['kinetic'] as bool? ?? kinetic;
     guide = PrompterGuide.fromName(json['guide'] as String?);
     motion = PrompterMotion.fromName(json['motion'] as String?);
+    alignment = PrompterAlignment.fromName(json['alignment'] as String?);
     audioInputId = json['audioInputId'] as String?;
   }
 
@@ -156,6 +160,7 @@ class Settings extends ChangeNotifier {
         'kinetic': kinetic,
         'guide': guide.name,
         'motion': motion.name,
+        if (alignment != null) 'alignment': alignment!.name,
         if (audioInputId != null) 'audioInputId': audioInputId,
       };
 

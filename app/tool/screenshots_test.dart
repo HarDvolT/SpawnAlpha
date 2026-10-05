@@ -284,6 +284,18 @@ void main() {
 
   // One phrase motion, in English on a desktop and in Arabic on a phone.
   for (final language in ScriptLanguage.values) {
+    for (final alignment in PrompterAlignment.values) {
+      testWidgets('prompter, alignment ${language.name} ${alignment.name}', (tester) async {
+        final script = cueCheckScript(language);
+        await shoot(tester, 'prompter-align-${language.name}-${alignment.name}', desktop, (app) {
+          app.settings.alignment = alignment;
+          return PrompterScreen(script: script);
+        }, [script]);
+      });
+    }
+  }
+
+  for (final language in ScriptLanguage.values) {
     for (final arriving in [false, true]) {
       final side = arriving ? 'arrive' : 'leave';
       testWidgets('prompter, line return ${language.name} $side', (tester) async {

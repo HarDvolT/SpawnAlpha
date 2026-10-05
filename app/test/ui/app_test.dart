@@ -234,6 +234,49 @@ void main() {
       }
     });
 
+    for (final (language, content) in [
+      (ScriptLanguage.en, 'Read this line clearly.\n\nThen take a breath.'),
+      (ScriptLanguage.fr, 'Lisez cette phrase clairement.\n\nPuis prenez une inspiration.'),
+      (ScriptLanguage.ar, 'اقرأ هذه الجملة بوضوح.\n\nثم خذ نفساً.'),
+    ]) {
+      testWidgets('${language.name} alignment moves anchors without changing direction, lines or playback', (tester) async {
+        final c = PrompterController(script(language, content));
+        addTearDown(c.dispose);
+        for (final motion in PrompterMotion.values) {
+          c.seekToToken(1);
+          final position = c.position;
+          Rect? firstBox;
+          double? previousX;
+          for (final alignment in PrompterAlignment.values) {
+            await tester.pumpWidget(MaterialApp(
+              home: PrompterView(controller: c, fontSize: 32, motion: motion, alignment: alignment),
+            ));
+            await tester.pumpAndSettle();
+            final paragraph = tester.renderObject<RenderParagraph>(find.byType(RichText).first);
+            final word = c.tokens[0].text;
+            final offset = paragraph.text.toPlainText().indexOf(word);
+            final box = paragraph.getBoxesForSelection(
+                TextSelection(baseOffset: offset, extentOffset: offset + word.length)).first.toRect();
+            expect(paragraph.textDirection, language.isRtl ? TextDirection.rtl : TextDirection.ltr);
+            if (previousX != null) expect(box.left, greaterThan(previousX));
+            if (firstBox != null) {
+              expect(box.top, firstBox.top);
+              expect(box.size, firstBox.size);
+            }
+            expect(c.position, position);
+            expect(tester.takeException(), isNull);
+            firstBox ??= box;
+            previousX = box.left;
+          }
+          c.play();
+          await tester.pump();
+          await tester.pump(const Duration(milliseconds: 300));
+          expect(tester.takeException(), isNull, reason: 'aligned dot and kinetic cues paint');
+          c.pause();
+        }
+      });
+    }
+
     testWidgets('the control bar and the G key choose the guide', (tester) async {
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMessageHandler(
         'dev.flutter.pigeon.wakelock_plus_platform_interface.WakelockPlusApi.toggle',
@@ -260,6 +303,13 @@ void main() {
       await tester.tap(find.text('Smooth'));
       await tester.pumpAndSettle();
       expect(tester.widget<PrompterView>(find.byType(PrompterView)).motion, PrompterMotion.smooth);
+
+      for (final alignment in PrompterAlignment.values.reversed) {
+        await tester.tap(find.text(alignment.label));
+        await tester.pumpAndSettle();
+        expect(app.settings.alignment, alignment);
+        expect(tester.widget<PrompterView>(find.byType(PrompterView)).alignment, alignment);
+      }
     });
 
     testWidgets('manual scroll moves the reader', (tester) async {

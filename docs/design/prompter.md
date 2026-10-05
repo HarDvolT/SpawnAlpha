@@ -15,7 +15,7 @@ From top to bottom, on `stage` (or on `stage-glass` over a camera preview):
    - back to start, and play or pause;
    - speed −/+, with the speed and words per minute in `meter`;
    - time left in `timecode`;
-   - Guide, Motion, Pace (Voice, Timed, Manual), Kinetic/Still, text size and mirror;
+   - Guide, Motion, Pace (Voice, Timed, Manual), Align (Left, Center, Right), Kinetic/Still, text size and mirror;
    - with Voice pace, the microphone's name and a level meter.
 
    On phones it hides 3 seconds after playback starts and returns on a tap.
@@ -30,8 +30,15 @@ The speaker picks how the prompter leads them. These are settings, remembered pe
 | **Motion**: how the text moves | Line step, Smooth, One phrase | Line step |
 | **Pace**: what drives the timeline | Voice, Timed, Manual | Voice when a microphone works, else Timed |
 | **Cues** | Kinetic, Still | Kinetic |
+| **Align**: where lines sit in the script column | Left, Center, Right | Left for English/French, Right for Arabic; One phrase starts centred until a choice is saved |
 
 The defaults are proposals until the owner has tried them (see `docs/status.md`).
+
+Alignment is a physical position, separate from reading direction: Arabic stays right to
+left even when aligned left or centred. A chosen alignment applies to practice and recording,
+including One phrase, and is saved per device. Changing it remeasures word and cue anchors
+immediately without moving the playback position or changing line breaks. The controls use
+the existing Stage segmented choices. The desktop recording rail offers the same Align row.
 
 ## Pace: what drives the timeline
 

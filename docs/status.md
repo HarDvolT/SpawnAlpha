@@ -32,8 +32,8 @@ build step 2 (screen recording).
   `flutter_secure_storage_windows`). `flutter doctor -v` passes Windows, Visual Studio,
   desktop device and network checks. Android is intentionally not installed yet.
 - **Local checks and launch:** `flutter pub get` succeeds; `flutter analyze` prints
-  **No issues found!**; all **158 tests pass** (149 baseline, three cue-check tests,
-  and six additional line-return checks).
+  **No issues found!**; all **165 tests pass** (158 after the line-return fix, plus
+  seven alignment checks).
   Windows Git checkout converted generated
   tokens to CRLF, causing the exact-generation test to fail: `.gitattributes` now keeps
   `tokens.g.dart` in LF and the tokens were regenerated without changing design values.
@@ -58,9 +58,11 @@ build step 2 (screen recording).
   ```
   Then use `flutter run -d windows` normally. Environment-only instance selection did
   not work on this PC; the explicit CMake cache selection did.
-- **Resume here:** Home clarity, the headset microphone meter, Check and the cue dot with
-  its revised line return are confirmed. Test kinetic words, then One phrase, one item
-  at a time; record the owner's defaults afterward.
+- **Resume here:** Home clarity, the headset microphone meter, Check, the cue dot with
+  its revised line return, and kinetic words are confirmed. The owner requested Left,
+  Center and Right text alignment, and confirmed it works after trying it. Alignment is
+  complete, tested and owner-confirmed. One phrase is now open for the owner's next check;
+  record the owner's defaults afterward.
   Screen recording has not started, and no recorder implementation is half done.
 - **Cue retest is prepared:** `app/tool/cue_check.dart` is a development-only launch target.
   It uses the real Home/practice screens with memory-only scripts, settings and keys;
@@ -68,7 +70,8 @@ build step 2 (screen recording).
   `tool/fixtures/cue_check_scripts.dart` supplies all seven accepted cue kinds in English,
   French and Arabic. Tests verify cue coverage, round trips, valid anchors and the three holds.
   Launch from `app/` with `flutter run -d windows -t tool/cue_check.dart`. English practice
-  is open with Dot, Line step, Timed and Kinetic, ready for the owner to press Play (about 23s).
+  is open with Dot, One phrase, Timed, Kinetic and Center, ready for the owner to press
+  Play (about 23s).
   The dot now holds its outgoing anchor and briefly fades to the new line instead of
   sweeping diagonally across the text. Gap returns use the same approach; trails cannot
   join different lines. Cue timing, layout, same-line hops and reduced motion are preserved.
@@ -77,7 +80,17 @@ build step 2 (screen recording).
   The screenshot tool now uses the bundled reading font as its Windows fallback.
   The owner confirmed the revised line return is easier to follow. The app is rebuilt
   and open, restarted and paused at the beginning with Dot, Line step, Timed and Kinetic.
-  Word effects are now awaiting feedback; choose One phrase after that check.
+  The owner confirmed word effects are comfortable. Left/Center/Right alignment buttons
+  are now in practice, the recording bar and the desktop recording rail. The normal app
+  saves the choice per device; this memory-only launcher keeps it only for its run.
+  Alignment preserves Arabic direction and remeasures cue anchors without resetting
+  playback or changing line breaks. Old settings retain language and One phrase defaults.
+  Analysis is clean, all 165 tests and 57 screenshot cases pass; EN Center and AR Left
+  screenshots were inspected. The running app shows the new Align buttons.
+  During the live Center click, the owner pressed Escape to stop Computer Use; no further
+  app input was sent. The owner subsequently tried the alignment buttons and confirmed
+  the text moves as expected. Resumed app control on the next turn and selected One phrase,
+  keeping their Center choice, Dot, Timed and Kinetic; reset to the beginning for that check.
   Close practice to access the French and Arabic scripts on Home.
   This launcher has temporary test choices; ask about defaults in the normal app afterward.
 
@@ -182,6 +195,9 @@ build step 2 (screen recording).
 
 ## Decisions
 
+- 2026-10-05, the owner: offer Left, Center and Right prompter text alignment. Save an
+  explicit choice for practice and recording; alignment must preserve reading direction.
+
 - 2026-09-30: The recorder records three ways: **Camera**, **Screen** and **Screen + camera**
   (screen and camera as separate files, with the layout chosen after recording). The prompter
   works in all three and is never visible to the viewer: in the screen modes it is a floating
@@ -279,6 +295,13 @@ build step 2 (screen recording).
 ## Session log
 
 - 2026-10-05, desktop retest:
+  - The owner confirmed kinetic word effects and requested Left/Center/Right alignment.
+    Added the shared Stage choice, persistent setting, recording controls and anchor
+    remeasurement. All 165 tests and 57 screenshot cases pass; analysis is clean.
+    Hot-reloaded the app. The owner stopped Computer Use with Escape during a Center
+    click, then tried the buttons and confirmed the layout works. One phrase is now selected
+    for the next check. Defaults remain pending. Design specs changed; the Claude artifact
+    still needs republishing.
   - The owner confirmed Home's hero, cards and Record/Practice buttons are clear;
     the HS10-PRO headset microphone meter moves; Check says "We hear you".
   - Added the memory-only development cue-check launcher and seven-cue scripts in EN/FR/AR.

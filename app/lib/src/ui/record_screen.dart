@@ -489,6 +489,7 @@ class _RecordScreenState extends State<RecordScreen> with WidgetsBindingObserver
                   kinetic: settings.kinetic && !reduceMotion,
                   guide: settings.guide,
                   motion: settings.motion,
+                  alignment: settings.alignment,
                 ),
               ),
             ),
@@ -548,6 +549,9 @@ class _RecordScreenState extends State<RecordScreen> with WidgetsBindingObserver
             onGuide: (g) => settings.update((s) => s.guide = g),
             motion: settings.motion,
             onMotion: (m) => settings.update((s) => s.motion = m),
+            alignment: PrompterAlignment.resolve(settings.alignment,
+                rtl: widget.script.language.isRtl, motion: settings.motion),
+            onAlignment: (a) => settings.update((s) => s.alignment = a),
             voiceAvailable: _voiceAvailable,
           ),
           const SizedBox(height: SaSpace.s2),
@@ -667,6 +671,11 @@ class _RecordScreenState extends State<RecordScreen> with WidgetsBindingObserver
         child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
           row('Guide', GuideChoice(guide: settings.guide, onChanged: (g) => settings.update((s) => s.guide = g))),
           row('Motion', MotionChoice(motion: settings.motion, onChanged: (m) => settings.update((s) => s.motion = m))),
+          row('Align', AlignmentChoice(
+            alignment: PrompterAlignment.resolve(settings.alignment,
+                rtl: widget.script.language.isRtl, motion: settings.motion),
+            onChanged: (a) => settings.update((s) => s.alignment = a),
+          )),
           row('Pace', PaceChoice(controller: _prompter, voiceAvailable: _voiceAvailable, manual: false)),
           if (!reduceMotion)
             row('Cues', CuesChoice(kinetic: settings.kinetic, onChanged: (v) => settings.update((s) => s.kinetic = v))),

@@ -53,6 +53,27 @@ enum PrompterMotion {
       values.firstWhere((m) => m.name == name, orElse: () => PrompterMotion.lineStep);
 }
 
+/// Physical alignment, independent of the script's reading direction.
+enum PrompterAlignment {
+  left('Left'),
+  center('Center'),
+  right('Right');
+
+  const PrompterAlignment(this.label);
+  final String label;
+
+  static PrompterAlignment? fromName(String? name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
+  /// Preserve the original language and One phrase defaults until chosen.
+  static PrompterAlignment resolve(PrompterAlignment? choice, {required bool rtl, required PrompterMotion motion}) =>
+      choice ?? (motion == PrompterMotion.phrase ? center : (rtl ? right : left));
+}
+
 /// What colour the dot takes: white, or a cue's colour while it acts
 /// that cue out.
 enum DotTint { plain, stress, energy, slower, faster, pause, breath }

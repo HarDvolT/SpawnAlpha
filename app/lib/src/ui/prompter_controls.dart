@@ -112,6 +112,8 @@ class PrompterControls extends StatelessWidget {
     this.onGuide,
     this.motion,
     this.onMotion,
+    this.alignment,
+    this.onAlignment,
     this.voiceAvailable = false,
   });
 
@@ -131,6 +133,9 @@ class PrompterControls extends StatelessWidget {
   /// Line step or smooth; null hides the choice.
   final PrompterMotion? motion;
   final ValueChanged<PrompterMotion>? onMotion;
+
+  final PrompterAlignment? alignment;
+  final ValueChanged<PrompterAlignment>? onAlignment;
 
   /// Whether to offer voice pacing.
   final bool voiceAvailable;
@@ -199,6 +204,7 @@ class PrompterControls extends StatelessWidget {
                 _Group(label: 'Pace', child: PaceChoice(controller: c, voiceAvailable: voiceAvailable)),
                 if (guide != null) _Group(label: 'Guide', child: GuideChoice(guide: guide!, onChanged: onGuide)),
                 if (motion != null) _Group(label: 'Motion', child: MotionChoice(motion: motion!, onChanged: onMotion)),
+                if (alignment != null) _Group(label: 'Align', child: AlignmentChoice(alignment: alignment!, onChanged: onAlignment)),
                 if (kinetic != null) CuesChoice(kinetic: kinetic!, onChanged: onKinetic),
                 IconButton(
                   tooltip: 'Smaller text (−)',
@@ -334,6 +340,27 @@ class MotionChoice extends StatelessWidget {
           for (final m in PrompterMotion.values) ButtonSegment(value: m, label: Text(m.label), tooltip: m.hint),
         ],
         selected: {motion},
+        onSelectionChanged: (s) => onChanged?.call(s.single),
+      );
+}
+
+/// Left, Center or Right, without changing the reading direction.
+class AlignmentChoice extends StatelessWidget {
+  const AlignmentChoice({super.key, required this.alignment, required this.onChanged});
+
+  final PrompterAlignment alignment;
+  final ValueChanged<PrompterAlignment>? onChanged;
+
+  @override
+  Widget build(BuildContext context) => SegmentedButton<PrompterAlignment>(
+        key: const ValueKey('alignment'),
+        style: stageSegmentStyle(),
+        showSelectedIcon: false,
+        segments: [
+          for (final a in PrompterAlignment.values)
+            ButtonSegment(value: a, label: Text(a.label), tooltip: 'Align text ${a.label.toLowerCase()}'),
+        ],
+        selected: {alignment},
         onSelectionChanged: (s) => onChanged?.call(s.single),
       );
 }

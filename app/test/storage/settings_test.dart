@@ -72,6 +72,28 @@ void main() {
     expect(settings.apiKeyOf(MarkupProvider.claude), 'sk-ant');
   });
 
+  for (final alignment in PrompterAlignment.values) {
+    test('remembers ${alignment.name} text alignment after reopening', () async {
+      final settings = Settings(file: file(), secrets: MemorySecretStore());
+      await settings.update((s) => s.alignment = alignment);
+      final reloaded = Settings(file: file(), secrets: MemorySecretStore());
+      await reloaded.load();
+      expect(reloaded.alignment, alignment);
+    });
+  }
+
+  test('old or unknown alignment settings preserve language and motion defaults', () async {
+    for (final data in [<String, Object?>{}, {'alignment': 'unknown'}]) {
+      await file().writeAsString(jsonEncode(data));
+      final settings = Settings(file: file(), secrets: MemorySecretStore());
+      await settings.load();
+      expect(settings.alignment, isNull);
+      expect(PrompterAlignment.resolve(settings.alignment, rtl: false, motion: settings.motion), PrompterAlignment.left);
+      expect(PrompterAlignment.resolve(settings.alignment, rtl: true, motion: settings.motion), PrompterAlignment.right);
+      expect(PrompterAlignment.resolve(settings.alignment, rtl: true, motion: PrompterMotion.phrase), PrompterAlignment.center);
+    }
+  });
+
   test('builds the chosen engine, or the on-device one until it is set up', () async {
     final settings = Settings(secrets: MemorySecretStore());
     await settings.update((s) => s.provider = MarkupProvider.claude);
