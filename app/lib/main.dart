@@ -12,8 +12,9 @@ import 'src/storage/settings.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   _registerFontLicenses();
-  final documents = await getApplicationDocumentsDirectory();
-  final root = Directory('${documents.path}${Platform.pathSeparator}SpawnAlpha');
+  final dataOverride = Platform.environment['SPAWNALPHA_DATA_DIR'];
+  final documents = dataOverride == null ? await getApplicationDocumentsDirectory() : null;
+  final root = Directory(dataOverride ?? '${documents!.path}${Platform.pathSeparator}SpawnAlpha');
   String under(String name) => '${root.path}${Platform.pathSeparator}$name';
 
   final library = ScriptLibrary(FileScriptStore(Directory(under('scripts'))));

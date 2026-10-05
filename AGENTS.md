@@ -72,6 +72,8 @@ app/                   the Flutter app (package name: spawnalpha)
   `flutter run -d windows`. `flutter build windows --release` writes the app to
   `app\build\windows\x64\runner\Release\`. Scripts and takes are saved in
   `Documents\SpawnAlpha\` (`scripts\` and `recordings\`; see `lib/main.dart`).
+  On the owner's PC, `SPAWNALPHA_DATA_DIR` overrides this to
+  `E:\Ai\ChatGPT\SpawnAlpha\local-data` (git-ignored), keeping new data on E: too.
 - **Cloud containers** (Claude Code on the web, Codex cloud, any Linux box) don't include
   Flutter. Install it into a scratch folder:
   ```sh

@@ -66,11 +66,11 @@ class Settings extends ChangeNotifier {
   /// a spotlight, or nothing but the reading line.
   PrompterGuide guide = PrompterGuide.dot;
 
-  /// How the prompter moves between holds: line step or smooth.
-  PrompterMotion motion = PrompterMotion.lineStep;
+  /// How the prompter moves between holds. The owner chose One phrase.
+  PrompterMotion motion = PrompterMotion.phrase;
 
-  /// Null keeps language-aware defaults until the user chooses alignment.
-  PrompterAlignment? alignment;
+  /// Center is the starting choice. Null retains automatic language alignment.
+  PrompterAlignment? alignment = PrompterAlignment.center;
 
   /// The microphone takes record from (Windows endpoint ID); null for the
   /// system default.
@@ -146,8 +146,8 @@ class Settings extends ChangeNotifier {
     mirror = json['mirror'] as bool? ?? mirror;
     kinetic = json['kinetic'] as bool? ?? kinetic;
     guide = PrompterGuide.fromName(json['guide'] as String?);
-    motion = PrompterMotion.fromName(json['motion'] as String?);
-    alignment = PrompterAlignment.fromName(json['alignment'] as String?);
+    if (json.containsKey('motion')) motion = PrompterMotion.fromName(json['motion'] as String?);
+    if (json.containsKey('alignment')) alignment = PrompterAlignment.fromName(json['alignment'] as String?);
     audioInputId = json['audioInputId'] as String?;
   }
 

@@ -49,10 +49,11 @@ void main() {
     expect(reloaded.mirror, isTrue);
   });
 
-  test('keeps the guide and the motion, with the dot and line step by default', () async {
+  test('starts with the agreed dot, One phrase and center, preserving saved choices', () async {
     final settings = Settings(file: file(), secrets: MemorySecretStore());
     expect(settings.guide, PrompterGuide.dot);
-    expect(settings.motion, PrompterMotion.lineStep);
+    expect(settings.motion, PrompterMotion.phrase);
+    expect(settings.alignment, PrompterAlignment.center);
     await settings.update((s) => s
       ..guide = PrompterGuide.spotlight
       ..motion = PrompterMotion.smooth);
@@ -82,8 +83,16 @@ void main() {
     });
   }
 
-  test('old or unknown alignment settings preserve language and motion defaults', () async {
-    for (final data in [<String, Object?>{}, {'alignment': 'unknown'}]) {
+  test('old settings get agreed defaults when choices have never been saved', () async {
+    await file().writeAsString('{}');
+    final settings = Settings(file: file(), secrets: MemorySecretStore());
+    await settings.load();
+    expect(settings.motion, PrompterMotion.phrase);
+    expect(settings.alignment, PrompterAlignment.center);
+  });
+
+  test('automatic or unknown alignment retains language-aware layout', () async {
+    for (final data in [{'alignment': null, 'motion': 'lineStep'}, {'alignment': 'unknown', 'motion': 'lineStep'}]) {
       await file().writeAsString(jsonEncode(data));
       final settings = Settings(file: file(), secrets: MemorySecretStore());
       await settings.load();

@@ -32,6 +32,10 @@ The app is for three kinds of speaker, and each script gets a coaching style tha
 - The user can accept, edit or remove each mark. Marks are stored as structured data rather than as text in the script, so the prompter can render them.
 
 ### 2. While recording: the coached prompter
+
+Starting choices approved by the owner on 2026-10-05: Dot guide, One phrase motion,
+Center alignment, Kinetic word effects and Voice pace when a microphone works
+(otherwise Timed). The other choices remain available and saved per device.
 - Cues appear visually:
   - stressed words are larger or in color
   - pauses show as a visible gap or icon

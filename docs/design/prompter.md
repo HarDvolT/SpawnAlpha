@@ -24,15 +24,17 @@ From top to bottom, on `stage` (or on `stage-glass` over a camera preview):
 
 The speaker picks how the prompter leads them. These are settings, remembered per device, and they can be changed on the stage without stopping.
 
-| Choice | Options | Proposed default |
+| Choice | Options | Default approved 2026-10-05 |
 |---|---|---|
 | **Guide**: which word to say now | Dot, Underline, Spotlight, Off | Dot |
-| **Motion**: how the text moves | Line step, Smooth, One phrase | Line step |
+| **Motion**: how the text moves | Line step, Smooth, One phrase | One phrase |
 | **Pace**: what drives the timeline | Voice, Timed, Manual | Voice when a microphone works, else Timed |
 | **Cues** | Kinetic, Still | Kinetic |
-| **Align**: where lines sit in the script column | Left, Center, Right | Left for English/French, Right for Arabic; One phrase starts centred until a choice is saved |
+| **Align**: where lines sit in the script column | Left, Center, Right | Center |
 
-The defaults are proposals until the owner has tried them (see `docs/status.md`).
+The owner tried the choices and approved these defaults (see `docs/status.md`). Saved
+choices continue to win. Older settings with no motion or alignment now start with
+One phrase and Center; explicit automatic alignment still follows reading direction.
 
 Alignment is a physical position, separate from reading direction: Arabic stays right to
 left even when aligned left or centred. A chosen alignment applies to practice and recording,
@@ -52,7 +54,7 @@ the existing Stage segmented choices. The desktop recording rail offers the same
 
 ## Motion: how the text moves
 
-- **Line step** (proposed default): the current line sits on the reading line and stays there while it is read. When the next line starts, the text glides up one line (an exponential glide, time constant 90ms). Your eyes never chase moving words.
+- **Line step**: the current line sits on the reading line and stays there while it is read. When the next line starts, the text glides up one line (an exponential glide, time constant 90ms). Your eyes never chase moving words.
 - **Smooth:** the classic prompter. The text moves at constant speed within a line (`ease-scroll`) and reaches the next line as its last word ends. It stands still during a hold.
 - **One phrase:** only the phrase being spoken, set 1.25× larger and centred (or in the saved alignment), sitting on the reading line until the next phrase starts, with the next phrase dimmed underneath and everything else hidden. With Dot or Underline, the entire current phrase stays bright as the guide moves: do not dim its earlier words. Spotlight retains its explicit word focus. Keep the text hidden during initial measurement or a layout change so the full script never flashes at full brightness. A phrase ends at a gap cue, at the end of a sentence or line, at a clause end once it has four words, and at eight words at most. Best on a phone held close, or for short videos. Cue timing stays the same.
 - In every motion the text stands still during a hold. That stillness is the pause cue; the badge and the guide only name it.
@@ -61,7 +63,7 @@ the existing Stage segmented choices. The desktop recording rail offers the same
 
 The guide marks the current word. It is always one mark, never two, and it follows the timeline exactly.
 
-- **Dot** (proposed default): a small ball that bounces from word to word, and acts out each cue. The rules are below.
+- **Dot** (default): a small ball that bounces from word to word, and acts out each cue. The rules are below.
 - **Underline:** a bar under the current word that fills across it in the reading direction as the word is spoken. Words already said on the line dim to `stage-text-read`.
 - **Spotlight:** the current word at full strength, the next word at 70%, everything else on the line at 32%. The calmest guide; good for experienced speakers.
 - **Off:** only the reading line. For speakers who read ahead and find any mark distracting.

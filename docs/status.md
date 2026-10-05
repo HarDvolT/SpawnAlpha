@@ -4,12 +4,11 @@ Last updated: 2026-10-05
 
 ## Where we are
 
-**Build step 1 of 7 (script markup and coached prompter): code complete, with design language
-v2 applied, and most of design v3. The owner has tested builds #1, #2 and #4 on Windows: takes
-have sound, and the bouncing dot is the default guide. At the owner's request the dot now acts
-out every cue, and the next v3 features are built: the kinetic cues that act out the
-instruction, One phrase motion, the Home screen (director's desk) and the Windows record
-set-up rail. All of this waits for the owner's retest on the latest build.** The build order is in
+**Build step 1 of 7 (script markup and coached prompter): code complete and the main Windows
+retest is owner-confirmed. Dot, One phrase, Center, Kinetic and Voice pace are the approved
+starting choices. Build step 2 has started with a Windows display/window source picker;
+the local build is ready for the owner's trial. Screen capture and the excluded floating
+prompter are not built yet.** The build order is in
 [product-brief.md](product-brief.md#build-order); it was revised on 2026-09-30.
 
 The owner's first test on Windows (build #1) found: no microphone permission prompt and no
@@ -32,8 +31,8 @@ build step 2 (screen recording).
   `flutter_secure_storage_windows`). `flutter doctor -v` passes Windows, Visual Studio,
   desktop device and network checks. Android is intentionally not installed yet.
 - **Local checks and launch:** `flutter pub get` succeeds; `flutter analyze` prints
-  **No issues found!**; all **168 tests pass** (165 after alignment, plus three rendered
-  phrase-brightness checks).
+  **No issues found!**; all **181 tests pass** (168 before defaults/source selection).
+  All **63 screenshot cases pass**, including the source picker in EN/FR/AR.
   Windows Git checkout converted generated
   tokens to CRLF, causing the exact-generation test to fail: `.gitattributes` now keeps
   `tokens.g.dart` in LF and the tokens were regenerated without changing design values.
@@ -64,9 +63,30 @@ build step 2 (screen recording).
   complete, tested, owner-confirmed and pushed in `b9cae4f`. The owner found One phrase
   starts lit and darkens behind the dot. The owner tried the brightness fix and confirmed
   the phrase stays clear. All five main desktop checks and alignment are now confirmed.
-  Ask for starting settings next, save those in the normal app, then begin screen recording.
-  Screen recording has not started, and no recorder implementation is half done.
-- **Cue retest is prepared:** `app/tool/cue_check.dart` is a development-only launch target.
+  The owner approved Dot, One phrase, Center, Kinetic and Voice. These are now the
+  starting defaults and saved in the normal app. Explicit older saved choices are preserved
+  in the general settings reader. Voice already starts when microphone support is available.
+  The normal app is now running, not the memory-only cue launcher.
+- **Owner data on E:** `SPAWNALPHA_DATA_DIR` is saved in the user environment and explicitly
+  supplied in the current launch. App data is `E:\Ai\ChatGPT\SpawnAlpha\local-data`,
+  git-ignored. Copied the existing scripts/settings/recordings from Documents without
+  deleting originals, updated nine copied take paths, and saved the agreed prompter choices.
+  Home shows all three scripts and nine takes. Secure keys stay in Windows secure storage.
+- **Resume here (screen recorder slice 1):** the local Windows runner enumerates displays
+  and visible, non-minimized app windows. The Stage picker is reached from **Choose screen**
+  in the desktop setup rail; selection is checked again when confirmed and held in memory.
+  Native smoke check found both monitors (including the portrait display), omitted SpawnAlpha,
+  and returned Display 1 to the setup rail. Nothing is captured by this slice. Camera remains
+  the only enabled recording mode. The picker is open with Display 1 selected for the owner
+  to try another display/window and **Use this source**. Ask if the choices and selection work.
+  Picker code/design/test changes are uncommitted pending that trial; commit/push after their
+  answer and any fixes. Next slice: Windows Graphics Capture live preview/thumbnails, then
+  the excluded floating prompter and recording pipeline (mic, fragmented MP4, Screen/Both).
+  Normal Flutter launch session is currently `51118`; cue-check session `6068` was closed.
+  Do not record window titles, scripts or private capture content in logs. No new dependency.
+  Flutter accessibility AXTree errors also occurred in the old cue launcher (node 279);
+  screenshot-only inspection remains usable. No SDK changes or accessibility suppression.
+- **Cue retest history (superseded by normal-app launch above):** `app/tool/cue_check.dart` is a development-only launch target.
   It uses the real Home/practice screens with memory-only scripts, settings and keys;
   optional recordings go under `app/build/cue-check/recordings`, on E: on this PC.
   `tool/fixtures/cue_check_scripts.dart` supplies all seven accepted cue kinds in English,
@@ -208,6 +228,11 @@ build step 2 (screen recording).
 
 ## Decisions
 
+- 2026-10-05, the owner: after the Windows retest, approved starting settings **Dot,
+  One phrase, Center, Kinetic, Voice** (Timed when voice pacing is unsupported).
+  Saved on their PC; the design spec and product brief now match. The Claude artifact
+  remains behind and needs republishing by a Claude session.
+
 - 2026-10-05, the owner: offer Left, Center and Right prompter text alignment. Save an
   explicit choice for practice and recording; alignment must preserve reading direction.
 
@@ -306,6 +331,17 @@ build step 2 (screen recording).
   word lists, not prosody.
 
 ## Session log
+
+- 2026-10-05, defaults and Windows recorder slice 1:
+  - Saved the approved starting choices, with regression tests for old/saved settings.
+    Added an optional app-data folder override and copied the owner's three scripts and
+    nine takes to the git-ignored folder on E:, retaining originals as backup.
+  - Built native display/window enumeration, the Stage source picker and its setup entry.
+    Refresh and confirmation reject closed sources; private titles/errors stay out of logs.
+    No capture starts, no source IDs are persisted, and no dependencies were added.
+  - Analysis is clean, all 181 tests and 63 screenshot cases pass, and the Windows debug
+    build succeeds. EN/AR picker PNGs inspected; the real two-monitor source list and
+    selection return work. The owner trial is next, followed by committing/pushing this slice.
 
 - 2026-10-05, desktop retest:
   - One phrase feedback: the owner sees text initially lit, then darkening as the dot
