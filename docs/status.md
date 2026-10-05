@@ -36,7 +36,9 @@ build step 2 (screen recording).
   tokens to CRLF, causing the exact-generation test to fail: `.gitattributes` now keeps
   `tokens.g.dart` in LF and the tokens were regenerated without changing design values.
   `flutter run -d windows` builds and opens the app. Existing scripts and takes appear.
-  The app is maximized for the desktop retest; the owner's Home feedback is pending.
+  The app is wider than 1000px for the desktop retest. The owner confirmed Home's
+  Record next hero, script cards, and Record/Practice buttons are visible and clear.
+  The recording setup is open; the microphone-meter check is next.
   After inspecting the window with Windows UI Automation, the debug console repeatedly
   logged Flutter `accessibility_bridge.cc` AXTree update errors (nodes 42/44). Home still
   renders. Investigate Windows accessibility during the retest; no SDK workaround or
@@ -50,7 +52,7 @@ build step 2 (screen recording).
   ```
   Then use `flutter run -d windows` normally. Environment-only instance selection did
   not work on this PC; the explicit CMake cache selection did.
-- **Resume here:** ask about Home first, then test the microphone rail, Check, cue dot,
+- **Resume here:** Home clarity is confirmed. Test the microphone rail, Check, cue dot,
   kinetic words and One phrase, one item at a time; record the owner's defaults afterward.
   Screen recording has not started, and no recorder implementation is half done.
 
