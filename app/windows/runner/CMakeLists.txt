@@ -11,6 +11,7 @@ add_executable(${BINARY_NAME} WIN32
   "screen_sources.cpp"
   "screen_preview.cpp"
   "floating_prompter.cpp"
+  "gpu_video_writer.cpp"
   "main.cpp"
   "utils.cpp"
   "win32_window.cpp"
@@ -44,7 +45,16 @@ target_compile_definitions(${BINARY_NAME} PRIVATE "NOMINMAX")
 target_link_libraries(${BINARY_NAME} PRIVATE flutter flutter_wrapper_app flutter_wrapper_plugin)
 target_link_libraries(${BINARY_NAME} PRIVATE "dwmapi.lib")
 target_link_libraries(${BINARY_NAME} PRIVATE "d3d11.lib" "dxgi.lib" "windowsapp.lib")
+target_link_libraries(${BINARY_NAME} PRIVATE "mf.lib" "mfplat.lib" "mfreadwrite.lib" "mfuuid.lib" "oleaut32.lib")
 target_include_directories(${BINARY_NAME} PRIVATE "${CMAKE_SOURCE_DIR}")
 
 # Run the Flutter tool portions of the build. This must not be removed.
 add_dependencies(${BINARY_NAME} flutter_assemble)
+
+# Explicit, non-shipping native check. It generates only synthetic video and
+# validates the same encoder used by the recorder; no camera/mic/screen capture.
+add_executable(gpu_video_writer_check EXCLUDE_FROM_ALL "gpu_video_writer.cpp" "tests/gpu_video_writer_check.cpp")
+target_compile_features(gpu_video_writer_check PRIVATE cxx_std_17)
+target_compile_options(gpu_video_writer_check PRIVATE /W4 /WX /EHsc /wd"4100")
+target_compile_definitions(gpu_video_writer_check PRIVATE "NOMINMAX")
+target_link_libraries(gpu_video_writer_check PRIVATE "d3d11.lib" "dxgi.lib" "mf.lib" "mfplat.lib" "mfreadwrite.lib" "mfuuid.lib" "ole32.lib" "oleaut32.lib" "windowsapp.lib")

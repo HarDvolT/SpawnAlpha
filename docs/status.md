@@ -8,8 +8,9 @@ Last updated: 2026-10-05
 retest is owner-confirmed. Dot, One phrase, Center, Kinetic and Voice pace are the approved
 starting choices. Build step 2 has a Windows display/window source picker, confirmed by
 the owner and pushed, plus a live capture preview confirmed by the owner. An excluded
-floating prompter trial is now built/tested locally; recording integration and saving
-screen takes remain next.** The build order is in
+floating prompter trial is built, tested and pushed. The Windows GPU video saver passes
+generated-frame and abrupt-exit checks; microphone/capture integration and actual screen
+takes remain next.** The build order is in
 [product-brief.md](product-brief.md#build-order); it was revised on 2026-09-30.
 
 The owner's first test on Windows (build #1) found: no microphone permission prompt and no
@@ -124,6 +125,16 @@ build step 2 (screen recording).
   owner's trial are pending (owner explicitly deferred them until after sleeping).
   Recording synchronization, voice pacing in the child, separate HUD, Companion and
   actual screen/audio saving are still to build. No new package, input hooks or files.
+- **Resume here (screen recorder slice 4, video saver core):** `GpuVideoWriter` uses
+  D3D11 GPU color conversion and Windows Media Foundation H.264 in fragmented MP4.
+  Output dimensions stay fixed while resized sources fit with black margins; surfaces
+  handed to the encoder are never reused. Existing files cannot be overwritten.
+  The non-shipping `gpu_video_writer_check` CMake target writes generated colors only:
+  120 frames decode with ordered timestamps, correct color channels and resize margins.
+  A forced process exit without finalization left 117 of 120 frames decodable on this PC.
+  This is a saver core, not an enabled recording mode: chosen microphone audio, actual
+  screen capture, common timestamps, stop/error recovery, HUD and take storage are next.
+  Floating prompter slice 3 was committed and pushed in `f5a77c4`.
 - **Cue retest history (superseded by normal-app launch above):** `app/tool/cue_check.dart` is a development-only launch target.
   It uses the real Home/practice screens with memory-only scripts, settings and keys;
   optional recordings go under `app/build/cue-check/recordings`, on E: on this PC.
@@ -376,6 +387,16 @@ build step 2 (screen recording).
   word lists, not prosody.
 
 ## Session log
+
+- 2026-10-05, Windows recorder slice 4 (video saver core):
+  - Added GPU BGRA-to-NV12 conversion, fixed-size resize fitting, the platform H.264
+    encoder and fragmented MP4 sink, with no new dependency or copied code.
+  - Native generated-frame checks cover colors, resize margins, ordered timestamps,
+    repeated finalization, rejected duplicate timestamps and file overwrite protection.
+    The abrupt-exit check decodes 117/120 frames without finalizing the writer.
+  - This core is not connected to capture or the UI yet; real screen/microphone takes
+    and owner trials remain pending. Analysis is clean, all 206 tests pass and the
+    Windows debug build succeeds. The owner authorized continued work while asleep.
 
 - 2026-10-05, Windows recorder slice 3 (excluded floating prompter trial):
   - Added a second Flutter engine/window, verified capture exclusion before visibility,

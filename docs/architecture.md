@@ -354,6 +354,14 @@ recordings folder.
   geometry, snap distance and minimum opacity come from design tokens. The child runs
   Timed preview playback using the same controller/view; microphone and recording
   synchronization, a separate HUD and cursor companion still need integration.
+- **Windows GPU video saver (fourth slice, not wired to capture yet):** `GpuVideoWriter`
+  owns a Media Foundation fragmented MP4 sink and Windows H.264 encoder. D3D11 video
+  processing converts captured BGRA surfaces to separate NV12 GPU surfaces per sample.
+  Source size changes recreate the converter while fitting into fixed even output bounds.
+  Baseline H.264 keeps timestamps ordered. The caller must initialize COM and serialize
+  writes/finalization; existing output files fail rather than being replaced. The explicit
+  non-shipping native check target encodes/decodes generated colors and validates useful
+  completed fragments after an abrupt exit. No actual capture or audio is wired yet.
 - **SettingsScreen**: the markup source, API key, model, default style, text
   size and mirror setting, plus **Privacy and licences**: what leaves the
   device, and the licence page (`showLicensePage`).

@@ -190,6 +190,7 @@ person using the app.
 | Windows source picker: names kept only in memory, no capture or title logging, no new dependency | Checked 2026-10-05; owner-confirmed. Recording and thumbnails remain pending; preview is separate below |
 | Windows live preview: selected source only, frames in memory, no files/audio/network/private logs, capture closes on exit | Checked 2026-10-05; owner confirmed live updates. Uses installed Windows SDK APIs; no copied code or new package |
 | Windows floating prompter: capture exclusion before visibility, in-process script transfer only, no new microphone/file/network access | Implemented 2026-10-05; native visibility/exclusion/close smoke passed, owner trial pending. No new dependency or copied code. Global shortcuts only, no input hooks or typed-character logging |
+| Windows video saver core: operating-system H.264 encoder, GPU conversion, local fragmented MP4 only | Checked 2026-10-05 with generated colors and abrupt-exit recovery. Not connected to capture/audio/UI yet. No bundled codec, new package, copied code or private logging |
 | Repository visibility or proprietary notice | **Owner decision** |
 | Privacy policy, terms of service and EULA drafted by counsel | Before paid launch |
 | CNDP declaration (Morocco), if established there | Before processing personal data at scale |
