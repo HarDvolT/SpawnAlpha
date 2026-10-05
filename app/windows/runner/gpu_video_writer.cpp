@@ -8,6 +8,7 @@
 #include <icodecapi.h>
 #include <winrt/base.h>
 #include <algorithm>
+#include <cstring>
 
 namespace {
 using winrt::com_ptr;
@@ -28,20 +29,45 @@ com_ptr<IMFMediaType> VideoType(GUID subtype, UINT width, UINT height, UINT fps)
   check_hresult(type->SetUINT32(MF_MT_VIDEO_NOMINAL_RANGE, MFNominalRange_16_235));
   return type;
 }
+
+com_ptr<IMFMediaType> AudioType(GUID subtype, const GpuAudioFormat& audio) {
+  com_ptr<IMFMediaType> type;
+  check_hresult(MFCreateMediaType(type.put()));
+  check_hresult(type->SetGUID(MF_MT_MAJOR_TYPE, MFMediaType_Audio));
+  check_hresult(type->SetGUID(MF_MT_SUBTYPE, subtype));
+  check_hresult(type->SetUINT32(MF_MT_AUDIO_SAMPLES_PER_SECOND, audio.sample_rate));
+  check_hresult(type->SetUINT32(MF_MT_AUDIO_NUM_CHANNELS, audio.channels));
+  check_hresult(type->SetUINT32(MF_MT_AUDIO_BITS_PER_SAMPLE, 16));
+  if (subtype == MFAudioFormat_AAC) {
+    check_hresult(type->SetUINT32(MF_MT_AUDIO_AVG_BYTES_PER_SECOND, 20000));
+    check_hresult(type->SetUINT32(MF_MT_AAC_PAYLOAD_TYPE, 0));
+    check_hresult(type->SetUINT32(MF_MT_AAC_AUDIO_PROFILE_LEVEL_INDICATION, 0x29));
+  } else {
+    check_hresult(type->SetUINT32(MF_MT_AUDIO_BLOCK_ALIGNMENT, audio.channels * 2));
+    check_hresult(type->SetUINT32(MF_MT_AUDIO_AVG_BYTES_PER_SECOND, audio.sample_rate * audio.channels * 2));
+    check_hresult(type->SetUINT32(MF_MT_ALL_SAMPLES_INDEPENDENT, TRUE));
+  }
+  return type;
+}
 }  // namespace
 
 struct GpuVideoWriter::Impl {
   ~Impl() { Finish(); }
-  HRESULT Start(ID3D11Device* given_device, const std::wstring& path, UINT given_width, UINT given_height, UINT given_fps) {
+  HRESULT Start(ID3D11Device* given_device, const std::wstring& path, UINT given_width, UINT given_height, UINT given_fps,
+                const GpuAudioFormat& given_audio) {
     if (writer || started) return MF_E_INVALIDREQUEST;
     if (!given_device || path.empty() || given_width < 2 || given_height < 2 ||
         given_width > 4096 || given_height > 4096 || given_width % 2 || given_height % 2 ||
         given_fps == 0 || given_fps > 60) return E_INVALIDARG;
+    if ((given_audio.sample_rate != 0 || given_audio.channels != 0) &&
+        ((given_audio.sample_rate != 44100 && given_audio.sample_rate != 48000) ||
+         (given_audio.channels != 1 && given_audio.channels != 2))) return E_INVALIDARG;
     try {
       check_hresult(MFStartup(MF_VERSION));
       started = true;
       device.copy_from(given_device);
       width = given_width; height = given_height; fps = given_fps;
+      audio = given_audio;
       device->GetImmediateContext(context.put());
       const auto multithread = context.as<ID3D11Multithread>();
       multithread->SetMultithreadProtected(TRUE);
@@ -57,7 +83,8 @@ struct GpuVideoWriter::Impl {
       check_hresult(output->SetUINT32(MF_MT_AVG_BITRATE, static_cast<UINT32>(std::clamp<UINT64>(bits, 2000000, 16000000))));
       // Baseline forbids B-frames, keeping decode/presentation timestamps ordered.
       check_hresult(output->SetUINT32(MF_MT_MPEG2_PROFILE, eAVEncH264VProfile_Base));
-      check_hresult(MFCreateFMPEG4MediaSink(bytes.get(), output.get(), nullptr, sink.put()));
+      const auto audio_output = audio.sample_rate ? AudioType(MFAudioFormat_AAC, audio) : com_ptr<IMFMediaType>{};
+      check_hresult(MFCreateFMPEG4MediaSink(bytes.get(), output.get(), audio_output.get(), sink.put()));
       com_ptr<IMFAttributes> attributes;
       check_hresult(MFCreateAttributes(attributes.put(), 4));
       check_hresult(attributes->SetUnknown(MF_SINK_WRITER_D3D_MANAGER, manager.get()));
@@ -65,6 +92,9 @@ struct GpuVideoWriter::Impl {
       check_hresult(attributes->SetUINT32(MF_LOW_LATENCY, TRUE));
       check_hresult(MFCreateSinkWriterFromMediaSink(sink.get(), attributes.get(), writer.put()));
       check_hresult(writer->SetInputMediaType(0, VideoType(MFVideoFormat_NV12, width, height, fps).get(), nullptr));
+      if (audio.sample_rate) {
+        check_hresult(writer->SetInputMediaType(1, AudioType(MFAudioFormat_PCM, audio).get(), nullptr));
+      }
       com_ptr<ICodecAPI> codec;
       if (SUCCEEDED(writer->GetServiceForStream(0, GUID_NULL, IID_PPV_ARGS(codec.put())))) {
         VARIANT gop{}; gop.vt = VT_UI4; gop.ulVal = fps;
@@ -74,6 +104,7 @@ struct GpuVideoWriter::Impl {
       check_hresult(writer->BeginWriting());
       writing = true;
       last_time = -1;
+      audio_end = -1;
       return S_OK;
     } catch (...) { const HRESULT error = winrt::to_hresult(); Finish(); return error; }
   }
@@ -161,6 +192,30 @@ struct GpuVideoWriter::Impl {
     } catch (...) { return winrt::to_hresult(); }
   }
 
+  HRESULT WriteAudio(const int16_t* pcm, UINT count, LONGLONG time) {
+    if (!writing || !audio.sample_rate || !pcm || count == 0 || count > audio.sample_rate ||
+        time < 0 || time < audio_end) return E_INVALIDARG;
+    try {
+      const DWORD length = count * audio.channels * sizeof(int16_t);
+      com_ptr<IMFMediaBuffer> buffer;
+      check_hresult(MFCreateMemoryBuffer(length, buffer.put()));
+      BYTE* destination = nullptr;
+      check_hresult(buffer->Lock(&destination, nullptr, nullptr));
+      std::memcpy(destination, pcm, length);
+      check_hresult(buffer->Unlock());
+      check_hresult(buffer->SetCurrentLength(length));
+      com_ptr<IMFSample> sample;
+      check_hresult(MFCreateSample(sample.put()));
+      check_hresult(sample->AddBuffer(buffer.get()));
+      const LONGLONG duration = static_cast<LONGLONG>(count) * 10000000LL / audio.sample_rate;
+      check_hresult(sample->SetSampleTime(time));
+      check_hresult(sample->SetSampleDuration(duration));
+      check_hresult(writer->WriteSample(1, sample.get()));
+      audio_end = time + duration;
+      return S_OK;
+    } catch (...) { return winrt::to_hresult(); }
+  }
+
   HRESULT Finish() {
     HRESULT result = S_OK;
     if (writer && writing) result = writer->Finalize();
@@ -178,6 +233,7 @@ struct GpuVideoWriter::Impl {
     processor = nullptr; enumerator = nullptr; input = nullptr;
     video_context = nullptr; video_device = nullptr; context = nullptr; manager = nullptr; device = nullptr;
     input_width = input_height = 0; frames = 0;
+    audio = {}; audio_end = -1;
     if (started) { MFShutdown(); started = false; }
     return result;
   }
@@ -185,6 +241,8 @@ struct GpuVideoWriter::Impl {
   UINT width = 0, height = 0, fps = 30, input_width = 0, input_height = 0;
   UINT64 frames = 0;
   LONGLONG last_time = -1;
+  LONGLONG audio_end = -1;
+  GpuAudioFormat audio{};
   com_ptr<ID3D11Device> device;
   com_ptr<ID3D11DeviceContext> context;
   com_ptr<ID3D11VideoDevice> video_device;
@@ -199,8 +257,12 @@ struct GpuVideoWriter::Impl {
 };
 GpuVideoWriter::GpuVideoWriter() : impl_(std::make_unique<Impl>()) {}
 GpuVideoWriter::~GpuVideoWriter() = default;
-HRESULT GpuVideoWriter::Start(ID3D11Device* device, const std::wstring& path, UINT width, UINT height, UINT fps) {
-  return impl_->Start(device, path, width, height, fps);
+HRESULT GpuVideoWriter::Start(ID3D11Device* device, const std::wstring& path, UINT width, UINT height, UINT fps,
+                              const GpuAudioFormat& audio) {
+  return impl_->Start(device, path, width, height, fps, audio);
+}
+HRESULT GpuVideoWriter::WriteAudio(const int16_t* pcm, UINT frames, LONGLONG time) {
+  return impl_->WriteAudio(pcm, frames, time);
 }
 HRESULT GpuVideoWriter::WriteFrame(ID3D11Texture2D* source, UINT width, UINT height, LONGLONG time) {
   return impl_->WriteFrame(source, width, height, time);

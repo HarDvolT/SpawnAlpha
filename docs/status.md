@@ -135,6 +135,15 @@ build step 2 (screen recording).
   This is a saver core, not an enabled recording mode: chosen microphone audio, actual
   screen capture, common timestamps, stop/error recovery, HUD and take storage are next.
   Floating prompter slice 3 was committed and pushed in `f5a77c4`.
+- **Resume here (screen recorder slice 5, sound saver core):** the video writer now
+  optionally encodes PCM16 through Windows AAC in the same fragmented MP4. Generated
+  mono 48 kHz and stereo 44.1 kHz tones decode with the correct level/duration and
+  ordered audio/video timestamps. `MicrophoneCapture` opens the chosen endpoint (or
+  pins Windows' default), requests mono PCM16 at 48 kHz through Windows' shared-mode
+  converter and returns packet QPC timestamps. A missing chosen ID fails rather than
+  recording another microphone. This core is not wired to capture/the UI yet. The
+  next slice must align real screen and microphone clocks and safely finalize on stop,
+  source closure/minimization or microphone loss. Video core was pushed in `490648d`.
 - **Cue retest history (superseded by normal-app launch above):** `app/tool/cue_check.dart` is a development-only launch target.
   It uses the real Home/practice screens with memory-only scripts, settings and keys;
   optional recordings go under `app/build/cue-check/recordings`, on E: on this PC.
@@ -387,6 +396,18 @@ build step 2 (screen recording).
   word lists, not prosody.
 
 ## Session log
+
+- 2026-10-05, Windows recorder slice 5 (sound saver core):
+  - Added optional platform AAC audio to the fragmented MP4 writer; generated-tone
+    checks pass for mono 48 kHz and stereo 44.1 kHz, with near-zero start alignment,
+    correct duration and level, ordered timestamps and rejected overlapping samples.
+  - Added chosen-endpoint shared WASAPI PCM capture with Windows conversion, packet
+    timestamps, explicit errors and balanced stop/release. No fallback from a missing
+    chosen device. No new package, copied code, bundled codec or private logging.
+  - Actual screen recording, common-clock integration and owner trials remain next.
+    The native microphone check captured timestamped PCM packets in memory for 1.1 s,
+    discarded them, verified a missing ID does not fall back, and closed cleanly.
+    Analysis is clean, all 206 tests pass and the Windows debug build succeeds.
 
 - 2026-10-05, Windows recorder slice 4 (video saver core):
   - Added GPU BGRA-to-NV12 conversion, fixed-size resize fitting, the platform H.264

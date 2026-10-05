@@ -361,7 +361,12 @@ recordings folder.
   Baseline H.264 keeps timestamps ordered. The caller must initialize COM and serialize
   writes/finalization; existing output files fail rather than being replaced. The explicit
   non-shipping native check target encodes/decodes generated colors and validates useful
-  completed fragments after an abrupt exit. No actual capture or audio is wired yet.
+  completed fragments after an abrupt exit. An optional PCM16 mono/stereo stream
+  uses the operating system AAC encoder in the same sink. Audio samples must carry
+  non-overlapping common-clock times and positive durations. `MicrophoneCapture`
+  pins the chosen/default capture endpoint and uses Windows shared-mode conversion
+  to mono PCM16 at 48 kHz; QPC packet timestamps are in 100 ns units. Failed chosen
+  IDs never fall back. Real capture/common-clock/UI integration is still pending.
 - **SettingsScreen**: the markup source, API key, model, default style, text
   size and mirror setting, plus **Privacy and licences**: what leaves the
   device, and the licence page (`showLicensePage`).

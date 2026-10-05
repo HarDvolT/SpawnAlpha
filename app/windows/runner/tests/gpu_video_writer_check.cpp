@@ -10,6 +10,7 @@
 #include <vector>
 #include <cstring>
 #include <cstdlib>
+#include <cmath>
 
 using winrt::com_ptr;
 using winrt::check_hresult;
@@ -38,7 +39,11 @@ int wmain(int count, wchar_t** args) {
   if (count != 2 && count != 3) return 2;
   const bool crash = count == 3 && std::wcscmp(args[2], L"--crash") == 0;
   const bool verify_crash = count == 3 && std::wcscmp(args[2], L"--verify-crash") == 0;
-  if (count == 3 && !crash && !verify_crash) return 2;
+  const bool mono_audio = count == 3 && std::wcscmp(args[2], L"--audio-mono") == 0;
+  const bool stereo_audio = count == 3 && std::wcscmp(args[2], L"--audio-stereo") == 0;
+  const GpuAudioFormat audio = mono_audio ? GpuAudioFormat{48000, 1} :
+      stereo_audio ? GpuAudioFormat{44100, 2} : GpuAudioFormat{};
+  if (count == 3 && !crash && !verify_crash && !mono_audio && !stereo_audio) return 2;
   const HRESULT com = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
   if (FAILED(com)) return 3;
   const char* stage = "create GPU";
@@ -53,7 +58,8 @@ int wmain(int count, wchar_t** args) {
       GpuVideoWriter writer;
       stage = "start writer";
       Require(FAILED(writer.Start(device.get(), path, 641, 360)));
-      check_hresult(writer.Start(device.get(), path, 640, 360));
+      Require(FAILED(writer.Start(device.get(), path, 640, 360, 30, {22050, 1})));
+      check_hresult(writer.Start(device.get(), path, 640, 360, 30, audio));
       stage = "write frames";
       for (UINT frame = 0; frame < 120; ++frame) {
         const UINT width = frame < 60 ? 640 : 320, height = frame < 60 ? 360 : 240;
@@ -70,6 +76,21 @@ int wmain(int count, wchar_t** args) {
         check_hresult(device->CreateTexture2D(&desc, &content, texture.put()));
         if (frame == 1) Require(FAILED(writer.WriteFrame(texture.get(), width, height, 0)));
         check_hresult(writer.WriteFrame(texture.get(), width, height, frame * 10000000LL / 30));
+        if (audio.sample_rate) {
+          const UINT packet_frames = audio.sample_rate / 30;
+          std::vector<int16_t> tone(packet_frames * audio.channels);
+          for (UINT i = 0; i < packet_frames; ++i) {
+            const double phase = (frame * packet_frames + i) * 440.0 * 6.283185307179586 / audio.sample_rate;
+            for (UINT channel = 0; channel < audio.channels; ++channel) {
+              tone[i * audio.channels + channel] = static_cast<int16_t>(std::sin(phase) * 12000);
+            }
+          }
+          if (frame == 1) Require(FAILED(writer.WriteAudio(tone.data(), packet_frames, 0)));
+          check_hresult(writer.WriteAudio(tone.data(), packet_frames, frame * 10000000LL / 30));
+        } else {
+          const int16_t silence = 0;
+          Require(FAILED(writer.WriteAudio(&silence, 1, 0)));
+        }
         if (crash) Sleep(34);
       }
       if (crash) { Sleep(300); std::_Exit(0); }
@@ -126,12 +147,52 @@ int wmain(int count, wchar_t** args) {
       }
     }
     Require(verify_crash ? decoded >= 60 && decoded <= 120 : decoded == 120);
+    if (audio.sample_rate) {
+      stage = "decode audio";
+      const DWORD all = static_cast<DWORD>(MF_SOURCE_READER_ALL_STREAMS);
+      const DWORD audio_stream = static_cast<DWORD>(MF_SOURCE_READER_FIRST_AUDIO_STREAM);
+      check_hresult(reader->SetStreamSelection(all, FALSE));
+      check_hresult(reader->SetStreamSelection(audio_stream, TRUE));
+      com_ptr<IMFMediaType> pcm;
+      check_hresult(MFCreateMediaType(pcm.put()));
+      check_hresult(pcm->SetGUID(MF_MT_MAJOR_TYPE, MFMediaType_Audio));
+      check_hresult(pcm->SetGUID(MF_MT_SUBTYPE, MFAudioFormat_PCM));
+      check_hresult(pcm->SetUINT32(MF_MT_AUDIO_BITS_PER_SAMPLE, 16));
+      check_hresult(reader->SetCurrentMediaType(audio_stream, nullptr, pcm.get()));
+      LONGLONG previous_audio = -10000000;
+      size_t audio_samples = 0;
+      double squares = 0;
+      while (true) {
+        DWORD flags = 0; LONGLONG time = 0;
+        com_ptr<IMFSample> sample;
+        check_hresult(reader->ReadSample(audio_stream, 0, nullptr, &flags, &time, sample.put()));
+        if (flags & MF_SOURCE_READERF_ENDOFSTREAM) break;
+        if (!sample) continue;
+        Require(time > previous_audio);
+        if (audio_samples == 0) Require(std::abs(time) <= 500000);
+        previous_audio = time;
+        com_ptr<IMFMediaBuffer> buffer;
+        check_hresult(sample->ConvertToContiguousBuffer(buffer.put()));
+        BYTE* bytes = nullptr; DWORD length = 0;
+        check_hresult(buffer->Lock(&bytes, nullptr, &length));
+        const auto* values = reinterpret_cast<const int16_t*>(bytes);
+        for (DWORD i = 0; i < length / sizeof(int16_t); ++i) squares += double(values[i]) * values[i];
+        audio_samples += length / sizeof(int16_t);
+        check_hresult(buffer->Unlock());
+      }
+      const size_t frames = audio_samples / audio.channels;
+      Require(frames >= audio.sample_rate * 4 - 2048 && frames <= audio.sample_rate * 4 + 2048);
+      const double rms = std::sqrt(squares / audio_samples);
+      Require(rms > 7000 && rms < 10000);
+      Require(previous_audio >= 39000000 && previous_audio <= 40500000);
+    }
     reader = nullptr;
     MFShutdown();
     if (verify_crash) {
       std::cout << "Abrupt-exit check passed: " << decoded << " recoverable frames, ordered timestamps, fragmented MP4.\n";
     } else {
       std::cout << "GPU video check passed: 120 frames, resize, ordered timestamps, fragmented MP4, no overwrite.\n";
+      if (audio.sample_rate) std::cout << "AAC check passed: generated tone, correct duration, ordered audio/video timestamps.\n";
     }
     CoUninitialize();
     return 0;

@@ -12,6 +12,7 @@ add_executable(${BINARY_NAME} WIN32
   "screen_preview.cpp"
   "floating_prompter.cpp"
   "gpu_video_writer.cpp"
+  "microphone_capture.cpp"
   "main.cpp"
   "utils.cpp"
   "win32_window.cpp"
@@ -58,3 +59,10 @@ target_compile_features(gpu_video_writer_check PRIVATE cxx_std_17)
 target_compile_options(gpu_video_writer_check PRIVATE /W4 /WX /EHsc /wd"4100")
 target_compile_definitions(gpu_video_writer_check PRIVATE "NOMINMAX")
 target_link_libraries(gpu_video_writer_check PRIVATE "d3d11.lib" "dxgi.lib" "mf.lib" "mfplat.lib" "mfreadwrite.lib" "mfuuid.lib" "ole32.lib" "oleaut32.lib" "windowsapp.lib")
+
+# Reads a short microphone stream into memory and discards it. Explicit only.
+add_executable(microphone_capture_check EXCLUDE_FROM_ALL "microphone_capture.cpp" "tests/microphone_capture_check.cpp")
+target_compile_features(microphone_capture_check PRIVATE cxx_std_17)
+target_compile_options(microphone_capture_check PRIVATE /W4 /WX /EHsc /wd"4100")
+target_compile_definitions(microphone_capture_check PRIVATE "NOMINMAX")
+target_link_libraries(microphone_capture_check PRIVATE "ole32.lib" "windowsapp.lib")
