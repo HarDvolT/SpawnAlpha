@@ -69,6 +69,7 @@ enum DotTrail { none, echoes, streaks, sparks }
 class DotFrame {
   const DotFrame({
     required this.center,
+    this.opacity = 1,
     this.size = 1,
     this.scaleX = 1,
     this.scaleY = 1,
@@ -83,6 +84,9 @@ class DotFrame {
   });
 
   final Offset center;
+
+  /// Visibility during a line return; the dot never sweeps across lines.
+  final double opacity;
 
   /// How big the dot is, as a multiple of its resting radius. It grows to
   /// act out a cue and shrinks back after.
@@ -189,7 +193,6 @@ class BouncePath {
   static const fastHop = 0.18;
   static const energyHop = 0.7;
   static const stressHop = 0.95;
-  static const lineHop = 0.4;
 
   /// Sizes, as multiples of the resting radius.
   static const pauseSize = 2.3;
@@ -202,8 +205,18 @@ class BouncePath {
   static const fastSize = 0.8;
   static const energySize = 1.25;
 
-  /// Before a new line, the dot stays on the last word for this much of it.
-  static const lineStay = 0.6;
+  /// Whether two word anchors sit on the same laid-out line. Compare word
+  /// boxes rather than dot centres: stress lifts the dot, not the text.
+  bool sameLine(int a, int b) {
+    final first = words[a].box;
+    final second = words[b].box;
+    return first != null && second != null && (first.top - second.top).abs() <= fontSize * 0.5;
+  }
+
+  Duration _lineFade(DeliveryTimeline timeline, int word) {
+    final quarter = (timeline.endOf(word) - timeline.startOf(word)) * 0.25;
+    return quarter < hopOn ? quarter : hopOn;
+  }
 
   /// Where the dot rests on [word]: just above it, a third in from the
   /// leading edge. Stressed words grow, so it rests a little higher.
@@ -273,6 +286,9 @@ class BouncePath {
       final next = hasNext ? restOn(i + 1) : null;
       if (next != null && left < hopOn && !calm) {
         final u = 1 - left.inMicroseconds / hopOn.inMicroseconds;
+        if ((words[i + 1].box!.center.dy - glyph.dy).abs() > fontSize * 0.5) {
+          return DotFrame(center: glyph, opacity: 1 - u, size: _sizeOf(words[i + 1]));
+        }
         return DotFrame(center: _arc(glyph, next, u, baseHop * 1.1), size: _sizeOf(words[i + 1]));
       }
       final k = _fraction(into, end - start);
@@ -334,10 +350,17 @@ class BouncePath {
     }
     final landed = _fraction(since, arrive - timeline.startOf(i));
     var u = landed;
-    // To a new line: stay on the word, then swoop down to the next line
-    // over the last part of it, rather than crossing the line being read.
-    final newLine = (target.dy - here.dy).abs() > fontSize * 0.5;
-    if (newLine) u = ((u - lineStay) / (1 - lineStay)).clamp(0.0, 1.0);
+    // Hold the outgoing anchor and fade instead of crossing the reading
+    // line. This also handles a gap glyph that wraps onto another line.
+    final newLine = glyph != null
+        ? (glyph.dy - word.box!.center.dy).abs() > fontSize * 0.5
+        : hasNext && !sameLine(i, i + 1);
+    var opacity = 1.0;
+    if (i > 0 && !sameLine(i - 1, i)) opacity = _fraction(since, _lineFade(timeline, i));
+    if (newLine) {
+      u = 0;
+      opacity *= _fraction(arrive - time, _lineFade(timeline, i));
+    }
 
     final intoStress = glyph == null && hasNext && words[i + 1].stressed;
     var height = baseHop;
@@ -345,7 +368,6 @@ class BouncePath {
     if (word.run == MarkKind.faster) height = fastHop;
     if (word.run == MarkKind.energy) height = energyHop;
     if (intoStress) height = stressHop;
-    if (newLine) height = lineHop;
 
     var size = _sizeOf(word);
     var frameTint = tint;
@@ -403,6 +425,7 @@ class BouncePath {
     }
     return DotFrame(
       center: center,
+      opacity: opacity,
       size: size,
       scaleX: scaleX,
       scaleY: scaleY,
@@ -413,7 +436,7 @@ class BouncePath {
       slam: word.stressed && since < slamLength ? _fraction(since, slamLength) : null,
       slamBox: word.stressed ? word.box : null,
       // No trail while it slams: the strike should read clean.
-      trail: word.stressed && since < burstLength
+      trail: newLine || (word.stressed && since < burstLength)
           ? DotTrail.none
           : switch (word.run) {
               MarkKind.slower => DotTrail.echoes,

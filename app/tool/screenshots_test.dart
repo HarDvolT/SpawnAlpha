@@ -23,6 +23,7 @@ import 'package:spawnalpha/src/model/mark.dart';
 import 'package:spawnalpha/src/model/mark_editing.dart';
 import 'package:spawnalpha/src/model/samples.dart';
 import 'package:spawnalpha/src/model/script_document.dart';
+import 'package:spawnalpha/src/model/script_language.dart';
 import 'package:spawnalpha/src/prompter/guide.dart';
 import 'package:spawnalpha/src/prompter/prompter_controller.dart';
 import 'package:spawnalpha/src/prompter/prompter_view.dart';
@@ -39,14 +40,22 @@ import 'package:spawnalpha/src/ui/record_screen.dart';
 import 'package:spawnalpha/src/ui/recording_widgets.dart';
 import 'package:spawnalpha/src/ui/script_page.dart';
 
+import 'fixtures/cue_check_scripts.dart';
+
 Future<void> _loadFonts() async {
   final fontDir = Platform.environment['SCREENSHOT_FONT_DIR'] ?? '/usr/share/fonts/truetype/dejavu';
   final flutterRoot = Platform.resolvedExecutable.split('${Platform.pathSeparator}bin${Platform.pathSeparator}cache').first;
   Future<ByteData> bytes(String path) async => ByteData.sublistView(await File(path).readAsBytes());
 
-  final text = FontLoader('Roboto')
-    ..addFont(bytes('$fontDir/DejaVuSans.ttf'))
-    ..addFont(bytes('$fontDir/DejaVuSans-Bold.ttf'));
+  final text = FontLoader('Roboto');
+  if (Platform.isWindows && Platform.environment['SCREENSHOT_FONT_DIR'] == null) {
+    // Use the bundled reading font on Windows; no system font download is needed.
+    text.addFont(bytes('assets/fonts/ReadexPro-Variable.ttf'));
+  } else {
+    text
+      ..addFont(bytes('$fontDir/DejaVuSans.ttf'))
+      ..addFont(bytes('$fontDir/DejaVuSans-Bold.ttf'));
+  }
   final icons = FontLoader('MaterialIcons')
     ..addFont(bytes('$flutterRoot/bin/cache/artifacts/material_fonts/MaterialIcons-Regular.otf'));
   // The design language's type voices, as bundled in pubspec.yaml.
@@ -274,6 +283,29 @@ void main() {
   }
 
   // One phrase motion, in English on a desktop and in Arabic on a phone.
+  for (final language in ScriptLanguage.values) {
+    for (final arriving in [false, true]) {
+      final side = arriving ? 'arrive' : 'leave';
+      testWidgets('prompter, line return ${language.name} $side', (tester) async {
+        final script = cueCheckScript(language);
+        await shoot(tester, 'prompter-line-${language.name}-$side', desktop,
+            (_) => PrompterScreen(script: script), [script], settle: false, before: (tester) async {
+          await tester.pump(const Duration(milliseconds: 300));
+          final c = tester.widget<PrompterView>(find.byType(PrompterView)).controller;
+          final last = c.tokens.indexWhere((t) => t.endsParagraph);
+          c.seekToToken(last);
+          await tester.pumpAndSettle();
+          final target = c.timeline.startOf(last + 1) + Duration(milliseconds: arriving ? 60 : -60);
+          c.play();
+          await tester.pump();
+          await tester.pump(target - c.position);
+          c.pause();
+          await tester.pump();
+        });
+      });
+    }
+  }
+
   for (final (name, index, size) in [('en', 0, desktop), ('ar', 2, phone)]) {
     testWidgets('prompter, one phrase ($name)', (tester) async {
       final script = await _markedUp(sampleScripts()[index]);

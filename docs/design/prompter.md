@@ -67,7 +67,7 @@ The dot **becomes each cue** as it reaches it: it grows, takes the cue's colour,
 |---|---|---|
 | A word starts | Lands on the word (just above it, a third in from the leading edge) with a small squash, then arcs to the next word so it arrives as that word starts. | say this word now |
 | Into a stressed word | Climbs higher (0.95em), then drops hard, turning `stage-stress` and growing to 1.8×. It lands with a hard squash, a shockwave, and an amber **strike** drawn across the word. It settles to 1.2× while the word lasts. | hit this word |
-| A pause or long pause | Drops onto the pause glyph and **grows into the pause sign**: a `stage-pause` disc (2.3×, long pause 2.9×) with the pause bars inside, springing in. A **timer ring** around it drains over exactly the hold. It shrinks back and hops on in the last 160ms. | stop until the ring runs out |
+| A pause or long pause | Drops onto the pause glyph and **grows into the pause sign**: a `stage-pause` disc (2.3×, long pause 2.9×) with the pause bars inside, springing in. A **timer ring** around it drains over exactly the hold. It shrinks back and hops on in the last 160ms when the next word is on the same line; a line return uses the fade below. | stop until the ring runs out |
 | A breath | Lands on the breath glyph and **inhales**: it swells to 2.6× in `stage-breath` with the breath glyph inside, then exhales back over the hold. | breathe in, then go |
 | A slower run opens | Grows for a moment with the slow chevrons inside, in `stage-slower`. | slow down from here |
 | In a slower run | Heavy: 1.3×, low long arcs (0.3em), with three fading **echoes** behind it, like slow motion. | keep it slow |
@@ -75,7 +75,7 @@ The dot **becomes each cue** as it reaches it: it grows, takes the cue's colour,
 | In a faster run | Light: 0.8×, short skips (0.18em), stretched along its path, with **streaks** behind it. | keep it quick |
 | An energy run opens | Grows for a moment with the bolt inside, in `stage-energy`. | lift your energy |
 | In an energy run | Pulses three times a second (up to 1.25× plus the beat), bouncy arcs (0.7em), throwing **sparks**. | stay up |
-| A new line | Stays on the line's last word for most of it, then swoops (0.4em) to the next line, rather than crossing the line being read. | the next line |
+| A new line | Holds above the last word, briefly fades out there, then fades in above the next line's first word as that word starts. No diagonal return across the text. The fade on each side uses at most the 160ms hop time, capped at a quarter of the spoken word; after a gap, fade out on its glyph in the last 160ms of the hold. Trails never join different lines. | start reading the next line |
 | Voice pace, waiting | Grows to 1.9× with a **microphone** inside, above the next word, and bobs until the voice starts. | your turn to speak |
 
 - Resting size: about 0.4 of the type size (18px at 44px text), with a soft glow in its own colour. Signs are drawn in `stage` black on the grown disc, from the cue vocabulary's glyphs.

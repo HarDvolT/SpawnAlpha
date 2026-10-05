@@ -103,7 +103,7 @@ Kinetic can be switched to **Still**, which keeps only the motion, the guide and
   - it announces each run with the run's glyph, then turns heavy with echoes (slower), light with streaks (faster), or pulsing with sparks (energy);
   - it grows a microphone and bobs while voice pace waits.
 
-  Full rules in Prompter, "The bouncing dot".
+  At a line return, it fades from the last word (or gap glyph) to the next line's first word without crossing the text. Cue timing and text layout stay fixed; reduced motion jumps directly with no fade. Full rules in Prompter, "The bouncing dot".
 - **The underline** fills across the current word in the reading direction over the word's time.
 - **The spotlight** fades words in and out over `dur-quick`.
 - Reduced motion: the dot jumps without arcs or effects, and the underline appears full.

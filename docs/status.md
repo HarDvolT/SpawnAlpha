@@ -32,15 +32,19 @@ build step 2 (screen recording).
   `flutter_secure_storage_windows`). `flutter doctor -v` passes Windows, Visual Studio,
   desktop device and network checks. Android is intentionally not installed yet.
 - **Local checks and launch:** `flutter pub get` succeeds; `flutter analyze` prints
-  **No issues found!**; all **149 tests pass**. Windows Git checkout converted generated
+  **No issues found!**; all **158 tests pass** (149 baseline, three cue-check tests,
+  and six additional line-return checks).
+  Windows Git checkout converted generated
   tokens to CRLF, causing the exact-generation test to fail: `.gitattributes` now keeps
   `tokens.g.dart` in LF and the tokens were regenerated without changing design values.
   `flutter run -d windows` builds and opens the app. Existing scripts and takes appear.
   The app is wider than 1000px for the desktop retest. The owner confirmed Home's
   Record next hero, script cards, and Record/Practice buttons are visible and clear.
   The recording setup is open. The owner confirmed the meter for
-  `Microphone (HS10-PRO Wireless headset)` moves when speaking. The sound Check is next;
-  its result has not yet been confirmed by the owner.
+  `Microphone (HS10-PRO Wireless headset)` moves when speaking. The owner also confirmed
+  Check says **We hear you** (also visible in the running app). The owner found the dot's
+  cues fine, but its move to a new line confusing. The owner tried the fade return and
+  confirmed it is easier to follow; the dot check is complete.
   After inspecting the window with Windows UI Automation, the debug console repeatedly
   logged Flutter `accessibility_bridge.cc` AXTree update errors (nodes 42/44). Home still
   renders. Investigate Windows accessibility during the retest; no SDK workaround or
@@ -54,9 +58,28 @@ build step 2 (screen recording).
   ```
   Then use `flutter run -d windows` normally. Environment-only instance selection did
   not work on this PC; the explicit CMake cache selection did.
-- **Resume here:** Home clarity and the headset microphone meter are confirmed. Test Check, cue dot,
-  kinetic words and One phrase, one item at a time; record the owner's defaults afterward.
+- **Resume here:** Home clarity, the headset microphone meter, Check and the cue dot with
+  its revised line return are confirmed. Test kinetic words, then One phrase, one item
+  at a time; record the owner's defaults afterward.
   Screen recording has not started, and no recorder implementation is half done.
+- **Cue retest is prepared:** `app/tool/cue_check.dart` is a development-only launch target.
+  It uses the real Home/practice screens with memory-only scripts, settings and keys;
+  optional recordings go under `app/build/cue-check/recordings`, on E: on this PC.
+  `tool/fixtures/cue_check_scripts.dart` supplies all seven accepted cue kinds in English,
+  French and Arabic. Tests verify cue coverage, round trips, valid anchors and the three holds.
+  Launch from `app/` with `flutter run -d windows -t tool/cue_check.dart`. English practice
+  is open with Dot, Line step, Timed and Kinetic, ready for the owner to press Play (about 23s).
+  The dot now holds its outgoing anchor and briefly fades to the new line instead of
+  sweeping diagonally across the text. Gap returns use the same approach; trails cannot
+  join different lines. Cue timing, layout, same-line hops and reduced motion are preserved.
+  Analysis is clean, all 158 tests pass, and all 42 original screenshot cases plus six
+  EN/FR/AR line-return cases pass. English and Arabic arrival PNGs were inspected.
+  The screenshot tool now uses the bundled reading font as its Windows fallback.
+  The owner confirmed the revised line return is easier to follow. The app is rebuilt
+  and open, restarted and paused at the beginning with Dot, Line step, Timed and Kinetic.
+  Word effects are now awaiting feedback; choose One phrase after that check.
+  Close practice to access the French and Arabic scripts on Home.
+  This launcher has temporary test choices; ask about defaults in the normal app afterward.
 
 - **The code:** all the work so far is on the branch `claude/inspiring-euler-3v24zv`, 26
   commits ahead of `main` (which holds only the initial commit). Merge it into `main` with a
@@ -254,6 +277,18 @@ build step 2 (screen recording).
   word lists, not prosody.
 
 ## Session log
+
+- 2026-10-05, desktop retest:
+  - The owner confirmed Home's hero, cards and Record/Practice buttons are clear;
+    the HS10-PRO headset microphone meter moves; Check says "We hear you".
+  - Added the memory-only development cue-check launcher and seven-cue scripts in EN/FR/AR.
+    The owner likes the cue behavior but finds line changes hard to follow. Replaced the
+    diagonal return with a short fade at the outgoing and incoming anchors, including
+    gap returns, and stopped trails crossing lines. Updated the design specifications;
+    the Claude-only design artifact has not been republished and should be refreshed there.
+    Analysis is clean, all 158 tests pass, and 48 screenshot cases pass. Built and reopened
+    the Windows cue check. The owner confirmed the line return is easier to follow.
+    Kinetic is now on for the next check; One phrase and final defaults follow it.
 
 - 2026-10-05, Codex Windows setup:
   - Installed and verified the exact SDK on E:, enabled Developer Mode, saved the user

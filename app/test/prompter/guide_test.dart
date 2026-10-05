@@ -50,14 +50,65 @@ void main() {
       expect(landing.scaleY, lessThan(1));
     });
 
-    test('stays on the last word of a line, then swoops to the next line', () {
+    for (final rtl in [false, true]) {
+      test('line return fades at its anchors without crossing text (rtl: $rtl)', () {
+        final t = timeline(const []);
+        final p = path(plainWords(), rtl: rtl);
+        expect(p.at(t, t.startOf(1) + ms * 250)!.opacity, 1);
+        for (var m = 0; m < 500; m += 10) {
+          expect(p.at(t, t.startOf(1) + ms * m)!.center, p.restOn(1));
+        }
+        expect(p.at(t, t.startOf(2) - ms)!.opacity, lessThan(0.02));
+        final arrival = p.at(t, t.startOf(2))!;
+        expect(arrival.center, p.restOn(2));
+        expect(arrival.opacity, 0);
+        expect(p.at(t, t.startOf(2) + ms * 60)!.opacity, closeTo(0.48, 0.01));
+        expect(p.at(t, t.startOf(2) + ms * 125)!.opacity, 1);
+        expect(p.at(t, t.startOf(2), calm: true)!.opacity, 1);
+        expect(p.at(t, t.startOf(2), waiting: true)!.opacity, 1);
+        // Stateless seeking gives the same frame when revisiting a return.
+        expect(p.at(t, t.startOf(1) + ms * 450)!.center, p.restOn(1));
+      });
+    }
+
+    for (final kind in [MarkKind.pauseShort, MarkKind.pauseLong, MarkKind.breath]) {
+      test('$kind at a line end fades on its glyph and keeps the hold timing', () {
+        final t = timeline([Mark.gap(id: 'gap', kind: kind, after: 1)]);
+        final words = plainWords();
+        words[1] = DotWord(box: wordBox(1), gap: kind, gapGlyph: const Rect.fromLTWH(184, 8, 12, 24));
+        final p = path(words);
+        final (start, end) = t.holdAt(t.endOf(1) + ms)!;
+        final held = p.at(t, start + (end - start) * 0.5)!;
+        expect(held.sign, isNotNull);
+        expect(held.opacity, 1);
+        final leaving = p.at(t, end - ms * 40)!;
+        expect(leaving.center, p.restOnGlyph(1));
+        expect(leaving.opacity, closeTo(0.25, 0.01));
+        expect(p.at(t, end)!.center, p.restOn(2));
+        expect(p.at(t, end, calm: true)!.opacity, 1);
+      });
+    }
+
+    test('line entry keeps stress cues and short words regain full visibility', () {
+      final t = DeliveryTimeline.build(tokens, const [], CoachingStyle.presentation, wordsPerMinute: 600);
+      final words = plainWords();
+      words[2] = DotWord(box: wordBox(2), stressed: true);
+      final p = path(words);
+      final frame = p.at(t, t.startOf(2) + ms * 25)!;
+      expect(frame.opacity, 1);
+      expect(frame.tint, DotTint.stress);
+      expect(frame.burst, isNotNull);
+      expect(frame.slam, isNotNull);
+      expect(p.sameLine(2, 3), isTrue, reason: 'stress lifts the dot, not the word');
+    });
+
+    test('run trails stop on the outgoing line', () {
       final t = timeline(const []);
-      final p = path(plainWords());
-      // Word 1 ends the first line: it stays for the first 60%.
-      expect(p.at(t, t.startOf(1) + ms * 250)!.center, p.restOn(1));
-      final swoop = p.at(t, t.startOf(1) + ms * 450)!.center;
-      expect(swoop, isNot(p.restOn(1)));
-      expect(p.at(t, t.startOf(2))!.center, p.restOn(2));
+      final words = plainWords();
+      words[1] = DotWord(box: wordBox(1), run: MarkKind.faster);
+      final p = path(words);
+      expect(p.at(t, t.startOf(1) + ms * 250)!.trail, DotTrail.none);
+      expect(p.sameLine(1, 2), isFalse);
     });
 
     test('becomes the pause sign while a timer ring drains, then hops on', () {

@@ -1217,6 +1217,7 @@ class _DotLayer extends CustomPainter {
     final bounce = k.bounce;
     final frame = bounce.at(c.timeline, c.position, waiting: c.waitingForVoice, clock: p.clock(), calm: p.calm);
     if (frame == null) return;
+    if (frame.opacity < 1) canvas.saveLayer(null, Paint()..color = p.colors.text.withValues(alpha: frame.opacity));
     final base = bounce.radius;
     final r = base * frame.size;
     final color = _colorOf(frame.tint);
@@ -1281,6 +1282,7 @@ class _DotLayer extends CustomPainter {
 
     final sign = frame.sign;
     if (sign != null && frame.signAlpha > 0) _paintSign(canvas, sign, frame.center, r, frame.signAlpha);
+    if (frame.opacity < 1) canvas.restore();
   }
 
   Color _colorOf(DotTint tint) => switch (tint) {
@@ -1299,7 +1301,9 @@ class _DotLayer extends CustomPainter {
     final c = p.controller;
     DotFrame? back(int ms) {
       final t = c.position - Duration(milliseconds: ms);
-      return bounce.at(c.timeline, t.isNegative ? Duration.zero : t);
+      final past = t.isNegative ? Duration.zero : t;
+      if (!bounce.sameLine(c.timeline.tokenAt(c.position), c.timeline.tokenAt(past))) return null;
+      return bounce.at(c.timeline, past);
     }
 
     switch (frame.trail) {
@@ -1309,7 +1313,7 @@ class _DotLayer extends CustomPainter {
         for (var n = 3; n >= 1; n--) {
           final echo = back(110 * n);
           if (echo == null) continue;
-          canvas.drawCircle(echo.center, base * echo.size * (1 - 0.12 * n), Paint()..color = color.withValues(alpha: 0.42 - 0.11 * n));
+          canvas.drawCircle(echo.center, base * echo.size * (1 - 0.12 * n), Paint()..color = color.withValues(alpha: (0.42 - 0.11 * n) * echo.opacity));
         }
       case DotTrail.streaks:
         final paint = Paint()
@@ -1319,7 +1323,7 @@ class _DotLayer extends CustomPainter {
         for (var n = 1; n <= 3; n++) {
           final was = back(35 * n);
           if (was == null) continue;
-          canvas.drawLine(from, was.center, paint..color = color.withValues(alpha: 0.55 - 0.15 * n));
+          canvas.drawLine(from, was.center, paint..color = color.withValues(alpha: (0.55 - 0.15 * n) * was.opacity));
           from = was.center;
         }
       case DotTrail.sparks:
@@ -1329,7 +1333,7 @@ class _DotLayer extends CustomPainter {
           // Sparks scatter a little off the path, the same way every time.
           final angle = n * 2.4;
           final off = Offset(math.cos(angle), math.sin(angle)) * (base * 0.5 * n);
-          canvas.drawCircle(was.center + off, base * (0.42 - 0.08 * n), Paint()..color = color.withValues(alpha: 0.8 - 0.17 * n));
+          canvas.drawCircle(was.center + off, base * (0.42 - 0.08 * n), Paint()..color = color.withValues(alpha: (0.8 - 0.17 * n) * was.opacity));
         }
     }
   }
