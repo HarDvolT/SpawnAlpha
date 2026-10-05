@@ -12,7 +12,12 @@ import '../../tool/gen_tokens.dart';
 void main() {
   test('tokens.g.dart matches docs/design/tokens.json (run dart run tool/gen_tokens.dart)', () {
     final json = jsonDecode(File(tokensPath).readAsStringSync()) as Map<String, dynamic>;
-    expect(File(outputPath).readAsStringSync(), generateTokens(json));
+    expect(
+      File(outputPath).readAsStringSync(),
+      generateTokens(json),
+      reason: 'Generated tokens must match exactly, including LF line endings '
+          '(enforced by .gitattributes on Windows).',
+    );
   });
 
   test('the generated tokens carry the design values', () {

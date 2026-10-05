@@ -1,0 +1,2 @@
+# Generated Dart must match the token generator on Windows and in CI.
+app/lib/src/theme/tokens.g.dart text eol=lf

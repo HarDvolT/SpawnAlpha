@@ -53,13 +53,17 @@ app/                   the Flutter app (package name: spawnalpha)
   1. Install Git for Windows.
   2. Install Visual Studio 2022 (Community is fine) with the **Desktop development with C++**
      workload. Flutter needs it for Windows builds, including the vendored camera plugin's
-     C++ code in `app/packages/camera_windows/windows/`.
+     C++ code in `app/packages/camera_windows/windows/`. Also install **C++ ATL for latest
+     v143 build tools (x86 & x64)** (`Microsoft.VisualStudio.Component.VC.ATL`): the Windows
+     secure-storage plugin needs `atlstr.h`.
   3. Turn on **Developer Mode** (Settings › System › For developers): Flutter needs symlinks
      for plugins.
   4. Download Flutter 3.47.5 for Windows,
      <https://storage.googleapis.com/flutter_infra_release/releases/stable/windows/flutter_windows_3.47.5-stable.zip>,
-     unzip it to a folder without spaces (for example `C:\dev\flutter`), and add
-     `C:\dev\flutter\bin` to `PATH`. Then `flutter config --no-analytics`.
+     unzip it to `E:\Ai\ChatGPT\flutter` on the owner's PC, and add
+     `E:\Ai\ChatGPT\flutter\bin` to the user `PATH`. Then `flutter config --no-analytics`.
+     Keep the code in `E:\Ai\ChatGPT\SpawnAlpha` and set `PUB_CACHE` to
+     `E:\Ai\ChatGPT\pub-cache` so downloaded Dart packages also stay on E:.
   5. Optional, for the Android APK: Android Studio with the Android SDK, then
      `flutter doctor --android-licenses`.
   6. `flutter doctor` must show Windows desktop as ready.

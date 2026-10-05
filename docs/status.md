@@ -22,6 +22,34 @@ build step 2 (screen recording).
 
 ## Handover (2026-10-05): from here, Codex on the owner's Windows PC
 
+- **PC setup is now complete (Codex, 2026-10-05):** E: is NTFS. The code is at
+  `E:\Ai\ChatGPT\SpawnAlpha` on `claude/inspiring-euler-3v24zv`; Flutter **3.47.5**
+  (Dart **3.13.4**) is at `E:\Ai\ChatGPT\flutter`. Its official archive SHA-256 was
+  verified. Flutter's bin is in the user PATH, `PUB_CACHE` is
+  `E:\Ai\ChatGPT\pub-cache`, analytics are disabled, and Developer Mode is enabled.
+  Git for Windows was already available. Visual Studio **2022 Community 17.14.41**
+  has the Desktop C++ workload, recommended components, and **C++ ATL** (required by
+  `flutter_secure_storage_windows`). `flutter doctor -v` passes Windows, Visual Studio,
+  desktop device and network checks. Android is intentionally not installed yet.
+- **Local checks and launch:** `flutter pub get` succeeds; `flutter analyze` prints
+  **No issues found!**; all **149 tests pass**. Windows Git checkout converted generated
+  tokens to CRLF, causing the exact-generation test to fail: `.gitattributes` now keeps
+  `tokens.g.dart` in LF and the tokens were regenerated without changing design values.
+  `flutter run -d windows` builds and opens the app. Existing scripts and takes appear.
+  The app is maximized for the desktop retest; the owner's Home feedback is pending.
+- **Windows build note for the next agent:** a pre-existing Build Tools installation
+  lacks ATL, and CMake selected it even though Flutter doctor selects Community. The
+  working build cache explicitly selects `C:/Program Files/Microsoft Visual Studio/2022/Community`.
+  After deleting/cleaning the Windows build, configure it once from `app/` with:
+  ```powershell
+  & 'C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/bin/cmake.exe' --fresh -S windows -B build/windows/x64 -G 'Visual Studio 17 2022' -A x64 '-DCMAKE_GENERATOR_INSTANCE=C:/Program Files/Microsoft Visual Studio/2022/Community' '-DFLUTTER_TARGET_PLATFORM=windows-x64'
+  ```
+  Then use `flutter run -d windows` normally. Environment-only instance selection did
+  not work on this PC; the explicit CMake cache selection did.
+- **Resume here:** ask about Home first, then test the microphone rail, Check, cue dot,
+  kinetic words and One phrase, one item at a time; record the owner's defaults afterward.
+  Screen recording has not started, and no recorder implementation is half done.
+
 - **The code:** all the work so far is on the branch `claude/inspiring-euler-3v24zv`, 26
   commits ahead of `main` (which holds only the initial commit). Merge it into `main` with a
   pull request on GitHub, or check the branch out, before starting.
@@ -218,6 +246,16 @@ build step 2 (screen recording).
   word lists, not prosody.
 
 ## Session log
+
+- 2026-10-05, Codex Windows setup:
+  - Installed and verified the exact SDK on E:, enabled Developer Mode, saved the user
+    PATH and package-cache location, and disabled analytics.
+  - Installed Visual Studio Community with Desktop C++ and ATL; fixed the native build's
+    selection of an older installation by explicitly configuring CMake for Community.
+  - Fixed the generated-token checkout line endings; analysis is clean and 149 tests pass.
+  - Built and launched SpawnAlpha on Windows for the owner's retest. Home feedback is next;
+    microphone and prompter retests and defaults are still pending. Screen recording is next
+    after those checks. No UI or design behavior changed in this setup session.
 
 - 2026-09-30, session 1:
   - Added the brief to `docs/` and scaffolded the Flutter app.
