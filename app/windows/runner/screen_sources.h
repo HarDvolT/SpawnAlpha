@@ -6,6 +6,11 @@
 #include <flutter/method_channel.h>
 
 #include <memory>
+#include <windows.h>
+#include <string>
+
+// Revalidate the candidate and resolve its current native handle.
+bool ResolveScreenSource(const std::string& id, HMONITOR* monitor, HWND* window);
 
 std::unique_ptr<flutter::MethodChannel<flutter::EncodableValue>>
 RegisterScreenSources(flutter::BinaryMessenger* messenger);

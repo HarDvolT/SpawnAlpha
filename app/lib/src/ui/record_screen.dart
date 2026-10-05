@@ -20,6 +20,7 @@ import 'prompter_controls.dart';
 import 'record_setup.dart';
 import 'recording_widgets.dart';
 import 'screen_source_picker.dart';
+import 'screen_preview_screen.dart';
 
 /// Records the camera with the coached prompter over the preview. The
 /// prompter starts when the recording starts, after a countdown. Each
@@ -59,6 +60,7 @@ class _RecordScreenState extends State<RecordScreen> with WidgetsBindingObserver
   bool _allowSilent = false;
 
   ScreenSource? _screenSource;
+  bool _openingScreenPreview = false;
 
   Future<void> _chooseScreen() async {
     final sources = AppScope.of(context).screens;
@@ -66,6 +68,28 @@ class _RecordScreenState extends State<RecordScreen> with WidgetsBindingObserver
       builder: (_) => ScreenSourcePicker(sources: sources, selected: _screenSource),
     ));
     if (mounted && selected != null) setState(() => _screenSource = selected);
+  }
+
+  Future<void> _previewScreen() async {
+    final source = _screenSource;
+    if (source == null || _openingScreenPreview) return;
+    final previews = AppScope.of(context).previews;
+    // Release the camera while viewing screen pixels, then reopen on return.
+    final camera = _camera;
+    setState(() {
+      _openingScreenPreview = true;
+      _camera = null;
+    });
+    try {
+      await camera?.dispose();
+      if (!mounted) return;
+      await Navigator.of(context).push<void>(MaterialPageRoute(
+        builder: (_) => ScreenPreviewScreen(source: source, previews: previews),
+      ));
+      if (mounted && _cameras.isNotEmpty) await _openCamera(_cameraIndex);
+    } finally {
+      if (mounted) setState(() => _openingScreenPreview = false);
+    }
   }
 
   /// Wider than this, the set-up is a rail beside the preview.
@@ -453,7 +477,7 @@ class _RecordScreenState extends State<RecordScreen> with WidgetsBindingObserver
     );
   }
 
-  bool get _busy => _recording || _countdown != null || _saving;
+  bool get _busy => _recording || _countdown != null || _saving || _openingScreenPreview;
 
   /// What the camera sees, with the prompter docked under the lens.
   Widget _preview(BuildContext context, double height, {required bool wide}) {
@@ -628,8 +652,13 @@ class _RecordScreenState extends State<RecordScreen> with WidgetsBindingObserver
           const SizedBox(height: SaSpace.s2),
           OutlinedButton.icon(onPressed: busy ? null : _chooseScreen,
             icon: const Icon(Icons.desktop_windows_rounded), label: const Text('Choose screen')),
-          if (_screenSource != null) Text(_screenSource!.name, maxLines: 2, overflow: TextOverflow.ellipsis,
-            style: SaType.caption.copyWith(color: stage.stageChromeText)),
+          if (_screenSource != null) ...[
+            Text(_screenSource!.name, maxLines: 2, overflow: TextOverflow.ellipsis,
+              style: SaType.caption.copyWith(color: stage.stageChromeText)),
+            if (AppScope.of(context).previews.supported)
+              OutlinedButton.icon(onPressed: busy ? null : _previewScreen,
+                icon: const Icon(Icons.visibility_rounded), label: const Text('Preview screen')),
+          ],
         ],
       ])),
       SetupStep(

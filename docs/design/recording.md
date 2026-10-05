@@ -81,6 +81,23 @@ This slice reads metadata only. Camera remains the only enabled recording mode u
 live thumbnails, screen capture and the excluded floating prompter are verified. The
 selected source is held for this setup session; it does not start a recording.
 
+### Live source preview: second Windows slice
+
+After choosing a source, **Preview screen** opens an always-dark Stage page. It shows
+the chosen name, the live source fitted inside the page with its aspect ratio preserved,
+and **Live preview only · nothing saved**. Capture begins only on this page and ends when
+it closes. No microphone or camera is added to the screen preview. Windows keeps its
+capture border visible. A closed source shows **This source closed. Choose another.**;
+an unavailable or minimized source offers **Try again** without leaving a frozen image
+labelled live. Resizing a window updates its aspect ratio. Source switching uses the
+picker again. The setup camera can resume when returning from preview.
+If the first frame has not arrived after five countdown beats, stop the attempt and
+offer the same retry; never leave the speaker waiting indefinitely.
+
+This is a preview, not a take. Camera remains the only recording mode until the floating
+prompter is excluded and the audio/video recording pipeline is verified. Live thumbnails
+for every picker row will use this same capture backend in a later slice.
+
 ### The cursor companion
 - **What it is:** a third placement for the Prompter window, set with **Companion** in the HUD. The prompter becomes a small glass card that rides beside the cursor, so a demo can be read without looking away from the work.
 - **Where it sits:**

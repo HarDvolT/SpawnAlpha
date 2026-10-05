@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <cstdint>
+#include <charconv>
 #include <string>
 #include <vector>
 
@@ -104,6 +105,41 @@ EncodableList ListSources() {
   return sources;
 }
 }  // namespace
+
+bool ResolveScreenSource(const std::string& id, HMONITOR* monitor, HWND* window) {
+  *monitor = nullptr;
+  *window = nullptr;
+  const auto sources = ListSources();
+  bool found = false;
+  for (const auto& source : sources) {
+    const auto& row = std::get<EncodableMap>(source);
+    if (std::get<std::string>(row.at(EncodableValue("id"))) == id) {
+      found = true;
+      break;
+    }
+  }
+  if (!found) return false;
+  if (id.rfind("window:", 0) == 0) {
+    const auto start = id.find_last_of(':') + 1;
+    uintptr_t handle = 0;
+    const auto parsed = std::from_chars(id.data() + start, id.data() + id.size(), handle);
+    if (parsed.ec != std::errc() || parsed.ptr != id.data() + id.size()) return false;
+    *window = reinterpret_cast<HWND>(handle);
+    return IsWindow(*window) && !IsIconic(*window);
+  }
+  struct Match { const std::string& id; HMONITOR value = nullptr; } match{id};
+  EnumDisplayMonitors(nullptr, nullptr,
+    [](HMONITOR candidate, HDC, LPRECT, LPARAM data) -> BOOL {
+      auto* match = reinterpret_cast<Match*>(data);
+      MONITORINFOEXW info{};
+      info.cbSize = sizeof(info);
+      if (GetMonitorInfoW(candidate, &info) && "display:" + Utf8(info.szDevice) == match->id)
+        match->value = candidate;
+      return TRUE;
+    }, reinterpret_cast<LPARAM>(&match));
+  *monitor = match.value;
+  return *monitor != nullptr;
+}
 
 std::unique_ptr<flutter::MethodChannel<EncodableValue>>
 RegisterScreenSources(flutter::BinaryMessenger* messenger) {

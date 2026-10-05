@@ -1,6 +1,7 @@
 #include "flutter_window.h"
 
 #include <optional>
+#include <flutter/plugin_registrar_windows.h>
 
 #include "flutter/generated_plugin_registrant.h"
 
@@ -26,6 +27,9 @@ bool FlutterWindow::OnCreate() {
   }
   RegisterPlugins(flutter_controller_->engine());
   screen_sources_ = RegisterScreenSources(flutter_controller_->engine()->messenger());
+  auto* registrar = flutter::PluginRegistrarManager::GetInstance()
+      ->GetRegistrar<flutter::PluginRegistrarWindows>(flutter_controller_->engine()->GetRegistrarForPlugin("ScreenPreview"));
+  screen_preview_ = std::make_unique<ScreenPreview>(registrar->messenger(), registrar->texture_registrar());
   SetChildContent(flutter_controller_->view()->GetNativeWindow());
 
   flutter_controller_->engine()->SetNextFrameCallback([&]() {
@@ -41,6 +45,7 @@ bool FlutterWindow::OnCreate() {
 }
 
 void FlutterWindow::OnDestroy() {
+  screen_preview_.reset();
   screen_sources_.reset();
   if (flutter_controller_) {
     flutter_controller_ = nullptr;

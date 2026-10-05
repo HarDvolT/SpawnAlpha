@@ -29,6 +29,7 @@ import 'package:spawnalpha/src/prompter/prompter_controller.dart';
 import 'package:spawnalpha/src/prompter/prompter_view.dart';
 import 'package:spawnalpha/src/recording/audio_input.dart';
 import 'package:spawnalpha/src/recording/screen_source.dart';
+import 'package:spawnalpha/src/recording/screen_preview.dart';
 import 'package:spawnalpha/src/storage/script_store.dart';
 import 'package:spawnalpha/src/storage/settings.dart';
 import 'package:spawnalpha/src/theme/theme.dart';
@@ -41,6 +42,7 @@ import 'package:spawnalpha/src/ui/record_screen.dart';
 import 'package:spawnalpha/src/ui/recording_widgets.dart';
 import 'package:spawnalpha/src/ui/script_page.dart';
 import 'package:spawnalpha/src/ui/screen_source_picker.dart';
+import 'package:spawnalpha/src/ui/screen_preview_screen.dart';
 
 import 'fixtures/cue_check_scripts.dart';
 
@@ -55,6 +57,19 @@ class _ScreenCandidates implements ScreenSources {
       width: 1920, height: 1080, primary: true),
     ScreenSource(id: 'window:presentation', name: name, kind: ScreenSourceKind.window, width: 1280, height: 720),
   ];
+}
+
+class _ClosedScreenPreview implements ScreenPreviews {
+  const _ClosedScreenPreview();
+  @override
+  bool get supported => true;
+  @override
+  Future<PreviewHandle> start(ScreenSource source) async => const PreviewHandle(
+    sessionId: 1, textureId: 1, width: 1280, height: 720);
+  @override
+  Future<PreviewStatus> status(PreviewHandle handle) async => const PreviewStatus(closed: true);
+  @override
+  Future<void> stop(PreviewHandle handle) async {}
 }
 
 Future<void> _loadFonts() async {
@@ -437,6 +452,14 @@ void main() {
     testWidgets('screen source picker $language', (tester) async {
       await shoot(tester, 'screen-sources-$language', desktop,
         (_) => ScreenSourcePicker(sources: _ScreenCandidates(name)), []);
+    });
+  }
+
+  for (final (language, name) in [('en', 'My presentation'), ('fr', 'Présentation française'), ('ar', 'عرض تقديمي')]) {
+    testWidgets('screen preview, closed source $language', (tester) async {
+      await shoot(tester, 'screen-preview-closed-$language', desktop,
+        (_) => ScreenPreviewScreen(previews: const _ClosedScreenPreview(), source: ScreenSource(
+          id: 'window:test', name: name, kind: ScreenSourceKind.window, width: 1280, height: 720)), []);
     });
   }
 

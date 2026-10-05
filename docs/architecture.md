@@ -324,7 +324,20 @@ recordings folder.
    tool and protected windows. Display IDs use the Windows device name; window IDs
    include process ID and HWND. Never persist these handles. `SourceSelection` owns
    refresh/selection/confirmation outside the widget, rejects vanished sources and
-   suppresses private error details. No capture, thumbnails or input hooks yet.
+   suppresses private error details. No thumbnails or input hooks yet.
+- **Windows screen preview (second slice):** `ScreenPreviews` uses the runner's
+  `spawnalpha/screen_preview` channel. A source is resolved again before creating a
+  `GraphicsCaptureItem` via the HWND/HMONITOR interop. A free-threaded capture pool
+  converts BGRA to RGBA on its worker and supplies a Flutter pixel texture (preview
+  readback capped at 15 fps). Pixel snapshots stay alive through Flutter's release callback;
+  resize recreates the frame pool. Stop revokes events and closes the capture before
+  asynchronously unregistering its texture. Session generations prevent a late stop
+  from stopping a newer preview. C++/WinRT exceptions are enabled only for the runner.
+  `ScreenPreviewController` handles startup, status, retry, timeout and disposal outside
+  the widget. Closed/minimized/failed sources hide the old texture. The camera is released
+  while screen preview is open and reopened afterward. No files, audio, hooks or network.
+  Recording will use GPU surfaces and platform encoders; the preview CPU readback is
+  not the recording pipeline. Windows capture border remains enabled.
 - **SettingsScreen**: the markup source, API key, model, default style, text
   size and mirror setting, plus **Privacy and licences**: what leaves the
   device, and the licence page (`showLicensePage`).

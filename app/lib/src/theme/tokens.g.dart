@@ -330,6 +330,8 @@ abstract final class SaDurations {
   static const Duration beat = Duration(milliseconds: 1000);
   /// Delay between cues when a markup pass draws in; cap the whole pass at 800ms.
   static const Duration stagger = Duration(milliseconds: 18);
+  /// Check live-preview size and source availability; this does not drive capture frames.
+  static const Duration previewPoll = Duration(milliseconds: 250);
 }
 
 /// Easing curves.

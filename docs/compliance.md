@@ -187,7 +187,8 @@ person using the app.
 | "What leaves your device" explained in Settings | Done |
 | iOS export-compliance flag | Done |
 | No secrets in the repository (scanned 2026-09-30) | Done |
-| Windows source picker: names kept only in memory, no capture or title logging, no new dependency | Checked 2026-10-05; thumbnails/capture remain pending |
+| Windows source picker: names kept only in memory, no capture or title logging, no new dependency | Checked 2026-10-05; owner-confirmed. Recording and thumbnails remain pending; preview is separate below |
+| Windows live preview: selected source only, frames in memory, no files/audio/network/private logs, capture closes on exit | Checked 2026-10-05; owner confirmed live updates. Uses installed Windows SDK APIs; no copied code or new package |
 | Repository visibility or proprietary notice | **Owner decision** |
 | Privacy policy, terms of service and EULA drafted by counsel | Before paid launch |
 | CNDP declaration (Morocco), if established there | Before processing personal data at scale |

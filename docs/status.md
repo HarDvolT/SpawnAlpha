@@ -6,9 +6,9 @@ Last updated: 2026-10-05
 
 **Build step 1 of 7 (script markup and coached prompter): code complete and the main Windows
 retest is owner-confirmed. Dot, One phrase, Center, Kinetic and Voice pace are the approved
-starting choices. Build step 2 has started with a Windows display/window source picker;
-the owner confirmed source selection. Screen capture and the excluded floating
-prompter are not built yet.** The build order is in
+starting choices. Build step 2 has a Windows display/window source picker, confirmed by
+the owner and pushed, plus a live capture preview confirmed by the owner. Saving screen
+takes and the excluded floating prompter are not built yet.** The build order is in
 [product-brief.md](product-brief.md#build-order); it was revised on 2026-09-30.
 
 The owner's first test on Windows (build #1) found: no microphone permission prompt and no
@@ -31,8 +31,9 @@ build step 2 (screen recording).
   `flutter_secure_storage_windows`). `flutter doctor -v` passes Windows, Visual Studio,
   desktop device and network checks. Android is intentionally not installed yet.
 - **Local checks and launch:** `flutter pub get` succeeds; `flutter analyze` prints
-  **No issues found!**; all **181 tests pass** (168 before defaults/source selection).
-  All **63 screenshot cases pass**, including the source picker in EN/FR/AR.
+  **No issues found!**; all **194 tests pass** (181 before live preview).
+  All **66 screenshot cases pass**, including the source picker and unavailable-preview
+  screen in EN/FR/AR. The Windows debug build succeeds with the native capture backend.
   Windows Git checkout converted generated
   tokens to CRLF, causing the exact-generation test to fail: `.gitattributes` now keeps
   `tokens.g.dart` in LF and the tokens were regenerated without changing design values.
@@ -78,13 +79,33 @@ build step 2 (screen recording).
   Native smoke check found both monitors (including the portrait display), omitted SpawnAlpha,
   and returned Display 1 to the setup rail. Nothing is captured by this slice. Camera remains
   the only enabled recording mode. The owner chose a source, confirmed it, and reported that
-  setup shows the chosen name. Source selection is complete and ready to commit/push.
-  Next slice: Windows Graphics Capture live preview/thumbnails, then
-  the excluded floating prompter and recording pipeline (mic, fragmented MP4, Screen/Both).
-  Normal Flutter launch session is currently `51118`; cue-check session `6068` was closed.
+  setup shows the chosen name. Source selection is complete and pushed in `d85687e`.
+  Normal Flutter launch session is currently `12765`; old normal session `51118` and
+  cue-check session `6068` were closed.
   Do not record window titles, scripts or private capture content in logs. No new dependency.
   Flutter accessibility AXTree errors also occurred in the old cue launcher (node 279);
   screenshot-only inspection remains usable. No SDK changes or accessibility suppression.
+- **Resume here (screen recorder slice 2, live preview):** locally implemented Windows
+  Graphics Capture for the selected display or window, presented as a Flutter texture.
+  Setup offers **Preview screen** after choosing a source. The preview says **Live preview
+  only · nothing saved**; it writes no files and opens no audio stream. Returning stops
+  capture and reopens the setup camera. Native smoke checks passed for a browser window,
+  the full main display, repeated start/stop, and camera reopening. The Windows capture
+  border remains on. Source names and frames stay in memory and are never logged.
+  Tests cover resize/aspect ratio, closed or minimized sources, generic errors/retry,
+  first-frame timeout, stale native replies, exit cleanup and double-tap prevention;
+  real source resize/minimize/close still needs a hardware trial. All 194 tests and
+  66 screenshot cases pass; EN/AR unavailable-preview PNGs were inspected.
+  The owner scrolled the browser window and confirmed the preview updates. This slice is
+  complete. The owner is going to sleep and explicitly asked Codex to keep building;
+  further hardware trials can wait until they return. Continue tests/builds and small
+  commits/pushes without waiting for an owner trial after each slice during this session.
+  Next comes the excluded floating prompter and recording pipeline (mic, fragmented MP4,
+  Screen/Both); source thumbnails can follow. Preview uses 8-bit SDR pixels and caps CPU
+  readback at 15 fps; recording should keep frames on the GPU and use platform encoders.
+  A full-display preview can include the setup/preview app and show recursion until
+  excluded-window handling is added. Design docs are updated; the Claude artifact needs
+  republishing by a Claude session.
 - **Cue retest history (superseded by normal-app launch above):** `app/tool/cue_check.dart` is a development-only launch target.
   It uses the real Home/practice screens with memory-only scripts, settings and keys;
   optional recordings go under `app/build/cue-check/recordings`, on E: on this PC.
@@ -126,9 +147,8 @@ build step 2 (screen recording).
   Close practice to access the French and Arabic scripts on Home.
   This launcher has temporary test choices; ask about defaults in the normal app afterward.
 
-- **The code:** all the work so far is on the branch `claude/inspiring-euler-3v24zv`, 26
-  commits ahead of `main` (which holds only the initial commit). Merge it into `main` with a
-  pull request on GitHub, or check the branch out, before starting.
+- **The code:** all work is on `claude/inspiring-euler-3v24zv`; keep working on that branch.
+  `main` holds only the initial commit.
 - **The guide:** Codex reads [AGENTS.md](../AGENTS.md) on its own. Set up the PC from its "On a
   Windows PC" section (Visual Studio 2022 with C++, Developer Mode, Flutter 3.47.5), then run
   `flutter analyze` and `flutter test` from `app/`.
@@ -152,11 +172,11 @@ build step 2 (screen recording).
 | Prompter widget: cues, reading line, pause badge, pace bars, mirror, RTL | Done, tested (widget tests plus rendered screenshots) |
 | Voice pacing (moves while you speak, level-based), line-step motion | Done, tested. Tried by the owner on Windows (build #2) |
 | Guide choice (bouncing Dot, Underline, Spotlight, Off; G key) and motion choice (Line step, Smooth, One phrase), kept in settings | Done, tested. The owner tried the choice in build #4 |
-| The explanatory dot: grows into each cue in its colour, with the cue's glyph inside (pause sign with a timer ring, breath inhaling, stress slam and strike, run announcements, echoes, streaks and sparks, a microphone while waiting) | Done, tested (unit tests of `BouncePath`, screenshots of each state). **Needs the owner's retest** |
-| Kinetic cues that act out the instruction: stress punches to 1.3× with a strike, energy hops, faster leans, slower floats, a pause makes the next words wait | Done, tested (no-reflow tests, screenshots). **Needs the owner's retest** |
-| One phrase motion: the phrase being said, large and centred, the next one dimmed | Done, tested (phrase splitting in EN, FR, AR). **Needs the owner's retest** |
-| Home screen (director's desk): Record next hero, scripts as marked pages, recent takes, sidebar or tab bar; Takes screen | Done, tested (widget tests, screenshots desktop, dark, phone, first run). **Needs the owner's retest** |
-| Windows record set-up rail: mode, camera, every microphone with its own meter, sound check, blocked-by-Windows panel with a button to the privacy settings, prompter choices, and a record button that refuses silence unless chosen | Done, tested (unit and widget tests, screenshots). The native part (one meter per microphone, access denied) compiles only in CI. **Needs the owner's retest** |
+| The explanatory dot: grows into each cue in its colour, with the cue's glyph inside (pause sign with a timer ring, breath inhaling, stress slam and strike, run announcements, echoes, streaks and sparks, a microphone while waiting) | Done, tested, owner-confirmed on Windows; line returns revised after feedback |
+| Kinetic cues that act out the instruction: stress punches to 1.3× with a strike, energy hops, faster leans, slower floats, a pause makes the next words wait | Done, tested, owner-confirmed on Windows |
+| One phrase motion: the phrase being said, large and centred, the next one dimmed | Done, tested in EN/FR/AR; steady brightness fix owner-confirmed on Windows |
+| Home screen (director's desk): Record next hero, scripts as marked pages, recent takes, sidebar or tab bar; Takes screen | Done, tested; Home owner-confirmed on Windows |
+| Windows record set-up rail: mode, camera, every microphone with its own meter, sound check, blocked-by-Windows panel with a button to the privacy settings, prompter choices, and a record button that refuses silence unless chosen | Done, tested, built locally. Headset meter and Check owner-confirmed; privacy-switch and explicit-silence paths still need hardware trials |
 | Editor: write, style and language, markup, review marks and suggestions | Done, tested (widget test of the main flow) |
 | Practice prompter screen with keyboard shortcuts | Done |
 | Camera recording screen (countdown, prompter overlay, saves takes) | Works on Windows (owner, build #2), with sound. Android not yet tried |
@@ -167,22 +187,26 @@ build step 2 (screen recording).
 | Design v2 in the app: fonts and generated tokens, Studio theme, script page (marker swipes, margin notes, director's pass), kinetic prompter with Still, glass hold badge, record screen (glass panel, countdown, record button, timecode), privacy and licences in Settings | Done, tested (widget tests plus rendered screenshots). What's left is listed in the next steps |
 | CI (`.github/workflows/build.yml`): analyze, test, then Windows and Android test builds as downloadable artifacts | Working. Run #9 (2026-09-30, <https://github.com/HarDvolT/SpawnAlpha/actions/runs/36788754590>) is green with everything above, including the new native microphone code |
 | Compliance groundwork ([compliance.md](compliance.md)) | Rules and checklist written, licence page in the app, no secrets in the repo. Legal documents and filings are still to do |
-| Screen and Screen + camera recording, cursor companion, telemetry | Designed (`docs/design/recording.md`). Not built. |
+| Windows display/window selection and live preview | Built/tested locally and owner-confirmed |
+| Screen and Screen + camera recording, excluded floating prompter, cursor companion, telemetry | Designed (`docs/design/recording.md`). Source selection and preview started; saving screen takes and the floating prompter remain to build. |
 | Director's Cut (auto-edit, captions, auto-zoom, finish screen) | Designed (`docs/design/autoedit.md`). Not built; needs a native render core. |
 
-149 tests pass (`cd app && flutter test`), and `flutter analyze` is clean.
+194 tests pass (`cd app && flutter test`), 66 screenshot cases pass, and `flutter analyze` is clean.
 
 ## Next steps
 
 1. ~~Get the owner's answer on the roadmap.~~ Done 2026-09-30: approved (see Decisions).
-2. **The owner tries the latest build on Windows** (the newest green **Build** run on the
-   branch; GitHub Actions, Artifacts):
+2. **Main Windows retest and defaults are complete** (2026-10-05; local Windows build):
    - Home: Record next, the script pages, Practice and Record from the hero.
    - The record set-up rail (window wider than 1000px): every microphone moves on its own
      meter; Check says "We hear you"; with Windows' microphone switches off it says so and
      opens the settings; Record refuses silence unless "record without sound" is chosen.
    - The dot acting out each cue, and the kinetic cues; One phrase motion.
-   Then ask which defaults to keep and what to change.
+   The owner confirmed Home, the headset meter and Check, the dot, kinetic words,
+   alignment and the One phrase brightness fix, and approved the starting defaults.
+   Privacy-switch and explicit-silence paths still need hardware trials. The owner also
+   confirmed the browser-window live preview updates. Continue build step 2 while they
+   sleep; they will try the later pieces together when they return.
 3. **Remaining design v3 in the app:** the floating prompter window and cursor companion come
    with build step 2 (screen recording).
 4. **Finish design v2 in the app.** Done so far: the fonts, tokens, theme, script page,
@@ -324,12 +348,28 @@ build step 2 (screen recording).
 - Voice pace follows the microphone level, not the words: it knows when you speak, not
   which word you are on. Voice-following (speech recognition) is build step 3.
 - On Windows, the level meter opens its own shared-mode stream on the microphone next to the
-  recording, and during the set-up one more per microphone. Screen recording is not built
-  yet.
+  recording, and during the set-up one more per microphone. Screen capture preview works;
+  saving screen recordings is not built yet.
+- Live preview uses an 8-bit SDR, 15 fps CPU readback path. Full-display preview can show
+  recursion because the setup/preview window is not excluded yet. Recording needs a GPU
+  pipeline, platform encoders and an excluded floating prompter.
 - The on-device markup is heuristic. For example, French and Arabic stress rules are based on
   word lists, not prosody.
 
 ## Session log
+
+- 2026-10-05, Windows recorder slice 2 (live preview):
+  - Pushed owner-confirmed source selection as `d85687e`.
+  - Added selected-source Windows Graphics Capture and a Flutter texture preview, with
+    start/stop ownership, generation guards, safe resize, first-frame timeout and generic
+    unavailable/retry states. Capture stops on Back; setup reopens the camera.
+  - Prevented duplicate preview routes when the button is tapped twice. Added native-channel,
+    controller, lifetime and EN/FR/AR widget tests, plus three screenshot cases. No new
+    package, copied code, file/audio capture, network transfer or private logging.
+  - Analysis is clean, all 194 tests and 66 screenshot cases pass, and the Windows debug
+    build succeeds. Native browser-window and display smoke checks passed, including
+    repeat capture and camera reopen. The owner confirmed the preview updates while they
+    scroll the chosen window and asked Codex to keep building while they sleep.
 
 - 2026-10-05, defaults and Windows recorder slice 1:
   - Saved the approved starting choices, with regression tests for old/saved settings.
