@@ -385,7 +385,11 @@ class PrompterViewState extends State<PrompterView> with SingleTickerProviderSta
               child: ShaderMask(
                 blendMode: BlendMode.dstIn,
                 shaderCallback: (bounds) => LinearGradient(colors: [_stage.stage, _stage.stage]).createShader(bounds),
-                child: SingleChildScrollView(controller: _scroll, child: text),
+                child: Opacity(
+                  key: const ValueKey('prompter-layout-visibility'),
+                  opacity: _phrase && !measured ? 0 : 1,
+                  child: SingleChildScrollView(controller: _scroll, child: text),
+                ),
               ),
             ),
           ),
@@ -925,9 +929,9 @@ class _KineticLayer extends CustomPainter {
     switch (p.guide) {
       case PrompterGuide.dot:
         // The dot itself is painted above everything (see _DotLayer).
-        if (started) _fadeSaid(canvas, k, layout, current, box);
+        if (started && !p.phrase) _fadeSaid(canvas, k, layout, current, box);
       case PrompterGuide.underline:
-        if (started) _fadeSaid(canvas, k, layout, current, box);
+        if (started && !p.phrase) _fadeSaid(canvas, k, layout, current, box);
         _paintUnderline(canvas, box, current, started);
       case PrompterGuide.spotlight:
         _paintSpotlight(canvas, k, current, box);
@@ -962,7 +966,7 @@ class _KineticLayer extends CustomPainter {
       ..addRect(all)
       ..addRect(here);
     if (next != null) rest.addRect(next);
-    canvas.drawPath(rest, _fade(0.92));
+    canvas.drawPath(rest, _fade(1));
     if (next != null) canvas.drawRect(next, _fade(0.6));
   }
 

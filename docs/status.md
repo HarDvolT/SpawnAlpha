@@ -32,8 +32,8 @@ build step 2 (screen recording).
   `flutter_secure_storage_windows`). `flutter doctor -v` passes Windows, Visual Studio,
   desktop device and network checks. Android is intentionally not installed yet.
 - **Local checks and launch:** `flutter pub get` succeeds; `flutter analyze` prints
-  **No issues found!**; all **165 tests pass** (158 after the line-return fix, plus
-  seven alignment checks).
+  **No issues found!**; all **168 tests pass** (165 after alignment, plus three rendered
+  phrase-brightness checks).
   Windows Git checkout converted generated
   tokens to CRLF, causing the exact-generation test to fail: `.gitattributes` now keeps
   `tokens.g.dart` in LF and the tokens were regenerated without changing design values.
@@ -61,8 +61,10 @@ build step 2 (screen recording).
 - **Resume here:** Home clarity, the headset microphone meter, Check, the cue dot with
   its revised line return, and kinetic words are confirmed. The owner requested Left,
   Center and Right text alignment, and confirmed it works after trying it. Alignment is
-  complete, tested and owner-confirmed. One phrase is now open for the owner's next check;
-  record the owner's defaults afterward.
+  complete, tested, owner-confirmed and pushed in `b9cae4f`. The owner found One phrase
+  starts lit and darkens behind the dot. The owner tried the brightness fix and confirmed
+  the phrase stays clear. All five main desktop checks and alignment are now confirmed.
+  Ask for starting settings next, save those in the normal app, then begin screen recording.
   Screen recording has not started, and no recorder implementation is half done.
 - **Cue retest is prepared:** `app/tool/cue_check.dart` is a development-only launch target.
   It uses the real Home/practice screens with memory-only scripts, settings and keys;
@@ -91,6 +93,17 @@ build step 2 (screen recording).
   app input was sent. The owner subsequently tried the alignment buttons and confirmed
   the text moves as expected. Resumed app control on the next turn and selected One phrase,
   keeping their Center choice, Dot, Timed and Kinetic; reset to the beginning for that check.
+  The owner then reported that text starts fully lit and goes dark as the dot follows.
+  One phrase now keeps the current phrase fully bright with Dot/Underline, hides all
+  but current/next phrases, and hides the paragraph until measurement is ready so it
+  cannot flash the full script. Spotlight retains its explicit word focus.
+  All 168 tests and 60 screenshot cases pass; analysis is clean. Rendered pixel tests
+  verify steady earlier-word brightness and hidden third phrases in EN/FR/AR. English
+  and Arabic phrase screenshots were inspected. A hot reload while changing the scroll
+  widget tree produced a transient multiple-scroll-controller assertion; a clean hot
+  restart succeeded. The app is open at the start with Dot, One phrase, Timed, Kinetic
+  and Center. The owner confirmed the brightness fix works. Defaults are the next question;
+  screen recording follows once they are chosen. No recorder work is half done.
   Close practice to access the French and Arabic scripts on Home.
   This launcher has temporary test choices; ask about defaults in the normal app afterward.
 
@@ -295,6 +308,13 @@ build step 2 (screen recording).
 ## Session log
 
 - 2026-10-05, desktop retest:
+  - One phrase feedback: the owner sees text initially lit, then darkening as the dot
+    follows. Fixed the per-word dimming for Dot/Underline in phrase mode and prevented
+    an unmeasured full-script flash. Hidden phrases now disappear completely. Added
+    rendered brightness regressions in EN/FR/AR. All 168 tests and 60 screenshot cases
+    pass; analysis is clean. Restarted the Windows test app for the owner's retry.
+    The owner tried the fix and confirmed the phrase remains clear. Defaults and screen
+    recording are next. All changes to the Claude design artifact still need republishing.
   - The owner confirmed kinetic word effects and requested Left/Center/Right alignment.
     Added the shared Stage choice, persistent setting, recording controls and anchor
     remeasurement. All 165 tests and 57 screenshot cases pass; analysis is clean.

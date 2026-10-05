@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
@@ -194,6 +195,71 @@ void main() {
       ));
       expect(text.textDirection, TextDirection.rtl);
     });
+
+    for (final (language, content) in [
+      (ScriptLanguage.en, 'Alpha beta gamma.\n\nDelta epsilon zeta.\n\nEta theta iota.'),
+      (ScriptLanguage.fr, 'Une phrase claire.\n\nUne autre phrase.\n\nLa dernière phrase.'),
+      (ScriptLanguage.ar, 'هذه جملة قصيرة.\n\nوهذه جملة أخرى.\n\nثم الجملة الأخيرة.'),
+    ]) {
+      testWidgets('One phrase stays bright behind the dot in ${language.name}', (tester) async {
+        tester.view.physicalSize = const Size(1280, 800);
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.reset);
+        final doc = ScriptDocument.create(text: content, language: language, style: CoachingStyle.presentation);
+        final c = PrompterController(doc);
+        addTearDown(c.dispose);
+        final boundaryKey = GlobalKey();
+        await tester.pumpWidget(MaterialApp(home: RepaintBoundary(
+          key: boundaryKey,
+          child: PrompterView(controller: c, fontSize: 32, motion: PrompterMotion.phrase),
+        )));
+        // Before anchors exist, hide text instead of flashing the whole script.
+        final visibility = find.byKey(const ValueKey('prompter-layout-visibility'));
+        expect(tester.widget<Opacity>(visibility).opacity, 0);
+        await tester.pumpAndSettle();
+        expect(tester.widget<Opacity>(visibility).opacity, 1);
+        final boundary = boundaryKey.currentContext!.findRenderObject()! as RenderRepaintBoundary;
+        final paragraph = tester.renderObject<RenderParagraph>(find.byType(RichText).first);
+        final text = paragraph.text.toPlainText();
+        Rect boxOf(int token) {
+          final word = doc.tokens[token].text;
+          final offset = text.indexOf(word);
+          final box = paragraph.getBoxesForSelection(
+              TextSelection(baseOffset: offset, extentOffset: offset + word.length)).first.toRect();
+          return box.shift(boundary.globalToLocal(paragraph.localToGlobal(Offset.zero)));
+        }
+        final first = boxOf(0);
+        final thirdPhrase = boxOf(6);
+        Future<double> brightness(Rect rect) async {
+          return (await tester.runAsync(() async {
+            final image = await boundary.toImage();
+            final pixels = (await image.toByteData(format: ui.ImageByteFormat.rawRgba))!;
+            var sum = 0;
+            for (var y = rect.top.ceil(); y < rect.bottom.floor(); y++) {
+              for (var x = rect.left.ceil(); x < rect.right.floor(); x++) {
+                final index = (y * image.width + x) * 4;
+                sum += pixels.getUint8(index) + pixels.getUint8(index + 1) + pixels.getUint8(index + 2);
+              }
+            }
+            image.dispose();
+            return sum.toDouble();
+          }))!;
+        }
+        final before = await brightness(first);
+        expect(before, greaterThan(0));
+        expect(await brightness(thirdPhrase), 0, reason: 'only current and next phrases show');
+        c.play();
+        await tester.pump();
+        await tester.pump(c.timeline.startOf(2));
+        c.pause();
+        await tester.pumpAndSettle();
+        expect(c.currentToken, 2);
+        // Moving the dot changes a little of its glow around the word;
+        // the old per-word fade removed over half the text's brightness.
+        expect(await brightness(first), closeTo(before, before * 0.02),
+            reason: 'the dot must not darken earlier words of this phrase');
+      });
+    }
 
     testWidgets('every guide and motion paints while playing, without moving a word', (tester) async {
       final words = List.generate(40, (i) => 'word$i').join(' ');

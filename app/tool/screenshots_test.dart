@@ -339,6 +339,24 @@ void main() {
     });
   }
 
+  for (final language in ScriptLanguage.values) {
+    testWidgets('prompter, one phrase stays bright ${language.name}', (tester) async {
+      final script = cueCheckScript(language);
+      await shoot(tester, 'prompter-phrase-bright-${language.name}', desktop, (app) {
+        app.settings.motion = PrompterMotion.phrase;
+        app.settings.alignment = PrompterAlignment.center;
+        return PrompterScreen(script: script);
+      }, [script], before: (tester) async {
+        final c = tester.widget<PrompterView>(find.byType(PrompterView)).controller;
+        c.play();
+        await tester.pump();
+        await tester.pump(c.timeline.startOf(2));
+        c.pause();
+        await tester.pumpAndSettle();
+      });
+    });
+  }
+
   // The dot acting out each cue in the English sample: landing on a
   // stressed word, as the pause sign, inhaling, and announcing a run.
   final dotMoments = <String, Duration Function(PrompterController)>{
