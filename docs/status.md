@@ -37,6 +37,10 @@ build step 2 (screen recording).
   `tokens.g.dart` in LF and the tokens were regenerated without changing design values.
   `flutter run -d windows` builds and opens the app. Existing scripts and takes appear.
   The app is maximized for the desktop retest; the owner's Home feedback is pending.
+  After inspecting the window with Windows UI Automation, the debug console repeatedly
+  logged Flutter `accessibility_bridge.cc` AXTree update errors (nodes 42/44). Home still
+  renders. Investigate Windows accessibility during the retest; no SDK workaround or
+  accessibility suppression has been applied.
 - **Windows build note for the next agent:** a pre-existing Build Tools installation
   lacks ATL, and CMake selected it even though Flutter doctor selects Community. The
   working build cache explicitly selects `C:/Program Files/Microsoft Visual Studio/2022/Community`.
