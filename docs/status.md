@@ -38,7 +38,9 @@ build step 2 (screen recording).
   `flutter run -d windows` builds and opens the app. Existing scripts and takes appear.
   The app is wider than 1000px for the desktop retest. The owner confirmed Home's
   Record next hero, script cards, and Record/Practice buttons are visible and clear.
-  The recording setup is open; the microphone-meter check is next.
+  The recording setup is open. The owner confirmed the meter for
+  `Microphone (HS10-PRO Wireless headset)` moves when speaking. The sound Check is next;
+  its result has not yet been confirmed by the owner.
   After inspecting the window with Windows UI Automation, the debug console repeatedly
   logged Flutter `accessibility_bridge.cc` AXTree update errors (nodes 42/44). Home still
   renders. Investigate Windows accessibility during the retest; no SDK workaround or
@@ -52,7 +54,7 @@ build step 2 (screen recording).
   ```
   Then use `flutter run -d windows` normally. Environment-only instance selection did
   not work on this PC; the explicit CMake cache selection did.
-- **Resume here:** Home clarity is confirmed. Test the microphone rail, Check, cue dot,
+- **Resume here:** Home clarity and the headset microphone meter are confirmed. Test Check, cue dot,
   kinetic words and One phrase, one item at a time; record the owner's defaults afterward.
   Screen recording has not started, and no recorder implementation is half done.
 
