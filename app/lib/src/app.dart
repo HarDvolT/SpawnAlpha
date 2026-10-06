@@ -19,6 +19,7 @@ import 'ui/home_screen.dart';
 import 'transcription/speech_backend.dart';
 import 'transcription/speech_models.dart';
 import 'transcription/speech_processor.dart';
+import 'playback/local_playback.dart';
 
 /// The app's shared services, available to every screen through
 /// [AppScope.of].
@@ -36,6 +37,7 @@ class AppServices {
     RecordingHuds? huds,
     CameraBubbles? bubbles,
     SpeechBackend? speechBackend,
+    LocalPlayback? playback,
   }) : audio = audio ?? AudioInputs.platform(),
        screens = screens ?? ScreenSources.platform(),
        previews = previews ?? ScreenPreviews.platform(),
@@ -44,7 +46,8 @@ class AppServices {
        inspector = inspector ?? RecordingInspector.platform(),
        huds = huds ?? RecordingHuds.platform(),
        bubbles = bubbles ?? CameraBubbles.platform(),
-       speechBackend = speechBackend ?? WindowsSpeechBackend();
+       speechBackend = speechBackend ?? WindowsSpeechBackend(),
+       playback = playback ?? LocalPlayback.platform();
 
   final ScriptLibrary library;
   final Settings settings;
@@ -60,9 +63,21 @@ class AppServices {
   final RecordingHuds huds;
   final CameraBubbles bubbles;
   final SpeechBackend speechBackend;
-  late final SpeechModels speechModels = SpeechModels(Directory('${recordingsDir.parent.path}${Platform.pathSeparator}models'), speechBackend);
-  late final SpeechProcessor speech = SpeechProcessor(speechBackend, speechModels, library, recordingsDir);
-  late final CleanCutStore cuts = CleanCutStore(Directory('${recordingsDir.path}${Platform.pathSeparator}cuts'), library);
+  final LocalPlayback playback;
+  late final SpeechModels speechModels = SpeechModels(
+    Directory('${recordingsDir.parent.path}${Platform.pathSeparator}models'),
+    speechBackend,
+  );
+  late final SpeechProcessor speech = SpeechProcessor(
+    speechBackend,
+    speechModels,
+    library,
+    recordingsDir,
+  );
+  late final CleanCutStore cuts = CleanCutStore(
+    Directory('${recordingsDir.path}${Platform.pathSeparator}cuts'),
+    library,
+  );
   late final ScreenTakeStore screenTakes = ScreenTakeStore(
     recordingsDir,
     library,

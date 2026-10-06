@@ -91,7 +91,7 @@ void main() {
           );
           await tester.pumpAndSettle();
           final transcript = find.byType(SelectableText);
-          await tester.ensureVisible(transcript);
+          await tester.scrollUntilVisible(transcript, 250, scrollable: find.byType(Scrollable).first);
           expect(
             tester.widget<SelectableText>(transcript).data,
             spoken.transcript.words.map((w) => w.text).join(' '),
@@ -152,8 +152,11 @@ void main() {
       ),
     );
     await tester.pump();
+    await tester.scrollUntilVisible(find.text('Cancel processing'), 200, scrollable: find.byType(Scrollable).first);
     expect(find.text('Cancel processing'), findsOneWidget);
+    await tester.scrollUntilVisible(find.byType(LinearProgressIndicator), 150, scrollable: find.byType(Scrollable).first);
     expect(find.byType(LinearProgressIndicator), findsOneWidget);
+    await tester.scrollUntilVisible(find.text('Cancel processing'), -150, scrollable: find.byType(Scrollable).first);
     expect(
       tester
           .widget<FilledButton>(

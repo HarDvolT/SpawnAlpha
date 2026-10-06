@@ -441,6 +441,16 @@ abstract final class SaScreenFx {
   static const double blurMax = 6.0;
 }
 
+/// Studio take review and video playback.
+///
+/// Themed Studio take review and video playback.
+abstract final class SaReview {
+  /// Maximum take preview width; controls remain outside the picture.
+  static const double playerMaxWidth = 960.0;
+  /// Maximum portrait or landscape preview height in take review.
+  static const double playerMaxHeight = 540.0;
+}
+
 /// The four type voices: display, reading, signal and pencil.
 abstract final class SaFonts {
   static const display = 'Anybody';

@@ -14,6 +14,7 @@ import '../transcription/speech_models.dart';
 import 'format.dart';
 import 'home_screen.dart';
 import 'clean_cut_panel.dart';
+import 'take_player.dart';
 
 class TakeReviewScreen extends StatefulWidget {
   const TakeReviewScreen({super.key, required this.script, required this.take});
@@ -211,6 +212,8 @@ class _TakeReviewScreenState extends State<TakeReviewScreen> {
                   '${formatDuration(widget.take.duration)} · original kept on this device',
                   style: SaType.bodySm.copyWith(color: p.ink2),
                 ),
+                const SizedBox(height: SaSpace.s4),
+                TakePlayer(backend: app.playback, path: widget.take.path),
                 const SizedBox(height: SaSpace.s4),
                 Wrap(
                   spacing: SaSpace.s3,

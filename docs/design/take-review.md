@@ -1,6 +1,13 @@
 # Take review
 
-The take opens in the themed Studio. Its original stays on the device and is
+The take opens in the themed Studio with a paused local video player. Play/pause,
+seek and mute controls sit below the picture and support keyboard focus and
+accessible labels. The preview uses the Stage dark background inside the Studio,
+with the review width/height tokens; portrait previews keep their aspect ratio.
+It never starts sound automatically. Leaving the view closes the player;
+backgrounding the app pauses it. Failed playback has a generic retry message and
+the file remains available. Playback uses the Windows platform first.
+Its original stays on the device and is
 available through **Show original file**. Use the reading voice for the title
 and transcript, signal for the word count, and the existing Studio spacing.
 

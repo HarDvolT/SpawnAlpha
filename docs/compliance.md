@@ -67,6 +67,9 @@ paid release, a lawyer should review:
   - AVFoundation on iOS.
 - **Recommendation:** encode through the platform encoders, not a bundled encoder. This
   also favours platform encoders for the render core (see [roadmap.md](roadmap.md)).
+- Local take playback uses Windows MediaPlayer with file-only StorageFile sources,
+  bounded preview frames and generic errors. No extra player package or codec pack;
+  network shares, URLs, alternate streams and reparse points are rejected.
 - **If FFmpeg is used at all:**
   - use an **LGPL build** without `--enable-gpl` or `--enable-nonfree`, which means no
     x264 or x265;

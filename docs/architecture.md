@@ -591,4 +591,17 @@ attaches only to the same transcript revision, preserving current script edits.
 `Take.cutPath` is optional; new speech clears stale cuts. `durationUs` now
 preserves the exact clock across disk, with `durationMs` retained for compatibility.
 Take review renders the switches and exports captions from the selected plan.
-Native video rendering/preview and remaining Cut tracks are still next.
+Native video rendering and remaining Cut tracks are still next.
+
+## Local take playback
+
+`LocalPlayback` exposes guarded open/status/play/pause/seek/mute/close sessions.
+`TakePlaybackController` owns polling, late opens and disposal; a removed view
+never keeps its own player. `TakePlayer` renders a paused preview and accessible
+controls inside the Studio. Native `LocalPlayer` creates Windows MediaPlayer
+off the UI thread from a checked local StorageFile. No URI/network fallback,
+alternate streams or reparse points. Frame-server previews are bounded to
+1280×720 and about 15 fps; immutable RGBA leases survive Flutter's render callback.
+This preview bound does not limit full-resolution exports. Stop revokes playback,
+closes the OS source, waits for active frame work and releases texture ownership.
+OS exceptions and media paths never enter logs or user-facing error text.

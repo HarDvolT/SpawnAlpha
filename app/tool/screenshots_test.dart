@@ -60,6 +60,9 @@ import 'package:spawnalpha/src/transcription/speech_models.dart';
 import '../test/cut/clean_plan_test.dart' show cleanFixture, gap;
 import '../test/model/note_deck_test.dart' show fixtureNotes;
 import '../test/ui/take_review_test.dart' show reviewFixture;
+import '../test/playback/playback_controller_test.dart' show FakePlayback;
+import 'package:spawnalpha/src/ui/take_player.dart';
+import 'package:spawnalpha/src/playback/local_playback.dart';
 
 import 'fixtures/cue_check_scripts.dart';
 import 'fixtures/preview_camera.dart';
@@ -199,6 +202,7 @@ void main() {
       settings: Settings(secrets: MemorySecretStore()),
       recordingsDir: Directory.systemTemp,
       audio: audio ?? const UnsupportedAudioInputs(),
+      playback: FakePlayback(),
     );
   }
 
@@ -228,6 +232,20 @@ void main() {
 
   const phone = Size(430, 900);
   const desktop = Size(1280, 800);
+
+  for (final brightness in [Brightness.light, Brightness.dark]) {
+    for (final portrait in [false, true]) {
+      testWidgets('local player $brightness portrait=$portrait', (tester) async {
+        final playback = FakePlayback()..value = PlaybackStatus(
+          ready: true, width: portrait ? 1080 : 1920, height: portrait ? 1920 : 1080,
+          duration: const Duration(minutes: 1));
+        await shoot(tester, 'take-player-${brightness.name}-${portrait ? 'portrait' : 'landscape'}',
+          portrait ? phone : desktop, (_) => Scaffold(appBar: AppBar(title: const Text('Your take')),
+            body: Padding(padding: const EdgeInsets.all(SaSpace.s5), child: TakePlayer(backend: playback, path: 'generated'))),
+          [], brightness: brightness);
+      });
+    }
+  }
 
   for (final language in ScriptLanguage.values) {
     for (final brightness in [Brightness.light, Brightness.dark]) {

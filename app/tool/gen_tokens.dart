@@ -98,6 +98,7 @@ String generateTokens(Map<String, dynamic> t) {
       (v) => ('SpringDescription', _spring(v)));
   family('prompter', 'SaPrompter', 'Layout constants of the stage.', '', _number);
   family('screen-fx', 'SaScreenFx', 'Defaults for the automatic edit of screen recordings.', '', _number);
+  family('review', 'SaReview', 'Studio take review and video playback.', '', _number);
 
   // ---- type ----
   final type = t['type'] as Map<String, dynamic>;

@@ -42,6 +42,17 @@ build step 2 (screen recording).
 
 ## Handover (2026-10-05): from here, Codex on the owner's Windows PC
 
+- **Latest checkpoint (2026-10-06, local take playback):** 430 Flutter tests,
+  149 screenshot cases and clean analysis. Windows Debug build and generated
+  player check pass: Unicode names, paused first frame, mute, play/pause,
+  paused seeking, end, repeated close/reopen and missing/remote rejection.
+  Review now has an in-app player with bounded previews and accessible controls.
+  MediaPlayer/StorageFile use the Windows platform; no new package or codec.
+  URLs, network drives/shares, alternate streams and reparse points are rejected.
+  Player ownership handles late opens/disposal, and errors never show/log paths.
+  Owner trials remain deferred. **Next:** native streaming render and local
+  video export, then automatic processing, the remaining Cut tracks and coaching.
+
 - **Latest checkpoint (2026-10-06, reversible quiet cuts):** 422 Flutter tests
   and 145 screenshot cases pass, with clean analysis. Native generated speech
   now also measures quiet audio on the original clock and verifies a reversible
