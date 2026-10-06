@@ -43,6 +43,7 @@ void main() {
         'sourceId': source.id,
         'path': 'local/take.mp4',
         'recordAudio': true,
+        'recordSystemAudio': false,
         'microphoneId': 'chosen-endpoint',
       });
       expect((request!.arguments as Map).values, isNot(contains(source.name)));
@@ -55,6 +56,7 @@ void main() {
         'sourceId': source.id,
         'path': 'local/silent.mp4',
         'recordAudio': false,
+        'recordSystemAudio': false,
       });
     },
   );
@@ -103,10 +105,86 @@ void main() {
       'sourceId': source.id,
       'path': 'local/screen.mp4',
       'recordAudio': false,
+      'recordSystemAudio': false,
       'cameraId': 'chosen-camera-link',
       'cameraPath': 'local/camera.mp4',
     });
   });
+
+  test(
+    'computer sound is independent of microphone and paired camera',
+    () async {
+      MethodCall? request;
+      messenger.setMockMethodCallHandler(WindowsScreenRecordings.channel, (
+        call,
+      ) async {
+        request = call;
+        return {'sessionId': 8};
+      });
+      for (final microphone in [false, true]) {
+        await backend.start(
+          source: source,
+          path: 'local/screen.mp4',
+          recordAudio: microphone,
+          recordSystemAudio: true,
+          microphoneId: microphone ? 'chosen-mic' : null,
+          cameraId: 'chosen-camera',
+          cameraPath: 'local/camera.mp4',
+        );
+        expect(request!.arguments, {
+          'sourceId': source.id,
+          'path': 'local/screen.mp4',
+          'recordAudio': microphone,
+          'recordSystemAudio': true,
+          if (microphone) 'microphoneId': 'chosen-mic',
+          'cameraId': 'chosen-camera',
+          'cameraPath': 'local/camera.mp4',
+        });
+      }
+    },
+  );
+
+  test(
+    'computer sound loss has separate counts and never changes voice levels',
+    () async {
+      final reply = <String, Object?>{
+        'state': 'finished',
+        'reason': 'systemAudio',
+        'width': 640,
+        'height': 360,
+        'frames': 30,
+        'audioFrames': 48000,
+        'systemAudioFrames': 36000,
+        'durationUs': 1000000,
+        'peakDb': -100,
+        'rmsDb': -100,
+        'loudestRmsDb': -100,
+        'loudestSystemRmsDb': -18,
+      };
+      messenger.setMockMethodCallHandler(
+        WindowsScreenRecordings.channel,
+        (_) async => reply,
+      );
+      final status = await backend.status(const ScreenRecordingHandle(8));
+      expect(status.reason, ScreenRecordingReason.systemAudio);
+      expect(status.systemAudioFrames, 36000);
+      expect(status.rmsDb, -100);
+      expect(status.loudestSystemRmsDb, -18);
+      for (final invalid in [-1, 'samples']) {
+        reply['systemAudioFrames'] = invalid;
+        await expectLater(
+          backend.status(const ScreenRecordingHandle(8)),
+          throwsFormatException,
+        );
+      }
+      reply['systemAudioFrames'] = 36000;
+      reply['loudestSystemRmsDb'] = double.nan;
+      await expectLater(
+        backend.status(const ScreenRecordingHandle(8)),
+        throwsFormatException,
+      );
+    },
+  );
 
   test('rejects incomplete camera choices before asking Windows', () async {
     var calls = 0;

@@ -456,6 +456,20 @@ recordings folder.
   `native_paired_take_check.dart` to test real native windows/channels/clock/store against
   a generated MP4/window without accessing the owner's camera/mic/desktop. It is excluded
   from all normal builds; normal runner has no file/URL camera input path.
+- **Windows computer-sound core (fifteenth slice):** `SystemAudioCapture` pins the
+  default render endpoint once and uses shared-mode WASAPI loopback with Windows'
+  conversion to stereo PCM16 at 48 kHz. It owns each packet before releasing the
+  endpoint buffer, propagates timestamp/device errors, and never changes endpoints
+  silently. `RecordingAudioMixer` maps both inputs through RecordingClock into a
+  bounded two-second stereo ring. Mono microphone is copied to both channels; stereo
+  playback stays stereo, duplicate/late samples are trimmed, idle gaps are silent and
+  sums saturate rather than wrap. A 100 ms arrival margin is flushed to the saved
+  video end on safe stop/loss. Computer sound contributes no microphone meter or Voice
+  activity. Its frames/strongest level and failure reason are separate in the guarded
+  Dart/native protocol. The explicit audio pipeline check links generated endpoint
+  implementations; no real microphone/playback content can reach fixture files. A
+  separate format/lifetime check opens real loopback but discards every sample in memory.
+  Setup toggle/manifests/controller integration remain next; normal setup stays off.
 - **SettingsScreen**: the markup source, API key, model, default style, text
   size and mirror setting, plus **Privacy and licences**: what leaves the
   device, and the licence page (`showLicensePage`).

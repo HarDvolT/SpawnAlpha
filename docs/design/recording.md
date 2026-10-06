@@ -228,7 +228,18 @@ The set-up screen for Screen and Screen + camera shows the Cut's effects as chip
 
 - The microphone meter is always visible while recording: a 3px bar in `stage-chrome-text` that turns `stage-warn` near clipping. The microphone's name sits beside it, and a tap opens the list.
 - The take records from the microphone chosen at set-up, never from "the first device". If it disappears mid-take, the take stops safely (the fragmented MP4 keeps what was captured) and says why.
-- System audio is a toggle in the screen modes (loopback on Windows), off by default.
+- **Computer sound** is a toggle in the screen modes (loopback on Windows), off by
+  default on each setup visit. Its caption says **Records all sound playing through
+  Windows, not only the chosen window. Stays on this PC.** The choice freezes during
+  countdown/recording. Camera mode never uses it.
+- Windows pins the default playback device at go. Its stereo sound and the chosen
+  mono microphone share the recording/pause clock and are mixed into the screen
+  file once; the separate camera file stays silent. Idle computer sound contributes
+  silence. The microphone meter and Voice pace use only the microphone, never music.
+  Without a working microphone, **Record without microphone** remains an explicit
+  choice and uses Timed pace even if Computer sound is on. If playback access fails
+  or the pinned device disconnects, stop safely and explain why; never drop that
+  sound choice silently or switch to another playback device.
 
 ## Takes
 

@@ -40,6 +40,7 @@ std::string Reason(ScreenRecordingReason reason) {
     case ScreenRecordingReason::microphone: return "microphone";
     case ScreenRecordingReason::encoder: return "encoder";
     case ScreenRecordingReason::camera: return "camera";
+    case ScreenRecordingReason::systemAudio: return "systemAudio";
     default: return "none";
   }
 }
@@ -52,10 +53,12 @@ EncodableMap Status(const ScreenRecordingStatus& status) {
     {EncodableValue("frames"), EncodableValue(static_cast<int64_t>(status.frames))},
     {EncodableValue("audioFrames"), EncodableValue(static_cast<int64_t>(status.audio_frames))},
     {EncodableValue("cameraFrames"), EncodableValue(static_cast<int64_t>(status.camera_frames))},
+    {EncodableValue("systemAudioFrames"), EncodableValue(static_cast<int64_t>(status.system_audio_frames))},
     {EncodableValue("durationUs"), EncodableValue(status.duration_100ns / 10)},
     {EncodableValue("peakDb"), EncodableValue(status.peak_db)},
     {EncodableValue("rmsDb"), EncodableValue(status.rms_db)},
     {EncodableValue("loudestRmsDb"), EncodableValue(status.loudest_rms_db)},
+    {EncodableValue("loudestSystemRmsDb"), EncodableValue(status.loudest_system_rms_db)},
   };
 }
 struct ProbeJob {
@@ -124,8 +127,12 @@ struct ScreenRecorder::Impl {
           const auto camera = StringArgument(*args, "cameraId");
           const auto camera_path = StringArgument(*args, "cameraPath");
           const auto audio = args->find(EncodableValue("recordAudio"));
+          const auto system_audio = args->find(EncodableValue("recordSystemAudio"));
           if (!source || !path || path->empty() || audio == args->end() || !std::holds_alternative<bool>(audio->second)) {
             result->Error("invalid", "Choose the screen and microphone first."); return;
+          }
+          if (system_audio != args->end() && !std::holds_alternative<bool>(system_audio->second)) {
+            result->Error("invalid", "Choose whether to record computer sound."); return;
           }
           if ((camera == nullptr) != (camera_path == nullptr) || (camera && (camera->empty() || camera_path->empty() || *camera_path == *path))) {
             result->Error("invalid", "Choose a camera and a separate file."); return;
@@ -137,7 +144,8 @@ struct ScreenRecorder::Impl {
           auto next = std::make_unique<ScreenRecordingCore>();
           winrt::check_hresult(next->Start(monitor, window, winrt::to_hstring(*path).c_str(),
               microphone ? winrt::to_hstring(*microphone).c_str() : L"", std::get<bool>(audio->second),
-              camera ? winrt::to_hstring(*camera).c_str() : L"", camera_path ? winrt::to_hstring(*camera_path).c_str() : L""));
+              camera ? winrt::to_hstring(*camera).c_str() : L"", camera_path ? winrt::to_hstring(*camera_path).c_str() : L"",
+              system_audio != args->end() && std::get<bool>(system_audio->second)));
           active = std::move(next); ++generation;
           result->Success(EncodableValue(EncodableMap{{EncodableValue("sessionId"), EncodableValue(generation)}}));
         } else if (call.method_name() == "status") {

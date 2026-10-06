@@ -37,7 +37,7 @@ build step 2 (screen recording).
   `flutter_secure_storage_windows`). `flutter doctor -v` passes Windows, Visual Studio,
   desktop device and network checks. Android is intentionally not installed yet.
 - **Local checks and launch:** `flutter pub get` succeeds; `flutter analyze` prints
-  **No issues found!**; all **270 tests pass** (226 before Screen integration).
+  **No issues found!**; all **272 tests pass** (226 before Screen integration).
   All **93 screenshot cases pass**, including the source picker, unavailable-preview
   and default/minimum floating prompter in EN/FR/AR. The Windows debug build succeeds.
   Windows Git checkout converted generated
@@ -287,6 +287,20 @@ build step 2 (screen recording).
   system audio, cursor companion, privacy-limited telemetry and render-core spike remain.
   Slice 13 was pushed in `a77fcff`. Next: try Both with the owner's real chosen camera
   and microphone when they return; continue the remaining step-2 features in small pieces.
+- **Resume here (screen recorder slice 15, computer-sound core):** WASAPI loopback
+  pins Windows' default playback endpoint and supplies stereo PCM16 at 48 kHz. The
+  bounded shared-clock mixer combines optional chosen-microphone voice with playback,
+  preserves stereo/idle silence, removes common pauses and saturates coincident peaks.
+  Microphone meter/Voice activity stay microphone-only. Startup/device/timestamp errors
+  are explicit; safe stop flushes mixed audio to the saved video end. Seven generated
+  full-pipeline checks pass playback-only, mixed, both pause cases, idle, missing and
+  lost playback, with decoded tone/channel/duration checks and no real audio saved.
+  Pure mixer checks pass; real loopback format/lifetime check discards all samples in
+  memory. Analysis is clean, 272 tests pass and the normal Windows debug build succeeds.
+  Slice 14 was pushed in `fdc200f`. **Half done:** native/Dart sound core is ready;
+  normal setup stays off until the explicit off-by-default Computer sound switch,
+  frozen controller choice and durable audio metadata/warnings are connected. Continue
+  that next; owner testing is deferred again by request (2026-10-06).
 - **Cue retest history (superseded by normal-app launch above):** `app/tool/cue_check.dart` is a development-only launch target.
   It uses the real Home/practice screens with memory-only scripts, settings and keys;
   optional recordings go under `app/build/cue-check/recordings`, on E: on this PC.
@@ -542,6 +556,15 @@ build step 2 (screen recording).
   word lists, not prosody.
 
 ## Session log
+
+- 2026-10-06, Windows recorder slice 15 (computer-sound core):
+  - Added pinned Windows stereo loopback, bounded shared-clock microphone/playback
+    mixer and separate sound status/reason. No private logs, new dependency or copied code.
+  - Seven generated native recordings verify stereo tones/mixed voice, pause removal,
+    idle silence, access failure, device loss and aligned endpoints. Pure ring/duplicate/
+    clipping/clock checks pass; actual loopback samples are discarded by the lifetime
+    check. Analysis is clean, 272 tests pass and Windows debug builds. Setup integration
+    remains next; owner will test the app later.
 
 - 2026-10-06, Windows recorder slice 14 (normal Both recording):
   - Connected exact chosen-camera identity, setup device handoff, protected live bubble,

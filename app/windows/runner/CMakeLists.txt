@@ -118,3 +118,21 @@ set_property(TARGET paired_ui_fixture PROPERTY COMPILE_DEFINITIONS ${PAIRED_UI_D
 target_include_directories(paired_ui_fixture PRIVATE "${CMAKE_SOURCE_DIR}")
 target_link_libraries(paired_ui_fixture PRIVATE $<TARGET_PROPERTY:${BINARY_NAME},LINK_LIBRARIES>)
 add_dependencies(paired_ui_fixture flutter_assemble)
+
+# Explicit audio checks. The full pipeline links generated endpoints so no
+# private playback/microphone samples can be written to its fixture videos.
+add_executable(recording_audio_mixer_check EXCLUDE_FROM_ALL "tests/recording_audio_mixer_check.cpp")
+target_compile_features(recording_audio_mixer_check PRIVATE cxx_std_17)
+target_compile_options(recording_audio_mixer_check PRIVATE /W4 /WX /EHsc)
+
+add_executable(system_audio_capture_check EXCLUDE_FROM_ALL "microphone_capture.cpp" "tests/system_audio_capture_check.cpp")
+target_compile_features(system_audio_capture_check PRIVATE cxx_std_17)
+target_compile_options(system_audio_capture_check PRIVATE /W4 /WX /EHsc /wd"4100")
+target_compile_definitions(system_audio_capture_check PRIVATE "NOMINMAX")
+target_link_libraries(system_audio_capture_check PRIVATE "ole32.lib" "windowsapp.lib")
+
+add_executable(audio_recording_check EXCLUDE_FROM_ALL "screen_recording_core.cpp" "gpu_video_writer.cpp" "camera_capture.cpp" "tests/audio_capture_fixture.cpp" "tests/screen_recording_check.cpp")
+target_compile_features(audio_recording_check PRIVATE cxx_std_17)
+target_compile_options(audio_recording_check PRIVATE /W4 /WX /EHsc /wd"4100")
+target_compile_definitions(audio_recording_check PRIVATE "NOMINMAX" "SPAWNALPHA_AUDIO_FIXTURE")
+target_link_libraries(audio_recording_check PRIVATE "d3d11.lib" "dxgi.lib" "mf.lib" "mfplat.lib" "mfreadwrite.lib" "mfuuid.lib" "ole32.lib" "oleaut32.lib" "windowsapp.lib" "user32.lib" "gdi32.lib")

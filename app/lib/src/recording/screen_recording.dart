@@ -20,6 +20,7 @@ enum ScreenRecordingReason {
   microphone,
   encoder,
   camera,
+  systemAudio,
 }
 
 class ScreenRecordingHandle {
@@ -36,16 +37,18 @@ class ScreenRecordingStatus {
     this.frames = 0,
     this.audioFrames = 0,
     this.cameraFrames = 0,
+    this.systemAudioFrames = 0,
     this.duration = Duration.zero,
     this.peakDb = -100,
     this.rmsDb = -100,
     this.loudestRmsDb = -100,
+    this.loudestSystemRmsDb = -100,
   });
   final ScreenRecordingPhase phase;
   final ScreenRecordingReason reason;
-  final int width, height, frames, audioFrames, cameraFrames;
+  final int width, height, frames, audioFrames, cameraFrames, systemAudioFrames;
   final Duration duration;
-  final double peakDb, rmsDb, loudestRmsDb;
+  final double peakDb, rmsDb, loudestRmsDb, loudestSystemRmsDb;
   bool get terminal =>
       phase == ScreenRecordingPhase.finished ||
       phase == ScreenRecordingPhase.failed;
@@ -62,6 +65,7 @@ abstract class ScreenRecordings {
     required ScreenSource source,
     required String path,
     required bool recordAudio,
+    bool recordSystemAudio = false,
     String? microphoneId,
     String? cameraId,
     String? cameraPath,
@@ -84,6 +88,7 @@ class WindowsScreenRecordings implements ScreenRecordings {
     required ScreenSource source,
     required String path,
     required bool recordAudio,
+    bool recordSystemAudio = false,
     String? microphoneId,
     String? cameraId,
     String? cameraPath,
@@ -98,6 +103,7 @@ class WindowsScreenRecordings implements ScreenRecordings {
       'sourceId': source.id,
       'path': path,
       'recordAudio': recordAudio,
+      'recordSystemAudio': recordSystemAudio,
       'microphoneId': ?microphoneId,
       'cameraId': ?cameraId,
       'cameraPath': ?cameraPath,
@@ -150,10 +156,16 @@ class WindowsScreenRecordings implements ScreenRecordings {
       frames: integer('frames'),
       audioFrames: integer('audioFrames'),
       cameraFrames: info['cameraFrames'] == null ? 0 : integer('cameraFrames'),
+      systemAudioFrames: info['systemAudioFrames'] == null
+          ? 0
+          : integer('systemAudioFrames'),
       duration: Duration(microseconds: integer('durationUs')),
       peakDb: level('peakDb'),
       rmsDb: level('rmsDb'),
       loudestRmsDb: level('loudestRmsDb'),
+      loudestSystemRmsDb: info['loudestSystemRmsDb'] == null
+          ? -100
+          : level('loudestSystemRmsDb'),
     );
   }
 
@@ -180,6 +192,7 @@ class UnsupportedScreenRecordings implements ScreenRecordings {
     required ScreenSource source,
     required String path,
     required bool recordAudio,
+    bool recordSystemAudio = false,
     String? microphoneId,
     String? cameraId,
     String? cameraPath,

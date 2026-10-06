@@ -91,6 +91,7 @@ class TestRecorder implements ScreenRecordings {
     required ScreenSource source,
     required String path,
     required bool recordAudio,
+    bool recordSystemAudio = false,
     String? microphoneId,
     String? cameraId,
     String? cameraPath,
