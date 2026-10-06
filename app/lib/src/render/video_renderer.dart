@@ -19,6 +19,7 @@ class VideoRenderRequest {
     required this.format,
     this.camera,
     this.captionStyle = CaptionStyle.readable,
+    this.captionMotion = true,
     List<Caption> captions = const [],
   }) : captions = List.unmodifiable(
          captions.map(
@@ -47,8 +48,11 @@ class VideoRenderRequest {
         throw const FormatException('Invalid captions');
       }
       previous = caption.end;
-      if ((captionStyle == CaptionStyle.karaoke && caption.words.isEmpty) ||
-          caption.words.length > 7) {
+      if ((captionStyle != CaptionStyle.readable && caption.words.isEmpty) ||
+          caption.words.length > (captionStyle == CaptionStyle.punch ? 3 : 7) ||
+          (captionStyle == CaptionStyle.punch &&
+              caption.words.length > 1 &&
+              caption.words.any((w) => w.cue.stress))) {
         throw const FormatException('Missing caption word timings');
       }
       var offset = 0, wordEnd = caption.start;
@@ -84,6 +88,7 @@ class VideoRenderRequest {
   final CutPlan plan;
   final VideoFormat format;
   final CaptionStyle captionStyle;
+  final bool captionMotion;
   final List<Caption> captions;
   Map<String, Object?> toJson() => {
     'source': source,
@@ -96,7 +101,7 @@ class VideoRenderRequest {
     'sourceDurationUs': plan.sourceDuration.inMicroseconds,
     'ranges': plan.ranges.map((r) => r.toJson()).toList(),
     'captions': [
-      for (final caption in captions)
+      for (final caption in _displayCaptions)
         {
           'text': caption.text,
           'startUs': caption.start.inMicroseconds,
@@ -108,6 +113,7 @@ class VideoRenderRequest {
     if (captions.isNotEmpty)
       'captionLayout': {
         'style': captionStyle.name,
+        'motion': captionMotion,
         'rtl': plan.language.isRtl,
         'edge': SaVideoExport.captionEdge,
         'bottom': SaVideoExport.captionBottom,
@@ -127,13 +133,36 @@ class VideoRenderRequest {
         'underlineColor': SaPalette.dark.ripple.toARGB32(),
         'underlineSize': SaVideoExport.captionUnderlineSize,
         'underlineGap': SaVideoExport.captionUnderlineGap,
+        'stressColor': SaPalette.dark.stageStress.toARGB32(),
+        'energyColor': SaPalette.dark.stageEnergy.toARGB32(),
+        'rise': SaVideoExport.captionRise,
+        'popStart': SaVideoExport.captionPopStart,
+        'popMax': SaVideoExport.captionPopMax,
+        'popAmplitude': SaVideoExport.captionPopAmplitude,
+        'punchStart': SaVideoExport.captionPunchStart,
+        'stressWidth': SaVideoExport.captionStressWidth,
+        'punchWidth': SaVideoExport.captionPunchWidth,
+        'slowerWidth': SaVideoExport.captionSlowerWidth,
+        'fasterWidth': SaVideoExport.captionFasterWidth,
+        'smoothMass': SaSprings.smooth.mass,
+        'smoothStiffness': SaSprings.smooth.stiffness,
+        'smoothDamping': SaSprings.smooth.damping,
+        'popMass': SaSprings.pop.mass,
+        'popStiffness': SaSprings.pop.stiffness,
+        'popDamping': SaSprings.pop.damping,
       },
   };
 
-  // Both styles keep the exact saved words; type comes from fixed Cut tokens.
-  TextStyle get _captionType => captionStyle == CaptionStyle.karaoke
-      ? SaType.captionKaraoke
-      : SaType.captionCue;
+  // Styles keep exact saved words; type comes from fixed Cut tokens.
+  TextStyle get _captionType => switch (captionStyle) {
+    CaptionStyle.karaoke => SaType.captionKaraoke,
+    CaptionStyle.punch => SaType.captionPunch,
+    _ => SaType.captionCue,
+  };
+  Iterable<Caption> get _displayCaptions =>
+      captionStyle == CaptionStyle.readable
+      ? captions
+      : captions.map((c) => captionDisplay(c, rtl: plan.language.isRtl));
 }
 
 class RenderCancelled implements Exception {

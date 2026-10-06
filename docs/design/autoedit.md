@@ -169,11 +169,16 @@ later. Every selection changes video and subtitle clocks together.
 The saved plan now renders to a separate finalized H.264/AAC MP4 in 16:9
 1080p/4K, 9:16 or 4:5. This slice fits the complete source on black space;
 face/target reframing, sound polish and crossfades are still pending.
-Optional Readable and Karaoke captions now put complete phrases from saved actual speech
-on the video, using bundled display fonts, the fixed caption plate and safe
-margins. Corrected words and subtitle files share the kept clock; full
-Cue/Punch cue motion remains later. Karaoke uses saved word intervals to fill
-stable phrases and sweep a directional underline; no phrase-divided timing.
+Optional Readable, Cue, Punch and Karaoke captions now follow saved actual
+speech, using bundled display fonts, the fixed caption plate and safe margins.
+Corrected words and subtitle files share the kept clock. Cue reveals words
+with a rise; Punch shows one to three centered words, with stress alone.
+Reliable exact frozen Script matches supply accepted stress/energy/pace cues;
+Notes, changed/added/uncertain words never borrow them. Cue identity survives
+discarded/reordered attempts. Karaoke fills stable phrases and sweeps a
+directional underline over saved word intervals; no phrase-divided timing.
+Still omits transforms/sweeping, starts with system reduced motion and is
+saved with each export. SRT/VTT keep complete actual phrases without decoration.
 Both can include its separate camera in a token-sized corner inset.
 Source ranges drive video, bounded audio and actual SRT/VTT captions together.
 Progress/cancel, decoded verification, recoverable completed jobs and immutable

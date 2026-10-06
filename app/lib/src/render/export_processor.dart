@@ -12,10 +12,37 @@ import '../model/mark.dart';
 import '../storage/clean_cut_store.dart';
 import '../storage/video_export_store.dart';
 import '../transcription/captions.dart';
+import '../transcription/caption_cues.dart';
+import '../transcription/word_timing.dart';
 import '../transcription/speech_processor.dart';
 import 'video_renderer.dart';
 
 enum ExportPhase { idle, preparing, rendering, saving, done, cancelled, failed }
+
+class _CaptionJob {
+  const _CaptionJob(this.source, this.kept, this.plan, this.style);
+  final SavedTranscript source;
+  final WordTranscript kept;
+  final CutPlan plan;
+  final CaptionStyle style;
+}
+
+(List<Caption>, List<Caption>) _exportCaptions(_CaptionJob job) {
+  final cues = captionCuesOnCut(
+    source: job.source.transcript,
+    kept: job.kept,
+    plan: job.plan,
+    snapshot: job.source.snapshot,
+    aligned: job.source.alignment != null,
+  );
+  final phrases = captionsFromSpeech(job.kept, cues: cues);
+  return (
+    phrases,
+    job.style == CaptionStyle.punch
+        ? captionsFromSpeech(job.kept, cues: cues, punch: true)
+        : phrases,
+  );
+}
 
 class ExportProcessor extends ChangeNotifier {
   ExportProcessor(this.renderer, this.store, this.cuts, this.loadWords);
@@ -45,6 +72,7 @@ class ExportProcessor extends ChangeNotifier {
     bool camera = true,
     bool burnedCaptions = true,
     CaptionStyle captionStyle = CaptionStyle.readable,
+    bool captionMotion = true,
   }) async {
     if (busy) return null;
     source = take.path;
@@ -112,8 +140,15 @@ class ExportProcessor extends ChangeNotifier {
         burnedCaptions:
             burnedCaptions && timed != null && timed.words.isNotEmpty,
         captionStyle: burnedCaptions ? captionStyle : CaptionStyle.readable,
+        captionMotion: captionMotion,
       );
-      final captions = video.captions ? captionsFromSpeech(timed!) : null;
+      final captionTracks = video.captions
+          ? await compute(
+              _exportCaptions,
+              _CaptionJob(spoken!, timed!, plan, video.captionStyle),
+            )
+          : null;
+      final captions = captionTracks?.$1;
       final reservation = await store.reserve(
         script.id,
         take,
@@ -132,8 +167,9 @@ class ExportProcessor extends ChangeNotifier {
           camera: video.camera ? take.cameraPath : null,
           plan: plan,
           format: format,
-          captions: video.burnedCaptions ? captions! : const [],
+          captions: video.burnedCaptions ? captionTracks!.$2 : const [],
           captionStyle: video.captionStyle,
+          captionMotion: video.captionMotion,
         ),
         (amount) {
           progress = amount;

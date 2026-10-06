@@ -6,6 +6,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:spawnalpha/src/app.dart';
 import 'package:spawnalpha/src/model/script_document.dart';
 import 'package:spawnalpha/src/model/script_language.dart';
+import 'package:spawnalpha/src/model/caption_style.dart';
+import 'package:spawnalpha/src/model/video_export.dart';
 import 'package:spawnalpha/src/storage/script_store.dart';
 import 'package:spawnalpha/src/storage/settings.dart';
 import 'package:spawnalpha/src/theme/theme.dart';
@@ -122,6 +124,12 @@ void main() {
               services: services,
               child: MaterialApp(
                 theme: buildTheme(Brightness.light),
+                builder: (context, child) => MediaQuery(
+                  data: MediaQuery.of(
+                    context,
+                  ).copyWith(disableAnimations: language == ScriptLanguage.en),
+                  child: child!,
+                ),
                 home: TakeReviewScreen(script: script, take: take),
               ),
             ),
@@ -166,6 +174,61 @@ void main() {
             () => services.cuts.load(library.byId(script.id)!.takes.single),
           ))!.retakes.single.selected,
           isNull,
+        );
+        expect(tester.takeException(), isNull);
+        await tester.ensureVisible(find.byType(DropdownButton<CaptionStyle>));
+        final still = find.widgetWithText(CheckboxListTile, 'Still captions');
+        expect(
+          tester.widget<CheckboxListTile>(still).value,
+          language == ScriptLanguage.en,
+        );
+        await tester.ensureVisible(still);
+        await tester.tap(still);
+        await tester.pumpAndSettle();
+        expect(
+          tester.widget<CheckboxListTile>(still).value,
+          language != ScriptLanguage.en,
+        );
+        await tester.ensureVisible(find.byType(DropdownButton<CaptionStyle>));
+        expect(
+          tester
+              .widget<DropdownButton<CaptionStyle>>(
+                find.byType(DropdownButton<CaptionStyle>),
+              )
+              .value,
+          CaptionStyle.cue,
+        );
+        await tester.tap(find.byType(DropdownButton<VideoFormat>));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text(VideoFormat.portrait.label).last);
+        await tester.pumpAndSettle();
+        expect(
+          tester
+              .widget<DropdownButton<CaptionStyle>>(
+                find.byType(DropdownButton<CaptionStyle>),
+              )
+              .value,
+          CaptionStyle.punch,
+        );
+        await tester.tap(find.byType(DropdownButton<CaptionStyle>));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Karaoke').last);
+        await tester.pumpAndSettle();
+        await tester.tap(find.byType(DropdownButton<VideoFormat>));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text(VideoFormat.landscape.label).last);
+        await tester.pumpAndSettle();
+        expect(
+          tester
+              .widget<DropdownButton<CaptionStyle>>(
+                find.byType(DropdownButton<CaptionStyle>),
+              )
+              .value,
+          CaptionStyle.karaoke,
+        );
+        expect(
+          tester.widget<CheckboxListTile>(still).value,
+          language != ScriptLanguage.en,
         );
         expect(tester.takeException(), isNull);
         await tester.pumpWidget(const SizedBox());

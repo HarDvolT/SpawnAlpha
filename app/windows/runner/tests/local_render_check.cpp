@@ -105,6 +105,11 @@ CaptionLayout CaptionFixture() {
   style.font_size = 56; style.line_height = 64; style.min_size = 28; style.weight = 700;
   style.padding = 12; style.radius = 8; style.shadow_offset = 2;
   style.text_color = 0xffffffff; style.plate_color = 0xa6000000;
+  style.stress_color = 0xffffc940; style.energy_color = 0xffff6ba8;
+  style.rise = 10; style.pop_start = .55; style.pop_max = 1.22; style.pop_amplitude = .22; style.punch_start = .8;
+  style.stress_width = 125; style.punch_width = 135; style.slower_width = 118; style.faster_width = 82;
+  style.smooth_mass = 1; style.smooth_stiffness = 260; style.smooth_damping = 32;
+  style.pop_mass = 1; style.pop_stiffness = 380; style.pop_damping = 18;
   return style;
 }
 
@@ -155,6 +160,70 @@ void VerifyKaraokePixels(const LocalRenderRequest& request) {
   Require(frames == 30 && early > 0 && late > early * 2 && last_white > early_white * 1.2);
   if (request.caption_layout.rtl) Require(std::abs(static_cast<int>(early_right) - static_cast<int>(late_right)) <= 2 && late_left < early_left);
   else Require(std::abs(static_cast<int>(early_left) - static_cast<int>(late_left)) <= 2 && late_right > early_right);
+}
+
+void VerifyMotionPixels(const LocalRenderRequest& request) {
+  com_ptr<IMFAttributes> attributes; check_hresult(MFCreateAttributes(attributes.put(), 1));
+  check_hresult(attributes->SetUINT32(MF_SOURCE_READER_ENABLE_VIDEO_PROCESSING, TRUE));
+  com_ptr<IMFSourceReader> reader; check_hresult(MFCreateSourceReaderFromURL(request.output.c_str(), attributes.get(), reader.put()));
+  com_ptr<IMFMediaType> type; check_hresult(MFCreateMediaType(type.put()));
+  check_hresult(type->SetGUID(MF_MT_MAJOR_TYPE, MFMediaType_Video)); check_hresult(type->SetGUID(MF_MT_SUBTYPE, MFVideoFormat_RGB32));
+  check_hresult(reader->SetCurrentMediaType(kVideoStream, nullptr, type.get()));
+  UINT early_gold = 0, late_gold = 0, early_bottom = 0, late_bottom = 0;
+  int frames = 0;
+  while (true) {
+    DWORD flags = 0; int64_t time = 0; com_ptr<IMFSample> sample;
+    check_hresult(reader->ReadSample(kVideoStream, 0, nullptr, &flags, &time, sample.put()));
+    if (sample) {
+      const auto pixels = CaptionPixels(reader.get(), sample.get(), request.width, request.height);
+      UINT white = 0, gold = 0, bottom = 0, white_left = request.width, white_right = 0,
+        gold_left = request.width, gold_right = 0; uint64_t sum_y = 0;
+      for (UINT y = 0; y < request.height; ++y) for (UINT x = 0; x < request.width; ++x) {
+        const auto i = (static_cast<size_t>(y) * request.width + x) * 4;
+        const bool bright = pixels[i] > 180 && pixels[i + 1] > 180 && pixels[i + 2] > 180;
+        const bool amber = pixels[i + 2] > 140 && pixels[i + 2] > pixels[i + 1] + 5 && pixels[i + 1] > pixels[i] + 20;
+        if (bright || amber) {
+          const bool vertical = request.height > request.width;
+          Require(x >= request.width * .06 - 2 && x <= request.width * (vertical ? .86 : .94) + 2 &&
+            y >= request.height * .13 - 2 && y <= request.height * (vertical ? .79 : .88) + 2);
+          bottom = std::max(bottom, y); sum_y += y;
+        }
+        // Chroma subsampling can make an amber edge bright. Measure neutral
+        // white ink for the neighboring-word separation check.
+        if (bright) ++white;
+        if (bright && pixels[i] > 220 && std::abs(static_cast<int>(pixels[i + 2]) - pixels[i]) < 20 &&
+            std::abs(static_cast<int>(pixels[i + 1]) - pixels[i]) < 20) {
+          white_left = std::min(white_left, x); white_right = std::max(white_right, x);
+        }
+        if (amber) { ++gold; gold_left = std::min(gold_left, x); gold_right = std::max(gold_right, x); }
+      }
+      const bool active = time >= 2000000 && time < 8000000;
+      Require(active ? white + gold > 40 : white == 0 && gold == 0);
+      if (time < 4000000) Require(gold == 0);
+      if (frames == 7) early_bottom = bottom;
+      if (frames == 11) late_bottom = bottom;
+      if (frames == 13) early_gold = gold;
+      if (frames == 17) {
+        late_gold = gold; const auto center = static_cast<double>(sum_y) / (white + gold);
+        Require(request.caption_layout.punch ? center > request.height * .35 && center < request.height * .65 : center > request.height * .6);
+        SaveCaptionPng(request.output + L".png", request.width, request.height, pixels.data());
+        if (request.caption_layout.cue && request.caption_layout.motion) {
+          const bool separated = request.caption_layout.rtl ? white_left > gold_right + 2 : gold_left > white_right + 2;
+          if (!separated) std::cout << "Generated caption spacing: rtl=" << request.caption_layout.rtl << " white=" << white_left << "," << white_right << " amber=" << gold_left << "," << gold_right << "\n";
+          Require(separated);
+        }
+      }
+      ++frames;
+    }
+    if (flags & MF_SOURCE_READERF_ENDOFSTREAM) break;
+  }
+  if (!(frames == 30 && early_gold > 40 && late_gold > 40))
+    std::cout << "Generated motion summary: early=" << early_gold << " late=" << late_gold << "\n";
+  Require(frames == 30 && early_gold > 40 && late_gold > 40);
+  if (request.caption_layout.motion) {
+    Require(late_gold > early_gold * 1.2);
+    if (request.caption_layout.cue) Require(early_bottom > late_bottom);
+  } else Require(std::abs(static_cast<int>(early_gold) - static_cast<int>(late_gold)) < static_cast<int>(late_gold / 10 + 10));
 }
 
 void GenerateExtra(ID3D11Device* device, const std::wstring& path, UINT channels, UINT rate, uint32_t color) {
@@ -379,6 +448,29 @@ int wmain(int count, wchar_t** args) {
       try { RenderLocalVideo(request, cancel, [](double) {}); } catch (...) { timing_rejected = true; }
       Require(timing_rejected && GetFileAttributesW(request.output.c_str()) == INVALID_FILE_ATTRIBUTES);
       request.caption_layout = CaptionFixture(); request.width = 1080; request.height = 1920;
+      for (UINT language = 0; language < 3; ++language) for (bool punch : {false, true}) for (bool moving : {false, true}) {
+        request.width = language == 2 ? 1080 : 1920; request.height = language == 2 ? 1920 : 1080;
+        request.caption_layout = CaptionFixture(); request.caption_layout.rtl = language == 2;
+        request.caption_layout.cue = !punch; request.caption_layout.punch = punch; request.caption_layout.motion = moving;
+        if (punch) { request.caption_layout.font_size = 96; request.caption_layout.line_height = 100; request.caption_layout.weight = 800; }
+        const wchar_t* phrases[] = {L"We launch today.", L"Nous lan\u00e7ons demain.", L"\u0646\u062d\u0646 \u0646\u0640\u0640\u0640\u0628\u062f\u0623 \u0627\u0644\u0622\u0646."};
+        const std::wstring phrase(phrases[language]); request.captions.clear();
+        const auto first_space = phrase.find(L' '), second_space = phrase.find(L' ', first_space + 1);
+        const UINT offsets[] = {0, static_cast<UINT>(first_space + 1), static_cast<UINT>(second_space + 1)};
+        const UINT lengths[] = {static_cast<UINT>(first_space), static_cast<UINT>(second_space - first_space - 1), static_cast<UINT>(phrase.size() - second_space - 1)};
+        if (punch) {
+          for (UINT i = 0; i < 3; ++i) request.captions.push_back({200000 + i * 200000, 400000 + i * 200000,
+            phrase.substr(offsets[i], lengths[i]), {{0, lengths[i], 200000 + i * 200000, 400000 + i * 200000, i == 1, false, i == 2 ? -1 : 0}}});
+        } else {
+          RenderCaption caption{200000, 800000, phrase};
+          for (UINT i = 0; i < 3; ++i) caption.words.push_back({offsets[i], lengths[i], 200000 + i * 200000, 400000 + i * 200000, i == 1, false, i == 2 ? -1 : 0});
+          request.captions = {caption};
+        }
+        request.output = prefix + L"-motion-" + std::to_wstring(language) + (punch ? L"-punch" : L"-cue") + (moving ? L"-moving.mp4" : L"-still.mp4");
+        stage = "render cue-shaped captions"; RenderLocalVideo(request, cancel, [](double) {});
+        stage = "verify Cue/Punch reveal, emphasis, springs and safe pixels"; VerifyMotionPixels(request);
+      }
+      request.caption_layout = CaptionFixture(); request.width = 1080; request.height = 1920;
       request.output = prefix + L"-caption-invalid.mp4"; request.captions = {{200000, 800000, std::wstring(4096, L'W')}};
       bool long_rejected = false;
       stage = "reject unreadable caption without clipping";
@@ -414,7 +506,7 @@ int wmain(int count, wchar_t** args) {
       try { RenderLocalVideo(request, cancel, [](double) {}); } catch (...) { rejected = true; }
       Require(rejected && GetFileAttributesW(request.output.c_str()) == INVALID_FILE_ATTRIBUTES);
     }
-    std::cout << "Local render check passed: streaming PCM/GPU pair, source selection/reordering, reviewed filler and retake tone/picture removal, silent input, stereo resampling, EN/FR/AR Readable and Karaoke timing/safe pixels, actual word fill, RTL underline, gaps, vertical Arabic, no clipped words, camera inset/end, exact portrait duration, cancel cleanup, damaged input and overwrite protection.\n";
+    std::cout << "Local render check passed: streaming PCM/GPU pair, source selection/reordering, reviewed filler and retake tone/picture removal, silent input, stereo resampling, EN/FR/AR Readable/Karaoke/Cue/Punch timing and safe pixels, word reveal, emphasis, spring motion and Still, RTL underline, gaps, vertical Arabic, no clipped words, camera inset/end, exact portrait duration, cancel cleanup, damaged input and overwrite protection.\n";
     MFShutdown(); CoUninitialize(); return 0;
   } catch (...) {
     std::cerr << "Local render check failed at " << stage << ": 0x" << std::hex << static_cast<unsigned long>(winrt::to_hresult()) << "\n";

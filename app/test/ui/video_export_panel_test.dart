@@ -15,7 +15,7 @@ import '../render/export_processor_test.dart' show FakeRenderer;
 import '../storage/screen_take_store_test.dart' show FakeInspector;
 
 void main() {
-  for (final mode in ['choose', 'busy', 'off', 'missing']) {
+  for (final mode in ['choose', 'cue', 'punch', 'busy', 'off', 'missing']) {
     testWidgets('caption style controls and history: $mode', (tester) async {
       tester.view.physicalSize = const Size(430, 900);
       tester.view.devicePixelRatio = 1;
@@ -28,7 +28,10 @@ void main() {
         CleanCutStore(Directory.systemTemp, library),
         (_) async => null,
       );
-      var selected = CaptionStyle.readable;
+      var selected = mode == 'busy'
+          ? CaptionStyle.karaoke
+          : CaptionStyle.readable;
+      var moving = true;
       await tester.pumpWidget(
         MaterialApp(
           theme: buildTheme(Brightness.dark),
@@ -45,6 +48,8 @@ void main() {
                   hasCaptions: mode != 'missing',
                   burnedCaptions: mode != 'off',
                   captionStyle: selected,
+                  captionMotion: moving,
+                  onCaptionMotion: (value) => update(() => moving = value),
                   onCaptionStyle: (value) => update(() => selected = value),
                   videos: [
                     VideoExport(
@@ -73,13 +78,29 @@ void main() {
           tester.widget<DropdownButton<CaptionStyle>>(dropdown).onChanged,
           isNull,
         );
+        expect(
+          tester
+              .widget<CheckboxListTile>(
+                find.widgetWithText(CheckboxListTile, 'Still captions'),
+              )
+              .onChanged,
+          isNull,
+        );
       } else {
         await tester.tap(dropdown);
         await tester.pumpAndSettle();
-        await tester.tap(find.text('Karaoke').last);
+        final target = mode == 'cue'
+            ? CaptionStyle.cue
+            : mode == 'punch'
+            ? CaptionStyle.punch
+            : CaptionStyle.karaoke;
+        await tester.tap(find.text(target.label).last);
         await tester.pumpAndSettle();
-        expect(selected, CaptionStyle.karaoke);
-        expect(find.text('Words light up as you say them.'), findsOneWidget);
+        expect(selected, target);
+        expect(find.text(target.description), findsOneWidget);
+        await tester.tap(find.text('Still captions'));
+        await tester.pumpAndSettle();
+        expect(moving, isFalse);
       }
       expect(find.textContaining('Karaoke captions'), findsOneWidget);
       expect(tester.takeException(), isNull);

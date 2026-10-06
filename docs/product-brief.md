@@ -86,6 +86,11 @@ Center alignment, Kinetic word effects and Voice pace when a microphone works
 - **Business model:** a free tier plus a subscription. The subscription is the natural home for the online AI, because it costs money per use.
 - **Name:** to be decided later. The repo is called SpawnAlpha for now.
 - **Core promise:** "finished when you stop". The Director's Cut edits every take automatically from the script, its cues and screen telemetry, so most takes publish without manual editing. Decided 2026-09-30; spec in [design/autoedit.md](design/autoedit.md).
+- **Windows captions:** Readable, Cue, Punch and Karaoke are implemented.
+  Cue starts for wide/feed export and Punch for portrait until explicitly
+  chosen. Still starts with system reduced motion. All styles follow actual
+  saved words; reliable frozen Script matches supply accepted cues, and Arabic
+  decoration never changes subtitle spelling. Decided 2026-10-06.
 
 ## Build order
 

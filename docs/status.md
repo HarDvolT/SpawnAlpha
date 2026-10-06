@@ -20,7 +20,7 @@ now has verified offline model setup, bounded local speech jobs, frozen Script/N
 processing, durable actual words, script alignment and SRT/VTT export in take review.
 Generated short and 70-second app checks pass. Reversible quiet cuts, local
 take playback and first Windows video exports now work. Automatic local speech
-and reversible cutting after Stop are connected. Optional Readable/Karaoke captions
+and reversible cutting after Stop are connected. Optional Readable/Cue/Punch/Karaoke captions
 follow saved actual words/corrections and the cut clock. Reversible filler
 review offers safe optional removals, initially kept; remaining Director's Cut
 tracks are next. Repeated Script sections now have a comparison with original
@@ -49,6 +49,25 @@ dot to grow and act out each cue in the cue's colour, and for the next features.
 build step 2 (screen recording).
 
 ## Handover (2026-10-05): from here, Codex on the owner's Windows PC
+
+- **Latest checkpoint (2026-10-06, Cue/Punch delivery captions):** 663 Flutter
+  tests, 254 screenshot cases, clean analysis and normal Windows Release build.
+  All four styles follow actual
+  saved words. Reliable exact frozen Script matches carry accepted stress,
+  energy and pace; Notes and changed/added/uncertain words never borrow cues.
+  Source-word cue identity survives discarded/reordered attempts. Cue rises at
+  actual starts; Punch shows one to three words, with stress alone. Still
+  removes transforms/sweeping and starts with system reduced motion. Explicit
+  format/style/motion choices survive subsequent format changes and each
+  immutable export. SRT/VTT keep complete wording without Arabic decoration.
+  Native decoded EN/FR/AR reveal, spring/Still, safe-margin and stress-spacing
+  checks pass. Real app-channel Cue/Punch/Karaoke retake exports pass source
+  preservation, clock, captions/subtitles and history/reload. EN/AR controls
+  and native Arabic portrait PNGs inspected. No owner media or new dependency.
+  **Half done:** screen/sound polish, automatic best-performance ranking and
+  full coaching remain. Continue those Cut tracks before voice-follow/mobile.
+  Real speech/hardware trials and paid-launch work remain; owner testing stays
+  deferred. The design artifact needs republishing from docs/design by Claude.
 
 - **Latest checkpoint (2026-10-06, Karaoke video captions):** 636 Flutter
   tests, 230 screenshot cases, clean analysis and normal Windows Release build.
@@ -806,14 +825,22 @@ build step 2 (screen recording).
    cancellable background recognition and durable frozen-aid word results pass;
    take review exports SRT/VTT. See `word-timing.md` for estimated timings and
    remaining real-language quality trials. Step 4 now has reversible quiet cuts
-   and local video export with Readable/Karaoke captions, reversible filler review and
+   and local video export with Readable/Cue/Punch/Karaoke captions, reversible filler review and
    automatic processing after Stop. Repeated sections now offer a paged
    comparison, original listening and safe reversible Keep attempt choices.
    Automatic best-performance ranking is still pending. Next
-   Cue/Punch caption motion, screen/sound polish and delivery coaching; keep originals intact.
+   screen/sound polish and delivery coaching; keep originals intact.
    See OpenScreen in the brief for reusable parts.
 
 ## Decisions
+
+- 2026-10-06, delivery captions: offer all four Windows styles. Cue starts for
+  wide/feed and Punch for portrait until a person chooses a style; preserve
+  explicit choices thereafter. Still starts with system reduced motion and
+  stays optional. Only reliable exact/corrected frozen Script matches carry
+  accepted cues, mapped from original source identity through every cut. Notes
+  and changed/added/uncertain speech keep wording without borrowed cues. Arabic
+  decoration belongs only to video display, never saved words or subtitles.
 
 - 2026-10-06, Karaoke export: offer a separate style using exact saved spoken
   word intervals on the kept clock, with stable shaping and a directional
@@ -1002,6 +1029,25 @@ build step 2 (screen recording).
   word lists, not prosody.
 
 ## Session log
+
+- 2026-10-06, Cue/Punch delivery captions:
+  - Added source-identity cue mapping on a bounded worker, actual gap-phrase
+    breaks, separate Punch chunks and display-only Arabic elongation. Kept
+    reliable accepted cues through removal/reordering; no unsaid words or
+    invented performance grade. Saved style/Still controls/history are additive.
+  - Native shaping fits static axes and the full spring envelope before
+    drawing. Adjacent spaces reserve stress-pop room without reflow or broken
+    Arabic joining. Still retains clock/color and omits transforms/sweeping.
+    Cue/Punch use existing privately loaded OFL fonts and installed Windows APIs.
+  - Clean analysis, 663 tests and 254 screenshots pass, including frozen cues,
+    changed/uncertain/corrected speech, retake identity, Arabic diacritics,
+    malformed timing, format defaults and reduced-motion/explicit overrides.
+    Native generated decoded pixels pass reveal, emphasis, springs/Still,
+    spacing and safe margins. Actual app-channel exports in all three languages
+    pass Cue/Punch/Karaoke caption clocks, retake selection/restore, history and
+    unchanged source bytes and saved Still. Normal Release restored. No owner
+    media/input, new dependency or upload.
+    Screen/sound polish and full coaching are next; owner trials stay deferred.
 
 - 2026-10-06, Karaoke captions on video:
   - Added bounded exact-word UTF-16 metadata, immutable renderer copies and

@@ -116,7 +116,8 @@ vocabulary at 8 KiB; these prototype bounds must never become a silent app limit
 Word timing remains approximate. Verify French, Arabic, Darija and French–Darija
 switching with real consenting speakers before finalizing the default model.
 Automatic processing after Stop, wording flags/corrections, reversible quiet
-cuts and Windows video export with optional Readable/Karaoke captions are now connected. Karaoke
+cuts and Windows video export with optional Readable/Cue/Punch/Karaoke captions
+are connected. Karaoke
 uses exact saved word intervals on the kept clock, never evenly divided phrase
 timing. Corrections retain the
 first recognition and its estimated confidence/times; they do not re-run ASR
@@ -133,3 +134,10 @@ union of kept source ranges; no word is split. Automatic best-performance
 ranking, full Cut polish and delivery
 review remain. The prototype 15-minute decoder limit
 does not apply to the normal bounded runtime.
+
+Cue/Punch use exact saved starts and deterministic spring transforms. Reliable
+exact frozen Script words carry accepted emphasis/pace/energy; original source
+identity is retained through a cut, rather than re-aligning shortened words.
+Accepted gap cues break phrases. Notes and changed/added/uncertain words get no
+borrowed cues. Arabic decorative stretching stays out of saved words/SRT/VTT.
+Still preserves timings/color without movement and is recorded in video history.

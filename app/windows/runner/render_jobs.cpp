@@ -70,6 +70,19 @@ LocalRenderRequest Request(const Map& args) {
           const auto offset = Integer(*word, "offset"), length = Integer(*word, "length");
           if (offset < 0 || offset > 4096 || length < 1 || length > 4096) throw std::runtime_error("Invalid caption range");
           phrase.words.push_back({static_cast<UINT>(offset), static_cast<UINT>(length), Integer(*word, "startUs"), Integer(*word, "endUs")});
+          auto& timed = phrase.words.back();
+          for (const auto* key : {"stress", "energy"}) {
+            if (const auto field = word->find(Value(key)); field != word->end()) {
+              const auto* enabled = std::get_if<bool>(&field->second);
+              if (!enabled) throw std::runtime_error("Invalid caption cue");
+              if (std::string(key) == "stress") timed.stress = *enabled; else timed.energy = *enabled;
+            }
+          }
+          if (const auto field = word->find(Value("pace")); field != word->end()) {
+            const auto* pace = std::get_if<std::string>(&field->second);
+            if (!pace || (*pace != "normal" && *pace != "slower" && *pace != "faster")) throw std::runtime_error("Invalid caption pace");
+            timed.pace = *pace == "slower" ? -1 : *pace == "faster" ? 1 : 0;
+          }
         }
       }
       request.captions.push_back(std::move(phrase));
@@ -88,14 +101,30 @@ LocalRenderRequest Request(const Map& args) {
       layout.padding = Number(*style, "padding"); layout.radius = Number(*style, "radius"); layout.shadow_offset = Number(*style, "shadowOffset");
       if (const auto found_style = style->find(Value("style")); found_style != style->end()) {
         const auto* name = std::get_if<std::string>(&found_style->second);
-        if (!name || (*name != "readable" && *name != "karaoke")) throw std::runtime_error("Invalid caption style");
+        if (!name || (*name != "readable" && *name != "karaoke" && *name != "cue" && *name != "punch")) throw std::runtime_error("Invalid caption style");
         layout.karaoke = *name == "karaoke";
+        layout.cue = *name == "cue"; layout.punch = *name == "punch";
+      }
+      if (const auto field = style->find(Value("motion")); field != style->end()) {
+        const auto* enabled = std::get_if<bool>(&field->second);
+        if (!enabled) throw std::runtime_error("Invalid caption motion"); layout.motion = *enabled;
       }
       if (layout.karaoke) {
         const auto waiting = Integer(*style, "waitingColor"), underline = Integer(*style, "underlineColor");
         if (waiting < 0 || waiting > UINT32_MAX || underline < 0 || underline > UINT32_MAX) throw std::runtime_error("Invalid caption ink");
         layout.waiting_color = static_cast<uint32_t>(waiting); layout.underline_color = static_cast<uint32_t>(underline);
         layout.underline_size = Number(*style, "underlineSize"); layout.underline_gap = Number(*style, "underlineGap");
+      }
+      if (layout.cue || layout.punch || style->find(Value("popMass")) != style->end()) {
+        const auto stress = Integer(*style, "stressColor"), energy = Integer(*style, "energyColor");
+        if (stress < 0 || stress > UINT32_MAX || energy < 0 || energy > UINT32_MAX) throw std::runtime_error("Invalid caption ink");
+        layout.stress_color = static_cast<uint32_t>(stress); layout.energy_color = static_cast<uint32_t>(energy);
+        layout.rise = Number(*style, "rise"); layout.pop_start = Number(*style, "popStart"); layout.pop_max = Number(*style, "popMax");
+        layout.pop_amplitude = Number(*style, "popAmplitude"); layout.punch_start = Number(*style, "punchStart");
+        layout.stress_width = Number(*style, "stressWidth"); layout.punch_width = Number(*style, "punchWidth");
+        layout.slower_width = Number(*style, "slowerWidth"); layout.faster_width = Number(*style, "fasterWidth");
+        layout.smooth_mass = Number(*style, "smoothMass"); layout.smooth_stiffness = Number(*style, "smoothStiffness"); layout.smooth_damping = Number(*style, "smoothDamping");
+        layout.pop_mass = Number(*style, "popMass"); layout.pop_stiffness = Number(*style, "popStiffness"); layout.pop_damping = Number(*style, "popDamping");
       }
     }
   }

@@ -5,6 +5,7 @@ import 'package:spawnalpha/src/model/script_language.dart';
 import 'package:spawnalpha/src/model/video_export.dart';
 import 'package:spawnalpha/src/render/video_renderer.dart';
 import 'package:spawnalpha/src/transcription/captions.dart';
+import 'package:spawnalpha/src/transcription/caption_cues.dart';
 import 'package:spawnalpha/src/transcription/word_timing.dart';
 
 WordTranscript motionWords(ScriptLanguage language) {
@@ -92,8 +93,20 @@ void main() {
         VideoExport.fromJson(video.toJson()).captionStyle,
         CaptionStyle.karaoke,
       );
-      final old = video.toJson()..remove('captionStyle');
+      final old = video.toJson()
+        ..remove('captionStyle')
+        ..remove('captionMotion');
       expect(VideoExport.fromJson(old).captionStyle, CaptionStyle.readable);
+      expect(VideoExport.fromJson(old).captionMotion, isTrue);
+      expect(
+        VideoExport.fromJson(video.toJson()..['captionMotion'] = false)
+            .captionMotion,
+        isFalse,
+      );
+      expect(
+        () => VideoExport.fromJson(video.toJson()..['captionMotion'] = 3),
+        throwsFormatException,
+      );
       old['captionStyle'] = 'unknown';
       expect(() => VideoExport.fromJson(old), throwsFormatException);
       old['captionStyle'] = 4;
@@ -113,6 +126,60 @@ void main() {
       );
     });
   }
+  test('Arabic display elongation leaves actual captions intact and updates UTF-16 ranges', () {
+    final words = motionWords(ScriptLanguage.ar);
+    final phrase = captionsFromSpeech(
+      words,
+      cues: const [CaptionCue(stress: true), CaptionCue(), CaptionCue()],
+    ).single;
+    final request = motionRequest(ScriptLanguage.ar, [
+      phrase,
+    ], style: CaptionStyle.cue);
+    final shown = (request.toJson()['captions'] as List).single as Map;
+    expect(shown['text'], contains('\u0640\u0640\u0640'));
+    expect(request.captions.single.text, isNot(contains('\u0640')));
+    final timed = shown['words'] as List;
+    expect(timed[1]['offset'], phrase.words[1].offset + 3);
+    expect(timed[0]['startUs'], phrase.words.first.start.inMicroseconds);
+    expect(
+      (request.toJson()['captionLayout'] as Map)['popStiffness'],
+      greaterThan(0),
+    );
+  });
+  test('Punch rejects multiword stressed chunks and all kinetic styles require real timing', () {
+    final words = motionWords(ScriptLanguage.en),
+        phrase = captionsFromSpeech(motionWords(ScriptLanguage.en)).single;
+    final stressed = Caption(
+      phrase.text,
+      phrase.start,
+      phrase.end,
+      words: [
+        CaptionWord(
+          phrase.words.first.offset,
+          phrase.words.first.length,
+          phrase.words.first.start,
+          phrase.words.first.end,
+          cue: const CaptionCue(stress: true),
+        ),
+        ...phrase.words.skip(1),
+      ],
+    );
+    expect(
+      () =>
+          motionRequest(words.language, [stressed], style: CaptionStyle.punch),
+      throwsFormatException,
+    );
+    for (final style in CaptionStyle.values.where(
+      (s) => s != CaptionStyle.readable,
+    )) {
+      expect(
+        () => motionRequest(words.language, [
+          Caption(phrase.text, phrase.start, phrase.end),
+        ], style: style),
+        throwsFormatException,
+      );
+    }
+  });
   test('timed caption rejects missing, split, overlapping and incomplete words', () {
     const start = Duration(milliseconds: 100),
         end = Duration(milliseconds: 900);

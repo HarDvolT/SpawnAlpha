@@ -8,6 +8,8 @@
 struct RenderCaptionWord {
   UINT offset = 0, length = 0;
   int64_t start_us = 0, end_us = 0;
+  bool stress = false, energy = false;
+  int pace = 0;
 };
 struct RenderCaption {
   int64_t start_us = 0, end_us = 0;
@@ -24,6 +26,12 @@ struct CaptionLayout {
   bool karaoke = false;
   uint32_t waiting_color = 0, underline_color = 0;
   double underline_size = 0, underline_gap = 0;
+  bool cue = false, punch = false, motion = true;
+  uint32_t stress_color = 0, energy_color = 0;
+  double rise = 0, pop_start = 0, pop_max = 0, pop_amplitude = 0, punch_start = 0;
+  double stress_width = 0, punch_width = 0, slower_width = 0, faster_width = 0;
+  double smooth_mass = 0, smooth_stiffness = 0, smooth_damping = 0;
+  double pop_mass = 0, pop_stiffness = 0, pop_damping = 0;
 };
 // Worker-only, bounded one-phrase layout. DirectWrite shapes bundled fonts and
 // Direct2D composites onto the owned GPU frame. No system font installation.

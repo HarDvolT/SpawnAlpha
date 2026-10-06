@@ -755,6 +755,30 @@ during processing. The fixed Cut palette/type controls its exported appearance.
 Microsoft API references: [drawing effects](https://learn.microsoft.com/en-us/windows/win32/api/dwrite/nf-dwrite-idwritetextlayout-setdrawingeffect)
 and [shaped text ranges](https://learn.microsoft.com/en-us/windows/win32/api/dwrite/nf-dwrite-idwritetextlayout-hittesttextrange).
 
-Cue/Punch cue motion, crossfades, noise/loudness polish,
+`captionCuesOnCut` aligns the frozen full Script on a worker, then carries each
+source word's accepted cue identity through kept ranges, including retakes and
+reordering. Only exact reliable or explicitly corrected matches get stress,
+energy or pace. Changed/added/uncertain words and Notes get no borrowed cues.
+Accepted gaps break phrases. Subtitles stay complete; Punch separately groups
+one to three words and isolates stress. Arabic tatweels decorate only display
+text; adjusted UTF-16 ranges retain the actual word clock. All non-Readable
+styles require complete word timing. `VideoExport.captionMotion` is additive
+with true as the old default; local/portable history records Still.
+
+Native Cue/Punch use token-derived deterministic spring transforms on the
+output clock, never animated text layout. Static per-word axes and maximum
+motion bounds fit first; spaces reserve neighboring stress-pop room. Anybody
+supports the width axis; Reem Kufi uses proportional static pace size and
+decorative stress. Drawing a bounded shaped phrase with transparent other
+words preserves Arabic joining/bidi. Cue skips future words; Punch reveals
+the whole chunk; Karaoke dims future words. Still omits transforms and the
+progressive underline. Both Cue/Punch retain plate/shadow and safe margins.
+The UI starts Cue for wide/feed and Punch for portrait until explicitly chosen,
+and starts Still with system reduced motion. Approved Stage defaults stay intact.
+Microsoft API references: [font axes](https://learn.microsoft.com/en-us/windows/windows-app-sdk/api/win32/dwrite_3/nn-dwrite_3-idwritetextlayout4),
+[character spacing](https://learn.microsoft.com/en-us/windows/win32/api/dwrite_1/nf-dwrite_1-idwritetextlayout1-setcharacterspacing)
+and [drawing transforms](https://learn.microsoft.com/en-us/windows/win32/direct2d/direct2d-transforms-overview).
+
+Crossfades, noise/loudness polish,
 face reframing and automatic zoom/cursor tracks remain. Exported EDL metadata has no
 source media path; private revision references remain in local take history.

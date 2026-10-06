@@ -54,7 +54,9 @@ class _TakeReviewScreenState extends State<TakeReviewScreen> {
   VideoFormat _format = VideoFormat.landscape;
   bool _cameraInExport = true, _reviewReady = false;
   bool _burnedCaptions = true;
-  CaptionStyle _captionStyle = CaptionStyle.readable;
+  CaptionStyle _captionStyle = CaptionStyle.cue;
+  bool _captionStyleChosen = false;
+  bool? _captionMotion;
   List<VideoExport> _videos = [];
   VideoExport? _viewing;
   final _reviewScroll = ScrollController();
@@ -185,6 +187,7 @@ class _TakeReviewScreenState extends State<TakeReviewScreen> {
       camera: _cameraInExport,
       burnedCaptions: _burnedCaptions,
       captionStyle: _captionStyle,
+      captionMotion: _captionMotion ?? !MediaQuery.disableAnimationsOf(context),
     );
     final saved = await app.videoExports.load(_latestTake(app));
     if (mounted) {
@@ -557,7 +560,14 @@ class _TakeReviewScreenState extends State<TakeReviewScreen> {
                 const SizedBox(height: SaSpace.s5),
                 VideoExportPanel(
                   format: _format,
-                  onFormat: (value) => setState(() => _format = value),
+                  onFormat: (value) => setState(() {
+                    _format = value;
+                    if (!_captionStyleChosen) {
+                      _captionStyle = value == VideoFormat.portrait
+                          ? CaptionStyle.punch
+                          : CaptionStyle.cue;
+                    }
+                  }),
                   onExport: _saveVideo,
                   job: app.exports,
                   busy: busy || !_reviewReady || _exporting,
@@ -568,8 +578,15 @@ class _TakeReviewScreenState extends State<TakeReviewScreen> {
                   hasCaptions: words.isNotEmpty,
                   burnedCaptions: _burnedCaptions,
                   captionStyle: _captionStyle,
-                  onCaptionStyle: (value) =>
-                      setState(() => _captionStyle = value),
+                  captionMotion:
+                      _captionMotion ??
+                      !MediaQuery.disableAnimationsOf(context),
+                  onCaptionMotion: (value) =>
+                      setState(() => _captionMotion = value),
+                  onCaptionStyle: (value) => setState(() {
+                    _captionStyle = value;
+                    _captionStyleChosen = true;
+                  }),
                   onBurnedCaptions: (value) =>
                       setState(() => _burnedCaptions = value),
                   videos: _videos,

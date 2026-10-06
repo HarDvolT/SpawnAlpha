@@ -26,6 +26,8 @@ class VideoExportPanel extends StatelessWidget {
     this.onBurnedCaptions,
     this.captionStyle = CaptionStyle.readable,
     this.onCaptionStyle,
+    this.captionMotion = true,
+    this.onCaptionMotion,
   });
   final VideoFormat format;
   final ValueChanged<VideoFormat> onFormat;
@@ -41,6 +43,8 @@ class VideoExportPanel extends StatelessWidget {
   final ValueChanged<bool>? onBurnedCaptions;
   final CaptionStyle captionStyle;
   final ValueChanged<CaptionStyle>? onCaptionStyle;
+  final bool captionMotion;
+  final ValueChanged<bool>? onCaptionMotion;
   final List<VideoExport> videos;
   final ValueChanged<VideoExport> onView, onShow;
 
@@ -54,7 +58,7 @@ class VideoExportPanel extends StatelessWidget {
         Text(
           '${video.createdAt.toLocal().toString().substring(0, 16)} · '
           '${video.format.label} · ${formatCutTime(video.duration)}'
-          '${video.burnedCaptions ? ' · ${video.captionStyle.label} captions' : ''}',
+          '${video.burnedCaptions ? ' · ${video.captionStyle.label} captions${video.captionMotion ? '' : ' · Still'}' : ''}',
           style: SaType.signalLabel.copyWith(color: p.ink2),
         ),
         TextButton.icon(
@@ -149,6 +153,18 @@ class VideoExportPanel extends StatelessWidget {
             captionStyle.description,
             style: SaType.bodySm.copyWith(color: p.ink2),
           ),
+          if (captionStyle != CaptionStyle.readable)
+            CheckboxListTile(
+              contentPadding: EdgeInsets.zero,
+              value: !captionMotion,
+              onChanged: busy
+                  ? null
+                  : (value) => onCaptionMotion?.call(!(value ?? false)),
+              title: const Text('Still captions'),
+              subtitle: const Text(
+                'Keep word timing and emphasis, with less movement.',
+              ),
+            ),
         ],
         if (hasCamera)
           CheckboxListTile(

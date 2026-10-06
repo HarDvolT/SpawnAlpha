@@ -35,9 +35,13 @@ Future<void> main() async {
     ),
   );
   var stage = 'generated input';
-  const style = bool.fromEnvironment('SPAWNALPHA_KARAOKE_CHECK')
+  const styleName = String.fromEnvironment(
+    'SPAWNALPHA_CAPTION_STYLE',
+    defaultValue: 'readable',
+  );
+  final style = const bool.fromEnvironment('SPAWNALPHA_KARAOKE_CHECK')
       ? CaptionStyle.karaoke
-      : CaptionStyle.readable;
+      : CaptionStyle.values.where((s) => s.name == styleName).single;
   ScriptLibrary? library;
   ExportProcessor? exports;
   SpeechProcessor? speech;
@@ -87,10 +91,13 @@ Future<void> main() async {
         ScriptLanguage.fr => 'euh,',
         ScriptLanguage.ar => 'إيه،',
       };
-      final frozen = ScriptDocument.create(
-        language: language,
-        text: scriptText,
-      );
+      final frozen = ScriptDocument.create(language: language, text: scriptText)
+          .copyWith(
+            marks: [
+              const Mark(id: 'stress', kind: MarkKind.stress, start: 1, end: 1),
+              const Mark(id: 'pace', kind: MarkKind.slower, start: 2, end: 2),
+            ],
+          );
       final said = [
         ...frozen.tokens.map((t) => t.text),
         filler,
@@ -170,11 +177,13 @@ Future<void> main() async {
           format,
           clean: plan,
           captionStyle: style,
+          captionMotion: selection == null,
         );
         require(
           video != null &&
               video.burnedCaptions &&
               video.captionStyle == style &&
+              video.captionMotion == (selection == null) &&
               exports.phase == ExportPhase.done,
         );
         final changed = selection != null;
@@ -201,6 +210,8 @@ Future<void> main() async {
       require(
         (await store.load(latest)).length == 3 &&
             (await store.load(latest)).every((v) => v.captionStyle == style) &&
+            (await store.load(latest)).where((v) => !v.captionMotion).length ==
+                1 &&
             (await speech.load(latest))!.transcript.words.length == 7,
       );
       final after = await source.readAsBytes();

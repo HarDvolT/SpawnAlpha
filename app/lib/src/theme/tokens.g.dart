@@ -484,6 +484,24 @@ abstract final class SaVideoExport {
   static const double captionUnderlineSize = 3.0;
   /// Karaoke's word sweep sits below each stable shaped line.
   static const double captionUnderlineGap = 3.0;
+  /// Cue word entry translation at a 1080px short edge.
+  static const double captionRise = 10.0;
+  /// Stress starts compact, driven by the pop spring.
+  static const double captionPopStart = 0.55;
+  /// Maximum reserved word motion envelope; no reflow or clipping.
+  static const double captionPopMax = 1.22;
+  /// Normalized pop-spring impulse on stressed words.
+  static const double captionPopAmplitude = 0.22;
+  /// Punch chunks enter compact on the pop spring.
+  static const double captionPunchStart = 0.8;
+  /// Anybody width axis on stressed Cue/Karaoke words.
+  static const double captionStressWidth = 125.0;
+  /// Anybody width axis on a standalone stressed Punch word.
+  static const double captionPunchWidth = 135.0;
+  /// Anybody width axis for accepted slower caption words.
+  static const double captionSlowerWidth = 118.0;
+  /// Anybody width axis for accepted faster caption words.
+  static const double captionFasterWidth = 82.0;
 }
 
 /// The four type voices: display, reading, signal and pencil.

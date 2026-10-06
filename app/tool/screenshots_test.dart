@@ -327,7 +327,7 @@ void main() {
       for (final working in [false, true]) {
         testWidgets('video export $language $brightness $captionStyle working=$working', (tester) async {
           final script = sampleScripts().firstWhere((s) => s.language == language);
-          await shoot(tester, 'video-export-${language.name}-${brightness.name}-${working ? 'progress' : 'saved'}${captionStyle == CaptionStyle.readable ? '' : '-karaoke'}',
+          await shoot(tester, 'video-export-${language.name}-${brightness.name}-${working ? 'progress' : 'saved'}${captionStyle == CaptionStyle.readable ? '' : '-${captionStyle.name}'}',
             phone, (app) {
               if (working) { app.exports.phase = ExportPhase.rendering; app.exports.progress = .6; }
               return Scaffold(appBar: AppBar(title: const Text('Your take')), body: ListView(

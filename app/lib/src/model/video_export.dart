@@ -25,6 +25,7 @@ class VideoExport {
     this.camera = false,
     this.burnedCaptions = false,
     this.captionStyle = CaptionStyle.readable,
+    this.captionMotion = true,
   }) {
     if ((burnedCaptions && !captions) ||
         !RegExp(r'^[a-zA-Z0-9_-]{1,128}$').hasMatch(id) ||
@@ -40,6 +41,7 @@ class VideoExport {
   final DateTime createdAt;
   final String? wordsPath, cutPath;
   final bool captions, camera, burnedCaptions;
+  final bool captionMotion;
   Map<String, Object?> toJson() => {
     'id': id,
     'format': format.name,
@@ -51,6 +53,7 @@ class VideoExport {
     'camera': camera,
     'burnedCaptions': burnedCaptions,
     if (burnedCaptions) 'captionStyle': captionStyle.name,
+    if (burnedCaptions) 'captionMotion': captionMotion,
   };
   factory VideoExport.fromJson(Map<String, Object?> json) {
     final format = VideoFormat.values
@@ -73,7 +76,8 @@ class VideoExport {
         (json['cutPath'] != null && json['cutPath'] is! String) ||
         json['captions'] is! bool ||
         json['camera'] is! bool ||
-        (json['burnedCaptions'] != null && json['burnedCaptions'] is! bool)) {
+        (json['burnedCaptions'] != null && json['burnedCaptions'] is! bool) ||
+        (json['captionMotion'] != null && json['captionMotion'] is! bool)) {
       throw const FormatException('Invalid video export');
     }
     try {
@@ -88,6 +92,7 @@ class VideoExport {
         camera: json['camera'] == true,
         burnedCaptions: json['burnedCaptions'] == true,
         captionStyle: style,
+        captionMotion: json['captionMotion'] as bool? ?? true,
       );
     } on ArgumentError {
       throw const FormatException('Invalid video export');

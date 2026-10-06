@@ -87,61 +87,80 @@ void main() {
     await root.delete(recursive: true);
   });
   for (final language in ScriptLanguage.values) {
-    test(
-      'Karaoke export uses corrected cut words and remembers its style $language',
-      () async {
-        final transcript = cleanFixture(language);
-        final take = Take(
-          path: '${root.path}/generated.mp4',
-          recordedAt: DateTime(2026),
-          duration: transcript.duration,
-          wordsPath: '${root.path}/words.json',
-        );
-        final script = ScriptDocument.create(language: language)
-            .copyWith(recordingAid: RecordingAid.notes, takes: [take]);
-        await library.save(script);
-        final spoken = SavedTranscript(
-          sourcePath: take.path,
-          transcript: transcript,
-          snapshot: script,
-          quiet: [gap()],
-        );
-        final clean = await cuts.create(script, take, spoken);
-        final job = ExportProcessor(renderer, store, cuts, (_) async => spoken);
-        final video = (await job.export(
-          script,
-          library.byId(script.id)!.takes.single,
-          VideoFormat.portrait,
-          clean: clean,
-          captionStyle: CaptionStyle.karaoke,
-        ))!;
-        final expected = captionsFromSpeech(
-          speechOnCleanCut(transcript, clean),
-        );
-        expect(renderer.request!.captionStyle, CaptionStyle.karaoke);
-        expect(
-          renderer.request!.captions
-              .expand((c) => c.words)
-              .map((w) => w.toJson()),
-          expected.expand((c) => c.words).map((w) => w.toJson()),
-        );
-        expect(
-          await store.file(video, 'srt').readAsString(),
-          subtitleText(expected),
-        );
-        expect(video.captionStyle, CaptionStyle.karaoke);
-        expect(
-          (await store.load(library.byId(script.id)!.takes.single))
-              .single
-              .captionStyle,
-          CaptionStyle.karaoke,
-        );
-        final metadata =
-            jsonDecode(await store.file(video, 'json').readAsString()) as Map;
-        expect((metadata['video'] as Map)['captionStyle'], 'karaoke');
-        job.dispose();
-      },
-    );
+    for (final style in [
+      CaptionStyle.cue,
+      CaptionStyle.punch,
+      CaptionStyle.karaoke,
+    ]) {
+      test(
+        '$style export uses corrected cut words and remembers its style/Still choice $language',
+        () async {
+          final transcript = cleanFixture(language);
+          final take = Take(
+            path: '${root.path}/generated.mp4',
+            recordedAt: DateTime(2026),
+            duration: transcript.duration,
+            wordsPath: '${root.path}/words.json',
+          );
+          final script = ScriptDocument.create(language: language)
+              .copyWith(recordingAid: RecordingAid.notes, takes: [take]);
+          await library.save(script);
+          final spoken = SavedTranscript(
+            sourcePath: take.path,
+            transcript: transcript,
+            snapshot: script,
+            quiet: [gap()],
+          );
+          final clean = await cuts.create(script, take, spoken);
+          final job = ExportProcessor(
+            renderer,
+            store,
+            cuts,
+            (_) async => spoken,
+          );
+          final video = (await job.export(
+            script,
+            library.byId(script.id)!.takes.single,
+            VideoFormat.portrait,
+            clean: clean,
+            captionStyle: style,
+            captionMotion: false,
+          ))!;
+          final expected = captionsFromSpeech(
+            speechOnCleanCut(transcript, clean),
+          );
+          final rendered = captionsFromSpeech(
+            speechOnCleanCut(transcript, clean),
+            punch: style == CaptionStyle.punch,
+          );
+          expect(renderer.request!.captionStyle, style);
+          expect(renderer.request!.captionMotion, isFalse);
+          expect(
+            renderer.request!.captions
+                .expand((c) => c.words)
+                .map((w) => w.toJson()),
+            rendered.expand((c) => c.words).map((w) => w.toJson()),
+          );
+          expect(
+            await store.file(video, 'srt').readAsString(),
+            subtitleText(expected),
+          );
+          expect(video.captionStyle, style);
+          expect(video.captionMotion, isFalse);
+          expect(
+            (await store.load(library.byId(script.id)!.takes.single))
+                .single
+                .captionStyle,
+            style,
+          );
+          final metadata =
+              jsonDecode(await store.file(video, 'json').readAsString()) as Map;
+          expect((metadata['video'] as Map)['captionStyle'], style.name);
+          expect((metadata['video'] as Map)['captionMotion'], isFalse);
+          job.dispose();
+        },
+      );
+    }
     test(
       'retake selection exports only the chosen words and retains restore/history $language',
       () async {
