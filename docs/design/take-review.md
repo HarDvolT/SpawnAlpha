@@ -126,5 +126,10 @@ The short output edge scales the 1080px caption type and geometry tokens.
 Fit at most two lines, shrinking to the caption minimum if necessary; fail
 explicitly rather than clip or omit words. The switch can keep just subtitle
 files, and history records whether captions are on the video. Original media
-is never changed. Cue/Punch/Karaoke animations, sound polish and smooth cut
-transitions extend this first readable style later.
+is never changed. **Caption style** now offers **Readable** and **Karaoke**.
+Karaoke keeps the shaped phrase stable, lights each word at its actual start
+and sweeps an amber underline across its saved duration, in each glyph run's
+direction. Gaps have no invented underline. History shows the chosen style;
+older exports remain Readable. Caption type, dim ink and underline geometry
+come from fixed Cut tokens. Cue/Punch cue motion, sound polish and smooth cut
+transitions remain later slices.

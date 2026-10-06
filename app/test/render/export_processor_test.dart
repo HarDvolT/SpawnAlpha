@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:spawnalpha/src/model/script_document.dart';
 import 'package:spawnalpha/src/model/script_language.dart';
 import 'package:spawnalpha/src/model/video_export.dart';
+import 'package:spawnalpha/src/model/caption_style.dart';
 import 'package:spawnalpha/src/recording/recording_inspector.dart';
 import 'package:spawnalpha/src/render/export_processor.dart';
 import 'package:spawnalpha/src/render/video_renderer.dart';
@@ -86,6 +87,61 @@ void main() {
     await root.delete(recursive: true);
   });
   for (final language in ScriptLanguage.values) {
+    test(
+      'Karaoke export uses corrected cut words and remembers its style $language',
+      () async {
+        final transcript = cleanFixture(language);
+        final take = Take(
+          path: '${root.path}/generated.mp4',
+          recordedAt: DateTime(2026),
+          duration: transcript.duration,
+          wordsPath: '${root.path}/words.json',
+        );
+        final script = ScriptDocument.create(language: language)
+            .copyWith(recordingAid: RecordingAid.notes, takes: [take]);
+        await library.save(script);
+        final spoken = SavedTranscript(
+          sourcePath: take.path,
+          transcript: transcript,
+          snapshot: script,
+          quiet: [gap()],
+        );
+        final clean = await cuts.create(script, take, spoken);
+        final job = ExportProcessor(renderer, store, cuts, (_) async => spoken);
+        final video = (await job.export(
+          script,
+          library.byId(script.id)!.takes.single,
+          VideoFormat.portrait,
+          clean: clean,
+          captionStyle: CaptionStyle.karaoke,
+        ))!;
+        final expected = captionsFromSpeech(
+          speechOnCleanCut(transcript, clean),
+        );
+        expect(renderer.request!.captionStyle, CaptionStyle.karaoke);
+        expect(
+          renderer.request!.captions
+              .expand((c) => c.words)
+              .map((w) => w.toJson()),
+          expected.expand((c) => c.words).map((w) => w.toJson()),
+        );
+        expect(
+          await store.file(video, 'srt').readAsString(),
+          subtitleText(expected),
+        );
+        expect(video.captionStyle, CaptionStyle.karaoke);
+        expect(
+          (await store.load(library.byId(script.id)!.takes.single))
+              .single
+              .captionStyle,
+          CaptionStyle.karaoke,
+        );
+        final metadata =
+            jsonDecode(await store.file(video, 'json').readAsString()) as Map;
+        expect((metadata['video'] as Map)['captionStyle'], 'karaoke');
+        job.dispose();
+      },
+    );
     test(
       'retake selection exports only the chosen words and retains restore/history $language',
       () async {

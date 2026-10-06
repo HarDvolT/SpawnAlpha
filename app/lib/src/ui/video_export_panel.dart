@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../model/video_export.dart';
+import '../model/caption_style.dart';
 import '../render/export_processor.dart';
 import '../theme/theme.dart';
 import 'format.dart';
@@ -23,6 +24,8 @@ class VideoExportPanel extends StatelessWidget {
     this.hasCaptions = false,
     this.burnedCaptions = true,
     this.onBurnedCaptions,
+    this.captionStyle = CaptionStyle.readable,
+    this.onCaptionStyle,
   });
   final VideoFormat format;
   final ValueChanged<VideoFormat> onFormat;
@@ -36,6 +39,8 @@ class VideoExportPanel extends StatelessWidget {
       burnedCaptions;
   final ValueChanged<bool>? onCamera;
   final ValueChanged<bool>? onBurnedCaptions;
+  final CaptionStyle captionStyle;
+  final ValueChanged<CaptionStyle>? onCaptionStyle;
   final List<VideoExport> videos;
   final ValueChanged<VideoExport> onView, onShow;
 
@@ -49,7 +54,7 @@ class VideoExportPanel extends StatelessWidget {
         Text(
           '${video.createdAt.toLocal().toString().substring(0, 16)} · '
           '${video.format.label} · ${formatCutTime(video.duration)}'
-          '${video.burnedCaptions ? ' · Captions on video' : ''}',
+          '${video.burnedCaptions ? ' · ${video.captionStyle.label} captions' : ''}',
           style: SaType.signalLabel.copyWith(color: p.ink2),
         ),
         TextButton.icon(
@@ -120,10 +125,31 @@ class VideoExportPanel extends StatelessWidget {
                 ? null
                 : (value) => onBurnedCaptions?.call(value ?? false),
             title: const Text('Put captions on video'),
-            subtitle: const Text(
-              'Readable phrases. Your corrected words and cut timing.',
-            ),
+            subtitle: const Text('Your corrected words and cut timing.'),
           ),
+        if (hasCaptions && burnedCaptions) ...[
+          Text(
+            'Caption style',
+            style: SaType.signalLabel.copyWith(color: p.ink2),
+          ),
+          DropdownButton<CaptionStyle>(
+            value: captionStyle,
+            hint: const Text('Caption style'),
+            items: [
+              for (final style in CaptionStyle.values)
+                DropdownMenuItem(value: style, child: Text(style.label)),
+            ],
+            onChanged: busy
+                ? null
+                : (value) {
+                    if (value != null) onCaptionStyle?.call(value);
+                  },
+          ),
+          Text(
+            captionStyle.description,
+            style: SaType.bodySm.copyWith(color: p.ink2),
+          ),
+        ],
         if (hasCamera)
           CheckboxListTile(
             contentPadding: EdgeInsets.zero,

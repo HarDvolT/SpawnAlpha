@@ -737,6 +737,24 @@ requires actual caption metadata. Disabling it still writes SRT/VTT. Generated
 decoded-pixel checks use the negotiated RGB stride/aperture, including padded
 portrait rows, rather than assuming export width equals storage width.
 
-Cue/Punch/Karaoke motion, crossfades, noise/loudness polish,
+`CaptionWord` preserves whole-word UTF-16 ranges and the exact kept start/end
+times. Requests own immutable copies and validate complete coverage, word
+limits, surrogate boundaries and chronological intervals on both Dart/native
+sides. Readable retains its legacy phrase-only API. Karaoke requires these
+actual intervals; missing/invalid timing fails without guessing. A single
+stable DirectWrite layout changes brushes per word with `SetDrawingEffect`;
+`HitTestTextRange` supplies shaped boxes, sorted in logical order, whose bidi
+levels determine underline direction. Geometry is cached per phrase, bounded
+by text length; the shadow clears drawing effects first. The plate's footprint
+reserves underline height so ink stays inside portrait safe margins. Gaps have
+no underline, and every spoken word remains in subtitle phrases.
+`VideoExport.captionStyle` is additive with Readable as the legacy default;
+local recovery/history and portable metadata preserve each video's choice.
+The Studio picker appears only for enabled video captions and stays disabled
+during processing. The fixed Cut palette/type controls its exported appearance.
+Microsoft API references: [drawing effects](https://learn.microsoft.com/en-us/windows/win32/api/dwrite/nf-dwrite-idwritetextlayout-setdrawingeffect)
+and [shaped text ranges](https://learn.microsoft.com/en-us/windows/win32/api/dwrite/nf-dwrite-idwritetextlayout-hittesttextrange).
+
+Cue/Punch cue motion, crossfades, noise/loudness polish,
 face reframing and automatic zoom/cursor tracks remain. Exported EDL metadata has no
 source media path; private revision references remain in local take history.

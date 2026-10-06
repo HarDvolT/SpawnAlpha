@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 
 import '../cut/clean_plan.dart';
 import '../model/cut_plan.dart';
+import '../model/caption_style.dart';
 import '../model/script_document.dart';
 import '../model/video_export.dart';
 import '../model/mark.dart';
@@ -43,6 +44,7 @@ class ExportProcessor extends ChangeNotifier {
     CleanPlan? clean,
     bool camera = true,
     bool burnedCaptions = true,
+    CaptionStyle captionStyle = CaptionStyle.readable,
   }) async {
     if (busy) return null;
     source = take.path;
@@ -109,6 +111,7 @@ class ExportProcessor extends ChangeNotifier {
         camera: camera && take.mode == TakeMode.both && take.cameraPath != null,
         burnedCaptions:
             burnedCaptions && timed != null && timed.words.isNotEmpty,
+        captionStyle: burnedCaptions ? captionStyle : CaptionStyle.readable,
       );
       final captions = video.captions ? captionsFromSpeech(timed!) : null;
       final reservation = await store.reserve(
@@ -130,6 +133,7 @@ class ExportProcessor extends ChangeNotifier {
           plan: plan,
           format: format,
           captions: video.burnedCaptions ? captions! : const [],
+          captionStyle: video.captionStyle,
         ),
         (amount) {
           progress = amount;

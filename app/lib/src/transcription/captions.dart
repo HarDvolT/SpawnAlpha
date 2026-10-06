@@ -1,9 +1,23 @@
 import 'word_timing.dart';
 
 class Caption {
-  const Caption(this.text, this.start, this.end);
+  const Caption(this.text, this.start, this.end, {this.words = const []});
   final String text;
   final Duration start, end;
+  final List<CaptionWord> words;
+}
+
+/// UTF-16 ranges refer to the complete shaped phrase, never guessed glyphs.
+class CaptionWord {
+  const CaptionWord(this.offset, this.length, this.start, this.end);
+  final int offset, length;
+  final Duration start, end;
+  Map<String, Object?> toJson() => {
+    'offset': offset,
+    'length': length,
+    'startUs': start.inMicroseconds,
+    'endUs': end.inMicroseconds,
+  };
 }
 
 /// Subtitles always follow actual speech, including free-speech Notes takes.
@@ -13,11 +27,18 @@ List<Caption> captionsFromSpeech(WordTranscript transcript) {
   final words = <SpokenWord>[];
   void finish() {
     if (words.isEmpty) return;
+    var offset = 0;
+    final timed = <CaptionWord>[];
+    for (final word in words) {
+      timed.add(CaptionWord(offset, word.text.length, word.start, word.end));
+      offset += word.text.length + 1;
+    }
     result.add(
       Caption(
         words.map((w) => w.text).join(' '),
         words.first.start,
         words.last.end,
+        words: List.unmodifiable(timed),
       ),
     );
     words.clear();

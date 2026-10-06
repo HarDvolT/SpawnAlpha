@@ -60,7 +60,19 @@ LocalRenderRequest Request(const Map& args) {
       if (!caption) throw std::runtime_error("Invalid caption");
       const auto text = Path(*caption, "text"); text_total += text.size();
       if (text.empty() || text.size() > 4096 || text_total > 4 * 1024 * 1024) throw std::runtime_error("Invalid caption");
-      request.captions.push_back({Integer(*caption, "startUs"), Integer(*caption, "endUs"), text});
+      RenderCaption phrase{Integer(*caption, "startUs"), Integer(*caption, "endUs"), text};
+      if (const auto found_words = caption->find(Value("words")); found_words != caption->end()) {
+        const auto* words = std::get_if<flutter::EncodableList>(&found_words->second);
+        if (!words || words->size() > 7) throw std::runtime_error("Invalid caption words");
+        for (const auto& item : *words) {
+          const auto* word = std::get_if<Map>(&item);
+          if (!word) throw std::runtime_error("Invalid caption word");
+          const auto offset = Integer(*word, "offset"), length = Integer(*word, "length");
+          if (offset < 0 || offset > 4096 || length < 1 || length > 4096) throw std::runtime_error("Invalid caption range");
+          phrase.words.push_back({static_cast<UINT>(offset), static_cast<UINT>(length), Integer(*word, "startUs"), Integer(*word, "endUs")});
+        }
+      }
+      request.captions.push_back(std::move(phrase));
     }
     if (!captions->empty()) {
       const auto* style = std::get_if<Map>(&Field(args, "captionLayout"));
@@ -74,6 +86,17 @@ LocalRenderRequest Request(const Map& args) {
       layout.safe_top = Number(*style, "safeTop"); layout.safe_bottom = Number(*style, "safeBottom"); layout.safe_right = Number(*style, "safeRight");
       layout.font_size = Number(*style, "fontSize"); layout.line_height = Number(*style, "lineHeight"); layout.min_size = Number(*style, "minSize");
       layout.padding = Number(*style, "padding"); layout.radius = Number(*style, "radius"); layout.shadow_offset = Number(*style, "shadowOffset");
+      if (const auto found_style = style->find(Value("style")); found_style != style->end()) {
+        const auto* name = std::get_if<std::string>(&found_style->second);
+        if (!name || (*name != "readable" && *name != "karaoke")) throw std::runtime_error("Invalid caption style");
+        layout.karaoke = *name == "karaoke";
+      }
+      if (layout.karaoke) {
+        const auto waiting = Integer(*style, "waitingColor"), underline = Integer(*style, "underlineColor");
+        if (waiting < 0 || waiting > UINT32_MAX || underline < 0 || underline > UINT32_MAX) throw std::runtime_error("Invalid caption ink");
+        layout.waiting_color = static_cast<uint32_t>(waiting); layout.underline_color = static_cast<uint32_t>(underline);
+        layout.underline_size = Number(*style, "underlineSize"); layout.underline_gap = Number(*style, "underlineGap");
+      }
     }
   }
   return request;

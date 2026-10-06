@@ -1,3 +1,5 @@
+import 'caption_style.dart';
+
 enum VideoFormat {
   landscape('16:9 · 1080p', 1920, 1080),
   portrait('9:16 · 1080p', 1080, 1920),
@@ -22,6 +24,7 @@ class VideoExport {
     this.captions = false,
     this.camera = false,
     this.burnedCaptions = false,
+    this.captionStyle = CaptionStyle.readable,
   }) {
     if ((burnedCaptions && !captions) ||
         !RegExp(r'^[a-zA-Z0-9_-]{1,128}$').hasMatch(id) ||
@@ -32,6 +35,7 @@ class VideoExport {
   }
   final String id;
   final VideoFormat format;
+  final CaptionStyle captionStyle;
   final Duration duration;
   final DateTime createdAt;
   final String? wordsPath, cutPath;
@@ -46,6 +50,7 @@ class VideoExport {
     'captions': captions,
     'camera': camera,
     'burnedCaptions': burnedCaptions,
+    if (burnedCaptions) 'captionStyle': captionStyle.name,
   };
   factory VideoExport.fromJson(Map<String, Object?> json) {
     final format = VideoFormat.values
@@ -54,7 +59,13 @@ class VideoExport {
     final id = json['id'],
         duration = json['durationUs'],
         date = json['createdAt'];
+    final style = json['captionStyle'] == null
+        ? CaptionStyle.readable
+        : CaptionStyle.values
+              .where((s) => s.name == json['captionStyle'])
+              .firstOrNull;
     if (format == null ||
+        style == null ||
         id is! String ||
         duration is! int ||
         date is! String ||
@@ -76,6 +87,7 @@ class VideoExport {
         captions: json['captions'] == true,
         camera: json['camera'] == true,
         burnedCaptions: json['burnedCaptions'] == true,
+        captionStyle: style,
       );
     } on ArgumentError {
       throw const FormatException('Invalid video export');

@@ -108,6 +108,55 @@ CaptionLayout CaptionFixture() {
   return style;
 }
 
+void VerifyKaraokePixels(const LocalRenderRequest& request) {
+  com_ptr<IMFAttributes> attributes; check_hresult(MFCreateAttributes(attributes.put(), 1));
+  check_hresult(attributes->SetUINT32(MF_SOURCE_READER_ENABLE_VIDEO_PROCESSING, TRUE));
+  com_ptr<IMFSourceReader> reader; check_hresult(MFCreateSourceReaderFromURL(request.output.c_str(), attributes.get(), reader.put()));
+  com_ptr<IMFMediaType> type; check_hresult(MFCreateMediaType(type.put()));
+  check_hresult(type->SetGUID(MF_MT_MAJOR_TYPE, MFMediaType_Video)); check_hresult(type->SetGUID(MF_MT_SUBTYPE, MFVideoFormat_RGB32));
+  check_hresult(reader->SetCurrentMediaType(kVideoStream, nullptr, type.get()));
+  UINT early = 0, late = 0, early_white = 0, last_white = 0;
+  UINT early_left = 0, early_right = 0, late_left = 0, late_right = 0;
+  int frames = 0;
+  while (true) {
+    DWORD flags = 0; int64_t time = 0; com_ptr<IMFSample> sample;
+    check_hresult(reader->ReadSample(kVideoStream, 0, nullptr, &flags, &time, sample.put()));
+    if (sample) {
+      const auto pixels = CaptionPixels(reader.get(), sample.get(), request.width, request.height);
+      UINT white = 0, amber = 0, min_x = request.width, max_x = 0;
+      for (UINT y = 0; y < request.height; ++y) for (UINT x = 0; x < request.width; ++x) {
+        const auto i = (static_cast<size_t>(y) * request.width + x) * 4;
+        const bool bright = pixels[i] > 180 && pixels[i + 1] > 180 && pixels[i + 2] > 180;
+        // Thin amber lines are chroma-subsampled; compare channel differences
+        // as well as brightness, rather than requiring an uncompressed RGB.
+        const bool gold = pixels[i + 2] > 140 && pixels[i + 2] > pixels[i + 1] + 5 && pixels[i + 1] > pixels[i] + 20;
+        if (bright || gold) {
+          const bool vertical = request.height > request.width;
+          Require(x >= request.width * .06 - 2 && x <= request.width * (vertical ? .86 : .94) + 2 &&
+            y >= request.height * .13 - 2 && y <= request.height * (vertical ? .79 : .88) + 2);
+        }
+        if (bright) ++white;
+        if (gold) { ++amber; min_x = std::min(min_x, x); max_x = std::max(max_x, x); }
+      }
+      const bool active = time >= 2000000 && time < 8000000;
+      if (!(active ? white > 40 : white == 0 && amber == 0)) std::cout << "Generated Karaoke frame=" << frames << " white=" << white << " amber=" << amber << "\n";
+      Require(active ? white > 40 : white == 0 && amber == 0);
+      if (time >= 4000000 && time < 5000000 && amber != 0) std::cout << "Generated Karaoke gap=" << frames << " amber=" << amber << "\n";
+      if (time >= 4000000 && time < 5000000) Require(amber == 0);
+      if (frames == 7) { early = amber; early_white = white; early_left = min_x; early_right = max_x; }
+      if (frames == 11) { late = amber; late_left = min_x; late_right = max_x; }
+      if (frames == 23) { last_white = white; SaveCaptionPng(request.output + L".png", request.width, request.height, pixels.data()); }
+      ++frames;
+    }
+    if (flags & MF_SOURCE_READERF_ENDOFSTREAM) break;
+  }
+  if (!(frames == 30 && early > 0 && late > early * 2 && last_white > early_white * 1.2))
+    std::cout << "Generated Karaoke summary: early=" << early << " late=" << late << " firstWhite=" << early_white << " lastWhite=" << last_white << " rtl=" << request.caption_layout.rtl << "\n";
+  Require(frames == 30 && early > 0 && late > early * 2 && last_white > early_white * 1.2);
+  if (request.caption_layout.rtl) Require(std::abs(static_cast<int>(early_right) - static_cast<int>(late_right)) <= 2 && late_left < early_left);
+  else Require(std::abs(static_cast<int>(early_left) - static_cast<int>(late_left)) <= 2 && late_right > early_right);
+}
+
 void GenerateExtra(ID3D11Device* device, const std::wstring& path, UINT channels, UINT rate, uint32_t color) {
   GpuVideoWriter writer;
   check_hresult(writer.Start(device, path, kWidth, kHeight, 30, channels ? GpuAudioFormat{rate, channels} : GpuAudioFormat{}));
@@ -302,6 +351,34 @@ int wmain(int count, wchar_t** args) {
       request.output = prefix + L"-caption-portrait.mp4";
       stage = "render Arabic vertical captions"; RenderLocalVideo(request, cancel, [](double) {});
       stage = "verify Arabic vertical safe pixels"; VerifyCaptionPixels(request);
+      request.caption_layout.karaoke = true;
+      request.caption_layout.font_size = 52; request.caption_layout.line_height = 62; request.caption_layout.weight = 600;
+      request.caption_layout.waiting_color = 0x80ffffff; request.caption_layout.underline_color = 0xffffc66d;
+      request.caption_layout.underline_size = 3; request.caption_layout.underline_gap = 3;
+      for (UINT language = 0; language < 5; ++language) {
+        if (language == 3) continue; // Long two-line Readable phrase exceeds seven timed words.
+        request.width = language == 4 ? 1080 : 1920; request.height = language == 4 ? 1920 : 1080;
+        request.caption_layout.rtl = language == 2 || language == 4;
+        RenderCaption phrase{200000, 800000, text[language]};
+        std::vector<std::pair<UINT, UINT>> parts;
+        for (UINT offset = 0; offset < phrase.text.size();) {
+          const auto space = phrase.text.find(L' ', offset), end = space == std::wstring::npos ? phrase.text.size() : space;
+          parts.push_back({offset, static_cast<UINT>(end - offset)}); offset = static_cast<UINT>(end + 1);
+        }
+        for (size_t i = 0; i < parts.size(); ++i) {
+          const auto start = i == 0 ? 200000 : 500000 + static_cast<int64_t>(i - 1) * 300000 / static_cast<int64_t>(parts.size() - 1);
+          const auto end = i == 0 ? 400000 : 500000 + static_cast<int64_t>(i) * 300000 / static_cast<int64_t>(parts.size() - 1);
+          phrase.words.push_back({parts[i].first, parts[i].second, start, end});
+        }
+        request.captions = {phrase}; request.output = prefix + L"-karaoke-" + std::to_wstring(language) + L".mp4";
+        stage = "render timed Karaoke"; RenderLocalVideo(request, cancel, [](double) {});
+        stage = "verify word fill, RTL sweep, gap and safe pixels"; VerifyKaraokePixels(request);
+      }
+      request.output = prefix + L"-karaoke-invalid.mp4"; request.captions.front().words.front().offset = 1;
+      bool timing_rejected = false; stage = "reject malformed Karaoke range";
+      try { RenderLocalVideo(request, cancel, [](double) {}); } catch (...) { timing_rejected = true; }
+      Require(timing_rejected && GetFileAttributesW(request.output.c_str()) == INVALID_FILE_ATTRIBUTES);
+      request.caption_layout = CaptionFixture(); request.width = 1080; request.height = 1920;
       request.output = prefix + L"-caption-invalid.mp4"; request.captions = {{200000, 800000, std::wstring(4096, L'W')}};
       bool long_rejected = false;
       stage = "reject unreadable caption without clipping";
@@ -337,7 +414,7 @@ int wmain(int count, wchar_t** args) {
       try { RenderLocalVideo(request, cancel, [](double) {}); } catch (...) { rejected = true; }
       Require(rejected && GetFileAttributesW(request.output.c_str()) == INVALID_FILE_ATTRIBUTES);
     }
-    std::cout << "Local render check passed: streaming PCM/GPU pair, source selection/reordering, reviewed filler and retake tone/picture removal, silent input, stereo resampling, EN/FR/AR caption timing/safe pixels, vertical Arabic, no clipped words, camera inset/end, exact portrait duration, cancel cleanup, damaged input and overwrite protection.\n";
+    std::cout << "Local render check passed: streaming PCM/GPU pair, source selection/reordering, reviewed filler and retake tone/picture removal, silent input, stereo resampling, EN/FR/AR Readable and Karaoke timing/safe pixels, actual word fill, RTL underline, gaps, vertical Arabic, no clipped words, camera inset/end, exact portrait duration, cancel cleanup, damaged input and overwrite protection.\n";
     MFShutdown(); CoUninitialize(); return 0;
   } catch (...) {
     std::cerr << "Local render check failed at " << stage << ": 0x" << std::hex << static_cast<unsigned long>(winrt::to_hresult()) << "\n";

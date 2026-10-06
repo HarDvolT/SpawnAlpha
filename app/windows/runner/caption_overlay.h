@@ -5,9 +5,14 @@
 #include <memory>
 #include <string>
 #include <vector>
+struct RenderCaptionWord {
+  UINT offset = 0, length = 0;
+  int64_t start_us = 0, end_us = 0;
+};
 struct RenderCaption {
   int64_t start_us = 0, end_us = 0;
   std::wstring text;
+  std::vector<RenderCaptionWord> words;
 };
 struct CaptionLayout {
   bool rtl = false;
@@ -16,6 +21,9 @@ struct CaptionLayout {
   double padding = 0, radius = 0, shadow_offset = 0;
   uint32_t text_color = 0, plate_color = 0;
   UINT weight = 0;
+  bool karaoke = false;
+  uint32_t waiting_color = 0, underline_color = 0;
+  double underline_size = 0, underline_gap = 0;
 };
 // Worker-only, bounded one-phrase layout. DirectWrite shapes bundled fonts and
 // Direct2D composites onto the owned GPU frame. No system font installation.

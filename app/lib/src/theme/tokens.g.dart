@@ -56,6 +56,7 @@ class SaPalette {
     required this.stageGlassEdge,
     required this.captionText,
     required this.captionPlate,
+    required this.captionWaiting,
     required this.ripple,
     required this.shadowFloat,
   });
@@ -165,6 +166,8 @@ class SaPalette {
   final Color captionText;
   /// Optional plate behind Karaoke captions on busy footage.
   final Color captionPlate;
+  /// Karaoke words that have not started; fixed half-white on the caption plate.
+  final Color captionWaiting;
   /// Click ripples and the cursor halo in edited screen recordings (the cue amber, fixed across
   /// themes).
   final Color ripple;
@@ -221,6 +224,7 @@ class SaPalette {
     stageGlassEdge: Color(0x1FFFFFFF),
     captionText: Color(0xFFFFFFFF),
     captionPlate: Color(0xA6000000),
+    captionWaiting: Color(0x80FFFFFF),
     ripple: Color(0xFFFFC940),
     shadowFloat: [BoxShadow(color: Color(0x2415171C), offset: Offset(0.0, 8.0), blurRadius: 24.0), BoxShadow(color: Color(0x1F15171C), offset: Offset(0.0, 1.0), blurRadius: 2.0)],
   );
@@ -274,6 +278,7 @@ class SaPalette {
     stageGlassEdge: Color(0x1FFFFFFF),
     captionText: Color(0xFFFFFFFF),
     captionPlate: Color(0xA6000000),
+    captionWaiting: Color(0x80FFFFFF),
     ripple: Color(0xFFFFC940),
     shadowFloat: [BoxShadow(color: Color(0x80000000), offset: Offset(0.0, 8.0), blurRadius: 24.0), BoxShadow(color: Color(0x66000000), offset: Offset(0.0, 1.0), blurRadius: 2.0)],
   );
@@ -475,6 +480,10 @@ abstract final class SaVideoExport {
   static const double captionMinSize = 28.0;
   /// Readable captions' tight vertical shadow, scaled with output.
   static const double captionShadowOffset = 2.0;
+  /// Karaoke's amber word sweep thickness at a 1080px short edge.
+  static const double captionUnderlineSize = 3.0;
+  /// Karaoke's word sweep sits below each stable shaped line.
+  static const double captionUnderlineGap = 3.0;
 }
 
 /// The four type voices: display, reading, signal and pencil.

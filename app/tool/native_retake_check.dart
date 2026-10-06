@@ -6,6 +6,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:spawnalpha/src/cut/clean_plan.dart';
 import 'package:spawnalpha/src/model/cut_plan.dart';
+import 'package:spawnalpha/src/model/caption_style.dart';
 import 'package:spawnalpha/src/model/script_document.dart';
 import 'package:spawnalpha/src/model/script_language.dart';
 import 'package:spawnalpha/src/model/mark.dart';
@@ -34,6 +35,9 @@ Future<void> main() async {
     ),
   );
   var stage = 'generated input';
+  const style = bool.fromEnvironment('SPAWNALPHA_KARAOKE_CHECK')
+      ? CaptionStyle.karaoke
+      : CaptionStyle.readable;
   ScriptLibrary? library;
   ExportProcessor? exports;
   SpeechProcessor? speech;
@@ -165,10 +169,12 @@ Future<void> main() async {
           latest,
           format,
           clean: plan,
+          captionStyle: style,
         );
         require(
           video != null &&
               video.burnedCaptions &&
+              video.captionStyle == style &&
               exports.phase == ExportPhase.done,
         );
         final changed = selection != null;
@@ -194,6 +200,7 @@ Future<void> main() async {
       require((await cuts.load(latest))!.retakes.single.selected == null);
       require(
         (await store.load(latest)).length == 3 &&
+            (await store.load(latest)).every((v) => v.captionStyle == style) &&
             (await speech.load(latest))!.transcript.words.length == 7,
       );
       final after = await source.readAsBytes();
@@ -208,7 +215,7 @@ Future<void> main() async {
     // Fixed diagnostics only. Labelled tones do not prove ASR accuracy.
     // ignore: avoid_print
     print(
-      'Local retake check passed: EN/FR/AR frozen scripts, quiet boundaries, initial keep-all, selection/restore, burned captions/subtitles, exact cut clock, history/reload and unchanged original bytes.',
+      'Local retake check passed: EN/FR/AR frozen scripts, quiet boundaries, initial keep-all, selection/restore, ${style.name} video captions/subtitles, exact cut clock, history/reload and unchanged original bytes.',
     );
   } on Object {
     // ignore: avoid_print

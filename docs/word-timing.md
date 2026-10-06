@@ -116,7 +116,9 @@ vocabulary at 8 KiB; these prototype bounds must never become a silent app limit
 Word timing remains approximate. Verify French, Arabic, Darija and French–Darija
 switching with real consenting speakers before finalizing the default model.
 Automatic processing after Stop, wording flags/corrections, reversible quiet
-cuts and Windows video export with optional Readable captions are now connected. Corrections retain the
+cuts and Windows video export with optional Readable/Karaoke captions are now connected. Karaoke
+uses exact saved word intervals on the kept clock, never evenly divided phrase
+timing. Corrections retain the
 first recognition and its estimated confidence/times; they do not re-run ASR
 or claim better timing. Optional filler review now preserves full recognition
 and excludes only explicitly chosen complete words from cut captions. Repeated

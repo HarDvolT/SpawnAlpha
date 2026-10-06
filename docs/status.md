@@ -20,7 +20,7 @@ now has verified offline model setup, bounded local speech jobs, frozen Script/N
 processing, durable actual words, script alignment and SRT/VTT export in take review.
 Generated short and 70-second app checks pass. Reversible quiet cuts, local
 take playback and first Windows video exports now work. Automatic local speech
-and reversible cutting after Stop are connected. Optional Readable captions
+and reversible cutting after Stop are connected. Optional Readable/Karaoke captions
 follow saved actual words/corrections and the cut clock. Reversible filler
 review offers safe optional removals, initially kept; remaining Director's Cut
 tracks are next. Repeated Script sections now have a comparison with original
@@ -49,6 +49,24 @@ dot to grow and act out each cue in the cue's colour, and for the next features.
 build step 2 (screen recording).
 
 ## Handover (2026-10-05): from here, Codex on the owner's Windows PC
+
+- **Latest checkpoint (2026-10-06, Karaoke video captions):** 636 Flutter
+  tests, 230 screenshot cases, clean analysis and normal Windows Release build.
+  Caption style now offers Readable/Karaoke. Exact saved word times/ranges
+  drive stable dim-to-lit text and progressive amber underlines, reversing
+  for RTL glyph runs. No timing is guessed and gaps have no underline. Cut
+  decisions, corrections, subtitle phrases and original media stay intact.
+  History/recovery remembers each video's style; old records remain Readable.
+  Native decoded pixels pass word fill, LTR/RTL progression, safe margins,
+  diacritics/mixed Arabic and rejected malformed ranges. Real app-channel
+  EN/FR/AR retake selection/restore exports pass exact clocks, captions/SRT,
+  style history/reload and original-byte checks. EN/AR phone and Arabic
+  portrait video PNGs inspected. No owner media or new dependency used.
+  **Half done:** Cue/Punch cue motion, automatic best-performance ranking,
+  screen/sound polish and full coaching remain. Next build Cue/Punch before
+  the other Cut tracks. Real language/hardware and mobile/paid-launch work
+  remain; owner testing stays deferred. Design artifact needs republishing
+  from docs/design by a Claude session.
 
 - **Latest checkpoint (2026-10-06, reversible retake selection):** 618 Flutter
   tests, 218 screenshot cases, clean analysis and normal Windows Release build.
@@ -788,14 +806,19 @@ build step 2 (screen recording).
    cancellable background recognition and durable frozen-aid word results pass;
    take review exports SRT/VTT. See `word-timing.md` for estimated timings and
    remaining real-language quality trials. Step 4 now has reversible quiet cuts
-   and local video export with Readable captions, reversible filler review and
+   and local video export with Readable/Karaoke captions, reversible filler review and
    automatic processing after Stop. Repeated sections now offer a paged
    comparison, original listening and safe reversible Keep attempt choices.
    Automatic best-performance ranking is still pending. Next
-   caption/screen/sound polish and delivery coaching; keep originals intact.
+   Cue/Punch caption motion, screen/sound polish and delivery coaching; keep originals intact.
    See OpenScreen in the brief for reusable parts.
 
 ## Decisions
+
+- 2026-10-06, Karaoke export: offer a separate style using exact saved spoken
+  word intervals on the kept clock, with stable shaping and a directional
+  underline. Keep Readable as the initial style until Cue/Punch are complete.
+  Store choices with immutable exports; no timing or text is manufactured.
 
 - 2026-10-06, first retake selection: start with all attempts kept. Explicit
   Keep attempt requires a complete kept section and safely removable others;
@@ -979,6 +1002,21 @@ build step 2 (screen recording).
   word lists, not prosody.
 
 ## Session log
+
+- 2026-10-06, Karaoke captions on video:
+  - Added bounded exact-word UTF-16 metadata, immutable renderer copies and
+    validation on Dart/native sides. The native cached phrase changes brushes
+    without reflow, with a shaped progressive underline in each run's direction.
+    Fixed Cut tokens control type, dim ink, safe plate and underline geometry.
+  - Added the Studio style choice and backward-compatible immutable history.
+    Subtitle phrases and all original/cut revisions remain intact. No new
+    dependency, model, owner media/input, upload or private diagnostic.
+  - Analysis is clean, all 636 Flutter tests and 230 screenshots pass. Native
+    decoded video checks and generated real app-channel EN/FR/AR retake
+    selection/restore exports pass word fill/sweep/gaps/safe bounds, clocks,
+    style history, captions and original bytes. Normal Release restored;
+    EN/AR UI and mixed Arabic portrait PNGs inspected. Cue/Punch, screen/sound
+    polish and full coaching are next. Owner trials stay deferred.
 
 - 2026-10-06, safe reversible retake choices:
   - Added immutable optional selections, shared measured quiet boundaries,

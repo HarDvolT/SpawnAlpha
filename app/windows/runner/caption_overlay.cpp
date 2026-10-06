@@ -4,6 +4,7 @@
 #include <dwrite_3.h>
 #include <winrt/base.h>
 #include <filesystem>
+#include <cwctype>
 #include <algorithm>
 #include <cmath>
 #include <stdexcept>
@@ -14,6 +15,10 @@ using winrt::check_hresult;
 void Require(bool value) { if (!value) throw std::runtime_error("Invalid caption layout"); }
 bool Fraction(double value, double low, double high) {
   return std::isfinite(value) && value >= low && value <= high;
+}
+bool WhiteSpace(wchar_t c) {
+  return iswspace(c) != 0 || c == 0x85 || c == 0xa0 || c == 0x1680 ||
+    (c >= 0x2000 && c <= 0x200a) || c == 0x2028 || c == 0x2029 || c == 0x202f || c == 0x205f || c == 0x3000;
 }
 D2D1_COLOR_F Color(uint32_t argb) {
   return {((argb >> 16) & 255) / 255.0f, ((argb >> 8) & 255) / 255.0f,
@@ -37,6 +42,7 @@ struct CaptionOverlay::Impl {
       Fraction(style.line_height, style.font_size, 180) && Fraction(style.min_size, 16, style.font_size) &&
       Fraction(style.padding, 0, 40) && Fraction(style.radius, 0, 40) &&
       Fraction(style.shadow_offset, 0, 8) && style.weight >= 100 && style.weight <= 900);
+    Require(!style.karaoke || (Fraction(style.underline_size, 1, 8) && Fraction(style.underline_gap, 0, 12)));
     int64_t previous = 0; size_t total = 0;
     for (const auto& word : words) {
       total += word.text.size();
@@ -44,6 +50,21 @@ struct CaptionOverlay::Impl {
         !word.text.empty() && word.text.size() <= 4096 && total <= 4 * 1024 * 1024 &&
         std::none_of(word.text.begin(), word.text.end(), [](wchar_t letter) { return letter <= 0x1f || letter == 0x7f; }));
       previous = word.end_us;
+      Require(word.words.size() <= 7 && (!style.karaoke || !word.words.empty()));
+      UINT offset = 0; int64_t word_end = word.start_us;
+      for (const auto& timed : word.words) {
+        const auto end = static_cast<size_t>(timed.offset) + timed.length;
+        Require(timed.offset == offset && timed.length > 0 && end <= word.text.size() &&
+          timed.start_us >= word_end && timed.end_us > timed.start_us && timed.end_us <= word.end_us);
+        Require(std::none_of(word.text.begin() + timed.offset, word.text.begin() + end,
+          [](wchar_t c) { return WhiteSpace(c); }));
+        Require(!(word.text[timed.offset] >= 0xdc00 && word.text[timed.offset] <= 0xdfff) &&
+          !(word.text[end - 1] >= 0xd800 && word.text[end - 1] <= 0xdbff));
+        Require(end == word.text.size() || word.text[end] == L' ');
+        offset = static_cast<UINT>(end + 1); word_end = timed.end_us;
+      }
+      Require(word.words.empty() || (offset == word.text.size() + 1 &&
+        word.words.front().start_us == word.start_us && word.words.back().end_us == word.end_us));
     }
     captions = words; options = style;
     scale = static_cast<float>(std::min(width, height)) / 1080.0f;
@@ -83,13 +104,17 @@ struct CaptionOverlay::Impl {
     check_hresult(context->CreateSolidColorBrush(Color(style.text_color), ink.put()));
     check_hresult(context->CreateSolidColorBrush(Color(style.plate_color), plate.put()));
     check_hresult(context->CreateSolidColorBrush(Color(style.plate_color), shadow.put()));
+    if (style.karaoke) {
+      check_hresult(context->CreateSolidColorBrush(Color(style.waiting_color), waiting.put()));
+      check_hresult(context->CreateSolidColorBrush(Color(style.underline_color), underline.put()));
+    }
   }
   com_ptr<IDXGIDevice> device_as_dxgi(ID3D11Device* device) {
     com_ptr<ID3D11Device> owned; owned.copy_from(device); return owned.as<IDXGIDevice>();
   }
   void Layout(size_t wanted) {
     if (layout && current == wanted) return;
-    current = wanted; layout = nullptr;
+    current = wanted; layout = nullptr; boxes.clear();
     float size = static_cast<float>(options.font_size) * scale;
     const auto minimum = static_cast<float>(options.min_size) * scale;
     // Try bounded sizes, checking the complete shaped text at each step. No
@@ -119,10 +144,25 @@ struct CaptionOverlay::Impl {
         DWRITE_OVERHANG_METRICS overhang{}; check_hresult(attempt->GetOverhangMetrics(&overhang));
         if (std::max(0.0f, overhang.left) > padding || std::max(0.0f, overhang.right) > padding) continue;
         const auto top = std::max(0.0f, overhang.top);
-        const auto footprint = metrics.height + top + std::max(0.0f, overhang.bottom) + static_cast<float>(options.shadow_offset) * scale;
+        const auto extra = options.karaoke ? static_cast<float>(options.underline_size + options.underline_gap) * scale : 0;
+        const auto footprint = metrics.height + top + std::max(0.0f, overhang.bottom) + static_cast<float>(options.shadow_offset) * scale + extra;
         if (footprint > bottom_edge - safe_top - padding * 2) continue;
         layout = attempt; text_height = footprint; text_top = top;
-        text_width = metrics.widthIncludingTrailingWhitespace; return;
+        text_width = metrics.widthIncludingTrailingWhitespace;
+        if (options.karaoke) {
+          for (const auto& word : captions[wanted].words) {
+            UINT count = 0;
+            const auto measured = layout->HitTestTextRange(word.offset, word.length, 0, 0, nullptr, 0, &count);
+            Require(SUCCEEDED(measured) || measured == E_NOT_SUFFICIENT_BUFFER);
+            Require(count > 0 && count <= text.size());
+            std::vector<DWRITE_HIT_TEST_METRICS> hit_boxes(count);
+            check_hresult(layout->HitTestTextRange(word.offset, word.length, 0, 0, hit_boxes.data(), count, &count));
+            hit_boxes.resize(count);
+            std::sort(hit_boxes.begin(), hit_boxes.end(), [](const auto& a, const auto& b) { return a.textPosition < b.textPosition; });
+            boxes.push_back(std::move(hit_boxes));
+          }
+        }
+        return;
       }
     }
     throw std::runtime_error("Caption needs wording review");
@@ -147,8 +187,34 @@ struct CaptionOverlay::Impl {
     context->FillRoundedRectangle(D2D1::RoundedRect(D2D1::RectF(center - text_width / 2 - padding, top,
       center + text_width / 2 + padding, bottom_edge), radius, radius), plate.get());
     const auto origin = D2D1::Point2F(left + padding, top + padding + text_top);
+    // Drawing effects override the default brush. Clear them for the common
+    // shadow before applying word colors; shaping and geometry stay fixed.
+    const auto& phrase = captions[index];
+    if (options.karaoke) check_hresult(layout->SetDrawingEffect(nullptr, {0, static_cast<UINT>(phrase.text.size())}));
     context->DrawTextLayout(D2D1::Point2F(origin.x, origin.y + static_cast<float>(options.shadow_offset) * scale), layout.get(), shadow.get());
+    if (options.karaoke) {
+      check_hresult(layout->SetDrawingEffect(waiting.get(), {0, static_cast<UINT>(phrase.text.size())}));
+      for (const auto& word : phrase.words) if (word.start_us <= output_us)
+        check_hresult(layout->SetDrawingEffect(ink.get(), {word.offset, word.length}));
+    }
     context->DrawTextLayout(origin, layout.get(), ink.get());
+    if (options.karaoke) {
+      for (size_t i = 0; i < phrase.words.size(); ++i) {
+        const auto& word = phrase.words[i];
+        if (output_us < word.start_us || output_us >= word.end_us) continue;
+        const auto progress = static_cast<double>(output_us - word.start_us) / (word.end_us - word.start_us);
+        float width = 0;
+        for (const auto& box : boxes[i]) width += box.width;
+        auto remaining = width * static_cast<float>(progress);
+        for (const auto& box : boxes[i]) {
+          const auto amount = std::min(remaining, box.width); remaining -= amount;
+          if (amount <= 0) break;
+          const auto x = origin.x + box.left + ((box.bidiLevel & 1) ? box.width - amount : 0);
+          const auto y = origin.y + box.top + box.height + static_cast<float>(options.underline_gap) * scale;
+          context->FillRectangle(D2D1::RectF(x, y, x + amount, y + static_cast<float>(options.underline_size) * scale), underline.get());
+        }
+      }
+    }
     const auto drawn = context->EndDraw(); context->SetTarget(nullptr); check_hresult(drawn);
   }
   com_ptr<IDWriteFactory5> factory;
@@ -158,7 +224,8 @@ struct CaptionOverlay::Impl {
   com_ptr<ID2D1DeviceContext> context;
   com_ptr<ID2D1Bitmap1> target;
   com_ptr<ID3D11Texture2D> target_frame;
-  com_ptr<ID2D1SolidColorBrush> ink, plate, shadow;
+  com_ptr<ID2D1SolidColorBrush> ink, plate, shadow, waiting, underline;
+  std::vector<std::vector<DWRITE_HIT_TEST_METRICS>> boxes;
   std::vector<RenderCaption> captions;
   CaptionLayout options;
   size_t index = 0, current = SIZE_MAX;

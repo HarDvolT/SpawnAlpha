@@ -9,6 +9,7 @@ import '../cut/clean_plan.dart';
 import '../model/mark.dart';
 import '../model/script_document.dart';
 import '../model/video_export.dart';
+import '../model/caption_style.dart';
 import '../model/cut_plan.dart';
 import '../render/export_processor.dart';
 import '../review/repeated_sections.dart';
@@ -53,6 +54,7 @@ class _TakeReviewScreenState extends State<TakeReviewScreen> {
   VideoFormat _format = VideoFormat.landscape;
   bool _cameraInExport = true, _reviewReady = false;
   bool _burnedCaptions = true;
+  CaptionStyle _captionStyle = CaptionStyle.readable;
   List<VideoExport> _videos = [];
   VideoExport? _viewing;
   final _reviewScroll = ScrollController();
@@ -182,6 +184,7 @@ class _TakeReviewScreenState extends State<TakeReviewScreen> {
       clean: _clean,
       camera: _cameraInExport,
       burnedCaptions: _burnedCaptions,
+      captionStyle: _captionStyle,
     );
     final saved = await app.videoExports.load(_latestTake(app));
     if (mounted) {
@@ -564,6 +567,9 @@ class _TakeReviewScreenState extends State<TakeReviewScreen> {
                   onCamera: (value) => setState(() => _cameraInExport = value),
                   hasCaptions: words.isNotEmpty,
                   burnedCaptions: _burnedCaptions,
+                  captionStyle: _captionStyle,
+                  onCaptionStyle: (value) =>
+                      setState(() => _captionStyle = value),
                   onBurnedCaptions: (value) =>
                       setState(() => _burnedCaptions = value),
                   videos: _videos,

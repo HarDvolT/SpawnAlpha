@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:spawnalpha/src/model/video_export.dart';
+import 'package:spawnalpha/src/model/caption_style.dart';
 import 'package:spawnalpha/src/render/export_processor.dart';
 import 'package:spawnalpha/src/storage/clean_cut_store.dart';
 import 'package:spawnalpha/src/storage/script_store.dart';
@@ -14,6 +15,79 @@ import '../render/export_processor_test.dart' show FakeRenderer;
 import '../storage/screen_take_store_test.dart' show FakeInspector;
 
 void main() {
+  for (final mode in ['choose', 'busy', 'off', 'missing']) {
+    testWidgets('caption style controls and history: $mode', (tester) async {
+      tester.view.physicalSize = const Size(430, 900);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final library = ScriptLibrary(MemoryScriptStore()),
+          inspector = FakeInspector();
+      final job = ExportProcessor(
+        FakeRenderer(inspector),
+        VideoExportStore(Directory.systemTemp, library, inspector),
+        CleanCutStore(Directory.systemTemp, library),
+        (_) async => null,
+      );
+      var selected = CaptionStyle.readable;
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: buildTheme(Brightness.dark),
+          home: Scaffold(
+            body: SingleChildScrollView(
+              child: StatefulBuilder(
+                builder: (context, update) => VideoExportPanel(
+                  format: VideoFormat.portrait,
+                  onFormat: (_) {},
+                  onExport: () {},
+                  job: job,
+                  busy: mode == 'busy',
+                  supported: true,
+                  hasCaptions: mode != 'missing',
+                  burnedCaptions: mode != 'off',
+                  captionStyle: selected,
+                  onCaptionStyle: (value) => update(() => selected = value),
+                  videos: [
+                    VideoExport(
+                      id: 'generated',
+                      format: VideoFormat.portrait,
+                      duration: const Duration(seconds: 2),
+                      createdAt: DateTime(2026),
+                      captions: true,
+                      burnedCaptions: true,
+                      captionStyle: CaptionStyle.karaoke,
+                    ),
+                  ],
+                  onView: (_) {},
+                  onShow: (_) {},
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      final dropdown = find.byType(DropdownButton<CaptionStyle>);
+      if (mode == 'off' || mode == 'missing') {
+        expect(dropdown, findsNothing);
+      } else if (mode == 'busy') {
+        expect(
+          tester.widget<DropdownButton<CaptionStyle>>(dropdown).onChanged,
+          isNull,
+        );
+      } else {
+        await tester.tap(dropdown);
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Karaoke').last);
+        await tester.pumpAndSettle();
+        expect(selected, CaptionStyle.karaoke);
+        expect(find.text('Words light up as you say them.'), findsOneWidget);
+      }
+      expect(find.textContaining('Karaoke captions'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox());
+      job.dispose();
+      library.dispose();
+    });
+  }
   testWidgets('format, camera and saved-video controls fit a phone', (
     tester,
   ) async {

@@ -3,8 +3,10 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/services.dart';
+import 'package:flutter/painting.dart';
 
 import '../model/cut_plan.dart';
+import '../model/caption_style.dart';
 import '../model/video_export.dart';
 import '../theme/tokens.g.dart';
 import '../transcription/captions.dart';
@@ -16,8 +18,18 @@ class VideoRenderRequest {
     required this.plan,
     required this.format,
     this.camera,
+    this.captionStyle = CaptionStyle.readable,
     List<Caption> captions = const [],
-  }) : captions = List.unmodifiable(captions) {
+  }) : captions = List.unmodifiable(
+         captions.map(
+           (c) => Caption(
+             c.text,
+             c.start,
+             c.end,
+             words: List.unmodifiable(c.words),
+           ),
+         ),
+       ) {
     if (captions.length > 100000) {
       throw const FormatException('Too many captions');
     }
@@ -35,12 +47,43 @@ class VideoRenderRequest {
         throw const FormatException('Invalid captions');
       }
       previous = caption.end;
+      if ((captionStyle == CaptionStyle.karaoke && caption.words.isEmpty) ||
+          caption.words.length > 7) {
+        throw const FormatException('Missing caption word timings');
+      }
+      var offset = 0, wordEnd = caption.start;
+      for (final word in caption.words) {
+        final end = word.offset + word.length;
+        if (word.offset != offset ||
+            word.length < 1 ||
+            end > caption.text.length ||
+            word.start < wordEnd ||
+            word.end <= word.start ||
+            word.end > caption.end) {
+          throw const FormatException('Invalid caption word timings');
+        }
+        final text = caption.text.substring(word.offset, end);
+        if (RegExp(r'\s').hasMatch(text) ||
+            utf8.decode(utf8.encode(text)) != text ||
+            (end < caption.text.length && caption.text[end] != ' ')) {
+          throw const FormatException('Invalid caption word range');
+        }
+        offset = end + 1;
+        wordEnd = word.end;
+      }
+      if (caption.words.isNotEmpty &&
+          (offset != caption.text.length + 1 ||
+              caption.words.first.start != caption.start ||
+              caption.words.last.end != caption.end)) {
+        throw const FormatException('Incomplete caption word timings');
+      }
     }
   }
   final String source, output;
   final String? camera;
   final CutPlan plan;
   final VideoFormat format;
+  final CaptionStyle captionStyle;
   final List<Caption> captions;
   Map<String, Object?> toJson() => {
     'source': source,
@@ -58,27 +101,39 @@ class VideoRenderRequest {
           'text': caption.text,
           'startUs': caption.start.inMicroseconds,
           'endUs': caption.end.inMicroseconds,
+          if (caption.words.isNotEmpty)
+            'words': caption.words.map((w) => w.toJson()).toList(),
         },
     ],
     if (captions.isNotEmpty)
       'captionLayout': {
+        'style': captionStyle.name,
         'rtl': plan.language.isRtl,
         'edge': SaVideoExport.captionEdge,
         'bottom': SaVideoExport.captionBottom,
         'safeTop': SaVideoExport.captionSafeTop,
         'safeBottom': SaVideoExport.captionSafeBottom,
         'safeRight': SaVideoExport.captionSafeRight,
-        'fontSize': SaType.captionCue.fontSize!,
-        'lineHeight': SaType.captionCue.fontSize! * SaType.captionCue.height!,
-        'weight': SaType.captionCue.fontWeight!.value,
+        'fontSize': _captionType.fontSize!,
+        'lineHeight': _captionType.fontSize! * _captionType.height!,
+        'weight': _captionType.fontWeight!.value,
         'minSize': SaVideoExport.captionMinSize,
         'padding': SaSpace.s3,
         'radius': SaRadius.sm,
         'shadowOffset': SaVideoExport.captionShadowOffset,
         'textColor': SaPalette.dark.captionText.toARGB32(),
         'plateColor': SaPalette.dark.captionPlate.toARGB32(),
+        'waitingColor': SaPalette.dark.captionWaiting.toARGB32(),
+        'underlineColor': SaPalette.dark.ripple.toARGB32(),
+        'underlineSize': SaVideoExport.captionUnderlineSize,
+        'underlineGap': SaVideoExport.captionUnderlineGap,
       },
   };
+
+  // Both styles keep the exact saved words; type comes from fixed Cut tokens.
+  TextStyle get _captionType => captionStyle == CaptionStyle.karaoke
+      ? SaType.captionKaraoke
+      : SaType.captionCue;
 }
 
 class RenderCancelled implements Exception {
