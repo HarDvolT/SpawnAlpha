@@ -35,6 +35,7 @@ class PrompterView extends StatefulWidget {
     this.guide = PrompterGuide.dot,
     this.motion = PrompterMotion.lineStep,
     this.alignment,
+    this.fitPhraseToViewport = false,
   });
 
   final PrompterController controller;
@@ -69,12 +70,15 @@ class PrompterView extends StatefulWidget {
 
   /// Physical text alignment; null uses language and motion defaults.
   final PrompterAlignment? alignment;
+  /// Compact readers step within phrases that cannot fit below the reading line.
+  final bool fitPhraseToViewport;
 
   @override
   State<PrompterView> createState() => PrompterViewState();
 }
 
 class PrompterViewState extends State<PrompterView> with SingleTickerProviderStateMixin {
+  double? _phraseViewportHeight;
   static final _colors = CueColors.stage;
   static final _stage = SaPalette.dark;
 
@@ -165,7 +169,8 @@ class PrompterViewState extends State<PrompterView> with SingleTickerProviderSta
     final layout = _layout;
     if (layout == null || !_scroll.hasClients) return;
     final y = layout
-        .scrollYAt(_c.timeline, _c.position, motion: widget.motion)
+        .scrollYAt(_c.timeline, _c.position, motion: widget.motion,
+          phraseViewportHeight: widget.fitPhraseToViewport ? _phraseViewportHeight : null)
         .clamp(0.0, _scroll.position.maxScrollExtent);
     if ((y - _scroll.offset).abs() < 0.5) return;
     _programmaticScroll = true;
@@ -317,6 +322,7 @@ class PrompterViewState extends State<PrompterView> with SingleTickerProviderSta
       final height = constraints.maxHeight;
       final width = constraints.maxWidth;
       final readingY = height * widget.readingLine;
+      _phraseViewportHeight = height - readingY;
       final gutter = (width * 0.06).clamp(20.0, 64.0);
       final marked = _markedText();
 

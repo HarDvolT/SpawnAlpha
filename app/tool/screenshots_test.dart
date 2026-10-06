@@ -537,9 +537,30 @@ void main() {
           (_) => FloatingPrompterScreen(presentation: FloatingPresentation(script: script)), [script]);
       });
     }
+    for (final camera in [false, true]) {
+      testWidgets('cursor companion ${language.name}, camera $camera', (tester) async {
+        final script = cueCheckScript(language);
+        await shoot(tester, 'cursor-companion-${language.name}-${camera ? 'camera' : 'screen'}',
+          Size(SaPrompter.companionWidth, SaPrompter.companionHeight),
+          (_) => FloatingPrompterScreen(presentation: FloatingPresentation(script: script),
+            initialPlacement: CompanionPlacement(enabled: true, follow: true, camera: camera)), [script]);
+      });
+    }
+    testWidgets('docked companion ${language.name}', (tester) async {
+      final script = cueCheckScript(language);
+      await shoot(tester, 'cursor-companion-${language.name}-docked',
+        Size(SaPrompter.companionWidth, SaPrompter.companionHeight),
+        (_) => FloatingPrompterScreen(presentation: FloatingPresentation(script: script),
+          initialPlacement: const CompanionPlacement(enabled: true, camera: true)), [script]);
+    });
   }
 
   for (final (language, microphone) in [('en', 'Wireless microphone'), ('fr', 'Microphone sans fil'), ('ar', 'ميكروفون لاسلكي')]) {
+    testWidgets('camera companion choice $language', (tester) async {
+      await shoot(tester, 'companion-choice-$language', Size(SaPrompter.hudWidth, SaPrompter.hudQuestionHeight),
+        (_) => RecordingHudScreen(initial: HudState(phase: HudPhase.recording, camera: true,
+          companionQuestion: true, microphone: microphone)), []);
+    });
     for (final phase in [HudPhase.recording, HudPhase.paused, HudPhase.countdown]) {
       testWidgets('recording HUD $language ${phase.name}', (tester) async {
         final size = phase == HudPhase.countdown ? Size.square(SaPrompter.countdownWindowSize)

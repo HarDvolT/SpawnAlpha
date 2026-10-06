@@ -37,7 +37,10 @@ class _RecordingHudScreenState extends State<RecordingHudScreen> {
   final _pause = GlobalKey(),
       _stop = GlobalKey(),
       _prompter = GlobalKey(),
-      _lock = GlobalKey();
+      _lock = GlobalKey(),
+      _companion = GlobalKey(),
+      _choice = GlobalKey(),
+      _question = GlobalKey();
   bool _reporting = false;
 
   void _reportHitRegions() {
@@ -47,7 +50,16 @@ class _RecordingHudScreenState extends State<RecordingHudScreen> {
       _reporting = false;
       if (!mounted) return;
       final regions = <List<double>>[];
-      for (final key in [_grip, _pause, _stop, _prompter, _lock]) {
+      for (final key in [
+        _grip,
+        _pause,
+        _stop,
+        _prompter,
+        _lock,
+        _companion,
+        _choice,
+        _question,
+      ]) {
         final box = key.currentContext?.findRenderObject();
         if (box is! RenderBox || !box.hasSize) continue;
         final origin = box.localToGlobal(Offset.zero);
@@ -190,9 +202,80 @@ class _RecordingHudScreenState extends State<RecordingHudScreen> {
                         color: p.stageChromeText,
                       ),
                     ),
+                  if (s.camera)
+                    InkWell(
+                      key: _choice,
+                      onTap: busy ? null : () => command('companionAsk'),
+                      child: Tooltip(
+                        message: 'Camera companion choice',
+                        child: Icon(
+                          Icons.center_focus_strong_rounded,
+                          size: SaSpace.s4,
+                          color: busy ? p.stageLine : p.stageChromeText,
+                        ),
+                      ),
+                    ),
                 ],
               ),
             ),
+            if (s.companionQuestion && !busy)
+              LayoutBuilder(
+                builder: (context, constraints) =>
+                    // The native window can expand one frame after its state.
+                    MediaQuery.sizeOf(context).height <
+                        SaPrompter.hudQuestionHeight
+                    ? const SizedBox.shrink()
+                    : Padding(
+                        key: _question,
+                        padding: const EdgeInsets.symmetric(
+                          vertical: SaSpace.s3,
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Keep your eyes near the camera',
+                              style: SaType.title.copyWith(color: p.stageText),
+                            ),
+                            Text(
+                              'Following the mouse pulls your eyes away from the camera.',
+                              style: SaType.bodySm.copyWith(
+                                color: p.stageChromeText,
+                              ),
+                            ),
+                            const SizedBox(height: SaSpace.s2),
+                            Row(
+                              children: [
+                                FilledButton(
+                                  style: FilledButton.styleFrom(
+                                    backgroundColor: p.stageText,
+                                    foregroundColor: p.stageChrome,
+                                  ),
+                                  onPressed: () => command('companionDocked'),
+                                  child: const Text('Keep docked'),
+                                ),
+                                const SizedBox(width: SaSpace.s2),
+                                TextButton(
+                                  style: TextButton.styleFrom(
+                                    foregroundColor: p.stageText,
+                                  ),
+                                  onPressed: () => command('companionFollow'),
+                                  child: const Text('Follow anyway'),
+                                ),
+                                const Spacer(),
+                                TextButton(
+                                  style: TextButton.styleFrom(
+                                    foregroundColor: p.stageChromeText,
+                                  ),
+                                  onPressed: () => command('companionCancel'),
+                                  child: const Text('Cancel'),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+              ),
             Row(
               children: [
                 Icon(
@@ -265,14 +348,29 @@ class _RecordingHudScreenState extends State<RecordingHudScreen> {
                   ),
                 ),
                 IconButton(
+                  key: _companion,
+                  tooltip: s.companion ? 'Turn Companion off' : 'Companion',
+                  onPressed: busy ? null : () => command('companion'),
+                  icon: Icon(
+                    Icons.near_me_rounded,
+                    color: busy
+                        ? p.stageLine
+                        : s.companion
+                        ? p.stageOk
+                        : p.stageChromeText,
+                  ),
+                ),
+                IconButton(
                   key: _lock,
-                  tooltip: 'Lock prompter · Ctrl+Shift+L unlocks',
-                  onPressed: busy || !s.prompterOpen
+                  tooltip: s.companion
+                      ? 'Following Companion is click-through'
+                      : 'Lock prompter · Ctrl+Shift+L unlocks',
+                  onPressed: busy || !s.prompterOpen || s.companion
                       ? null
                       : () => command('lock'),
                   icon: Icon(
                     Icons.lock_open_rounded,
-                    color: busy || !s.prompterOpen
+                    color: busy || !s.prompterOpen || s.companion
                         ? p.stageLine
                         : p.stageChromeText,
                   ),

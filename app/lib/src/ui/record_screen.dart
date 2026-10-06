@@ -224,6 +224,9 @@ class _RecordScreenState extends State<RecordScreen>
       floating: services.floating,
       store: services.screenTakes,
       bubbles: services.bubbles,
+      cameraFollow: services.settings.companionCameraFollow,
+      rememberCameraFollow: (value) =>
+          services.settings.update((s) => s.companionCameraFollow = value),
     )..addListener(_onScreenTake);
     _screenPreview = ScreenPreviewController(services.previews);
     _mic = MicMonitor(services.audio)..addListener(_onMic);
@@ -492,6 +495,7 @@ class _RecordScreenState extends State<RecordScreen>
       microphoneName: _mic?.input?.name ?? 'Microphone',
       cameraId: cameraChoice?.deviceId,
       cameraName: cameraChoice?.name,
+      reduceMotion: MediaQuery.disableAnimationsOf(context),
       prepare: () async {
         ++_cameraGeneration;
         final camera = _camera;

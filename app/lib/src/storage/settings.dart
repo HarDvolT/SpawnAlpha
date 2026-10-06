@@ -61,6 +61,9 @@ class Settings extends ChangeNotifier {
   bool mirror = false;
   TakeMode recordMode = TakeMode.camera;
 
+  /// Null until the first camera companion choice; no cursor data is stored.
+  bool? companionCameraFollow;
+
   /// Kinetic text on the prompter (words wake up near the reading line);
   /// off is Still. Reduced motion forces Still whatever this says.
   bool kinetic = true;
@@ -145,6 +148,9 @@ class Settings extends ChangeNotifier {
   }
 
   void _read(Map<String, Object?> json) {
+    companionCameraFollow = json['companionCameraFollow'] is bool
+        ? json['companionCameraFollow'] as bool
+        : null;
     provider = MarkupProvider.fromName(
       (json['markupProvider'] ?? json['markupSource']) as String?,
     );
@@ -190,6 +196,8 @@ class Settings extends ChangeNotifier {
     'fontSize': fontSize,
     'mirror': mirror,
     'recordMode': recordMode.name,
+    if (companionCameraFollow != null)
+      'companionCameraFollow': companionCameraFollow,
     'kinetic': kinetic,
     'guide': guide.name,
     'motion': motion.name,

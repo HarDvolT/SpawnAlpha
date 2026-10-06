@@ -44,9 +44,23 @@ class TestHuds implements RecordingHuds {
 }
 
 class TestReader implements FloatingPrompters {
+  @override
+  Stream<FloatingCommand> get commands => const Stream.empty();
+  final placements = <CompanionPlacement>[];
+  bool rejectPlacement = false;
+  @override
+  Future<void> placement(
+    FloatingHandle handle,
+    CompanionPlacement placement,
+  ) async {
+    if (rejectPlacement) throw Exception('private reader state');
+    placements.add(placement);
+  }
+
   TestReader(this.events);
   final List<String> events;
   final states = <FloatingRecordingState>[];
+  Future<bool> Function()? visibilityReply;
   bool visible = true;
   @override
   bool get supported => true;
@@ -57,7 +71,8 @@ class TestReader implements FloatingPrompters {
   }
 
   @override
-  Future<bool> isOpen(FloatingHandle handle) async => visible;
+  Future<bool> isOpen(FloatingHandle handle) async =>
+      visibilityReply == null ? visible : await visibilityReply!();
   @override
   Future<void> close(FloatingHandle handle) async => events.add('reader-close');
   @override
@@ -246,6 +261,134 @@ void main() {
       cameraName: both ? 'Chosen camera' : null,
     );
   }
+
+  for (final language in ScriptLanguage.values) {
+    test(
+      'companion preserves the $language take, pause and visibility',
+      () async {
+        recorder.onStatus = (poll) async {
+          if (poll == 2) {
+            await owner.togglePause();
+            return;
+          }
+          if (poll != 3) return;
+          await owner.togglePrompter();
+          await owner.toggleCompanion();
+          expect(owner.companion, isTrue);
+          expect(owner.readerVisible, isTrue);
+          expect(reader.placements.single.enabled, isTrue);
+          expect(reader.placements.single.follow, isTrue);
+          expect(reader.placements.single.camera, isFalse);
+          expect(owner.phase, ScreenTakePhase.paused);
+          await owner.toggleCompanion();
+          expect(reader.placements.last.enabled, isFalse);
+          expect(owner.companion, isFalse);
+          owner.stop();
+        };
+        await start(language);
+        expect(owner.take, isNotNull);
+        expect(owner.problem, isNull);
+        expect(events.where((v) => v == 'reader').length, 1);
+        expect(
+          events.indexOf('reader-close'),
+          lessThan(events.indexOf('unprotect')),
+        );
+      },
+    );
+  }
+  test(
+    'camera companion waits for a choice, cancels and remembers Follow',
+    () async {
+      final remembered = <bool>[];
+      owner.dispose();
+      owner = ScreenTakeController(
+        recorder: recorder,
+        huds: huds,
+        floating: reader,
+        bubbles: bubbles,
+        store: ScreenTakeStore(dir, library, FakeInspector()),
+        rememberCameraFollow: (v) async => remembered.add(v),
+        wait: (_) => Future<void>.delayed(Duration.zero),
+      );
+      recorder.onStatus = (poll) async {
+        if (poll != 2) return;
+        await owner.toggleCompanion();
+        expect(owner.companionQuestion, isTrue);
+        expect(reader.placements, isEmpty);
+        huds.stream.add(const HudCommand(99, 'companionFollow'));
+        expect(owner.cameraFollow, isNull);
+        huds.stream.add(const HudCommand(7, 'companionCancel'));
+        expect(owner.companionQuestion, isFalse);
+        expect(owner.companion, isFalse);
+        await owner.toggleCompanion();
+        await owner.chooseCompanion(true);
+        expect(remembered, [true]);
+        expect(reader.placements.single.camera, isTrue);
+        expect(reader.placements.single.follow, isTrue);
+        await owner.toggleCompanion();
+        await owner.toggleCompanion();
+        expect(owner.companionQuestion, isFalse);
+        owner.stop();
+      };
+      await start(ScriptLanguage.en, both: true);
+      expect(owner.take, isNotNull);
+      expect(owner.problem, isNull);
+    },
+  );
+  test('stale reader poll cannot undo a Hide click', () async {
+    var checked = false;
+    reader.visibilityReply = () async {
+      final earlierVisibility = reader.visible;
+      if (!checked) {
+        checked = true;
+        await owner.togglePrompter();
+        owner.stop();
+      }
+      return earlierVisibility;
+    };
+    await start(ScriptLanguage.en);
+    expect(checked, isTrue);
+    expect(owner.readerVisible, isFalse);
+    expect(owner.problem, isNull);
+    expect(owner.take, isNotNull);
+    expect(
+      huds.states.any((s) => s.phase == HudPhase.recording && !s.prompterOpen),
+      isTrue,
+    );
+  });
+  test(
+    'remembered camera Keep docked never follows or repeats the question',
+    () async {
+      owner.cameraFollow = false;
+      recorder.onStatus = (poll) async {
+        if (poll != 2) return;
+        await owner.toggleCompanion();
+        expect(owner.companionQuestion, isFalse);
+        expect(reader.placements.single.follow, isFalse);
+        expect(reader.placements.single.camera, isTrue);
+        owner.stop();
+      };
+      await start(ScriptLanguage.fr, both: true);
+      expect(owner.take, isNotNull);
+      expect(owner.problem, isNull);
+    },
+  );
+
+  test(
+    'failed companion placement stops safely and retains the readable take',
+    () async {
+      reader.rejectPlacement = true;
+      recorder.onStatus = (poll) async {
+        if (poll == 2) await owner.toggleCompanion();
+      };
+      await start(ScriptLanguage.ar);
+      expect(owner.take, isNotNull);
+      expect(owner.problem, contains('stopping safely'));
+      expect(owner.problem, isNot(contains('private')));
+      expect(events.indexOf('release'), lessThan(events.indexOf('unprotect')));
+      expect(reader.placements, isEmpty);
+    },
+  );
 
   for (final language in ScriptLanguage.values) {
     test(

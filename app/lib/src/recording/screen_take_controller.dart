@@ -34,7 +34,15 @@ class ScreenTakeController extends ChangeNotifier {
     required this.store,
     this.bubbles = const UnsupportedCameraBubbles(),
     this.wait = Future<void>.delayed,
+    this.cameraFollow,
+    this.rememberCameraFollow,
   }) {
+    _readerCommands = floating.commands.listen((event) {
+      if (event.sessionId == _reader?.sessionId &&
+          event.command == 'companionAsk') {
+        unawaited(askCompanion());
+      }
+    });
     _commands = huds.commands.listen((event) {
       if (event.sessionId != _hud?.sessionId) return;
       switch (event.command) {
@@ -46,6 +54,17 @@ class ScreenTakeController extends ChangeNotifier {
           unawaited(togglePrompter());
         case 'lock':
           unawaited(lockPrompter());
+        case 'companion':
+          unawaited(toggleCompanion());
+        case 'companionAsk':
+          unawaited(askCompanion());
+        case 'companionDocked':
+          unawaited(chooseCompanion(false));
+        case 'companionFollow':
+          unawaited(chooseCompanion(true));
+        case 'companionCancel':
+          companionQuestion = false;
+          unawaited(_updateHud());
       }
     });
   }
@@ -55,7 +74,14 @@ class ScreenTakeController extends ChangeNotifier {
   final ScreenTakeStore store;
   final CameraBubbles bubbles;
   final Future<void> Function(Duration) wait;
+  bool? cameraFollow;
+  final Future<void> Function(bool)? rememberCameraFollow;
+  bool companion = false, companionQuestion = false;
+  bool _placementChanging = false, _reduceMotion = false;
+  bool _visibilityChanging = false;
+  int _readerVersion = 0;
   late final StreamSubscription<HudCommand> _commands;
+  late final StreamSubscription<FloatingCommand> _readerCommands;
   ScreenTakePhase phase = ScreenTakePhase.idle;
   ScreenRecordingStatus? status;
   Take? take;
@@ -104,6 +130,7 @@ class ScreenTakeController extends ChangeNotifier {
     String microphoneName = 'Microphone',
     String? cameraId,
     String? cameraName,
+    bool reduceMotion = false,
     Future<void> Function()? prepare,
   }) {
     if (busy || _disposed) return _run ?? Future<void>.value();
@@ -119,6 +146,8 @@ class ScreenTakeController extends ChangeNotifier {
     _stopSent = false;
     _unsafe = false;
     readerVisible = true;
+    companion = companionQuestion = false;
+    _reduceMotion = reduceMotion;
     _audio = recordAudio;
     _systemAudio = recordSystemAudio;
     _microphone = microphoneName;
@@ -230,7 +259,13 @@ class ScreenTakeController extends ChangeNotifier {
             speaking: speaking,
           ),
         );
-        readerVisible = await floating.isOpen(_reader!);
+        final readerVersion = _readerVersion;
+        final visible = await floating.isOpen(_reader!);
+        if (readerVersion == _readerVersion &&
+            !_visibilityChanging &&
+            !_placementChanging) {
+          readerVisible = visible;
+        }
         if (!await huds.isOpen(_hud!)) {
           throw StateError('Protected controls unavailable');
         }
@@ -374,6 +409,10 @@ class ScreenTakeController extends ChangeNotifier {
         recordAudio: _audio,
         recordSystemAudio: _systemAudio,
         prompterOpen: readerVisible,
+        companion: companion,
+        companionQuestion: recording && companionQuestion,
+        camera: _cameraId != null,
+        cameraFollow: cameraFollow,
       ),
     );
   }
@@ -398,15 +437,27 @@ class ScreenTakeController extends ChangeNotifier {
 
   Future<void> togglePrompter() async {
     final reader = _reader;
-    if (reader == null || !recording || _stopWanted) return;
+    if (reader == null ||
+        !recording ||
+        _stopWanted ||
+        _visibilityChanging ||
+        _placementChanging) {
+      return;
+    }
+    _visibilityChanging = true;
+    ++_readerVersion;
     try {
       await floating.show(reader, !readerVisible);
+      if (_stopWanted || !recording) return;
       readerVisible = !readerVisible;
       await _updateHud();
     } on Object {
       problem =
           'The hidden reader is unavailable. The take is stopping safely.';
       stop();
+    } finally {
+      _visibilityChanging = false;
+      ++_readerVersion;
     }
   }
 
@@ -420,11 +471,89 @@ class ScreenTakeController extends ChangeNotifier {
     }
   }
 
+  Future<void> toggleCompanion() async {
+    if (!recording || _stopWanted || _placementChanging || _visibilityChanging) {
+      return;
+    }
+    if (!companion && _cameraId != null && cameraFollow == null) {
+      companionQuestion = true;
+      await _updateHud();
+      return;
+    }
+    await _placeCompanion(!companion);
+  }
+
+  Future<void> askCompanion() async {
+    if (!recording || _stopWanted || _cameraId == null || _placementChanging) {
+      return;
+    }
+    companionQuestion = true;
+    await _updateHud();
+  }
+
+  Future<void> chooseCompanion(bool follow) async {
+    if (!recording ||
+        _stopWanted ||
+        !companionQuestion ||
+        _cameraId == null ||
+        _placementChanging) {
+      return;
+    }
+    cameraFollow = follow;
+    companionQuestion = false;
+    // A preference write must never interrupt a useful recording.
+    try {
+      await rememberCameraFollow?.call(follow);
+    } on Object {
+      /* Retain session choice. */
+    }
+    await _placeCompanion(true);
+  }
+
+  Future<void> _placeCompanion(bool enabled) async {
+    final reader = _reader;
+    if (reader == null ||
+        !recording ||
+        _stopWanted ||
+        _placementChanging ||
+        _visibilityChanging) {
+      return;
+    }
+    _placementChanging = true;
+    ++_readerVersion;
+    try {
+      await floating.placement(
+        reader,
+        CompanionPlacement(
+          enabled: enabled,
+          follow: _cameraId == null || cameraFollow == true,
+          camera: _cameraId != null,
+          reduceMotion: _reduceMotion,
+        ),
+      );
+      if (_stopWanted || !recording) return;
+      companion = enabled;
+      if (!readerVisible) {
+        await floating.show(reader, true);
+        readerVisible = true;
+      }
+      await _updateHud();
+    } on Object {
+      problem =
+          'The hidden reader is unavailable. The take is stopping safely.';
+      stop();
+    } finally {
+      _placementChanging = false;
+      ++_readerVersion;
+    }
+  }
+
   @override
   void dispose() {
     _disposed = true;
     stop();
     unawaited(_commands.cancel());
+    unawaited(_readerCommands.cancel());
     // _record keeps ownership until native finalization and local saving finish.
     super.dispose();
   }

@@ -76,6 +76,12 @@ class FloatingHandle {
   final int sessionId;
 }
 
+class FloatingCommand {
+  const FloatingCommand(this.sessionId, this.command);
+  final int sessionId;
+  final String command;
+}
+
 class FloatingRecordingState {
   const FloatingRecordingState({
     required this.active,
@@ -90,22 +96,68 @@ class FloatingRecordingState {
   };
 }
 
+class CompanionPlacement {
+  const CompanionPlacement({
+    this.enabled = false,
+    this.follow = false,
+    this.camera = false,
+    this.reduceMotion = false,
+  });
+  final bool enabled, follow, camera, reduceMotion;
+  Map<String, Object?> toJson() => {
+    'enabled': enabled,
+    'follow': follow,
+    'camera': camera,
+    'reduceMotion': reduceMotion,
+    'width': SaPrompter.companionWidth,
+    'height': SaPrompter.companionHeight,
+    'gap': SaPrompter.companionGap,
+    'jitter': SaPrompter.companionJitter,
+    'opacity': SaPrompter.companionOpacity,
+    'radius': SaRadius.md.round(),
+    'restSeconds':
+        SaDurations.companionRest.inMicroseconds /
+        Duration.microsecondsPerSecond,
+    'pollMs': SaDurations.companionPoll.inMilliseconds,
+    'mass': SaSprings.follow.mass,
+    'stiffness': SaSprings.follow.stiffness,
+    'damping': SaSprings.follow.damping,
+  };
+}
+
 abstract class FloatingPrompters {
   factory FloatingPrompters.platform() => Platform.isWindows
       ? const WindowsFloatingPrompters()
       : const UnsupportedFloatingPrompters();
   bool get supported;
+  Stream<FloatingCommand> get commands;
   Future<FloatingHandle> open(FloatingPresentation presentation);
   Future<bool> isOpen(FloatingHandle handle);
   Future<void> close(FloatingHandle handle);
   Future<void> update(FloatingHandle handle, FloatingRecordingState state);
   Future<void> show(FloatingHandle handle, bool visible);
   Future<void> lock(FloatingHandle handle);
+  Future<void> placement(FloatingHandle handle, CompanionPlacement placement);
 }
 
 class WindowsFloatingPrompters implements FloatingPrompters {
   const WindowsFloatingPrompters();
   static const channel = MethodChannel('spawnalpha/floating_prompter');
+  static final _commands = StreamController<FloatingCommand>.broadcast();
+  @override
+  Stream<FloatingCommand> get commands {
+    channel.setMethodCallHandler((call) async {
+      if (call.method != 'command' || call.arguments is! Map) return;
+      final args = call.arguments as Map;
+      if (args['sessionId'] is int && args['command'] == 'companionAsk') {
+        _commands.add(
+          FloatingCommand(args['sessionId'] as int, 'companionAsk'),
+        );
+      }
+    });
+    return _commands.stream;
+  }
+
   @override
   bool get supported => true;
   @override
@@ -168,12 +220,20 @@ class WindowsFloatingPrompters implements FloatingPrompters {
   @override
   Future<void> lock(FloatingHandle handle) =>
       channel.invokeMethod<void>('lock', {'sessionId': handle.sessionId});
+  @override
+  Future<void> placement(FloatingHandle handle, CompanionPlacement placement) =>
+      channel.invokeMethod<void>('placement', {
+        'sessionId': handle.sessionId,
+        ...placement.toJson(),
+      });
 }
 
 class UnsupportedFloatingPrompters implements FloatingPrompters {
   const UnsupportedFloatingPrompters();
   @override
   bool get supported => false;
+  @override
+  Stream<FloatingCommand> get commands => const Stream.empty();
   @override
   Future<FloatingHandle> open(FloatingPresentation presentation) async =>
       throw UnsupportedError('Windows only');
@@ -190,4 +250,9 @@ class UnsupportedFloatingPrompters implements FloatingPrompters {
   Future<void> show(FloatingHandle handle, bool visible) async {}
   @override
   Future<void> lock(FloatingHandle handle) async {}
+  @override
+  Future<void> placement(
+    FloatingHandle handle,
+    CompanionPlacement placement,
+  ) async {}
 }

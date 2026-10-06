@@ -41,16 +41,18 @@ bool Exclude(HWND hwnd) {
 class HudWindow : public Win32Window {
  public:
   HudWindow(flutter::DartProject project, RECT source, RECT work, int width, int height,
-            int countdown, int inset, int poll, int radius, std::function<void(const std::string&)> command)
+            int countdown, int inset, int poll, int radius, int question_height, std::function<void(const std::string&)> command)
       : project_(std::move(project)), source_(source), work_(work), width_(width), height_(height),
-        countdown_(countdown), inset_(inset), poll_(poll), radius_(radius), command_(std::move(command)) {}
+        countdown_(countdown), inset_(inset), poll_(poll), radius_(radius), question_height_(question_height), command_(std::move(command)) {}
   ~HudWindow() override { Destroy(); }
   void Update(const Map& state) {
     state_ = state;
     const auto* phase = Field(state, "phase");
     const bool countdown = phase && std::holds_alternative<std::string>(*phase) &&
         (std::get<std::string>(*phase) == "countdown" || std::get<std::string>(*phase) == "preparing");
-    if (countdown != in_countdown_) { in_countdown_ = countdown; Place(); }
+    const auto* question = Field(state, "companionQuestion");
+    const bool asking = !countdown && question && std::holds_alternative<bool>(*question) && std::get<bool>(*question);
+    if (countdown != in_countdown_ || asking != asking_) { in_countdown_ = countdown; asking_ = asking; Place(); }
     if (channel_) channel_->InvokeMethod("update", std::make_unique<Value>(state));
   }
   bool Ready() { return Excluded(GetHandle()) && IsWindowVisible(GetHandle()) && !hit_regions_.empty(); }
@@ -128,7 +130,7 @@ class HudWindow : public Win32Window {
     const UINT dpi = GetDpiForWindow(GetHandle());
     const double scale = dpi / 96.0;
     const int width = static_cast<int>((in_countdown_ ? countdown_ : width_) * scale);
-    const int height = static_cast<int>((in_countdown_ ? countdown_ : height_) * scale);
+    const int height = static_cast<int>((in_countdown_ ? countdown_ : asking_ ? question_height_ : height_) * scale);
     const int inset = static_cast<int>(inset_ * scale);
     const int x = in_countdown_ ? source_.left + (source_.right - source_.left - width) / 2 : work_.left + (work_.right - work_.left - width) / 2;
     const int y = in_countdown_ ? source_.top + (source_.bottom - source_.top - height) / 2 : work_.bottom - height - inset;
@@ -142,8 +144,10 @@ class HudWindow : public Win32Window {
   flutter::DartProject project_;
   RECT source_, work_;
   int width_, height_, countdown_, inset_, poll_, radius_;
+  int question_height_;
   std::vector<RECT> hit_regions_;
   bool in_countdown_ = true;
+  bool asking_ = false;
   Map state_{{Value("phase"), Value("preparing")}};
   std::function<void(const std::string&)> command_;
   std::unique_ptr<flutter::FlutterViewController> controller_;
@@ -168,6 +172,8 @@ struct RecordingHud::Impl {
             !ResolveScreenSource(std::get<std::string>(*source), &monitor, &source_window)) {
           result->Error("source", "Choose an available source first."); return;
         }
+        const int question_height = Number(*args, "questionHeight");
+        if (question_height < height || question_height > 4096) { result->Error("invalid", "Invalid controls size"); return; }
         RECT source_rect{}, work{};
         if (source_window) { GetWindowRect(source_window, &source_rect); monitor = MonitorFromWindow(source_window, MONITOR_DEFAULTTONEAREST); }
         MONITORINFO info{sizeof(info)}; GetMonitorInfo(monitor, &info); work = info.rcWork;
@@ -180,9 +186,11 @@ struct RecordingHud::Impl {
           Restore(); result->Error("excluded", "Could not hide recording controls from capture."); return;
         }
         ++session;
-        window = std::make_unique<HudWindow>(this->project, source_rect, work, width, height, countdown, inset, poll, radius,
+        window = std::make_unique<HudWindow>(this->project, source_rect, work, width, height, countdown, inset, poll, radius, question_height,
             [this](const std::string& command) {
-              if (command != "stop" && command != "pause" && command != "prompter" && command != "lock") return;
+              if (command != "stop" && command != "pause" && command != "prompter" && command != "lock" &&
+                  command != "companion" && command != "companionAsk" && command != "companionDocked" &&
+                  command != "companionFollow" && command != "companionCancel") return;
               channel.InvokeMethod("command", std::make_unique<Value>(Map{{Value("sessionId"), Value(session)}, {Value("command"), Value(command)}}));
             });
         if (!window->Create(L"SpawnAlpha Recording", Win32Window::Point(source_rect.left, source_rect.top), Win32Window::Size(countdown, countdown))) {

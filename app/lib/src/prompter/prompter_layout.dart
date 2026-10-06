@@ -94,12 +94,21 @@ class PrompterLayout {
   /// spoken, which sits on the reading line until the next phrase starts.
   ///
   /// Either way, nothing moves during a pause.
-  double scrollYAt(DeliveryTimeline timeline, Duration time, {PrompterMotion motion = PrompterMotion.lineStep}) {
+  double scrollYAt(DeliveryTimeline timeline, Duration time, {PrompterMotion motion = PrompterMotion.lineStep, double? phraseViewportHeight}) {
     if (timeline.isEmpty || lineOfToken.length != timeline.length) return 0;
     final token = timeline.tokenAt(time);
     final line = lineOfToken[token];
     if (motion == PrompterMotion.lineStep) return lineTops[line];
-    if (motion == PrompterMotion.phrase) return lineTops[lineOfToken[phraseOf(token).$1]];
+    if (motion == PrompterMotion.phrase) {
+      final (start, end) = phraseOf(token);
+      final firstLine = lineOfToken[start], lastLine = lineOfToken[end - 1];
+      // A compact reader still shows One phrase, stepping within long phrases
+      // so its current word cannot disappear beneath the card.
+      if (phraseViewportHeight != null && lineBottoms[lastLine] - lineTops[firstLine] > phraseViewportHeight) {
+        return lineTops[line];
+      }
+      return lineTops[firstLine];
+    }
     final first = firstTokenOn(line);
     final last = lastTokenOn(line);
     final from = timeline.spokenBefore(first).inMicroseconds;

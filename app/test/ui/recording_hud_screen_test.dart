@@ -11,6 +11,54 @@ void main() {
   tearDown(
     () => messenger.setMockMethodCallHandler(recordingHudViewChannel, null),
   );
+  testWidgets(
+    'camera choice fits its protected panel and keeps Stop and Pause available',
+    (tester) async {
+      tester.view.physicalSize = Size(
+        SaPrompter.hudWidth,
+        SaPrompter.hudQuestionHeight,
+      );
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final commands = <String>[];
+      List? regions;
+      messenger.setMockMethodCallHandler(recordingHudViewChannel, (call) async {
+        if (call.method == 'command') commands.add(call.arguments as String);
+        if (call.method == 'hitRegions') regions = call.arguments as List;
+        return null;
+      });
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: buildTheme(Brightness.dark),
+          home: const RecordingHudScreen(
+            initial: HudState(
+              phase: HudPhase.recording,
+              camera: true,
+              companionQuestion: true,
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      expect(tester.takeException(), isNull);
+      expect(find.text('Keep docked'), findsOneWidget);
+      for (final label in ['Keep docked', 'Follow anyway', 'Cancel']) {
+        await tester.tap(find.text(label));
+      }
+      await tester.tap(find.byTooltip('Pause recording'));
+      await tester.tap(find.byTooltip('Stop recording'));
+      await tester.tap(find.byTooltip('Companion'));
+      expect(commands, [
+        'companionDocked',
+        'companionFollow',
+        'companionCancel',
+        'pause',
+        'stop',
+        'companion',
+      ]);
+      expect(regions!.length, lessThanOrEqualTo(8));
+    },
+  );
   for (final name in [
     'Microphone with a long device name',
     'Microphone sans fil',

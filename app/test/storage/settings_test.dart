@@ -16,6 +16,20 @@ void main() {
 
   File file() => File('${dir.path}/settings.json');
 
+  test('camera companion defaults to an unanswered choice and remembers either answer', () async {
+    final settings = Settings(file: file(), secrets: MemorySecretStore());
+    await settings.load();
+    expect(settings.companionCameraFollow, isNull);
+    expect(settings.toJson().containsKey('companionCameraFollow'), isFalse);
+    for (final follow in [false, true]) {
+      await settings.update((s) => s.companionCameraFollow = follow);
+      final reloaded = Settings(file: file(), secrets: MemorySecretStore());
+      await reloaded.load();
+      expect(reloaded.companionCameraFollow, follow);
+      expect(reloaded.toJson().keys.any((k) => k.contains('cursor')), isFalse);
+    }
+  });
+
   test('keeps a key per provider and round-trips the configuration', () async {
     final secrets = MemorySecretStore();
     final settings = Settings(file: file(), secrets: secrets);

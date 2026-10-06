@@ -479,6 +479,25 @@ recordings folder.
   `audio_ui_fixture` links only generated endpoints and completes the whole protected
   take via `native_audio_take_check.dart`; a native fixture handshake refuses the
   shipping binary before any capture. This target is excluded from normal builds.
+- **Windows cursor companion:** the existing excluded reader engine changes placement;
+  it never restarts the timeline, opens a second reader or accesses recording files.
+  Pure `CompanionMotion` chooses the trailing side, flips/clamps the entire spring path
+  to the pointer monitor's work area and docks after two seconds of stillness. Geometry,
+  jitter, rest/poll intervals and spring coefficients arrive from design tokens.
+  Native sampling runs only while a following card is visible and capture-excluded;
+  hide, dock, reduced motion and destruction release the timer and transient samples.
+  Following is click-through and never activates the window. Camera following needs
+  an explicit remembered choice; the HUD expands inside its own protected window for
+  that choice, keeping Pause and Stop available. The docked reader can request only this
+  guarded panel, not arbitrary input forwarding. Its camera reminder contains no device
+  IDs. Settings retain one nullable preference, never cursor history. Session IDs and
+  the recording owner guard commands and late placement replies. Reader state ignores
+  stale visibility polls during placement/show/hide changes, and native resize changes
+  preserve WS_VISIBLE. Compact One phrase views step within a phrase
+  only when its measured height exceeds the reading viewport, keeping the current word
+  visible. Regular reader layout is unchanged. Finalization
+  precedes removing capture protection. Generated paired-take checks verify both
+  placements, click-through, reduced motion, hide/show sampling cleanup and saving.
 - **SettingsScreen**: the markup source, API key, model, default style, text
   size and mirror setting, plus **Privacy and licences**: what leaves the
   device, and the licence page (`showLicensePage`).

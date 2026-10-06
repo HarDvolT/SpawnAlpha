@@ -18,6 +18,10 @@ class HudState {
     this.recordAudio = true,
     this.recordSystemAudio = false,
     this.prompterOpen = true,
+    this.companion = false,
+    this.companionQuestion = false,
+    this.camera = false,
+    this.cameraFollow,
   });
   final HudPhase phase;
   final int countdown;
@@ -25,6 +29,8 @@ class HudState {
   final String microphone;
   final double peakDb;
   final bool recordAudio, recordSystemAudio, prompterOpen;
+  final bool companion, companionQuestion, camera;
+  final bool? cameraFollow;
   Map<String, Object?> toJson() => {
     'phase': phase.name,
     'countdown': countdown,
@@ -34,6 +40,10 @@ class HudState {
     'recordAudio': recordAudio,
     'recordSystemAudio': recordSystemAudio,
     'prompterOpen': prompterOpen,
+    'companion': companion,
+    'companionQuestion': companionQuestion,
+    'camera': camera,
+    'cameraFollow': cameraFollow,
   };
   factory HudState.fromJson(Map<Object?, Object?> json) => HudState(
     phase:
@@ -48,6 +58,12 @@ class HudState {
     recordAudio: json['recordAudio'] != false,
     recordSystemAudio: json['recordSystemAudio'] == true,
     prompterOpen: json['prompterOpen'] != false,
+    companion: json['companion'] == true,
+    companionQuestion: json['companionQuestion'] == true,
+    camera: json['camera'] == true,
+    cameraFollow: json['cameraFollow'] is bool
+        ? json['cameraFollow'] as bool
+        : null,
   );
 }
 
@@ -81,7 +97,17 @@ class WindowsRecordingHuds implements RecordingHuds {
       final id = args['sessionId'], command = args['command'];
       if (id is int &&
           command is String &&
-          const {'stop', 'pause', 'prompter', 'lock'}.contains(command)) {
+          const {
+            'stop',
+            'pause',
+            'prompter',
+            'lock',
+            'companion',
+            'companionAsk',
+            'companionDocked',
+            'companionFollow',
+            'companionCancel',
+          }.contains(command)) {
         _commands.add(HudCommand(id, command));
       }
     });
@@ -96,6 +122,7 @@ class WindowsRecordingHuds implements RecordingHuds {
       'sourceId': source.id,
       'width': SaPrompter.hudWidth.round(),
       'height': SaPrompter.hudHeight.round(),
+      'questionHeight': SaPrompter.hudQuestionHeight.round(),
       'countdownSize': SaPrompter.countdownWindowSize.round(),
       'inset': SaSpace.s6.round(),
       'hitPollMs': SaDurations.hudHitPoll.inMilliseconds,

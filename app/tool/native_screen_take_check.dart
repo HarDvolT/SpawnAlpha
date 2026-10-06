@@ -108,10 +108,47 @@ Future<void> runGeneratedTake({
       } else if (controller.phase == ScreenTakePhase.paused && step == 1) {
         step = 2;
         action = Timer(SaDurations.beat, () async {
+          await controller.toggleCompanion();
+          if (cameraFixture != null) {
+            if (!controller.companionQuestion) throw StateError('Camera choice missing');
+            await controller.chooseCompanion(false);
+          }
+          if (!controller.companion) throw StateError('Companion missing');
+          Future<Map<String, Object?>?> placementStatus() => WindowsFloatingPrompters.channel
+            .invokeMapMethod<String, Object?>('status', {'sessionId': 1});
+          var placement = await placementStatus();
+          if (placement?['excluded'] != true || placement?['visible'] != true || placement?['companion'] != true ||
+              (cameraFixture != null && placement?['sampling'] != false)) {
+            throw StateError('Companion protection or camera docking failed');
+          }
+          if (cameraFixture != null) {
+            await controller.askCompanion();
+            await controller.chooseCompanion(true);
+          }
+          placement = await placementStatus();
+          if (placement?['following'] == true && (placement?['clickThrough'] != true || placement?['sampling'] != true)) {
+            debugPrint('Generated companion flags: visible=${placement?['visible']}, excluded=${placement?['excluded']}, sampling=${placement?['sampling']}, clickThrough=${placement?['clickThrough']}');
+            throw StateError('Companion input safety failed');
+          }
+          await const WindowsFloatingPrompters().placement(const FloatingHandle(1),
+            const CompanionPlacement(enabled: true, follow: true, reduceMotion: true));
+          placement = await placementStatus();
+          if (placement?['sampling'] != false || placement?['following'] != false) {
+            throw StateError('Reduced motion did not dock');
+          }
+          await controller.toggleCompanion();
+          await controller.toggleCompanion();
           await controller.togglePrompter();
           if (controller.readerVisible) throw StateError('Hide failed');
+          if ((await placementStatus())?['sampling'] != false) throw StateError('Hidden pointer sampling');
           await controller.togglePrompter();
           if (!controller.readerVisible) throw StateError('Show failed');
+          placement = await placementStatus();
+          if (placement?['following'] == true && (placement?['clickThrough'] != true || placement?['sampling'] != true)) {
+            throw StateError('Following safety lost after showing');
+          }
+          await controller.toggleCompanion();
+          if ((await placementStatus())?['sampling'] != false) throw StateError('Pointer sampling retained');
           await controller.lockPrompter();
           await controller.lockPrompter();
           await controller.togglePause();

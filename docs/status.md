@@ -13,8 +13,8 @@ and Both are enabled in normal Windows setup: chosen-source GPU video, chosen ca
 a separate fragmented file, chosen-microphone AAC, Voice
 pace, pause/resume, reader hide/show/Lock and durable local saving/recovery are connected.
 The full generated Screen, Both and computer-sound takes pass on this PC. Computer sound
-is available with an explicit switch, initially off. Cursor companion and telemetry
-remain next; owner hardware trials are deferred until
+is available with an explicit switch, initially off. The cursor companion is connected
+and protected; privacy-limited telemetry is next. Owner hardware trials are deferred until
 they return.** The build order is in
 [product-brief.md](product-brief.md#build-order); it was revised on 2026-09-30.
 
@@ -38,8 +38,8 @@ build step 2 (screen recording).
   `flutter_secure_storage_windows`). `flutter doctor -v` passes Windows, Visual Studio,
   desktop device and network checks. Android is intentionally not installed yet.
 - **Local checks and launch:** `flutter pub get` succeeds; `flutter analyze` prints
-  **No issues found!**; all **281 tests pass** (226 before Screen integration).
-  All **97 screenshot cases pass**, including the source picker, unavailable-preview
+  **No issues found!**; all **301 tests pass** (226 before Screen integration).
+  All **109 screenshot cases pass**, including the source picker, unavailable-preview
   and default/minimum floating prompter in EN/FR/AR. The Windows debug build succeeds.
   Windows Git checkout converted generated
   tokens to CRLF, causing the exact-generation test to fail: `.gitattributes` now keeps
@@ -326,6 +326,33 @@ build step 2 (screen recording).
   default-output change, placement and exclusion trials remain deferred by request.
   **Next:** cursor companion, privacy-limited telemetry, then the render-core spike.
   Restore the normal main.dart launch after the explicit audio test target.
+- **Cursor companion (seventeenth slice, 2026-10-06):** Companion in the recording HUD
+  changes the existing reader to a compact card without changing its word, pause state,
+  guide, alignment or mirror. Native spring-follow movement trails away from direction,
+  flips/clamps at work-area edges (including negative-coordinate monitors), ignores hand
+  jitter and docks after two seconds of rest. The following card is click-through;
+  hiding it, switching off, reduced motion or teardown releases pointer sampling.
+  Camera use asks Keep docked / Follow anyway in the capture-excluded HUD, remembers the
+  answer locally and shows Eyes to the lens when following. The docked card's Follow
+  anyway and HUD's camera-choice control reopen that protected panel; Pause/Stop remain
+  available. No cursor history, typed input, device IDs, recording paths or keys reach
+  the child. No new dependency, copied code or network use.
+  Pure native checks cover direction, four edges, jitter/rest, monitor changes, small
+  work areas and delayed frames. All 301 tests and 109 layouts pass; analysis is clean.
+  Long phrases step within the compact viewport so the current word stays visible;
+  full readers keep their existing One phrase behaviour. A stale visibility poll cannot
+  undo a Hide click. The native glass restores click-through after showing again.
+  The generated protected paired take verifies camera docking/following, click-through,
+  reduced-motion docking, hide/show sampling cleanup, one durable pair and release.
+  EN/FR/AR compact and docked layouts plus the camera warning were inspected.
+  **Half done:** owner comfort, real capture-exclusion/placement, multiple-monitor DPI,
+  camera/microphone/playback trials remain deferred at their request. Pointer telemetry
+  is not built. **Next:** privacy-limited cursor/click/key timing, longer/crash recording
+  checks, then the render-core spike. Leave the normal app open for later trials.
+  Design tokens, recording spec and component notes are current. The private Claude
+  artifact needs republishing; its illustrative browser preview remains scaled.
+  The optional browser-preview renderer could not run because Playwright is absent;
+  actual Flutter screenshots provide the verified layouts.
 - **Cue retest history (superseded by normal-app launch above):** `app/tool/cue_check.dart` is a development-only launch target.
   It uses the real Home/practice screens with memory-only scripts, settings and keys;
   optional recordings go under `app/build/cue-check/recordings`, on E: on this PC.
@@ -409,10 +436,10 @@ build step 2 (screen recording).
 | Compliance groundwork ([compliance.md](compliance.md)) | Rules and checklist written, licence page in the app, no secrets in the repo. Legal documents and filings are still to do |
 | Windows display/window selection and live preview | Built/tested locally and owner-confirmed; pushed in `d85687e` / `18170a6` |
 | Excluded floating prompter | Built/tested and connected to Screen/Both recording, native exclusion and protected take checks pass; owner placement/shortcut trials deferred |
-| Screen and Screen + camera recording, cursor companion, telemetry | Screen and Both enabled; complete generated protected takes pass, chosen mic/camera, optional computer sound, shared pause, separate files and save/recovery built/tested. Companion and telemetry remain to build; owner hardware trials deferred. |
+| Screen and Screen + camera recording, cursor companion, telemetry | Screen and Both enabled; complete generated protected takes pass, chosen mic/camera, optional computer sound, shared pause, separate files and save/recovery built/tested. Protected companion connected with camera choice and reduced motion. Telemetry remains; owner hardware trials deferred. |
 | Director's Cut (auto-edit, captions, auto-zoom, finish screen) | Designed (`docs/design/autoedit.md`). Not built; needs a native render core. |
 
-281 tests pass (`cd app && flutter test`), 97 screenshot cases pass, and `flutter analyze` is clean.
+301 tests pass (`cd app && flutter test`), 109 screenshot cases pass, and `flutter analyze` is clean.
 
 ## Next steps
 
@@ -428,8 +455,8 @@ build step 2 (screen recording).
    Privacy-switch and explicit-silence paths still need hardware trials. The owner also
    confirmed the browser-window live preview updates. Continue build step 2 while they
    sleep; they will try the later pieces together when they return.
-3. **Remaining design v3 in the app:** the floating prompter, HUD and camera bubble are built;
-   cursor companion follows in build step 2 (screen recording).
+3. **Design v3 recording surfaces are built:** the floating prompter, HUD, camera bubble
+   and cursor companion are connected in build step 2; owner trials are deferred.
 4. **Finish design v2 in the app.** Done so far: the fonts, tokens, theme, script page,
    kinetic prompter, hold badge and record screen. Still to do:
    - glyph signature motions in the Studio: arrive on the director's pass, play once when
@@ -471,6 +498,11 @@ build step 2 (screen recording).
    See OpenScreen in the brief for reusable parts.
 
 ## Decisions
+
+- 2026-10-06, Windows implementation of the approved companion design: reuse the
+  existing reader/timeline, keep the camera card docked until an explicit follow choice,
+  and store only that choice. Compact phrases step within their viewport when needed;
+  regular readers retain their original phrase layout. Reduced motion keeps it docked.
 
 - 2026-10-05, the owner: after the Windows retest, approved starting settings **Dot,
   One phrase, Center, Kinetic, Voice** (Timed when voice pacing is unsupported).
@@ -579,10 +611,22 @@ build step 2 (screen recording).
   recursion because the setup/preview window is not excluded yet. The recording GPU/
   platform-encoder pipeline and protected main/HUD/reader pass native tests and are
   connected to Screen mode. Live picker thumbnails and HDR capture remain pending.
+- Companion's movement/edge logic and protected native placement pass automated checks.
+  Owner comfort and real multiple-monitor/DPI placement remain to try; trials are deferred.
 - The on-device markup is heuristic. For example, French and Arabic stress rules are based on
   word lists, not prosody.
 
 ## Session log
+
+- 2026-10-06, Windows recorder slice 17 (cursor companion):
+  - Added the protected compact reader, follow spring, edge flipping, stillness docking,
+    glass/rounded bounds, camera choice/reminder and reduced-motion docking. It reuses
+    playback and never saves cursor samples. A late poll cannot undo Hide; showing again
+    restores click-through. Native style changes preserve the live window's visibility.
+  - All 301 tests and 109 layout cases pass, including EN/FR/AR compact long phrases.
+    Analysis is clean. The full generated protected paired take passes camera docking,
+    following, click-through, reduced motion, hide/show cleanup and durable saving.
+    Owner trial remains deferred. Telemetry, longer/crash checks and render core are next.
 
 - 2026-10-06, Windows recorder slice 16 (normal computer sound):
   - Connected the explicit off-by-default setup switch, frozen owner choice, separate
