@@ -14,12 +14,15 @@ import 'package:spawnalpha/src/transcription/speech_processor.dart';
 import 'package:spawnalpha/src/transcription/word_timing.dart';
 import 'package:spawnalpha/src/transcription/take_processing.dart';
 import 'package:spawnalpha/src/ui/take_review_screen.dart';
+import 'package:spawnalpha/src/playback/local_playback.dart';
 
 import '../cut/filler_review_test.dart'
     show fillerFixture, fillerPlan, fillerScript;
 import '../playback/playback_controller_test.dart' show FakePlayback;
 
 import '../transcription/speech_processor_test.dart' show FakeSpeech;
+import '../review/repeated_sections_test.dart'
+    show repeatedScript, repeatedSpeech;
 
 SavedTranscript reviewFixture(
   ScriptLanguage language,
@@ -64,6 +67,137 @@ SavedTranscript reviewFixture(
 
 void main() {
   for (final language in ScriptLanguage.values) {
+    testWidgets(
+      'comparison uses the frozen script and hears an original attempt $language',
+      (tester) async {
+        tester.view.physicalSize = const Size(1280, 2000);
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.reset);
+        final snapshot = repeatedScript(language),
+            words = repeatedSpeech(repeatedScript(language));
+        final take = Take(
+          path: 'generated.mp4',
+          recordedAt: DateTime(2026),
+          duration: words.duration,
+        );
+        final script = snapshot
+            .withText('A later library edit.')
+            .copyWith(takes: [take]);
+        final library = ScriptLibrary(MemoryScriptStore());
+        await library.save(script);
+        final backend = FakePlayback()
+          ..value = PlaybackStatus(
+            ready: true,
+            width: 640,
+            height: 360,
+            duration: words.duration,
+          );
+        final services = AppServices(
+          library: library,
+          settings: Settings(secrets: MemorySecretStore()),
+          recordingsDir: Directory.systemTemp,
+          playback: backend,
+          speechBackend: FakeSpeech('unused'),
+        );
+        services.speech.result = SavedTranscript(
+          sourcePath: take.path,
+          snapshot: snapshot,
+          transcript: words,
+          alignment: {'attemptCount': 2, 'words': []},
+        );
+        await tester.pumpWidget(
+          AppScope(
+            services: services,
+            child: MaterialApp(
+              theme: buildTheme(Brightness.light),
+              home: TakeReviewScreen(script: script, take: take),
+            ),
+          ),
+        );
+        for (
+          var i = 0;
+          i < 40 && find.text('Compare attempts').evaluate().isEmpty;
+          i++
+        ) {
+          await tester.runAsync(
+            () => Future<void>.delayed(const Duration(milliseconds: 50)),
+          );
+          await tester.pumpAndSettle();
+        }
+        expect(find.text('Compare attempts'), findsOneWidget);
+        expect(find.text(snapshot.text), findsWidgets);
+        expect(backend.commands, isEmpty);
+        await tester.ensureVisible(find.text('Hear attempt 2'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Hear attempt 2'));
+        await tester.pumpAndSettle();
+        expect(backend.commands, [
+          'pause',
+          'seek:2100000',
+          'mute:false',
+          'play',
+        ]);
+        expect(find.text('Original take · Phrase preview'), findsOneWidget);
+        expect(library.byId(script.id)!.takes.single.cutPath, isNull);
+        expect(tester.takeException(), isNull);
+        await tester.pumpWidget(const SizedBox());
+        services.processing.dispose();
+        services.speech.dispose();
+        services.speechModels.dispose();
+        library.dispose();
+      },
+    );
+    for (final notes in [false, true]) {
+      testWidgets(
+        'free speech never gets script attempt comparison $language Notes=$notes',
+        (tester) async {
+          tester.view.physicalSize = const Size(1280, 2400);
+          tester.view.devicePixelRatio = 1;
+          addTearDown(tester.view.reset);
+          final snapshot = repeatedScript(language).copyWith(
+            recordingAid: notes ? RecordingAid.notes : RecordingAid.script,
+          );
+          final words = repeatedSpeech(snapshot);
+          final take = Take(
+            path: 'generated.mp4',
+            recordedAt: DateTime(2026),
+            duration: words.duration,
+          );
+          final library = ScriptLibrary(MemoryScriptStore());
+          final script = snapshot.copyWith(takes: [take]);
+          await library.save(script);
+          final services = AppServices(
+            library: library,
+            settings: Settings(secrets: MemorySecretStore()),
+            recordingsDir: Directory.systemTemp,
+            speechBackend: FakeSpeech('unused'),
+          );
+          services.speech.result = SavedTranscript(
+            sourcePath: take.path,
+            snapshot: snapshot,
+            transcript: words,
+            alignment: notes ? {'attemptCount': 2} : null,
+          );
+          await tester.pumpWidget(
+            AppScope(
+              services: services,
+              child: MaterialApp(
+                theme: buildTheme(Brightness.light),
+                home: TakeReviewScreen(script: script, take: take),
+              ),
+            ),
+          );
+          await tester.pumpAndSettle();
+          expect(find.text('Compare attempts'), findsNothing);
+          expect(find.text('Comparing repeated sections…'), findsNothing);
+          await tester.pumpWidget(const SizedBox());
+          services.processing.dispose();
+          services.speech.dispose();
+          services.speechModels.dispose();
+          library.dispose();
+        },
+      );
+    }
     testWidgets(
       'hearing a filler reveals original player without changing the cut $language',
       (tester) async {

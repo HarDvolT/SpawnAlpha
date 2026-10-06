@@ -655,6 +655,24 @@ existing 250ms status poll pauses at its end (a listening aid, not a sample-
 accurate cut preview). Late status, mute and replay-seek completions also check
 the media generation, including backends that reuse a handle value.
 
+## Repeated-section comparison
+
+`review/repeated_sections.dart` groups frozen Script alignment by sentence and
+anchored attempt. Each comparable section requires at least three exact matches
+(all words for a shorter section). Ordinary script repetition, a lone echo and
+Notes do not become retakes. Partial coverage is factual; changed/added wording,
+initial unanchored speech and trailing additions stay in the compared source
+span. Adjacent sections never duplicate mapped words. Timing, uncertainty and
+actual wording stay intact; there is no performance rank or removal decision.
+
+Take review runs this bounded derivation in an isolate only for saved results
+with script alignment. Null alignment (including computer-sound-only), Notes
+and missing snapshots stay unscored. Wording updates replace the derived list;
+generation checks reject stale results after another update or disposal.
+`RetakeReviewPanel` pages sections and attempts, and explicit Hear actions reuse
+the original excerpt player. It creates no new disk file or destructive edit.
+Reversible attempt choice and full delivery scoring are later slices.
+
 ## Local video export
 
 `VideoRenderer` sends a portable plan plus explicitly resolved local files to

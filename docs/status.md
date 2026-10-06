@@ -23,7 +23,8 @@ take playback and first Windows video exports now work. Automatic local speech
 and reversible cutting after Stop are connected. Optional Readable captions
 follow saved actual words/corrections and the cut clock. Reversible filler
 review offers safe optional removals, initially kept; remaining Director's Cut
-tracks are next. Owner hardware trials are
+tracks are next. Repeated Script sections now have a comparison with original
+listening, partial coverage and wording flags. Owner hardware trials are
 deferred until they return.** The build order is in
 [product-brief.md](product-brief.md#build-order); it was revised on 2026-09-30.
 
@@ -46,6 +47,21 @@ dot to grow and act out each cue in the cue's colour, and for the next features.
 build step 2 (screen recording).
 
 ## Handover (2026-10-05): from here, Codex on the owner's Windows PC
+
+- **Latest checkpoint (2026-10-06, repeated-section comparison):** 574 Flutter
+  tests, 200 screenshot cases, clean analysis and normal Windows Release build.
+  Compare attempts derives anchored repeats from the frozen Script in a
+  bounded isolate, with actual wording/source times, partial coverage,
+  changed/added words and uncertainty. It pages sections/attempts and uses
+  explicit original Hear actions. Ordinary scripted repetition, single echoes,
+  Notes and absent alignment (including computer-only) remain unscored.
+  Stale results cannot replace a wording update. EN/FR/AR fixtures/full review
+  checks pass, including later library edits and unchanged cut choices.
+  EN/AR partial and FR dark phone PNGs inspected; no owner media used.
+  **Half done:** this comparison makes no best-performance choice and removes
+  nothing. Next connect safe reversible retake selection, then caption motion,
+  screen/sound polish and full coaching. Mobile/paid-launch work and actual
+  language/hardware trials remain; owner testing stays deferred.
 
 - **Latest checkpoint (2026-10-06, hear original filler phrases):** 537 Flutter
   tests, 188 screenshot cases and clean analysis. Each Possible filler now has
@@ -755,11 +771,18 @@ build step 2 (screen recording).
    take review exports SRT/VTT. See `word-timing.md` for estimated timings and
    remaining real-language quality trials. Step 4 now has reversible quiet cuts
    and local video export with Readable captions, reversible filler review and
-   automatic processing after Stop. Next retake decisions,
+   automatic processing after Stop. Repeated sections now offer a paged
+   comparison and original listening. Next reversible retake decisions,
    caption/screen/sound polish and delivery coaching; keep originals intact.
    See OpenScreen in the brief for reusable parts.
 
 ## Decisions
+
+- 2026-10-06, first retake comparison: show factual frozen Script coverage,
+  actual wording, uncertainty and source-clock listening. Keep all attempts
+  until reversible selection exists; do not label word-match counts a delivery
+  grade or best attempt. Notes and computer-only remain unscored. This is an
+  implementation stage, not a change to the approved full retake goal.
 
 - 2026-10-06, first filler implementation: vocabulary alone does not establish
   an unwanted hesitation, particularly "like", "du coup" or "يعني". Proposals
@@ -929,6 +952,19 @@ build step 2 (screen recording).
   word lists, not prosody.
 
 ## Session log
+
+- 2026-10-06, repeated-section comparison:
+  - Added pure anchored section/attempt grouping and bounded isolate derivation
+    from frozen Script/words. Partial coverage, changed/added speech, uncertainty
+    and original times stay factual. Ordinary repetition and free speech do
+    not become retake scores. The paged panel listens through the original
+    player without altering cuts, words or media; stale results are guarded.
+  - All 574 Flutter tests, 200 screenshot cases, clean analysis and normal
+    Windows Release build pass. EN/FR/AR full review checks use a deliberately
+    edited library script to verify frozen context and explicit playback.
+    Inspected EN/AR partial and FR dark phone layouts. No owner media/input,
+    dependency or network. Reversible selection and performance scoring remain
+    unfinished; continue retakes and remaining Cut polish. Trials deferred.
 
 - 2026-10-06, original phrase listening:
   - Added explicit bounded playback with original-source context, automatic

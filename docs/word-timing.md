@@ -119,6 +119,10 @@ Automatic processing after Stop, wording flags/corrections, reversible quiet
 cuts and Windows video export with optional Readable captions are now connected. Corrections retain the
 first recognition and its estimated confidence/times; they do not re-run ASR
 or claim better timing. Optional filler review now preserves full recognition
-and excludes only explicitly chosen complete words from cut captions. Retake decisions, full Cut polish and delivery
+and excludes only explicitly chosen complete words from cut captions. Repeated
+Script sections can now be compared/listened to from frozen alignment, with
+actual wording, source times, partial coverage and uncertainty. This derives
+facts without choosing or grading a performance; Notes and computer-only
+remain unscored. Retake decisions, full Cut polish and delivery
 review remain. The prototype 15-minute decoder limit
 does not apply to the normal bounded runtime.

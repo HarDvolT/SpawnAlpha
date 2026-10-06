@@ -55,9 +55,12 @@ import 'package:spawnalpha/src/ui/notes_editor_screen.dart';
 import 'package:spawnalpha/src/ui/notes_practice_screen.dart';
 import 'package:spawnalpha/src/ui/take_review_screen.dart';
 import 'package:spawnalpha/src/ui/clean_cut_panel.dart';
+import 'package:spawnalpha/src/ui/retake_review_panel.dart';
+import 'package:spawnalpha/src/review/repeated_sections.dart';
 import 'package:spawnalpha/src/cut/clean_plan.dart';
 import 'package:spawnalpha/src/transcription/speech_models.dart';
 import '../test/cut/clean_plan_test.dart' show cleanFixture, gap;
+import '../test/review/repeated_sections_test.dart' show repeatedScript, repeatedSpeech;
 import '../test/cut/filler_review_test.dart' show fillerFixture, fillerPlan, fillerScript;
 import '../test/model/note_deck_test.dart' show fixtureNotes;
 import '../test/ui/take_review_test.dart' show reviewFixture;
@@ -255,6 +258,20 @@ void main() {
   }
 
   for (final language in ScriptLanguage.values) {
+    for (final brightness in [Brightness.light, Brightness.dark]) {
+      for (final partial in [false, true]) {
+        testWidgets('attempt comparison $language $brightness partial=$partial', (tester) async {
+          final script = repeatedScript(language);
+          final sections = repeatedSections(script, repeatedSpeech(script, partial: partial,
+            confidence: partial ? null : .9));
+          await shoot(tester, 'attempt-comparison-${language.name}-${brightness.name}-${partial ? 'partial' : 'full'}', phone,
+            (_) => Scaffold(appBar: AppBar(title: const Text('Your take')), body: ListView(
+              padding: const EdgeInsets.all(SaSpace.s5), children: [
+                RetakeReviewPanel(sections: sections, busy: false, onListen: (_) {}),
+              ])), [script], brightness: brightness);
+        });
+      }
+    }
     final correctedText = switch (language) { ScriptLanguage.en => 'Today', ScriptLanguage.fr => 'Demain', ScriptLanguage.ar => 'غدا' };
     final wordTake = Take(path: 'generated.mp4', recordedAt: DateTime(2026), duration: const Duration(seconds: 3));
     final reviewWords = reviewFixture(language, wordTake).transcript;

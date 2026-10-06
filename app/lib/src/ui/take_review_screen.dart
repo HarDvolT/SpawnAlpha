@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -10,6 +11,7 @@ import '../model/script_document.dart';
 import '../model/video_export.dart';
 import '../model/cut_plan.dart';
 import '../render/export_processor.dart';
+import '../review/repeated_sections.dart';
 import '../theme/theme.dart';
 import '../transcription/captions.dart';
 import '../transcription/speech_processor.dart';
@@ -21,6 +23,7 @@ import 'clean_cut_panel.dart';
 import 'take_player.dart';
 import 'video_export_panel.dart';
 import 'word_review_panel.dart';
+import 'retake_review_panel.dart';
 
 class TakeReviewScreen extends StatefulWidget {
   const TakeReviewScreen({
@@ -56,9 +59,47 @@ class _TakeReviewScreenState extends State<TakeReviewScreen> {
   final _playerViewKey = GlobalKey();
   SourceRange? _listenRange;
   int _listenRequest = 0;
-  void _hearChange(CutChange change) {
-    final start = change.range.start - SaDurations.reviewContext;
-    final end = change.range.end + SaDurations.reviewContext;
+  List<RepeatedSection> _sections = const [];
+  bool _comparing = false;
+  String? _comparisonProblem;
+  int _comparisonGeneration = 0;
+  void _setSpoken(SavedTranscript? spoken) {
+    _spoken = spoken;
+    _sections = const [];
+    _comparisonProblem = null;
+    _comparing = false;
+    final generation = ++_comparisonGeneration;
+    if (spoken?.alignment == null ||
+        spoken?.snapshot == null ||
+        spoken!.snapshot!.usesNotes) {
+      return;
+    }
+    _comparing = true;
+    compute(repeatedSectionsFromJson, {
+      'script': spoken.snapshot!.toJson(),
+      'words': spoken.transcript.toJson(),
+    }).then(
+      (sections) {
+        if (!mounted || generation != _comparisonGeneration) return;
+        setState(() {
+          _sections = sections;
+          _comparing = false;
+        });
+      },
+      onError: (Object _) {
+        if (!mounted || generation != _comparisonGeneration) return;
+        setState(() {
+          _comparing = false;
+          _comparisonProblem = 'Repeated sections could not be compared. Your words and original are safe.';
+        });
+      },
+    );
+  }
+
+  void _hearChange(CutChange change) => _hearRange(change.range);
+  void _hearRange(SourceRange range) {
+    final start = range.start - SaDurations.reviewContext;
+    final end = range.end + SaDurations.reviewContext;
     setState(() {
       _viewing = null;
       _listenRange = SourceRange(
@@ -122,12 +163,12 @@ class _TakeReviewScreenState extends State<TakeReviewScreen> {
       }
     });
     if (processor.result?.sourcePath == widget.take.path) {
-      _spoken = processor.result;
+      _setSpoken(processor.result);
       return;
     }
     processor.load(loadingTake).then((value) {
       if (mounted && _latestTake(app).wordsPath == loadingTake.wordsPath) {
-        setState(() => _spoken = value);
+        setState(() => _setSpoken(value));
       }
     });
   }
@@ -163,7 +204,7 @@ class _TakeReviewScreenState extends State<TakeReviewScreen> {
         clean = await app.cuts.load(take);
     if (mounted) {
       setState(() {
-        _spoken = spoken;
+        _setSpoken(spoken);
         _clean = clean;
       });
     }
@@ -205,7 +246,7 @@ class _TakeReviewScreenState extends State<TakeReviewScreen> {
     );
     if (!mounted || corrected == null) return;
     setState(() {
-      _spoken = corrected;
+      _setSpoken(corrected);
       _clean = null;
     });
     await _makeCut();
@@ -568,6 +609,24 @@ class _TakeReviewScreenState extends State<TakeReviewScreen> {
                       style: SaType.bodySm.copyWith(color: p.danger),
                     ),
                   const SizedBox(height: SaSpace.s5),
+                  if (_comparing)
+                    Text(
+                      'Comparing repeated sections…',
+                      style: SaType.bodySm.copyWith(color: p.ink2),
+                    ),
+                  if (_comparisonProblem != null)
+                    Text(
+                      _comparisonProblem!,
+                      style: SaType.bodySm.copyWith(color: p.ink2),
+                    ),
+                  if (_sections.isNotEmpty) ...[
+                    RetakeReviewPanel(
+                      sections: _sections,
+                      busy: busy,
+                      onListen: app.playback.supported ? _hearRange : null,
+                    ),
+                    const SizedBox(height: SaSpace.s5),
+                  ],
                   Text(
                     'Spoken words',
                     style: SaType.title.copyWith(color: p.ink),

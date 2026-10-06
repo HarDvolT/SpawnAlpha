@@ -83,6 +83,20 @@ backgrounding, replacing the file and leaving the screen cancel it. Initial
 review/reopening never starts sound. Scrolling retains the player and cannot
 repeat the previous request. Player ownership must reject late commands.
 
+**Compare attempts** lists repeated sections found in a frozen Script take.
+Each section shows the intended script in reading type and each attempt's
+actual words in their language direction, source time, exact matches out of
+the section's word count, changed/added words and uncertain wording. A partial
+attempt is labelled **Partial section**. **Hear attempt 1**, **Hear attempt 2**,
+and so on use the same explicit original excerpt player. Page the sections and
+attempts so long takes remain usable. Existing Studio tokens apply.
+This first comparison preserves every attempt and makes no best-performance
+claim: loudness, pitch, breath/pace scoring and reversible attempt selection
+remain subsequent work. Notes and computer-sound-only takes have no script
+comparison. Ordinary repetition written into a script is not a retake.
+Comparison runs off the UI thread, follows saved wording revisions and rejects
+stale results. Nothing is uploaded or cut by listening.
+
 **Save your video** makes a separate local MP4 from the saved cut (or the whole
 take when no cut exists). The first Windows renderer fits the complete picture
 inside 16:9 1080p/4K, 9:16 or 4:5; unused space stays black. It does not yet
