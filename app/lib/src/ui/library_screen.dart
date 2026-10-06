@@ -5,7 +5,7 @@ import '../model/samples.dart';
 import '../model/script_document.dart';
 import '../theme/theme.dart';
 import 'components.dart';
-import 'editor_screen.dart';
+import 'notes_editor_screen.dart';
 import 'format.dart';
 import 'settings_screen.dart';
 
@@ -24,17 +24,13 @@ class LibraryScreen extends StatelessWidget {
           IconButton(
             tooltip: 'Settings',
             icon: const Icon(Icons.settings_outlined),
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(builder: (_) => const SettingsScreen()),
-            ),
+            onPressed: () =>
+                Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const SettingsScreen())),
           ),
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _open(
-          context,
-          ScriptDocument.create(style: services.settings.defaultStyle),
-        ),
+        onPressed: () => createDocument(context),
         icon: const Icon(Icons.add_rounded),
         label: const Text('New script'),
       ),
@@ -55,7 +51,7 @@ class LibraryScreen extends StatelessWidget {
   }
 
   static void _open(BuildContext context, ScriptDocument script) {
-    Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => EditorScreen(script: script)));
+    Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => documentEditor(script)));
   }
 }
 
@@ -71,8 +67,8 @@ class _ScriptTile extends StatelessWidget {
       script.style.label,
       // Isolate the language name so Arabic doesn't reorder its neighbours.
       '\u2068${script.language.label}\u2069',
-      '${script.wordCount} words',
-      '~${formatDuration(estimatedDuration(script))}',
+      script.contentSummary,
+      if (!script.usesNotes) '~${formatDuration(estimatedDuration(script))}',
       if (script.takes.isNotEmpty) '${script.takes.length} take${script.takes.length == 1 ? '' : 's'}',
     ].join(' · ');
     return Card(
@@ -86,23 +82,27 @@ class _ScriptTile extends StatelessWidget {
         ),
         subtitle: Text(details),
         leading: IconWell(styleIcon(script.style)),
-        trailing: Row(mainAxisSize: MainAxisSize.min, children: [
-          if (pending > 0)
-            Tooltip(message: '$pending suggested marks to review', child: CueCount(pending)),
-          PopupMenuButton<String>(
-            onSelected: (value) async {
-              if (value != 'delete') return;
-              final confirmed = await confirm(
-                context,
-                title: 'Delete this script?',
-                message: '"${script.displayTitle}" and its marks will be deleted. Recordings stay on disk.',
-                action: 'Delete',
-              );
-              if (confirmed && context.mounted) await AppScope.of(context).library.delete(script.id);
-            },
-            itemBuilder: (_) => const [PopupMenuItem(value: 'delete', child: Text('Delete'))],
-          ),
-        ]),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (pending > 0) Tooltip(message: '$pending suggested marks to review', child: CueCount(pending)),
+            PopupMenuButton<String>(
+              onSelected: (value) async {
+                if (value != 'delete') return;
+                final confirmed = await confirm(
+                  context,
+                  title: 'Delete this script?',
+                  message: '"${script.displayTitle}" and its marks will be deleted. Recordings stay on disk.',
+                  action: 'Delete',
+                );
+                if (confirmed && context.mounted) {
+                  await AppScope.of(context).library.delete(script.id);
+                }
+              },
+              itemBuilder: (_) => const [PopupMenuItem(value: 'delete', child: Text('Delete'))],
+            ),
+          ],
+        ),
         onTap: () => LibraryScreen._open(context, script),
       ),
     );
@@ -121,33 +121,37 @@ class _EmptyLibrary extends StatelessWidget {
         padding: const EdgeInsets.all(SaSpace.s6),
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 420),
-          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-            // The brand square and the screen's one display-face line.
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(color: p.cue, borderRadius: BorderRadius.circular(SaRadius.xs)),
-            ),
-            const SizedBox(height: SaSpace.s5),
-            Text('Say it like you mean it.', style: theme.textTheme.displaySmall),
-            const SizedBox(height: SaSpace.s3),
-            Text(
-              'Write a script and the director marks it up: pauses, stress, pace and energy, '
-              'shown on the prompter while you record.',
-              style: theme.textTheme.bodyLarge!.copyWith(color: p.ink2),
-            ),
-            const SizedBox(height: SaSpace.s5),
-            OutlinedButton.icon(
-              onPressed: () async {
-                final library = AppScope.of(context).library;
-                for (final s in sampleScripts().reversed) {
-                  await library.save(s);
-                }
-              },
-              icon: const Icon(Icons.auto_awesome_rounded, size: 20),
-              label: const Text('Add sample scripts (English, French, Arabic)'),
-            ),
-          ]),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // The brand square and the screen's one display-face line.
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(color: p.cue, borderRadius: BorderRadius.circular(SaRadius.xs)),
+              ),
+              const SizedBox(height: SaSpace.s5),
+              Text('Say it like you mean it.', style: theme.textTheme.displaySmall),
+              const SizedBox(height: SaSpace.s3),
+              Text(
+                'Write a script and the director marks it up: pauses, stress, pace and energy, '
+                'shown on the prompter while you record.',
+                style: theme.textTheme.bodyLarge!.copyWith(color: p.ink2),
+              ),
+              const SizedBox(height: SaSpace.s5),
+              OutlinedButton.icon(
+                onPressed: () async {
+                  final library = AppScope.of(context).library;
+                  for (final s in sampleScripts().reversed) {
+                    await library.save(s);
+                  }
+                },
+                icon: const Icon(Icons.auto_awesome_rounded, size: 20),
+                label: const Text('Add sample scripts (English, French, Arabic)'),
+              ),
+            ],
+          ),
         ),
       ),
     );

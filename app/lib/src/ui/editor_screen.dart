@@ -19,6 +19,7 @@ import 'script_page.dart';
 import 'record_screen.dart';
 import 'settings_screen.dart';
 import 'stage_launch.dart';
+import 'notes_editor_screen.dart';
 
 /// Write a script, choose its style and language, run the markup, and
 /// review the marks and suggestions.
@@ -30,7 +31,6 @@ class EditorScreen extends StatefulWidget {
   @override
   State<EditorScreen> createState() => _EditorScreenState();
 }
-
 
 class _EditorScreenState extends State<EditorScreen> with TickerProviderStateMixin {
   late ScriptDocument _script = widget.script;
@@ -84,7 +84,9 @@ class _EditorScreenState extends State<EditorScreen> with TickerProviderStateMix
     final library = _services.library;
     // Don't keep a new script until something is written in it.
     final isNew = library.byId(_script.id) == null;
-    if (isNew && _script.text.trim().isEmpty && _script.title.trim().isEmpty) return;
+    if (isNew && _script.text.trim().isEmpty && _script.title.trim().isEmpty) {
+      return;
+    }
     if (!isNew && identical(library.byId(_script.id), _script)) return;
     library.save(_script);
   }
@@ -96,7 +98,9 @@ class _EditorScreenState extends State<EditorScreen> with TickerProviderStateMix
     // Pick the language from the first words written or pasted.
     if (_script.wordCount < 4) {
       final detected = ScriptLanguage.detect(text);
-      if (detected != null && detected != next.language) next = next.copyWith(language: detected);
+      if (detected != null && detected != next.language) {
+        next = next.copyWith(language: detected);
+      }
     }
     _update(next);
   }
@@ -136,7 +140,9 @@ class _EditorScreenState extends State<EditorScreen> with TickerProviderStateMix
       if (!MediaQuery.disableAnimationsOf(context)) _pass.forward(from: 0);
       final suggestions = result.suggestions.isEmpty ? '' : ' and ${result.suggestions.length} suggestions';
       var message = '${engine.name} proposed ${result.marks.length} marks$suggestions. Tap a word to review.';
-      if (problem != null) message = '${chosen.label} isn\'t set up yet ($problem), so the on-device markup ran. $message';
+      if (problem != null) {
+        message = '${chosen.label} isn\'t set up yet ($problem), so the on-device markup ran. $message';
+      }
       showMessage(
         context,
         message,
@@ -157,8 +163,7 @@ class _EditorScreenState extends State<EditorScreen> with TickerProviderStateMix
     }
   }
 
-  void _openSettings() =>
-      Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const SettingsScreen()));
+  void _openSettings() => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const SettingsScreen()));
 
   // ---- marks --------------------------------------------------------------
 
@@ -188,10 +193,12 @@ class _EditorScreenState extends State<EditorScreen> with TickerProviderStateMix
     if (script == null || !mounted) return;
     if (!identical(script, _script)) _update(script);
     _saveNow();
-    await Navigator.of(context).push<void>(MaterialPageRoute(
-      builder: (_) => record ? RecordScreen(script: script) : PrompterScreen(script: script),
-      fullscreenDialog: true,
-    ));
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute(
+        builder: (_) => record ? RecordScreen(script: script) : PrompterScreen(script: script),
+        fullscreenDialog: true,
+      ),
+    );
     // The record screen saves takes straight to the library. Pick them up
     // so the next autosave doesn't overwrite them.
     final saved = _services.library.byId(_script.id);
@@ -222,6 +229,19 @@ class _EditorScreenState extends State<EditorScreen> with TickerProviderStateMix
           onChanged: (v) => _update(_script.copyWith(title: v)),
         ),
         actions: [
+          IconButton(
+            tooltip: 'Use Notes',
+            icon: const Icon(Icons.view_carousel_outlined),
+            onPressed: () async {
+              _saveTimer?.cancel();
+              final document = _script.copyWith(recordingAid: RecordingAid.notes);
+              await _services.library.save(document);
+              if (!context.mounted) return;
+              _script = document;
+              await Navigator.of(context)
+                  .pushReplacement<void, void>(MaterialPageRoute(builder: (_) => NotesEditorScreen(script: document)));
+            },
+          ),
           IconButton(
             tooltip: 'Practice with the prompter',
             icon: const Icon(Icons.slideshow_outlined),
@@ -254,37 +274,37 @@ class _EditorScreenState extends State<EditorScreen> with TickerProviderStateMix
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 900),
-          child: Column(children: [
-            _StyleBar(
-              script: _script,
-              onStyle: (s) => _update(_script.copyWith(style: s)),
-              onLanguage: (l) => _update(_script.copyWith(language: l)),
-            ),
-            const Divider(height: 1),
-            Expanded(
-              child: TabBarView(controller: _tabs, children: [_writeTab(), _marksTab()]),
-            ),
-          ]),
+          child: Column(
+            children: [
+              _StyleBar(
+                script: _script,
+                onStyle: (s) => _update(_script.copyWith(style: s)),
+                onLanguage: (l) => _update(_script.copyWith(language: l)),
+              ),
+              const Divider(height: 1),
+              Expanded(
+                child: TabBarView(controller: _tabs, children: [_writeTab(), _marksTab()]),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 
   Widget _writeTab() => Padding(
-        padding: const EdgeInsets.all(16),
-        child: TextField(
-          controller: _text,
-          maxLines: null,
-          expands: true,
-          textAlignVertical: TextAlignVertical.top,
-          textDirection: _script.language.isRtl ? TextDirection.rtl : TextDirection.ltr,
-          keyboardType: TextInputType.multiline,
-          style: SaType.body.copyWith(fontSize: 18, height: 1.6, color: SaTheme.of(context).ink),
-          decoration: const InputDecoration(
-            hintText: 'Write or paste your script. Blank lines separate paragraphs.',
-          ),
-        ),
-      );
+    padding: const EdgeInsets.all(16),
+    child: TextField(
+      controller: _text,
+      maxLines: null,
+      expands: true,
+      textAlignVertical: TextAlignVertical.top,
+      textDirection: _script.language.isRtl ? TextDirection.rtl : TextDirection.ltr,
+      keyboardType: TextInputType.multiline,
+      style: SaType.body.copyWith(fontSize: 18, height: 1.6, color: SaTheme.of(context).ink),
+      decoration: const InputDecoration(hintText: 'Write or paste your script. Blank lines separate paragraphs.'),
+    ),
+  );
 
   Widget _marksTab() {
     final theme = Theme.of(context);
@@ -325,11 +345,14 @@ class _EditorScreenState extends State<EditorScreen> with TickerProviderStateMix
               label: Text(_script.marks.isEmpty ? 'Mark up with $engineName' : 'Mark up again'),
             ),
             if (_marking)
-              Row(mainAxisSize: MainAxisSize.min, children: [
-                const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)),
-                const SizedBox(width: 8),
-                Text(_received > 0 ? 'Receiving marks… ${(_received / 1000).toStringAsFixed(1)}k' : 'Marking up…'),
-              ]),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)),
+                  const SizedBox(width: 8),
+                  Text(_received > 0 ? 'Receiving marks… ${(_received / 1000).toStringAsFixed(1)}k' : 'Marking up…'),
+                ],
+              ),
           ],
         ),
         if (pending > 0) ...[
@@ -427,9 +450,7 @@ class _StyleBar extends StatelessWidget {
           DropdownButton<ScriptLanguage>(
             value: script.language,
             underline: const SizedBox.shrink(),
-            items: [
-              for (final l in ScriptLanguage.values) DropdownMenuItem(value: l, child: Text(l.label)),
-            ],
+            items: [for (final l in ScriptLanguage.values) DropdownMenuItem(value: l, child: Text(l.label))],
             onChanged: (l) {
               if (l != null) onLanguage(l);
             },
@@ -473,43 +494,54 @@ class _SuggestionCard extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: SaSpace.s2),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(SaSpace.s4, SaSpace.s3, SaSpace.s3, SaSpace.s3),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-          Row(children: [
-            Icon(icon, size: 18, color: p.ink2),
-            const SizedBox(width: SaSpace.s2),
-            Text(suggestion.kind.label, style: theme.textTheme.labelLarge),
-          ]),
-          const SizedBox(height: SaSpace.s2),
-          Text(
-            suggestion.original,
-            textDirection: direction,
-            style: theme.textTheme.bodyLarge!.copyWith(
-              decoration: replacement == null ? null : TextDecoration.lineThrough,
-              color: p.ink2,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Icon(icon, size: 18, color: p.ink2),
+                const SizedBox(width: SaSpace.s2),
+                Text(suggestion.kind.label, style: theme.textTheme.labelLarge),
+              ],
             ),
-          ),
-          if (replacement != null) ...[
-            const SizedBox(height: SaSpace.s1),
-            Text(replacement,
-                textDirection: direction, style: theme.textTheme.bodyLarge!.copyWith(fontWeight: FontWeight.w600)),
-          ],
-          if (suggestion.note != null) ...[
             const SizedBox(height: SaSpace.s2),
-            Text(suggestion.note!, style: theme.textTheme.bodySmall),
-          ],
-          const SizedBox(height: SaSpace.s2),
-          Align(
-            alignment: AlignmentDirectional.centerEnd,
-            child: Wrap(spacing: SaSpace.s2, children: [
-              TextButton(
-                style: plainButtonStyle(context),
-                onPressed: onDismiss,
-                child: Text(replacement == null ? 'Got it' : 'Dismiss'),
+            Text(
+              suggestion.original,
+              textDirection: direction,
+              style: theme.textTheme.bodyLarge!.copyWith(
+                decoration: replacement == null ? null : TextDecoration.lineThrough,
+                color: p.ink2,
               ),
-              if (replacement != null) OutlinedButton(onPressed: onApply, child: const Text('Apply')),
-            ]),
-          ),
-        ]),
+            ),
+            if (replacement != null) ...[
+              const SizedBox(height: SaSpace.s1),
+              Text(
+                replacement,
+                textDirection: direction,
+                style: theme.textTheme.bodyLarge!.copyWith(fontWeight: FontWeight.w600),
+              ),
+            ],
+            if (suggestion.note != null) ...[
+              const SizedBox(height: SaSpace.s2),
+              Text(suggestion.note!, style: theme.textTheme.bodySmall),
+            ],
+            const SizedBox(height: SaSpace.s2),
+            Align(
+              alignment: AlignmentDirectional.centerEnd,
+              child: Wrap(
+                spacing: SaSpace.s2,
+                children: [
+                  TextButton(
+                    style: plainButtonStyle(context),
+                    onPressed: onDismiss,
+                    child: Text(replacement == null ? 'Got it' : 'Dismiss'),
+                  ),
+                  if (replacement != null) OutlinedButton(onPressed: onApply, child: const Text('Apply')),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

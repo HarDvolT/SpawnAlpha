@@ -3,7 +3,7 @@
 Requested by the owner on 2026-10-06 for videos spoken freely, without a complete
 script. This is an additional recording aid alongside the coached prompter.
 The initial UI label is **Notes**: "Speak freely from topic cards."
-This feature is specified and queued; it is not implemented yet.
+Implemented on Windows on 2026-10-06; owner trials remain deferred.
 
 ## A private presentation for the speaker
 
@@ -89,6 +89,14 @@ Coalesce browsing during a recording pause into the final selection on resume;
 do not generate fake chapter durations or text from intermediate paused cards.
 These events stay beside the take, do not contain typed keystrokes, and are
 separate from the optional mouse/key activity switch.
+
+Windows Screen/Both card events use native pause-adjusted duration sampled at
+the existing recording poll. Their boundaries are approximate within that
+poll, not word timings. Camera-only uses its existing elapsed-take clock.
+Saved/recovered screen manifests discard events beyond the surviving video.
+The deck is bounded at 200 cards and 65,536 UTF-16 units per card. Card timing
+has a 50,000-event memory safeguard; a timing write failure explains that the
+video continues. Text has no cloud processing and no additional dependency.
 
 For Notes takes, captions come from what was actually said. Card text may help
 with vocabulary, but is never treated as a verbatim script. Do not label

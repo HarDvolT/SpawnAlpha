@@ -22,9 +22,14 @@ deferred until they return.** The build order is in
 [product-brief.md](product-brief.md#build-order); it was revised on 2026-09-30.
 
 **New request (2026-10-06):** private talking-point cards for unscripted videos.
-The Notes design is recorded in `docs/design/speaker-notes.md`; no app code is
-implemented yet. Build it as a small recorder extension, then finish step-3
-processing with the Script/Notes distinction preserved.
+**Notes mode is implemented on Windows.** Create a Script or Notes from Home,
+or switch aids in the editor/setup. Cards save locally, can be edited/reordered/
+removed, and have manual buttons and Ctrl+Shift arrow navigation. Camera,
+Screen/Both and the protected companion render cards. New takes reset to card
+one; the last card never stops capture, and paused browsing coalesces on resume.
+Take metadata freezes the deck and saves card indices on the take clock.
+The generated native Arabic Notes recording passes. Owner trials remain
+deferred; next finish step-3 processing with the Script/Notes distinction.
 
 The owner's first test on Windows (build #1) found: no microphone permission prompt and no
 sound in takes; a prompter that scrolled away from the word being read; effects that were too
@@ -35,6 +40,17 @@ dot to grow and act out each cue in the cue's colour, and for the next features.
 build step 2 (screen recording).
 
 ## Handover (2026-10-05): from here, Codex on the owner's Windows PC
+
+- **Latest checkpoint (2026-10-06, Notes implementation):** 371 Flutter tests and
+  130 screenshot cases pass; Windows Debug and Release builds pass. Generated
+  native Notes recording verifies the protected Arabic reader/companion,
+  native shortcut dispatch, pause coalescing, frozen deck/card clock, last-card
+  behavior and cleanup. The owner can try Notes later as requested. No new
+  dependency. Speech setup/processing, Director's Cut, captions/export and
+  coaching remain unfinished; do not describe the product as complete.
+  Notes choices do not change the approved Script defaults. Added camera-only
+  aid snapshots; camera plugin crash recovery is still more limited than Screen.
+  Library writes are serialized, and unreadable documents never log private text.
 
 - **PC setup is now complete (Codex, 2026-10-05):** E: is NTFS. The code is at
   `E:\Ai\ChatGPT\SpawnAlpha` on `claude/inspiring-euler-3v24zv`; Flutter **3.47.5**
@@ -583,9 +599,10 @@ build step 2 (screen recording).
    - Fragmented MP4.
    - Native render-core spike: done; see `render-core-spike.md`. Full Cut remains step 4.
 
-   **New recorder extension:** Notes mode, requested 2026-10-06, is specified but
-   not built. Next implement the deck/manual controller, then editor/protected
-   Stage cards and navigation trials; see `design/speaker-notes.md`.
+   **New recorder extension:** Notes mode is built, with deck/editor/practice,
+   protected Stage, buttons/shortcuts, take snapshots and card clocks.
+   Owner trials of cards and actual capture exclusion remain deferred;
+   see `design/speaker-notes.md`.
 
    **Build step 3 is started:** the generated offline core and EN/FR/AR alignment
    pass. Next wire verified model setup, bounded cancellable background processing
@@ -594,6 +611,12 @@ build step 2 (screen recording).
    See OpenScreen in the brief for reusable parts.
 
 ## Decisions
+
+- 2026-10-06, implementation: Notes share a library document with an explicit
+  recording-aid enum and an immutable deck; switching back preserves the script.
+  Legacy documents default to Script. Notes never enter verbatim script scoring.
+  Card indices use the existing take clock (Screen sampled at recording-poll
+  precision), separate from optional Activity. Camera snapshots are local too.
 
 - 2026-10-06, the owner: add private presentation-like talking-point cards for
   unscripted videos, with button or shortcut advancement. Implement as an

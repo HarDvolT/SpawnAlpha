@@ -51,6 +51,9 @@ import 'package:spawnalpha/src/ui/recording_hud_screen.dart';
 import 'package:spawnalpha/src/recording/recording_hud.dart';
 import 'package:spawnalpha/src/recording/camera_bubble.dart';
 import 'package:spawnalpha/src/ui/camera_bubble_screen.dart';
+import 'package:spawnalpha/src/ui/notes_editor_screen.dart';
+import 'package:spawnalpha/src/ui/notes_practice_screen.dart';
+import '../test/model/note_deck_test.dart' show fixtureNotes;
 
 import 'fixtures/cue_check_scripts.dart';
 import 'fixtures/preview_camera.dart';
@@ -219,6 +222,30 @@ void main() {
 
   const phone = Size(430, 900);
   const desktop = Size(1280, 800);
+
+  for (final language in ScriptLanguage.values) {
+    final notes = ScriptDocument.create(language: language, title: language == ScriptLanguage.ar ? 'حديثي القادم' : 'My next talk')
+      .copyWith(recordingAid: RecordingAid.notes, notes: fixtureNotes(language));
+    for (final (name, size) in [('desktop', desktop), ('phone', phone)]) {
+      testWidgets('notes editor $language $name', (tester) async {
+        await shoot(tester, 'notes-editor-${language.name}-$name', size, (_) => NotesEditorScreen(script: notes), [notes]);
+      });
+    }
+    testWidgets('notes practice $language', (tester) async {
+      await shoot(tester, 'notes-practice-${language.name}', phone, (_) => NotesPracticeScreen(script: notes), [notes]);
+    });
+    for (final (name, size) in [('default', const Size(720, 360)), ('minimum', const Size(640, 280))]) {
+      testWidgets('notes floating $language $name', (tester) async {
+        await shoot(tester, 'notes-floating-${language.name}-$name', size,
+          (_) => FloatingPrompterScreen(presentation: FloatingPresentation(script: notes)), [notes]);
+      });
+    }
+    testWidgets('notes setup $language', (tester) async {
+      CameraPlatform.instance = _NoCameras();
+      await shoot(tester, 'notes-record-${language.name}', desktop, (_) => RecordScreen(script: notes), [notes], settle: false,
+        before: (tester) async { await tester.pump(const Duration(milliseconds: 300)); });
+    });
+  }
 
   // The Home screen: a director's desk, with scripts marked up and a few takes.
   Future<List<ScriptDocument>> desk() async {

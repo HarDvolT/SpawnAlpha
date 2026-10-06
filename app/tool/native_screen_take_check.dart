@@ -7,6 +7,8 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:spawnalpha/src/model/script_document.dart';
+import 'package:spawnalpha/src/model/note_deck.dart';
+import 'package:spawnalpha/src/model/script_language.dart';
 import 'package:spawnalpha/src/recording/floating_prompter.dart';
 import 'package:spawnalpha/src/recording/recording_hud.dart';
 import 'package:spawnalpha/src/recording/recording_inspector.dart';
@@ -34,6 +36,7 @@ Future<void> runGeneratedTake({
   bool generatedSystemAudio = false,
   bool generatedActivity = false,
   bool crashAfterRecord = false,
+  bool notes = false,
 }) async {
   WidgetsFlutterBinding.ensureInitialized();
   runApp(
@@ -89,7 +92,13 @@ Future<void> runGeneratedTake({
     if (source == null) throw StateError('Fixture unavailable');
     final script = ScriptDocument.create(
       text: 'A generated fixture. Read one line. Keep recording after the last word.',
-    );
+      language: notes ? ScriptLanguage.ar : ScriptLanguage.en,
+    ).copyWith(recordingAid: notes ? RecordingAid.notes : RecordingAid.script,
+      notes: notes ? NoteDeck([NoteCard(id: 'a', title: 'البداية'), NoteCard(id: 'b', title: 'مثال'), NoteCard(id: 'c', title: 'النهاية')]) : null);
+    Future<void> nextCard(bool next) async {
+      await WindowsFloatingPrompters.channel.invokeMethod<void>('noteFixture', {'sessionId': 1, 'next': next});
+      await Future<void>.delayed(SaDurations.recordingPoll * 2);
+    }
     final library = ScriptLibrary(MemoryScriptStore());
     await library.save(script);
     final directory = Directory(
@@ -123,11 +132,16 @@ Future<void> runGeneratedTake({
         }
         action = Timer(
           SaDurations.beat,
-          () => unawaited(controller.togglePause()),
+          () async { if (notes) await nextCard(true); await controller.togglePause(); },
         );
       } else if (controller.phase == ScreenTakePhase.paused && step == 1) {
         step = 2;
         action = Timer(SaDurations.beat, () async {
+          if (notes) {
+            await nextCard(false);
+            await nextCard(true);
+            await nextCard(true);
+          }
           await controller.toggleCompanion();
           if (cameraFixture != null) {
             if (!controller.companionQuestion) {
@@ -213,6 +227,16 @@ Future<void> runGeneratedTake({
     );
     action?.cancel();
     final take = controller.take;
+    if (notes && take != null) {
+      final metadata = jsonDecode(await File(take.metadataPath!).readAsString()) as Map;
+      final changes = metadata['noteChanges'] as List;
+      if ((metadata['script'] as Map)['recordingAid'] != 'notes' || changes.length != 3 ||
+          (changes[0] as Map)['cardIndex'] != 0 || (changes[1] as Map)['cardIndex'] != 1 ||
+          (changes[2] as Map)['cardIndex'] != 2) {
+        throw StateError('Note clock failed');
+      }
+      debugPrint('Native Notes check passed: protected Arabic cards, shortcut dispatch, paused browsing, durable deck/card clock, last card keeps recording.');
+    }
     if (take == null ||
         controller.problem != null ||
         controller.busy ||

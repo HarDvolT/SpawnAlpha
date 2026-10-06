@@ -4,6 +4,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:spawnalpha/src/model/script_document.dart';
+import 'package:spawnalpha/src/model/note_deck.dart';
 import 'package:spawnalpha/src/model/script_language.dart';
 import 'package:spawnalpha/src/recording/floating_prompter.dart';
 import 'package:spawnalpha/src/recording/recording_hud.dart';
@@ -45,8 +46,9 @@ class TestHuds implements RecordingHuds {
 }
 
 class TestReader implements FloatingPrompters {
+  final stream = StreamController<FloatingCommand>.broadcast(sync: true);
   @override
-  Stream<FloatingCommand> get commands => const Stream.empty();
+  Stream<FloatingCommand> get commands => stream.stream;
   final placements = <CompanionPlacement>[];
   bool rejectPlacement = false;
   @override
@@ -96,6 +98,7 @@ class TestRecorder implements ScreenRecordings {
   final List<String> events;
   int polls = 0;
   bool stopped = false, paused = false, releaseFails = false;
+  Duration duration = const Duration(seconds: 3);
   ScreenRecordingReason reason = ScreenRecordingReason.none;
   Future<void> Function(int)? onStatus;
   bool? audio;
@@ -150,7 +153,7 @@ class TestRecorder implements ScreenRecordings {
           ? ScreenRecordingPhase.paused
           : ScreenRecordingPhase.recording,
       reason: reason,
-      duration: const Duration(seconds: 3),
+      duration: duration,
       frames: 90,
       audioFrames: audio == true ? 144000 : 0,
       systemAudioFrames: systemAudio == true ? 144000 : 0,
@@ -239,6 +242,7 @@ void main() {
   });
   tearDown(() async {
     owner.dispose();
+    await reader.stream.close();
     await huds.stream.close();
     library.dispose();
     await dir.delete(recursive: true);
@@ -249,6 +253,7 @@ void main() {
     bool systemAudio = false,
     bool activity = false,
     bool both = false,
+    bool notes = false,
   }) async {
     final script = ScriptDocument.create(
       language: language,
@@ -257,7 +262,8 @@ void main() {
         ScriptLanguage.fr => 'Lisez cette phrase.',
         ScriptLanguage.ar => 'اقرأ هذه الجملة.',
       },
-    );
+    ).copyWith(recordingAid: notes ? RecordingAid.notes : RecordingAid.script,
+      notes: notes ? NoteDeck([NoteCard(id: 'a', title: 'First'), NoteCard(id: 'b', title: 'Second'), NoteCard(id: 'c', title: 'Last')]) : null);
     await library.save(script);
     await owner.start(
       presentation: FloatingPresentation(script: script),
@@ -271,6 +277,32 @@ void main() {
       cameraName: both ? 'Chosen camera' : null,
     );
   }
+
+  test('Notes card clock coalesces paused browsing and ignores other sessions', () async {
+    recorder.onStatus = (poll) async {
+      recorder.duration = Duration(milliseconds: poll < 3 ? poll * 300 : poll < 5 ? 600 : 1200);
+      if (poll == 2) reader.stream.add(const FloatingCommand(4, 'card', cardIndex: 1));
+      if (poll == 3) {
+        recorder.paused = true;
+        reader.stream.add(const FloatingCommand(4, 'card', cardIndex: 2));
+      }
+      if (poll == 4) reader.stream.add(const FloatingCommand(4, 'card', cardIndex: 0));
+      if (poll == 5) {
+        recorder.paused = false;
+        reader.stream.add(const FloatingCommand(99, 'card', cardIndex: 2));
+      }
+      if (poll == 6) owner.stop();
+    };
+    await start(ScriptLanguage.ar, notes: true);
+    expect(owner.take, isNotNull);
+    final manifest = jsonDecode(await File(owner.take!.metadataPath!).readAsString()) as Map<String, dynamic>;
+    expect(manifest['noteChanges'], [
+      {'cardIndex': 0, 'timeUs': 0},
+      {'cardIndex': 1, 'timeUs': 600000},
+      {'cardIndex': 0, 'timeUs': 1200000},
+    ]);
+    expect((manifest['script'] as Map)['recordingAid'], 'notes');
+  });
 
   test('unavailable activity explains how to record without it', () async {
     final inspector = FakeInspector();

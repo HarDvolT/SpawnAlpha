@@ -19,6 +19,16 @@ only `model/`.
 
 ## Scripts, tokens and marks (`lib/src/model/`)
 
+- A library document can select `RecordingAid.script` or `RecordingAid.notes`.
+  Old JSON defaults to Script. The immutable `NoteDeck` stores cards separately
+  from token indices/marks and survives text edits and aid switches. Manual
+  `NoteController` has no playback clock or end-of-take signal. `NoteTimeline`
+  stores index changes on the existing recorder clock; paused browsing is
+  coalesced on resume. Screen manifests freeze the deck and trim recovered
+  chapter indices to surviving video. Camera metadata freezes the same aid.
+  The protected child relays only indices to the recorder, never key text.
+  Script library disk writes are serialized across editor/recording owners.
+
 - **`ScriptDocument`** is immutable. It holds the text, language (`en`, `fr`, `ar`), coaching
   style, marks, suggestions and takes (recordings). It is stored as JSON.
 - **Tokens** (`token.dart`): the text split on whitespace, with punctuation kept on the word.

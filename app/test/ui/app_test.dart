@@ -61,6 +61,8 @@ void main() {
     await tester.pumpWidget(SpawnAlphaApp(services: app));
     await tester.tap(find.text('New script'));
     await tester.pumpAndSettle();
+    await tester.tap(find.text('Script').last);
+    await tester.pumpAndSettle();
 
     await tester.enterText(
         find.widgetWithText(TextField, 'Write or paste your script. Blank lines separate paragraphs.'),

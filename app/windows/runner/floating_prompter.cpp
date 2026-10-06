@@ -53,10 +53,10 @@ class PrompterWindow : public Win32Window {
  public:
   PrompterWindow(HWND owner, flutter::DartProject project, std::string presentation,
                  int width, int height, int min_width, int min_height, int snap, double min_opacity,
-                 std::function<void()> companion_ask)
+                 std::function<void()> companion_ask, std::function<void(int)> note_changed)
       : owner_(owner), project_(std::move(project)), presentation_(std::move(presentation)),
         width_(width), height_(height), min_width_(min_width), min_height_(min_height), snap_(snap), min_opacity_(min_opacity),
-        companion_ask_(std::move(companion_ask)) {}
+        companion_ask_(std::move(companion_ask)), note_changed_(std::move(note_changed)) {}
   ~PrompterWindow() override { Destroy(); }
 
   bool Excluded() {
@@ -86,6 +86,13 @@ class PrompterWindow : public Win32Window {
   void Lock() {
     if (channel_) channel_->InvokeMethod("command", std::make_unique<Value>("lock"));
   }
+#ifdef SPAWNALPHA_ACTIVITY_FIXTURE
+  void NoteFixture(bool next) {
+    // Test only: exercise the same native shortcut dispatch, without keyboard
+    // injection or reading input from any other app.
+    SendMessage(GetHandle(), WM_HOTKEY, next ? 5 : 4, 0);
+  }
+#endif
   void Hide() {
     wanted_ = false;
     KillTimer(GetHandle(), 7);
@@ -153,6 +160,17 @@ class PrompterWindow : public Win32Window {
         result->Success();
       } else if (method == "companionAsk") {
         if (companion_ && Visible() && Excluded()) companion_ask_();
+        result->Success();
+      } else if (method == "card") {
+        const auto* args = call.arguments();
+        if (!args || !std::holds_alternative<int32_t>(*args)) {
+          result->Error("invalid", "Invalid card index"); return;
+        }
+        const int index = std::get<int32_t>(*args);
+        if (index < 0 || index >= 200 || !Excluded()) {
+          result->Error("invalid", "Invalid card index"); return;
+        }
+        note_changed_(index);
         result->Success();
       } else if (method == "dock") {
         Dock();
@@ -343,6 +361,7 @@ class PrompterWindow : public Win32Window {
   std::chrono::steady_clock::time_point last_tick_;
   std::unique_ptr<CompanionMotion> motion_;
   std::function<void()> companion_ask_;
+  std::function<void(int)> note_changed_;
   BYTE opacity_ = 255;
   std::unique_ptr<flutter::FlutterViewController> controller_;
   std::unique_ptr<Channel> channel_;
@@ -370,12 +389,24 @@ struct FloatingPrompterHost::Impl {
         window.reset();
         window = std::make_unique<PrompterWindow>(this->owner, this->project, std::get<std::string>(*presentation), width, height, min_width, min_height, snap, min_opacity,
           [this] { channel.InvokeMethod("command", std::make_unique<Value>(Map{
-            {Value("sessionId"), Value(session)}, {Value("command"), Value("companionAsk")}})); });
+            {Value("sessionId"), Value(session)}, {Value("command"), Value("companionAsk")}})); },
+          [this](int index) { channel.InvokeMethod("command", std::make_unique<Value>(Map{
+            {Value("sessionId"), Value(session)}, {Value("command"), Value("card")},
+            {Value("cardIndex"), Value(index)}})); });
         if (!window->Create(L"SpawnAlpha Prompter", Win32Window::Point(0, 0), Win32Window::Size(width, height))) {
           window.reset(); result->Error("excluded", "Hidden prompter unavailable"); return;
         }
         ++session;
         result->Success(Value(session));
+#ifdef SPAWNALPHA_ACTIVITY_FIXTURE
+      } else if (call.method_name() == "noteFixture") {
+        if (Session(call.arguments()) != session || !window || !window->Excluded()) {
+          result->Error("session", "Reader unavailable"); return;
+        }
+        const auto& args = std::get<Map>(*call.arguments());
+        window->NoteFixture(Flag(args, "next"));
+        result->Success();
+#endif
       } else if (call.method_name() == "close") {
         if (Session(call.arguments()) == session) window.reset();
         result->Success();

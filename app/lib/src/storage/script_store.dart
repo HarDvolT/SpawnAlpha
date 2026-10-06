@@ -31,8 +31,12 @@ class FileScriptStore implements ScriptStore {
       try {
         final json = jsonDecode(await entry.readAsString());
         if (json is Map<String, Object?>) scripts.add(ScriptDocument.fromJson(json));
-      } on FormatException catch (e) {
-        debugPrint('Skipping unreadable script ${entry.path}: $e');
+      } on FormatException {
+        // Preserve unreadable files. Parser errors can contain private text.
+      } on TypeError {
+        // An incompatible local document must not hide the readable library.
+      } on FileSystemException {
+        // Keep the file for retry without logging private paths.
       }
     }
     scripts.sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
@@ -78,11 +82,19 @@ class ScriptLibrary extends ChangeNotifier {
   final ScriptStore _store;
   List<ScriptDocument> _scripts = [];
   bool _loaded = false;
+  Future<void> _writes = Future<void>.value();
+
+  Future<void> _persist(Future<void> Function() action) {
+    final next = _writes.then((_) => action());
+    _writes = next.then<void>((_) {}, onError: (Object error, StackTrace stack) {});
+    return next;
+  }
 
   List<ScriptDocument> get scripts => _scripts;
   bool get isLoaded => _loaded;
 
   Future<void> load() async {
+    await _writes;
     _scripts = await _store.loadAll();
     _loaded = true;
     notifyListeners();
@@ -98,12 +110,12 @@ class ScriptLibrary extends ChangeNotifier {
   Future<void> save(ScriptDocument script) async {
     _scripts = [script, for (final s in _scripts) if (s.id != script.id) s];
     notifyListeners();
-    await _store.save(script);
+    await _persist(() => _store.save(script));
   }
 
   Future<void> delete(String id) async {
     _scripts = [for (final s in _scripts) if (s.id != id) s];
     notifyListeners();
-    await _store.delete(id);
+    await _persist(() => _store.delete(id));
   }
 }

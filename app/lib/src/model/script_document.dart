@@ -1,6 +1,7 @@
 import 'coaching_style.dart';
 import 'mark.dart';
 import 'mark_remapper.dart';
+import 'note_deck.dart';
 import 'script_language.dart';
 import 'token.dart';
 
@@ -50,20 +51,22 @@ class Suggestion {
   final String? note;
 
   Map<String, Object?> toJson() => {
-        'id': id,
-        'kind': kind.id,
-        'start': start,
-        'end': end,
-        'original': original,
-        if (replacement != null) 'replacement': replacement,
-        if (note != null) 'note': note,
-      };
+    'id': id,
+    'kind': kind.id,
+    'start': start,
+    'end': end,
+    'original': original,
+    if (replacement != null) 'replacement': replacement,
+    if (note != null) 'note': note,
+  };
 
   static Suggestion? fromJson(Map<String, Object?> json) {
     final kind = SuggestionKind.fromId(json['kind'] as String?);
     final start = json['start'];
     final end = json['end'];
-    if (kind == null || start is! int || end is! int || start < 0 || end < start) return null;
+    if (kind == null || start is! int || end is! int || start < 0 || end < start) {
+      return null;
+    }
     return Suggestion(
       id: json['id'] as String? ?? newId(),
       kind: kind,
@@ -78,6 +81,8 @@ class Suggestion {
 
 /// A recording made from a script.
 enum TakeMode { camera, screen, both }
+
+enum RecordingAid { script, notes }
 
 class Take {
   const Take({
@@ -117,9 +122,7 @@ class Take {
       path: path,
       recordedAt: at,
       duration: Duration(milliseconds: json['durationMs'] as int? ?? 0),
-      mode:
-          TakeMode.values.where((v) => v.name == json['mode']).firstOrNull ??
-          TakeMode.camera,
+      mode: TakeMode.values.where((v) => v.name == json['mode']).firstOrNull ?? TakeMode.camera,
       cameraPath: json['cameraPath'] as String?,
       metadataPath: json['metadataPath'] as String?,
       activityPath: json['activityPath'] as String?,
@@ -139,16 +142,26 @@ class ScriptDocument {
     this.marks = const [],
     this.suggestions = const [],
     this.takes = const [],
+    this.recordingAid = RecordingAid.script,
+    NoteDeck? notes,
     DateTime? updatedAt,
-  }) : updatedAt = updatedAt ?? DateTime.now();
+  }) : notes = notes ?? NoteDeck(const []),
+       updatedAt = updatedAt ?? DateTime.now();
 
   factory ScriptDocument.create({
     String title = '',
     String text = '',
     ScriptLanguage language = ScriptLanguage.en,
     CoachingStyle style = CoachingStyle.presentation,
-  }) =>
-      ScriptDocument(id: newId(), title: title, text: text, language: language, style: style);
+    RecordingAid recordingAid = RecordingAid.script,
+  }) => ScriptDocument(
+    id: newId(),
+    title: title,
+    text: text,
+    language: language,
+    style: style,
+    recordingAid: recordingAid,
+  );
 
   final String id;
   final String title;
@@ -158,6 +171,11 @@ class ScriptDocument {
   final List<Mark> marks;
   final List<Suggestion> suggestions;
   final List<Take> takes;
+  final RecordingAid recordingAid;
+  final NoteDeck notes;
+  bool get usesNotes => recordingAid == RecordingAid.notes;
+  bool get stageReady => usesNotes ? notes.ready : wordCount > 0;
+  String get contentSummary => usesNotes ? '${notes.cards.length} cards' : '$wordCount words';
   final DateTime updatedAt;
 
   late final List<Token> tokens = tokenize(text);
@@ -169,8 +187,10 @@ class ScriptDocument {
 
   String get displayTitle {
     if (title.trim().isNotEmpty) return title.trim();
-    final firstLine = text.trim().split('\n').first;
-    if (firstLine.isEmpty) return 'Untitled script';
+    final firstLine = usesNotes ? (notes.cards.firstOrNull?.title.trim() ?? '') : text.trim().split('\n').first;
+    if (firstLine.isEmpty) {
+      return usesNotes ? 'Untitled notes' : 'Untitled script';
+    }
     return firstLine.length > 40 ? '${firstLine.substring(0, 40)}…' : firstLine;
   }
 
@@ -184,17 +204,20 @@ class ScriptDocument {
     List<Mark>? marks,
     List<Suggestion>? suggestions,
     List<Take>? takes,
-  }) =>
-      ScriptDocument(
-        id: id,
-        title: title ?? this.title,
-        text: text,
-        language: language ?? this.language,
-        style: style ?? this.style,
-        marks: marks ?? this.marks,
-        suggestions: suggestions ?? this.suggestions,
-        takes: takes ?? this.takes,
-      );
+    RecordingAid? recordingAid,
+    NoteDeck? notes,
+  }) => ScriptDocument(
+    id: id,
+    title: title ?? this.title,
+    text: text,
+    language: language ?? this.language,
+    style: style ?? this.style,
+    marks: marks ?? this.marks,
+    suggestions: suggestions ?? this.suggestions,
+    takes: takes ?? this.takes,
+    recordingAid: recordingAid ?? this.recordingAid,
+    notes: notes ?? this.notes,
+  );
 
   /// Replaces the text and moves every mark and suggestion to follow the
   /// words it was attached to. Marks on removed words are dropped.
@@ -209,10 +232,10 @@ class ScriptDocument {
       language: language,
       style: style,
       marks: normalizeMarks(remapMarks(marks, map), newTokens.length),
-      suggestions: [
-        for (final s in suggestions) ?_remapSuggestion(s, map, newText, newTokens),
-      ],
+      suggestions: [for (final s in suggestions) ?_remapSuggestion(s, map, newText, newTokens)],
       takes: takes,
+      recordingAid: recordingAid,
+      notes: notes,
     );
   }
 
@@ -237,35 +260,45 @@ class ScriptDocument {
   /// Applies [suggestion]'s rewrite and removes it from the list.
   ScriptDocument applySuggestion(Suggestion suggestion) {
     final replacement = suggestion.replacement;
-    if (replacement == null || suggestion.end >= tokens.length) return dismissSuggestion(suggestion);
+    if (replacement == null || suggestion.end >= tokens.length) {
+      return dismissSuggestion(suggestion);
+    }
     final from = tokens[suggestion.start].start;
     final to = tokens[suggestion.end].end;
-    if (text.substring(from, to) != suggestion.original) return dismissSuggestion(suggestion);
+    if (text.substring(from, to) != suggestion.original) {
+      return dismissSuggestion(suggestion);
+    }
     final newText = text.replaceRange(from, to, replacement);
     return dismissSuggestion(suggestion).withText(newText);
   }
 
-  ScriptDocument dismissSuggestion(Suggestion suggestion) =>
-      copyWith(suggestions: [for (final s in suggestions) if (s.id != suggestion.id) s]);
+  ScriptDocument dismissSuggestion(Suggestion suggestion) => copyWith(
+    suggestions: [
+      for (final s in suggestions)
+        if (s.id != suggestion.id) s,
+    ],
+  );
 
   Map<String, Object?> toJson() => {
-        'version': 1,
-        'id': id,
-        'title': title,
-        'text': text,
-        'language': language.name,
-        'style': style.name,
-        'marks': [for (final m in marks) m.toJson()],
-        'suggestions': [for (final s in suggestions) s.toJson()],
-        'takes': [for (final t in takes) t.toJson()],
-        'updatedAt': updatedAt.toIso8601String(),
-      };
+    'version': 1,
+    'id': id,
+    'title': title,
+    'text': text,
+    'language': language.name,
+    'style': style.name,
+    'recordingAid': recordingAid.name,
+    if (notes.cards.isNotEmpty) 'notes': notes.toJson(),
+    'marks': [for (final m in marks) m.toJson()],
+    'suggestions': [for (final s in suggestions) s.toJson()],
+    'takes': [for (final t in takes) t.toJson()],
+    'updatedAt': updatedAt.toIso8601String(),
+  };
 
   factory ScriptDocument.fromJson(Map<String, Object?> json) {
     List<T> listOf<T>(String key, T? Function(Map<String, Object?>) parse) => [
-          for (final item in (json[key] as List<Object?>? ?? const []))
-            if (item is Map<String, Object?>) ?parse(item),
-        ];
+      for (final item in (json[key] as List<Object?>? ?? const []))
+        if (item is Map<String, Object?>) ?parse(item),
+    ];
 
     final text = json['text'] as String? ?? '';
     final tokenCount = tokenize(text).length;
@@ -275,6 +308,8 @@ class ScriptDocument {
       text: text,
       language: ScriptLanguage.fromName(json['language'] as String?),
       style: CoachingStyle.fromName(json['style'] as String?),
+      recordingAid: json['recordingAid'] == 'notes' ? RecordingAid.notes : RecordingAid.script,
+      notes: json['notes'] is Map<String, Object?> ? NoteDeck.fromJson(json['notes']! as Map<String, Object?>) : null,
       marks: normalizeMarks(listOf('marks', Mark.fromJson), tokenCount),
       suggestions: listOf('suggestions', Suggestion.fromJson),
       takes: listOf('takes', Take.fromJson),
