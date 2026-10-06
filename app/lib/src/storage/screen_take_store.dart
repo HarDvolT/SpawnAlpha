@@ -4,6 +4,7 @@ import 'dart:io';
 import '../model/mark.dart';
 import '../model/script_document.dart';
 import '../recording/floating_prompter.dart';
+import '../recording/activity_trace.dart';
 import '../recording/recording_inspector.dart';
 import '../recording/screen_recording.dart';
 import '../recording/screen_source.dart';
@@ -17,9 +18,10 @@ class PendingScreenTake {
     required this.snapshot,
     required this.recordedAt,
     this.cameraPath,
+    this.activityPath,
   });
   final String id, videoPath, metadataPath;
-  final String? cameraPath;
+  final String? cameraPath, activityPath;
   final ScriptDocument snapshot;
   final DateTime recordedAt;
 }
@@ -48,6 +50,7 @@ class ScreenTakeStore {
     required ScreenSource source,
     required bool recordAudio,
     bool recordSystemAudio = false,
+    bool recordActivity = false,
     String? microphoneName,
     String? cameraName,
     required String pace,
@@ -58,13 +61,15 @@ class ScreenTakeStore {
         '${directory.path}${Platform.pathSeparator}$name';
     while (await File(under('$id.json')).exists() ||
         await File(under('$id-screen.mp4')).exists() ||
-        await File(under('$id-camera.mp4')).exists()) {
+        await File(under('$id-camera.mp4')).exists() ||
+        await File(under('$id-activity.jsonl')).exists()) {
       id = newId();
     }
     final at = DateTime.now();
     final videoPath = under('$id-screen.mp4');
     final metadataPath = under('$id.json');
     final cameraPath = cameraName == null ? null : under('$id-camera.mp4');
+    final activityPath = recordActivity ? under('$id-activity.jsonl') : null;
     final snapshot = presentation.script.copyWith(
       takes: const [],
       suggestions: const [],
@@ -89,6 +94,8 @@ class ScreenTakeStore {
       },
       'recordAudio': recordAudio,
       'recordSystemAudio': recordSystemAudio,
+      'recordActivity': recordActivity,
+      if (recordActivity) 'activity': '$id-activity.jsonl',
       if (recordSystemAudio) 'systemAudioScope': 'windowsPlaybackMix',
       'microphoneName': ?microphoneName,
     });
@@ -99,6 +106,7 @@ class ScreenTakeStore {
       snapshot: snapshot,
       recordedAt: at,
       cameraPath: cameraPath,
+      activityPath: activityPath,
     );
   });
 
@@ -147,6 +155,10 @@ class ScreenTakeStore {
     int? systemAudioFrames,
     RecordingInfo? cameraInfo,
   }) async {
+    final activityInfo = await _activityInfo(
+      pending.activityPath,
+      info.duration,
+    );
     final take = Take(
       path: pending.videoPath,
       recordedAt: pending.recordedAt,
@@ -154,6 +166,7 @@ class ScreenTakeStore {
       mode: cameraInfo == null ? TakeMode.screen : TakeMode.both,
       cameraPath: cameraInfo == null ? null : pending.cameraPath,
       metadataPath: pending.metadataPath,
+      activityPath: activityInfo == null ? null : pending.activityPath,
       recovered: recovered,
     );
     final script = library.byId(pending.snapshot.id);
@@ -181,6 +194,9 @@ class ScreenTakeStore {
       'loudestRmsDb': ?loudestRmsDb,
       'loudestSystemRmsDb': ?loudestSystemRmsDb,
       'systemAudioFrames': ?systemAudioFrames,
+      if (pending.activityPath != null)
+        'activityReadable': activityInfo != null,
+      if (activityInfo != null) 'activitySummary': activityInfo.toJson(),
       if (pending.cameraPath != null) 'cameraReadable': cameraInfo != null,
       if (cameraInfo != null) ...{
         'cameraWidth': cameraInfo.width,
@@ -216,6 +232,10 @@ class ScreenTakeStore {
             (metadata['mode'] == 'both' &&
                 metadata['camera'] != '$id-camera.mp4') ||
             (metadata['mode'] == 'screen' && metadata['camera'] != null) ||
+            (metadata['recordActivity'] == true &&
+                metadata['activity'] != '$id-activity.jsonl') ||
+            (metadata['recordActivity'] != true &&
+                metadata['activity'] != null) ||
             entry.absolute.path !=
                 File('${directory.path}${Platform.pathSeparator}$id.json')
                     .absolute
@@ -243,6 +263,14 @@ class ScreenTakeStore {
                 FileSystemEntityType.link) {
           continue;
         }
+        final activityPath = metadata['recordActivity'] == true
+            ? '${directory.path}${Platform.pathSeparator}$id-activity.jsonl'
+            : null;
+        if (activityPath != null &&
+            await FileSystemEntity.type(activityPath, followLinks: false) ==
+                FileSystemEntityType.link) {
+          continue;
+        }
         final pending = PendingScreenTake(
           id: id,
           videoPath: video.path,
@@ -252,6 +280,7 @@ class ScreenTakeStore {
           ),
           recordedAt: DateTime.parse(metadata['recordedAt'] as String),
           cameraPath: cameraPath,
+          activityPath: activityPath,
         );
         await _save(
           pending,
@@ -286,6 +315,22 @@ class ScreenTakeStore {
     } on Object {
       // Preserve the screen and the local camera file even if decoding fails.
       return null;
+    }
+  }
+
+  Future<ActivitySummary?> _activityInfo(
+    String? path,
+    Duration duration,
+  ) async {
+    if (path == null ||
+        await FileSystemEntity.type(path, followLinks: false) !=
+            FileSystemEntityType.file) {
+      return null;
+    }
+    try {
+      return await inspectActivity(File(path), limit: duration);
+    } on Object {
+      return null; // Preserve local bytes and the readable video, without logs.
     }
   }
 }

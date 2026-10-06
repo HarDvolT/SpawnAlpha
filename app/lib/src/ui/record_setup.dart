@@ -155,7 +155,55 @@ class ComputerSoundChoice extends StatelessWidget {
             ],
           ),
           Text(
-          'Records the default Windows playback sound, not only the chosen window. Stays on this PC.',
+            'Records the default Windows playback sound, not only the chosen window. Stays on this PC.',
+            style: SaType.caption.copyWith(color: stage.stageChromeText),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Camera, Screen and Both. The screen modes arrive in build step 2.
+class ActivityChoice extends StatelessWidget {
+  const ActivityChoice({
+    super.key,
+    required this.value,
+    required this.onChanged,
+  });
+  final bool value;
+  final ValueChanged<bool>? onChanged;
+  @override
+  Widget build(BuildContext context) {
+    final stage = SaPalette.dark;
+    return Padding(
+      padding: const EdgeInsets.all(SaSpace.s3),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Activity for automatic edits',
+                  style: SaType.label.copyWith(color: stage.stageText),
+                ),
+              ),
+              Semantics(
+                label: 'Activity for automatic edits',
+                child: Switch.adaptive(
+                  value: value,
+                  onChanged: onChanged,
+                  activeThumbColor: stage.stageText,
+                  activeTrackColor: stage.stageOk,
+                  inactiveThumbColor: stage.stageChromeText,
+                  inactiveTrackColor: stage.stageLine,
+                ),
+              ),
+            ],
+          ),
+          Text(
+            'Saves mouse positions, clicks and typing timing on this PC. Never saves what you type.',
             style: SaType.caption.copyWith(color: stage.stageChromeText),
           ),
         ],

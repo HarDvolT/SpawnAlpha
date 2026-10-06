@@ -21,6 +21,7 @@ enum ScreenRecordingReason {
   encoder,
   camera,
   systemAudio,
+  activity,
 }
 
 class ScreenRecordingHandle {
@@ -38,6 +39,7 @@ class ScreenRecordingStatus {
     this.audioFrames = 0,
     this.cameraFrames = 0,
     this.systemAudioFrames = 0,
+    this.activityEvents = 0,
     this.duration = Duration.zero,
     this.peakDb = -100,
     this.rmsDb = -100,
@@ -47,6 +49,7 @@ class ScreenRecordingStatus {
   final ScreenRecordingPhase phase;
   final ScreenRecordingReason reason;
   final int width, height, frames, audioFrames, cameraFrames, systemAudioFrames;
+  final int activityEvents;
   final Duration duration;
   final double peakDb, rmsDb, loudestRmsDb, loudestSystemRmsDb;
   bool get terminal =>
@@ -66,6 +69,7 @@ abstract class ScreenRecordings {
     required String path,
     required bool recordAudio,
     bool recordSystemAudio = false,
+    String? activityPath,
     String? microphoneId,
     String? cameraId,
     String? cameraPath,
@@ -89,10 +93,16 @@ class WindowsScreenRecordings implements ScreenRecordings {
     required String path,
     required bool recordAudio,
     bool recordSystemAudio = false,
+    String? activityPath,
     String? microphoneId,
     String? cameraId,
     String? cameraPath,
   }) async {
+    if (activityPath == '' ||
+        activityPath == path ||
+        (activityPath != null && activityPath == cameraPath)) {
+      throw ArgumentError('Choose a separate activity file');
+    }
     if ((cameraId == null) != (cameraPath == null) ||
         cameraId == '' ||
         cameraPath == '' ||
@@ -104,6 +114,7 @@ class WindowsScreenRecordings implements ScreenRecordings {
       'path': path,
       'recordAudio': recordAudio,
       'recordSystemAudio': recordSystemAudio,
+      'activityPath': ?activityPath,
       'microphoneId': ?microphoneId,
       'cameraId': ?cameraId,
       'cameraPath': ?cameraPath,
@@ -159,6 +170,9 @@ class WindowsScreenRecordings implements ScreenRecordings {
       systemAudioFrames: info['systemAudioFrames'] == null
           ? 0
           : integer('systemAudioFrames'),
+      activityEvents: info['activityEvents'] == null
+          ? 0
+          : integer('activityEvents'),
       duration: Duration(microseconds: integer('durationUs')),
       peakDb: level('peakDb'),
       rmsDb: level('rmsDb'),
@@ -193,6 +207,7 @@ class UnsupportedScreenRecordings implements ScreenRecordings {
     required String path,
     required bool recordAudio,
     bool recordSystemAudio = false,
+    String? activityPath,
     String? microphoneId,
     String? cameraId,
     String? cameraPath,

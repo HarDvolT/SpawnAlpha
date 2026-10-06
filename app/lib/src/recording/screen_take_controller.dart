@@ -98,6 +98,7 @@ class ScreenTakeController extends ChangeNotifier {
   Future<void>? _run;
   bool _audio = true;
   bool _systemAudio = false;
+  bool _activity = false;
   String _microphone = 'Microphone';
   final _voice = VoiceActivity();
   bool get busy =>
@@ -126,6 +127,7 @@ class ScreenTakeController extends ChangeNotifier {
     required ScreenSource source,
     required bool recordAudio,
     bool recordSystemAudio = false,
+    bool recordActivity = false,
     String? microphoneId,
     String microphoneName = 'Microphone',
     String? cameraId,
@@ -150,6 +152,7 @@ class ScreenTakeController extends ChangeNotifier {
     _reduceMotion = reduceMotion;
     _audio = recordAudio;
     _systemAudio = recordSystemAudio;
+    _activity = recordActivity;
     _microphone = microphoneName;
     _cameraId = cameraId;
     _cameraName = cameraName;
@@ -209,6 +212,7 @@ class ScreenTakeController extends ChangeNotifier {
         source: source,
         recordAudio: _audio,
         recordSystemAudio: _systemAudio,
+        recordActivity: _activity,
         microphoneName: _audio ? _microphone : null,
         cameraName: _cameraName,
         pace: presentation.pace.name,
@@ -223,6 +227,7 @@ class ScreenTakeController extends ChangeNotifier {
         path: pending.videoPath,
         recordAudio: _audio,
         recordSystemAudio: _systemAudio,
+        activityPath: pending.activityPath,
         microphoneId: microphoneId,
         cameraId: _cameraId,
         cameraPath: pending.cameraPath,
@@ -314,6 +319,10 @@ class ScreenTakeController extends ChangeNotifier {
               problem ??= _stopMessage(
                 status?.reason ?? ScreenRecordingReason.encoder,
               );
+              if (_activity && take!.activityPath == null) {
+                problem =
+                    '${problem == null ? '' : '${problem!} '}The video is saved. Activity could not be read; automatic edits can use the video alone.';
+              }
               if (pending.cameraPath != null && take!.cameraPath == null) {
                 problem =
                     '${problem == null ? '' : '${problem!} '}The screen is saved. The camera file could not be read. Its data stays on this PC.';
@@ -385,6 +394,8 @@ class ScreenTakeController extends ChangeNotifier {
       'The camera disconnected. The captured part is saved.',
     ScreenRecordingReason.systemAudio =>
       'The playback device became unavailable. The captured part is saved.',
+    ScreenRecordingReason.activity =>
+      'Activity recording stopped early. The readable video is saved.',
     ScreenRecordingReason.encoder =>
       'Recording stopped early. The readable part is saved.',
     _ => null,
@@ -472,7 +483,10 @@ class ScreenTakeController extends ChangeNotifier {
   }
 
   Future<void> toggleCompanion() async {
-    if (!recording || _stopWanted || _placementChanging || _visibilityChanging) {
+    if (!recording ||
+        _stopWanted ||
+        _placementChanging ||
+        _visibilityChanging) {
       return;
     }
     if (!companion && _cameraId != null && cameraFollow == null) {

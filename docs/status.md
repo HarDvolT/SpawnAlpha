@@ -14,7 +14,7 @@ a separate fragmented file, chosen-microphone AAC, Voice
 pace, pause/resume, reader hide/show/Lock and durable local saving/recovery are connected.
 The full generated Screen, Both and computer-sound takes pass on this PC. Computer sound
 is available with an explicit switch, initially off. The cursor companion is connected
-and protected; privacy-limited telemetry is next. Owner hardware trials are deferred until
+and protected; optional local activity is connected and tested. Longer recording and abrupt-exit recovery checks pass; the render-core spike is next. Owner hardware trials are deferred until
 they return.** The build order is in
 [product-brief.md](product-brief.md#build-order); it was revised on 2026-09-30.
 
@@ -38,8 +38,8 @@ build step 2 (screen recording).
   `flutter_secure_storage_windows`). `flutter doctor -v` passes Windows, Visual Studio,
   desktop device and network checks. Android is intentionally not installed yet.
 - **Local checks and launch:** `flutter pub get` succeeds; `flutter analyze` prints
-  **No issues found!**; all **301 tests pass** (226 before Screen integration).
-  All **109 screenshot cases pass**, including the source picker, unavailable-preview
+  **No issues found!**; all **321 tests pass** (226 before Screen integration).
+  All **112 screenshot cases pass**, including the source picker, unavailable-preview
   and default/minimum floating prompter in EN/FR/AR. The Windows debug build succeeds.
   Windows Git checkout converted generated
   tokens to CRLF, causing the exact-generation test to fail: `.gitattributes` now keeps
@@ -353,6 +353,31 @@ build step 2 (screen recording).
   artifact needs republishing; its illustrative browser preview remains scaled.
   The optional browser-preview renderer could not run because Playwright is absent;
   actual Flutter screenshots provide the verified layouts.
+- **Optional activity and recorder hardening (eighteenth slice, 2026-10-06):**
+  Screen/Both setup offers Activity for automatic edits, initially off, with an explicit
+  local-only caption. A source-scoped raw-input receiver saves anonymous key timing,
+  whitelisted Ctrl badges, clicks, focus rectangles and 60 Hz cursor positions/shapes;
+  it never saves typed characters, scan codes, device IDs, handles or window titles.
+  Own-process controls/readers are excluded. The bounded sanitized queue shares the video
+  pause clock; its JSONL sidecar is reserved in the pending manifest and flushed each second.
+  Failure stops safely; old/off takes work without activity. Streaming inspection and
+  recovery reject substituted paths/links/private payloads, preserve malformed bytes and
+  still save readable video. A crash exposed activity extending past the last surviving
+  video fragment: usable activity now clips to the decoded duration without rewriting bytes.
+  All 321 tests and 112 screenshots pass; analysis prints No issues found!; normal Windows
+  debug/release builds pass. EN/AR activity setup images were inspected. Pure privacy/clock
+  checks and a real receiver lifecycle test pass; the latter excludes all own-window input
+  and discards samples in memory. The full non-shipping activity fixture substitutes generated
+  records only and verifies pause removal, durable counts and protected-window cleanup.
+  A deliberate full-process exit leaves actual fragmented video and flushed activity; reopening
+  recovers the pair once. A 30-second generated-window take with resize and three pauses decodes
+  correctly and shows 0 MiB additional private-memory growth after warm-up. This is a short soak,
+  not proof of hour-long performance. No owner desktop/typing/camera/sound was saved in checks.
+  Native core is pushed in d0571fd; UI/storage/recovery integration is ready to push next.
+  **Half done:** owner hardware, multi-monitor DPI, capture-exclusion and longer real-session
+  trials remain deferred by request. Native cursor is still baked into raw WGC video;
+  replacement/smoothing must be designed alongside the Cut's clean-source preview.
+  **Next:** the approved native render-core spike, then on-device word alignment (build step 3).
 - **Cue retest history (superseded by normal-app launch above):** `app/tool/cue_check.dart` is a development-only launch target.
   It uses the real Home/practice screens with memory-only scripts, settings and keys;
   optional recordings go under `app/build/cue-check/recordings`, on E: on this PC.

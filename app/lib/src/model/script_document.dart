@@ -87,6 +87,7 @@ class Take {
     this.mode = TakeMode.camera,
     this.cameraPath,
     this.metadataPath,
+    this.activityPath,
     this.recovered = false,
   });
 
@@ -94,7 +95,7 @@ class Take {
   final DateTime recordedAt;
   final Duration duration;
   final TakeMode mode;
-  final String? cameraPath, metadataPath;
+  final String? cameraPath, metadataPath, activityPath;
   final bool recovered;
 
   Map<String, Object?> toJson() => {
@@ -104,6 +105,7 @@ class Take {
     'mode': mode.name,
     'cameraPath': ?cameraPath,
     'metadataPath': ?metadataPath,
+    'activityPath': ?activityPath,
     if (recovered) 'recovered': true,
   };
 
@@ -120,6 +122,7 @@ class Take {
           TakeMode.camera,
       cameraPath: json['cameraPath'] as String?,
       metadataPath: json['metadataPath'] as String?,
+      activityPath: json['activityPath'] as String?,
       recovered: json['recovered'] == true,
     );
   }

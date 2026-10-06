@@ -64,6 +64,7 @@ class _RecordScreenState extends State<RecordScreen>
   /// The user chose to record although no microphone works.
   bool _allowSilent = false;
   bool _recordSystemAudio = false;
+  bool _recordActivity = false;
 
   ScreenSource? _screenSource;
   bool _openingScreenPreview = false;
@@ -491,6 +492,7 @@ class _RecordScreenState extends State<RecordScreen>
       source: source,
       recordAudio: !_allowSilent,
       recordSystemAudio: _recordSystemAudio,
+      recordActivity: _recordActivity,
       microphoneId: _mic?.input?.id,
       microphoneName: _mic?.input?.name ?? 'Microphone',
       cameraId: cameraChoice?.deviceId,
@@ -1016,6 +1018,13 @@ class _RecordScreenState extends State<RecordScreen>
                     ? null
                     : (value) => setState(() => _recordSystemAudio = value),
               ),
+            if (_screenMode)
+              ActivityChoice(
+                value: _recordActivity,
+                onChanged: _busy
+                    ? null
+                    : (value) => setState(() => _recordActivity = value),
+              ),
             PrompterControls(
               controller: _prompter,
               mirror: settings.mirror,
@@ -1257,6 +1266,13 @@ class _RecordScreenState extends State<RecordScreen>
           onChanged: busy
               ? null
               : (value) => setState(() => _recordSystemAudio = value),
+        ),
+      if (_screenMode)
+        ActivityChoice(
+          value: _recordActivity,
+          onChanged: busy
+              ? null
+              : (value) => setState(() => _recordActivity = value),
         ),
       SetupStep(
         number: mic != null && mic.supported ? 4 : 3,

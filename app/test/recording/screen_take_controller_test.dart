@@ -17,6 +17,7 @@ import 'package:spawnalpha/src/storage/script_store.dart';
 import 'package:spawnalpha/src/theme/theme.dart';
 
 import '../storage/screen_take_store_test.dart' show FakeInspector;
+import 'activity_trace_test.dart' show generatedActivity;
 
 class TestHuds implements RecordingHuds {
   TestHuds(this.events);
@@ -103,6 +104,8 @@ class TestRecorder implements ScreenRecordings {
   String? microphone;
   String? camera, cameraFile;
   bool writeCamera = true;
+  bool writeActivity = true;
+  String? activityFile;
   @override
   bool get supported => true;
   @override
@@ -111,6 +114,7 @@ class TestRecorder implements ScreenRecordings {
     required String path,
     required bool recordAudio,
     bool recordSystemAudio = false,
+    String? activityPath,
     String? microphoneId,
     String? cameraId,
     String? cameraPath,
@@ -125,9 +129,13 @@ class TestRecorder implements ScreenRecordings {
     microphone = microphoneId;
     camera = cameraId;
     cameraFile = cameraPath;
+    activityFile = activityPath;
     await File(path).writeAsString('fixture', flush: true);
     if (cameraPath != null && writeCamera) {
       await File(cameraPath).writeAsString('fixture', flush: true);
+    }
+    if (activityPath != null && writeActivity) {
+      await File(activityPath).writeAsString(generatedActivity(), flush: true);
     }
     return const ScreenRecordingHandle(3);
   }
@@ -239,6 +247,7 @@ void main() {
     ScriptLanguage language, {
     bool audio = true,
     bool systemAudio = false,
+    bool activity = false,
     bool both = false,
   }) async {
     final script = ScriptDocument.create(
@@ -255,12 +264,47 @@ void main() {
       source: source,
       recordAudio: audio,
       recordSystemAudio: systemAudio,
+      recordActivity: activity,
       microphoneId: 'chosen',
       microphoneName: 'Chosen microphone',
       cameraId: both ? 'chosen-camera' : null,
       cameraName: both ? 'Chosen camera' : null,
     );
   }
+
+  for (final language in ScriptLanguage.values) {
+    test(
+      'activity opt-in reaches the saved $language take after protected cleanup',
+      () async {
+        recorder.onStatus = (poll) async {
+          if (poll == 3) owner.stop();
+        };
+        await start(language, activity: true);
+        expect(owner.problem, isNull);
+        expect(owner.take!.activityPath, recorder.activityFile);
+        expect(recorder.activityFile, isNotNull);
+        expect(
+          events.indexOf('release'),
+          lessThan(events.indexOf('unprotect')),
+        );
+      },
+    );
+  }
+  test(
+    'activity failure saves video and gives a readable explanation',
+    () async {
+      recorder.writeActivity = false;
+      recorder.reason = ScreenRecordingReason.activity;
+      recorder.onStatus = (poll) async {
+        if (poll == 3) owner.stop();
+      };
+      await start(ScriptLanguage.en, activity: true);
+      expect(owner.take, isNotNull);
+      expect(owner.take!.activityPath, isNull);
+      expect(owner.problem, contains('video is saved'));
+      expect(events.indexOf('release'), lessThan(events.indexOf('unprotect')));
+    },
+  );
 
   for (final language in ScriptLanguage.values) {
     test(

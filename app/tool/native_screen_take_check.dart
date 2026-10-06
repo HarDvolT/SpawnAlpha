@@ -11,6 +11,7 @@ import 'package:spawnalpha/src/recording/floating_prompter.dart';
 import 'package:spawnalpha/src/recording/recording_hud.dart';
 import 'package:spawnalpha/src/recording/recording_inspector.dart';
 import 'package:spawnalpha/src/recording/screen_recording.dart';
+import 'package:spawnalpha/src/recording/activity_trace.dart';
 import 'package:spawnalpha/src/recording/screen_source.dart';
 import 'package:spawnalpha/src/recording/screen_take_controller.dart';
 import 'package:spawnalpha/src/storage/screen_take_store.dart';
@@ -31,6 +32,8 @@ Future<void> main() => runGeneratedTake();
 Future<void> runGeneratedTake({
   String? cameraFixture,
   bool generatedSystemAudio = false,
+  bool generatedActivity = false,
+  bool crashAfterRecord = false,
 }) async {
   WidgetsFlutterBinding.ensureInitialized();
   runApp(
@@ -43,6 +46,19 @@ Future<void> runGeneratedTake({
   ScreenTakeController? owner;
   Timer? action;
   try {
+    if (crashAfterRecord && !generatedActivity) {
+      throw StateError('Crash check requires generated activity');
+    }
+    if (generatedActivity &&
+        await WindowsScreenRecordings.channel.invokeMethod<bool>(
+              'activityFixture',
+              const {},
+            ) !=
+            true) {
+      throw StateError(
+        'Generated activity requires the non-shipping fixture binary',
+      );
+    }
     if (generatedSystemAudio &&
         await WindowsScreenRecordings.channel.invokeMethod<bool>(
               'audioFixture',
@@ -101,6 +117,10 @@ Future<void> runGeneratedTake({
       }
       if (controller.phase == ScreenTakePhase.recording && step == 0) {
         step = 1;
+        if (crashAfterRecord) {
+          action = Timer(SaDurations.beat * 5, () => exit(42));
+          return;
+        }
         action = Timer(
           SaDurations.beat,
           () => unawaited(controller.togglePause()),
@@ -110,14 +130,21 @@ Future<void> runGeneratedTake({
         action = Timer(SaDurations.beat, () async {
           await controller.toggleCompanion();
           if (cameraFixture != null) {
-            if (!controller.companionQuestion) throw StateError('Camera choice missing');
+            if (!controller.companionQuestion) {
+              throw StateError('Camera choice missing');
+            }
             await controller.chooseCompanion(false);
           }
           if (!controller.companion) throw StateError('Companion missing');
-          Future<Map<String, Object?>?> placementStatus() => WindowsFloatingPrompters.channel
-            .invokeMapMethod<String, Object?>('status', {'sessionId': 1});
+          Future<Map<String, Object?>?> placementStatus() =>
+              WindowsFloatingPrompters.channel.invokeMapMethod<String, Object?>(
+                'status',
+                {'sessionId': 1},
+              );
           var placement = await placementStatus();
-          if (placement?['excluded'] != true || placement?['visible'] != true || placement?['companion'] != true ||
+          if (placement?['excluded'] != true ||
+              placement?['visible'] != true ||
+              placement?['companion'] != true ||
               (cameraFixture != null && placement?['sampling'] != false)) {
             throw StateError('Companion protection or camera docking failed');
           }
@@ -126,29 +153,46 @@ Future<void> runGeneratedTake({
             await controller.chooseCompanion(true);
           }
           placement = await placementStatus();
-          if (placement?['following'] == true && (placement?['clickThrough'] != true || placement?['sampling'] != true)) {
-            debugPrint('Generated companion flags: visible=${placement?['visible']}, excluded=${placement?['excluded']}, sampling=${placement?['sampling']}, clickThrough=${placement?['clickThrough']}');
+          if (placement?['following'] == true &&
+              (placement?['clickThrough'] != true ||
+                  placement?['sampling'] != true)) {
+            debugPrint(
+              'Generated companion flags: visible=${placement?['visible']}, excluded=${placement?['excluded']}, sampling=${placement?['sampling']}, clickThrough=${placement?['clickThrough']}',
+            );
             throw StateError('Companion input safety failed');
           }
-          await const WindowsFloatingPrompters().placement(const FloatingHandle(1),
-            const CompanionPlacement(enabled: true, follow: true, reduceMotion: true));
+          await const WindowsFloatingPrompters().placement(
+            const FloatingHandle(1),
+            const CompanionPlacement(
+              enabled: true,
+              follow: true,
+              reduceMotion: true,
+            ),
+          );
           placement = await placementStatus();
-          if (placement?['sampling'] != false || placement?['following'] != false) {
+          if (placement?['sampling'] != false ||
+              placement?['following'] != false) {
             throw StateError('Reduced motion did not dock');
           }
           await controller.toggleCompanion();
           await controller.toggleCompanion();
           await controller.togglePrompter();
           if (controller.readerVisible) throw StateError('Hide failed');
-          if ((await placementStatus())?['sampling'] != false) throw StateError('Hidden pointer sampling');
+          if ((await placementStatus())?['sampling'] != false) {
+            throw StateError('Hidden pointer sampling');
+          }
           await controller.togglePrompter();
           if (!controller.readerVisible) throw StateError('Show failed');
           placement = await placementStatus();
-          if (placement?['following'] == true && (placement?['clickThrough'] != true || placement?['sampling'] != true)) {
+          if (placement?['following'] == true &&
+              (placement?['clickThrough'] != true ||
+                  placement?['sampling'] != true)) {
             throw StateError('Following safety lost after showing');
           }
           await controller.toggleCompanion();
-          if ((await placementStatus())?['sampling'] != false) throw StateError('Pointer sampling retained');
+          if ((await placementStatus())?['sampling'] != false) {
+            throw StateError('Pointer sampling retained');
+          }
           await controller.lockPrompter();
           await controller.lockPrompter();
           await controller.togglePause();
@@ -163,6 +207,7 @@ Future<void> runGeneratedTake({
       source: source,
       recordAudio: false,
       recordSystemAudio: generatedSystemAudio,
+      recordActivity: generatedActivity,
       cameraId: cameraFixture,
       cameraName: cameraFixture == null ? null : 'Generated camera',
     );
@@ -200,6 +245,19 @@ Future<void> runGeneratedTake({
           controller.status!.loudestSystemRmsDb <= -40) {
         throw StateError('Generated sound missing or leaking into Voice');
       }
+    }
+    if (generatedActivity) {
+      final activity = await inspectActivity(File(take.activityPath!));
+      if (!activity.complete ||
+          activity.events < 80 ||
+          activity.events != controller.status!.activityEvents ||
+          activity.durationUs != controller.status!.duration.inMicroseconds ||
+          activity.events > 200) {
+        throw StateError('Activity pause clock or durable count mismatch');
+      }
+      debugPrint(
+        'Native generated activity take check passed: timing only, pause removed, protected controls, durable trace and clean shutdown.',
+      );
     }
     if (cameraFixture != null) {
       if (take.mode != TakeMode.both || take.cameraPath == null) {

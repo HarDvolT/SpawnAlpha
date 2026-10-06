@@ -15,6 +15,44 @@ void main() {
   );
   final messenger =
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+  test(
+    'activity path is optional and must be separate from both videos',
+    () async {
+      Map? request;
+      messenger.setMockMethodCallHandler(WindowsScreenRecordings.channel, (
+        call,
+      ) async {
+        request = call.arguments as Map;
+        return {'sessionId': 1};
+      });
+      await backend.start(
+        source: source,
+        path: 'screen.mp4',
+        recordAudio: false,
+        activityPath: 'trace.jsonl',
+      );
+      expect(request!['activityPath'], 'trace.jsonl');
+      for (final path in ['', 'screen.mp4', 'camera.mp4']) {
+        await expectLater(
+          backend.start(
+            source: source,
+            path: 'screen.mp4',
+            recordAudio: false,
+            cameraId: 'fixture',
+            cameraPath: 'camera.mp4',
+            activityPath: path,
+          ),
+          throwsArgumentError,
+        );
+      }
+      await backend.start(
+        source: source,
+        path: 'screen.mp4',
+        recordAudio: false,
+      );
+      expect(request!.containsKey('activityPath'), isFalse);
+    },
+  );
   tearDown(
     () => messenger.setMockMethodCallHandler(
       WindowsScreenRecordings.channel,

@@ -458,10 +458,10 @@ void main() {
   }
 
   for (final (index, language) in [(0, 'en'), (1, 'fr'), (2, 'ar')]) {
-    for (final computerSound in [false, true]) {
-    testWidgets('Screen recording setup $language computerSound=$computerSound', (tester) async {
+    for (final (computerSound, activity) in [(false, false), (true, false), (false, true)]) {
+    testWidgets('Screen recording setup $language computerSound=$computerSound activity=$activity', (tester) async {
       final script = await _markedUp(sampleScripts()[index]);
-      await shoot(tester, 'record-screen-setup-$language${computerSound ? '-computer-sound' : ''}', desktop, (services) {
+      await shoot(tester, 'record-screen-setup-$language${computerSound ? '-computer-sound' : ''}${activity ? '-activity' : ''}', desktop, (services) {
         services.settings.recordMode = TakeMode.screen;
         // No native recorder command is made by this setup-only screenshot.
         return AppScope(services: AppServices(library: services.library, settings: services.settings,
@@ -470,6 +470,13 @@ void main() {
       }, [script], settle: false, before: (tester) async {
         await tester.pump(const Duration(milliseconds: 300));
         await tester.pump(const Duration(milliseconds: 300));
+        if (activity) {
+          await tester.scrollUntilVisible(find.byType(ActivityChoice), 200,
+            scrollable: find.descendant(of: find.byType(ListView), matching: find.byType(Scrollable)).first);
+          await tester.pumpAndSettle();
+          await tester.tap(find.descendant(of: find.byType(ActivityChoice), matching: find.byType(Switch)));
+          await tester.pumpAndSettle();
+        }
         if (computerSound) {
           await tester.scrollUntilVisible(find.byType(ComputerSoundChoice), 200,
             scrollable: find.descendant(of: find.byType(ListView), matching: find.byType(Scrollable)).first);

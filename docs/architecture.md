@@ -498,6 +498,28 @@ recordings folder.
   visible. Regular reader layout is unchanged. Finalization
   precedes removing capture protection. Generated paired-take checks verify both
   placements, click-through, reduced motion, hide/show sampling cleanup and saving.
+- **Optional recording activity:** only opted-in Screen/Both takes create
+  `id-activity.jsonl`, reserved in the flushed pending manifest before capture.
+  `RecordingActivity` owns one message-only raw-input receiver thread and a 60 Hz
+  high-resolution cursor timer. It respects an existing raw-input registration,
+  never suppresses legacy input, and releases registration/timer/window on stop.
+  Source-window/root and display bounds filter input; own-process windows are
+  excluded from cursor, clicks and focus. Only anonymous key counts and a fixed
+  Ctrl shortcut enum enter the bounded queue. No characters, scan codes, device
+  IDs, window handles or titles enter disk serialization. The encoding worker
+  removes pauses through `RecordingClock.Event`, writes source-relative geometry,
+  flushes once a second and joins the receiver before finalizing the sidecar.
+  Failure stops safely and leaves readable video. Dart inspects JSONL incrementally
+  with bounded row size, rejects unknown/private payloads and ignores only a torn
+  final row. Recovery limits usable activity to the decoded surviving video duration;
+  the original bytes are preserved. Old/off takes have no activity path.
+  `recording_activity_check` covers sanitization/common-clock boundaries;
+  `recording_activity_runtime_check` verifies receiver lifetime and own-window
+  exclusion in memory only. The explicit `activity_ui_fixture` replaces all input
+  sampling with generated records. Its Dart handshake refuses normal binaries.
+  `tool/native_activity_take_check.dart` exercises full protected saving; `crash`
+  exits deliberately, then `recover <generated fixture directory>` tests actual
+  partial video/sidecar recovery. No owner input or private desktop is saved.
 - **SettingsScreen**: the markup source, API key, model, default style, text
   size and mirror setting, plus **Privacy and licences**: what leaves the
   device, and the licence page (`showLicensePage`).

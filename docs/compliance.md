@@ -182,6 +182,7 @@ person using the app.
 
 | Item | Status |
 |---|---|
+| Optional Windows recording activity: explicit local-only choice, anonymous typing, source scoping, safe recovery | Implemented 2026-10-06. Initially off; setup explains what is saved and never typed text. Fixed Ctrl shortcut allowlist, no AltGr text translation, scan codes, titles, handles or device IDs. Raw-input receiver does not consume owner input and stops with capture. Bounded queue/streaming inspection, no private logs/network/dependency/copied code. Pure privacy/common-clock, in-memory own-window exclusion and generated full-take checks pass. Owner trials deferred |
 | Font licences bundled and shown | Done |
 | In-app licence page (Settings, Privacy and licences) | Done |
 | "What leaves your device" explained in Settings | Done |

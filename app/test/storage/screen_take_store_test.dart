@@ -12,6 +12,8 @@ import 'package:spawnalpha/src/recording/screen_source.dart';
 import 'package:spawnalpha/src/storage/script_store.dart';
 import 'package:spawnalpha/src/storage/screen_take_store.dart';
 
+import '../recording/activity_trace_test.dart' show generatedActivity;
+
 class FakeInspector implements RecordingInspector {
   final inspected = <String>[];
   final byPath = <String, RecordingInfo>{};
@@ -91,6 +93,90 @@ void main() {
   tearDown(() async {
     library.dispose();
     await directory.delete(recursive: true);
+  });
+
+  for (final language in ScriptLanguage.values) {
+    test(
+      'activity consent and truncated trace survive $language recovery',
+      () async {
+        final original = script(language);
+        await library.save(original);
+        final pending = await store.reserve(
+          presentation: FloatingPresentation(script: original),
+          source: source,
+          recordAudio: false,
+          recordActivity: true,
+          pace: 'timed',
+        );
+        final metadata =
+            jsonDecode(await File(pending.metadataPath).readAsString()) as Map;
+        expect(metadata['recordActivity'], isTrue);
+        expect(metadata['activity'], '${pending.id}-activity.jsonl');
+        await File(pending.videoPath).writeAsString('generated video');
+        await File(pending.activityPath!)
+            .writeAsString('${generatedActivity(complete: false)}{"type":');
+        expect(await store.recover(), 1);
+        final take = library.byId(original.id)!.takes.single;
+        expect(take.activityPath, pending.activityPath);
+        expect(take.recovered, isTrue);
+        expect(Take.fromJson(take.toJson())!.activityPath, take.activityPath);
+        final after =
+            jsonDecode(await File(pending.metadataPath).readAsString()) as Map;
+        expect(after['activityReadable'], isTrue);
+        expect((after['activitySummary'] as Map)['complete'], isFalse);
+        expect(await store.recover(), 0);
+      },
+    );
+  }
+
+  test('bad or missing activity preserves the video and local bytes', () async {
+    final original = script(ScriptLanguage.en);
+    await library.save(original);
+    for (final contents in [null, 'private malformed data\n']) {
+      final pending = await store.reserve(
+        presentation: FloatingPresentation(script: original),
+        source: source,
+        recordAudio: false,
+        recordActivity: true,
+        pace: 'timed',
+      );
+      if (contents != null) {
+        await File(pending.activityPath!).writeAsString(contents);
+      }
+      final take = await store.finish(pending, status);
+      expect(take.activityPath, isNull);
+      final metadata =
+          jsonDecode(await File(pending.metadataPath).readAsString()) as Map;
+      expect(metadata['activityReadable'], isFalse);
+      if (contents != null) {
+        expect(await File(pending.activityPath!).readAsString(), contents);
+      }
+    }
+  });
+
+  test('recovery rejects substituted activity names and links', () async {
+    final original = script(ScriptLanguage.en);
+    await library.save(original);
+    final pending = await store.reserve(
+      presentation: FloatingPresentation(script: original),
+      source: source,
+      recordAudio: false,
+      recordActivity: true,
+      pace: 'timed',
+    );
+    await File(pending.videoPath).writeAsString('generated video');
+    final metadata =
+        jsonDecode(await File(pending.metadataPath).readAsString()) as Map;
+    metadata['activity'] = '../outside.jsonl';
+    await File(pending.metadataPath).writeAsString(jsonEncode(metadata));
+    expect(await store.recover(), 0);
+    metadata['activity'] = '${pending.id}-activity.jsonl';
+    await File(pending.metadataPath).writeAsString(jsonEncode(metadata));
+    final target = File('${directory.path}/fixture.jsonl');
+    await target.writeAsString(generatedActivity());
+    await Link(pending.activityPath!).create(target.absolute.path);
+    expect(await store.recover(), 0);
+    expect(library.byId(original.id)!.takes, isEmpty);
   });
 
   for (final language in ScriptLanguage.values) {
