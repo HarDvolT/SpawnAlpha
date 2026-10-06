@@ -16,10 +16,13 @@ class SectionAttempt {
     required this.added,
     required this.covered,
     required this.uncertain,
+    required this.firstWord,
+    required this.lastWord,
   });
   final SourceRange range;
   final String text;
   final int matched, changed, added, covered, uncertain;
+  final int firstWord, lastWord;
 }
 
 class RepeatedSection {
@@ -27,10 +30,12 @@ class RepeatedSection {
     required this.language,
     required this.scriptText,
     required this.scriptWords,
+    required this.id,
     required List<SectionAttempt> attempts,
   }) : attempts = List.unmodifiable(attempts);
   final ScriptLanguage language;
   final String scriptText;
+  final String id;
   final int scriptWords;
   final List<SectionAttempt> attempts;
 }
@@ -41,10 +46,14 @@ class RepeatedSection {
 /// original time remains intact. Work shares the aligner's bounded cell limit.
 List<RepeatedSection> repeatedSections(
   ScriptDocument script,
-  WordTranscript transcript,
-) {
+  WordTranscript transcript, {
+  ScriptAlignment? alignment,
+}) {
   if (script.usesNotes || transcript.words.isEmpty) return const [];
-  final alignment = alignTranscript(script, transcript);
+  alignment ??= alignTranscript(script, transcript);
+  if (!identical(alignment.transcript, transcript)) {
+    throw const FormatException('Retake alignment mismatch');
+  }
   if (alignment.attemptCount < 2) return const [];
   final result = <RepeatedSection>[];
   for (final section in sentenceRanges(script.tokens)) {
@@ -91,6 +100,8 @@ List<RepeatedSection> repeatedSections(
           uncertain: words
               .where((w) => w.confidence == null || w.confidence! < .6)
               .length,
+          firstWord: first,
+          lastWord: last,
         ),
       );
     }
@@ -103,6 +114,7 @@ List<RepeatedSection> repeatedSections(
           script.tokens[section.end].end,
         ),
         scriptWords: tokens.length,
+        id: 'section-${section.start}-${section.end}',
         attempts: attempts,
       ),
     );

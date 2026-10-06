@@ -23,6 +23,8 @@ import '../playback/playback_controller_test.dart' show FakePlayback;
 import '../transcription/speech_processor_test.dart' show FakeSpeech;
 import '../review/repeated_sections_test.dart'
     show repeatedScript, repeatedSpeech;
+import '../cut/retake_review_test.dart'
+    show retakeWords, retakeScript, retakeQuiet;
 
 SavedTranscript reviewFixture(
   ScriptLanguage language,
@@ -67,6 +69,113 @@ SavedTranscript reviewFixture(
 
 void main() {
   for (final language in ScriptLanguage.values) {
+    testWidgets(
+      'whole review persists and restores a retake choice $language',
+      (tester) async {
+        tester.view.physicalSize = const Size(1280, 2400);
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.reset);
+        late Directory root;
+        late ScriptLibrary library;
+        late AppServices services;
+        late ScriptDocument script;
+        late Take take;
+        final words = retakeWords(language), frozen = retakeScript(language);
+        await tester.runAsync(() async {
+          root = await Directory.systemTemp.createTemp(
+            'spawnalpha-retake-review-',
+          );
+          library = ScriptLibrary(MemoryScriptStore());
+          take = Take(
+            path: '${root.path}/generated.mp4',
+            recordedAt: DateTime(2026),
+            duration: words.duration,
+            wordsPath: '${root.path}/words.json',
+          );
+          script = frozen.copyWith(takes: [take]);
+          await library.save(script);
+          services = AppServices(
+            library: library,
+            settings: Settings(secrets: MemorySecretStore()),
+            recordingsDir: root,
+            playback: FakePlayback(),
+            speechBackend: FakeSpeech('unused'),
+          );
+          services.speech.result = SavedTranscript(
+            sourcePath: take.path,
+            transcript: words,
+            snapshot: frozen,
+            quiet: retakeQuiet(words),
+            alignment: {'attemptCount': 2},
+          );
+          final plan = await services.cuts.create(
+            script,
+            take,
+            services.speech.result!,
+          );
+          take = library.byId(script.id)!.takes.single;
+          expect(plan.retakes.single.selected, isNull);
+        });
+        await tester.runAsync(() async {
+          await tester.pumpWidget(
+            AppScope(
+              services: services,
+              child: MaterialApp(
+                theme: buildTheme(Brightness.light),
+                home: TakeReviewScreen(script: script, take: take),
+              ),
+            ),
+          );
+          await Future<void>.delayed(const Duration(milliseconds: 100));
+        });
+        await tester.pumpAndSettle();
+        for (
+          var i = 0;
+          i < 40 && find.text('Keep attempt 2').evaluate().isEmpty;
+          i++
+        ) {
+          await tester.runAsync(
+            () => Future<void>.delayed(const Duration(milliseconds: 50)),
+          );
+          await tester.pumpAndSettle();
+        }
+        expect(find.text('Keep attempt 2'), findsOneWidget);
+        await tester.ensureVisible(find.text('Keep attempt 2'));
+        await tester.pumpAndSettle();
+        await tester.runAsync(() async {
+          await tester.tap(find.text('Keep attempt 2'));
+          await Future<void>.delayed(const Duration(milliseconds: 100));
+        });
+        await tester.pumpAndSettle();
+        expect(find.text('Removed from cut'), findsOneWidget);
+        expect(
+          (await tester.runAsync(
+            () => services.cuts.load(library.byId(script.id)!.takes.single),
+          ))!.retakes.single.selected,
+          1,
+        );
+        await tester.ensureVisible(find.text('Restore all changes'));
+        await tester.pumpAndSettle();
+        await tester.runAsync(() async {
+          await tester.tap(find.text('Restore all changes'));
+          await Future<void>.delayed(const Duration(milliseconds: 100));
+        });
+        await tester.pumpAndSettle();
+        expect(
+          (await tester.runAsync(
+            () => services.cuts.load(library.byId(script.id)!.takes.single),
+          ))!.retakes.single.selected,
+          isNull,
+        );
+        expect(tester.takeException(), isNull);
+        await tester.pumpWidget(const SizedBox());
+        services.processing.dispose();
+        services.speech.dispose();
+        services.speechModels.dispose();
+        library.dispose();
+        await tester.runAsync(() => root.delete(recursive: true));
+      },
+    );
     testWidgets(
       'comparison uses the frozen script and hears an original attempt $language',
       (tester) async {

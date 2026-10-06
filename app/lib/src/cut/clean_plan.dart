@@ -4,6 +4,7 @@ import '../model/script_document.dart';
 import '../model/script_language.dart';
 import '../transcription/script_alignment.dart';
 import '../transcription/word_timing.dart';
+import 'retake_choice.dart';
 
 enum CutChangeKind { quiet, filler }
 
@@ -68,8 +69,13 @@ class CleanPlan {
     required List<CutChange> changes,
     this.notice,
     this.fillersReviewed = false,
-  }) : changes = List.unmodifiable(changes) {
-    if (changes.length > 10000) {
+    this.retakesReviewed = false,
+    List<RetakeChoice> retakes = const [],
+  }) : changes = List.unmodifiable(changes),
+       retakes = List.unmodifiable(retakes) {
+    if (changes.length > 10000 ||
+        retakes.length > 10000 ||
+        (!retakesReviewed && retakes.isNotEmpty)) {
       throw const FormatException('Too many cut changes');
     }
     var previous = Duration.zero;
@@ -82,6 +88,35 @@ class CleanPlan {
       }
       previous = change.range.end;
     }
+    final spans = <RetakeOption>[];
+    var count = 0;
+    for (final choice in retakes) {
+      if (!ids.add(choice.id)) {
+        throw const FormatException('Duplicate retake choice');
+      }
+      count += choice.options.length;
+      if (count > 100000) {
+        throw const FormatException('Too many retake options');
+      }
+      for (final option in choice.options) {
+        if (option.preview.end > sourceDuration ||
+            (option.removal != null && option.removal!.end > sourceDuration)) {
+          throw const FormatException('Retake outside take');
+        }
+        spans.add(option);
+      }
+    }
+    spans.sort((a, b) => a.firstWord.compareTo(b.firstWord));
+    for (var i = 1; i < spans.length; i++) {
+      if (spans[i].firstWord <= spans[i - 1].lastWord ||
+          spans[i].preview.start < spans[i - 1].preview.end ||
+          (spans[i - 1].removal != null &&
+              spans[i - 1].removal!.end > spans[i].preview.start) ||
+          (spans[i].removal != null &&
+              spans[i].removal!.start < spans[i - 1].preview.end)) {
+        throw const FormatException('Overlapping retake sections');
+      }
+    }
     asCutPlan(); // Also validates duration/id/language and a nonempty output.
   }
   final String takeId;
@@ -90,6 +125,11 @@ class CleanPlan {
   final List<CutChange> changes;
   final String? notice;
   final bool fillersReviewed;
+  final bool retakesReviewed;
+  final List<RetakeChoice> retakes;
+  Iterable<RetakeOption> get discardedRetakes =>
+      retakes.expand((r) => r.discarded);
+  bool get hasRetakeSelection => retakes.any((r) => r.selected != null);
   CleanPlan withEnabled(String id, bool enabled) {
     if (!changes.any((c) => c.id == id)) {
       throw const FormatException('Unknown cut change');
@@ -103,6 +143,8 @@ class CleanPlan {
       ],
       notice: notice,
       fillersReviewed: fillersReviewed,
+      retakesReviewed: retakesReviewed,
+      retakes: retakes,
     );
   }
 
@@ -113,15 +155,39 @@ class CleanPlan {
     changes: [for (final c in changes) c.withEnabled(false)],
     notice: notice,
     fillersReviewed: fillersReviewed,
+    retakesReviewed: retakesReviewed,
+    retakes: [for (final r in retakes) r.withSelected(null)],
   );
+  CleanPlan withAttempt(String id, int? index) {
+    if (!retakes.any((r) => r.id == id)) {
+      throw const FormatException('Unknown retake section');
+    }
+    return CleanPlan(
+      takeId: takeId,
+      language: language,
+      sourceDuration: sourceDuration,
+      changes: changes,
+      notice: notice,
+      fillersReviewed: fillersReviewed,
+      retakesReviewed: retakesReviewed,
+      retakes: [
+        for (final r in retakes) r.id == id ? r.withSelected(index) : r,
+      ],
+    );
+  }
+
   CutPlan asCutPlan() {
     final ranges = <SourceRange>[];
+    final removed = [
+      for (final c in changes.where((c) => c.enabled)) c.range,
+      for (final option in discardedRetakes) option.removal!,
+    ]..sort((a, b) => a.start.compareTo(b.start));
     var start = Duration.zero;
-    for (final c in changes.where((c) => c.enabled)) {
-      if (c.range.start > start) {
-        ranges.add(SourceRange(start: start, end: c.range.start));
+    for (final range in removed) {
+      if (range.start > start) {
+        ranges.add(SourceRange(start: start, end: range.start));
       }
-      start = c.range.end;
+      if (range.end > start) start = range.end;
     }
     if (start < sourceDuration) {
       ranges.add(SourceRange(start: start, end: sourceDuration));
@@ -142,6 +208,8 @@ class CleanPlan {
     'changes': changes.map((c) => c.toJson()).toList(),
     'notice': ?notice,
     if (fillersReviewed) 'fillersReviewed': true,
+    if (retakesReviewed) 'retakesReviewed': true,
+    if (retakes.isNotEmpty) 'retakes': retakes.map((r) => r.toJson()).toList(),
   };
   factory CleanPlan.fromJson(Map<String, Object?> value) {
     final items = value['changes'],
@@ -154,6 +222,11 @@ class CleanPlan {
         language == null ||
         items is! List ||
         items.length > 10000 ||
+        (value['retakesReviewed'] != null &&
+            value['retakesReviewed'] is! bool) ||
+        (value['retakes'] != null &&
+            (value['retakes'] is! List ||
+                (value['retakes'] as List).length > 10000)) ||
         (value['fillersReviewed'] != null &&
             value['fillersReviewed'] is! bool) ||
         (value['notice'] != null && value['notice'] is! String)) {
@@ -168,6 +241,10 @@ class CleanPlan {
         ),
         notice: value['notice'] as String?,
         fillersReviewed: value['fillersReviewed'] == true,
+        retakesReviewed: value['retakesReviewed'] == true,
+        retakes:
+            (value['retakes'] as List?)?.map(RetakeChoice.fromJson).toList() ??
+            const [],
         changes: [
           for (final item in items)
             if (item is Map &&
@@ -340,6 +417,7 @@ List<SourceRange> protectedCueGaps(
         .lastOrNull;
     if (token != null) after.add(token.index);
   }
+  if (after.isEmpty) return protected;
   for (var i = 0; i < alignment.words.length; i++) {
     final word = alignment.words[i];
     if (!after.contains(word.tokenIndex)) continue;
@@ -369,6 +447,27 @@ WordTranscript speechOnCut(WordTranscript source, CutPlan plan) {
 /// The full recognition is unchanged; all other cut caption words stay strict.
 WordTranscript speechOnCleanCut(WordTranscript source, CleanPlan clean) {
   final removed = <int>{};
+  for (final choice in clean.retakes) {
+    for (final (index, option) in choice.options.indexed) {
+      if (option.lastWord >= source.words.length) {
+        throw const FormatException('Invalid retake words');
+      }
+      final words = source.words.sublist(option.firstWord, option.lastWord + 1);
+      if (words.map((w) => w.text).join(' ') != option.text ||
+          words.first.start != option.preview.start ||
+          words.last.end != option.preview.end) {
+        throw const FormatException('Retake words changed');
+      }
+      if (choice.selected != null && index != choice.selected) {
+        if (words.any((w) => w.confidence == null || w.confidence! < .6)) {
+          throw const FormatException('Uncertain retake words');
+        }
+        removed.addAll([
+          for (var i = option.firstWord; i <= option.lastWord; i++) i,
+        ]);
+      }
+    }
+  }
   for (final change in clean.changes.where(
     (c) => c.kind == CutChangeKind.filler,
   )) {

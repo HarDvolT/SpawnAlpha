@@ -8,9 +8,54 @@ import 'package:spawnalpha/src/ui/clean_cut_panel.dart';
 
 import '../cut/clean_plan_test.dart' show cleanFixture, gap;
 import '../cut/filler_review_test.dart' show fillerFixture, fillerPlan;
+import '../cut/retake_review_test.dart' show retakeWords, retakePlan;
 
 void main() {
   for (final language in ScriptLanguage.values) {
+    testWidgets(
+      'a filler in a removed retake is labelled and Restore all brings both back $language',
+      (tester) async {
+        tester.view.physicalSize = const Size(430, 1100);
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.reset);
+        final words = retakeWords(language, filler: true);
+        final base = retakePlan(words).restoreAll();
+        var plan = base.withAttempt(base.retakes.single.id, 1);
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: buildTheme(Brightness.light),
+            home: Scaffold(
+              body: StatefulBuilder(
+                builder: (_, update) => CleanCutPanel(
+                  plan: plan,
+                  busy: false,
+                  onChanged: (_, _) =>
+                      fail('This phrase is in a removed attempt'),
+                  onRestore: () => update(() => plan = plan.restoreAll()),
+                ),
+              ),
+            ),
+          ),
+        );
+        expect(
+          find.textContaining('Removed with another attempt'),
+          findsOneWidget,
+        );
+        final tile = tester.widget<SwitchListTile>(
+          find.widgetWithText(SwitchListTile, 'Possible filler'),
+        );
+        expect(tile.onChanged, isNull);
+        expect(speechOnCleanCut(words, plan).words, hasLength(3));
+        await tester.tap(find.text('Restore all changes'));
+        await tester.pumpAndSettle();
+        expect(speechOnCleanCut(words, plan).words, hasLength(7));
+        expect(
+          find.textContaining('Removed with another attempt'),
+          findsNothing,
+        );
+        expect(tester.takeException(), isNull);
+      },
+    );
     testWidgets(
       'filler begins kept, uses script direction and restores $language',
       (tester) async {

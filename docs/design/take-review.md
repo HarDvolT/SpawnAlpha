@@ -90,9 +90,14 @@ the section's word count, changed/added words and uncertain wording. A partial
 attempt is labelled **Partial section**. **Hear attempt 1**, **Hear attempt 2**,
 and so on use the same explicit original excerpt player. Page the sections and
 attempts so long takes remain usable. Existing Studio tokens apply.
-This first comparison preserves every attempt and makes no best-performance
-claim: loudness, pitch, breath/pace scoring and reversible attempt selection
-remain subsequent work. Notes and computer-sound-only takes have no script
+**Keep all attempts** starts selected. Safe complete choices offer **Keep
+attempt 1**, **Keep attempt 2**, etc.; the selected one says **Kept in cut** and
+the others **Removed from cut**. Hearing always plays the original. Disabled
+choices explain that the section is partial or a safe cut was not found.
+Older plans offer **Review retakes**, preserving their quiet/filler choices.
+Keep all restores this section, and Restore all changes restores all passes.
+This comparison makes no best-performance claim: loudness, pitch and full
+breath/pace scoring remain subsequent work. Notes and computer-sound-only takes have no script
 comparison. Ordinary repetition written into a script is not a retake.
 Comparison runs off the UI thread, follows saved wording revisions and rejects
 stale results. Nothing is uploaded or cut by listening.

@@ -122,7 +122,12 @@ or claim better timing. Optional filler review now preserves full recognition
 and excludes only explicitly chosen complete words from cut captions. Repeated
 Script sections can now be compared/listened to from frozen alignment, with
 actual wording, source times, partial coverage and uncertainty. This derives
-facts without choosing or grading a performance; Notes and computer-only
-remain unscored. Retake decisions, full Cut polish and delivery
+facts without grading a performance; Notes and computer-only remain unscored.
+Safe reversible Keep attempt choices now connect the comparison to the cut,
+requiring confident discarded words and measured quiet boundaries. Keep all
+and Restore all preserve original words/media and earlier exports. Accepted
+cues owned by retained words stay protected. Caption timing follows the same
+union of kept source ranges; no word is split. Automatic best-performance
+ranking, full Cut polish and delivery
 review remain. The prototype 15-minute decoder limit
 does not apply to the normal bounded runtime.

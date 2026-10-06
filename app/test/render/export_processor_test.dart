@@ -21,6 +21,8 @@ import '../cut/filler_review_test.dart'
     show fillerFixture, fillerQuiet, fillerScript;
 import '../storage/screen_take_store_test.dart'
     show FakeInspector, FailingStore;
+import '../cut/retake_review_test.dart'
+    show retakeWords, retakeScript, retakeQuiet;
 
 class FakeRenderer implements VideoRenderer {
   FakeRenderer(this.inspector);
@@ -84,6 +86,84 @@ void main() {
     await root.delete(recursive: true);
   });
   for (final language in ScriptLanguage.values) {
+    test(
+      'retake selection exports only the chosen words and retains restore/history $language',
+      () async {
+        final words = retakeWords(language), frozen = retakeScript(language);
+        final original = File('${root.path}/original.mp4');
+        await original.writeAsString('unchanged generated original');
+        final take = Take(
+          path: original.path,
+          recordedAt: DateTime(2026),
+          duration: words.duration,
+          wordsPath: '${root.path}/words.json',
+        );
+        final script = frozen.copyWith(takes: [take]);
+        await library.save(script);
+        final spoken = SavedTranscript(
+          sourcePath: take.path,
+          transcript: words,
+          snapshot: frozen,
+          quiet: retakeQuiet(words),
+          alignment: {'attemptCount': 2},
+        );
+        final plan = await cuts.create(script, take, spoken);
+        final job = ExportProcessor(renderer, store, cuts, (_) async => spoken);
+        final chosen = plan.restoreAll().withAttempt(plan.retakes.single.id, 1);
+        await cuts.save(
+          script.id,
+          library.byId(script.id)!.takes.single,
+          chosen,
+        );
+        final video = (await job.export(
+          script,
+          library.byId(script.id)!.takes.single,
+          VideoFormat.landscape,
+          clean: chosen,
+        ))!;
+        final captions = renderer.request!.captions;
+        expect(
+          captions.map((c) => c.text).join(' '),
+          words.words.skip(3).map((w) => w.text).join(' '),
+        );
+        expect(
+          captions.first.start,
+          words.words[3].start -
+              chosen.retakes.single.options.first.removal!.duration,
+        );
+        expect(video.duration, chosen.asCutPlan().duration);
+        final srt = await store.file(video, 'srt').readAsString();
+        expect(
+          RegExp(RegExp.escape(words.words.first.text)).allMatches(srt),
+          hasLength(1),
+        );
+        final restored = chosen.restoreAll();
+        await cuts.save(
+          script.id,
+          library.byId(script.id)!.takes.single,
+          restored,
+        );
+        final second = (await job.export(
+          script,
+          library.byId(script.id)!.takes.single,
+          VideoFormat.portrait,
+          clean: restored,
+        ))!;
+        expect(second.duration, words.duration);
+        expect(
+          RegExp(RegExp.escape(words.words.first.text))
+              .allMatches(await store.file(second, 'srt').readAsString()),
+          hasLength(2),
+        );
+        expect(await store.file(video, 'srt').readAsString(), srt);
+        expect(
+          (await store.load(library.byId(script.id)!.takes.single)),
+          hasLength(2),
+        );
+        expect(await original.readAsString(), 'unchanged generated original');
+        job.dispose();
+      },
+    );
     test(
       'chosen filler leaves both video captions and subtitles; original and restore stay complete $language',
       () async {

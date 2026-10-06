@@ -61,6 +61,7 @@ import 'package:spawnalpha/src/cut/clean_plan.dart';
 import 'package:spawnalpha/src/transcription/speech_models.dart';
 import '../test/cut/clean_plan_test.dart' show cleanFixture, gap;
 import '../test/review/repeated_sections_test.dart' show repeatedScript, repeatedSpeech;
+import '../test/cut/retake_review_test.dart' show retakeWords, retakeScript, retakePlan;
 import '../test/cut/filler_review_test.dart' show fillerFixture, fillerPlan, fillerScript;
 import '../test/model/note_deck_test.dart' show fixtureNotes;
 import '../test/ui/take_review_test.dart' show reviewFixture;
@@ -258,6 +259,21 @@ void main() {
   }
 
   for (final language in ScriptLanguage.values) {
+    for (final brightness in [Brightness.light, Brightness.dark]) {
+      for (final state in ['kept', 'chosen', 'unsafe']) {
+        testWidgets('retake selection $language $brightness $state', (tester) async {
+          final words = retakeWords(language), script = retakeScript(language);
+          final base = retakePlan(words, quiet: state == 'unsafe' ? [] : null).restoreAll();
+          final plan = state == 'chosen' ? base.withAttempt(base.retakes.single.id, 1) : base;
+          await shoot(tester, 'retake-selection-${language.name}-${brightness.name}-$state', phone,
+            (_) => Scaffold(appBar: AppBar(title: const Text('Your take')), body: ListView(
+              padding: const EdgeInsets.all(SaSpace.s5), children: [
+                RetakeReviewPanel(sections: repeatedSections(script, words), busy: false,
+                  plan: plan, onSelect: (_, _) {}, onListen: (_) {}),
+              ])), [script], brightness: brightness);
+        });
+      }
+    }
     for (final brightness in [Brightness.light, Brightness.dark]) {
       for (final partial in [false, true]) {
         testWidgets('attempt comparison $language $brightness partial=$partial', (tester) async {

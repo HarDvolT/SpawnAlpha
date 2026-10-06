@@ -38,7 +38,7 @@ class _CleanCutPanelState extends State<CleanCutPanel> {
         ),
         const SizedBox(height: SaSpace.s2),
         Text(
-          'Words, marked pauses and breaths are kept unless you choose a filler removal. Turn off a change to restore that part of the original.',
+          'Words, marked pauses and breaths stay unless you choose a filler or another retake. Turn off a change to restore that part of the original.',
           style: SaType.bodySm.copyWith(color: p.ink2),
         ),
         if (plan.notice != null)
@@ -55,7 +55,14 @@ class _CleanCutPanelState extends State<CleanCutPanel> {
           SwitchListTile.adaptive(
             contentPadding: EdgeInsets.zero,
             value: change.enabled,
-            onChanged: widget.busy
+            onChanged:
+                widget.busy ||
+                    plan.discardedRetakes.any(
+                      (r) =>
+                          change.spokenIndices.isNotEmpty &&
+                          change.spokenIndices.first >= r.firstWord &&
+                          change.spokenIndices.last <= r.lastWord,
+                    )
                 ? null
                 : (value) => widget.onChanged(change.id, value),
             title: Text(
@@ -83,7 +90,9 @@ class _CleanCutPanelState extends State<CleanCutPanel> {
                     ),
                   ),
                 Text(
-                  '${formatCutTime(change.range.start)}–${formatCutTime(change.range.end)} · ${change.enabled
+                  '${formatCutTime(change.range.start)}–${formatCutTime(change.range.end)} · ${plan.discardedRetakes.any((r) => change.spokenIndices.isNotEmpty && change.spokenIndices.first >= r.firstWord && change.spokenIndices.last <= r.lastWord)
+                      ? 'Removed with another attempt'
+                      : change.enabled
                       ? 'Removed'
                       : change.kind == CutChangeKind.filler
                       ? 'Kept · check meaning'
@@ -107,12 +116,13 @@ class _CleanCutPanelState extends State<CleanCutPanel> {
             onPressed: () => setState(() => _shown += 8),
             child: const Text('Show more changes'),
           ),
-        if (plan.changes.any((c) => c.enabled))
+        if (plan.changes.any((c) => c.enabled) || plan.hasRetakeSelection)
           OutlinedButton.icon(
             onPressed: widget.busy ? null : widget.onRestore,
             icon: const Icon(Icons.restore_rounded),
             label: Text(
-              plan.changes.any((c) => c.kind == CutChangeKind.filler)
+              plan.changes.any((c) => c.kind == CutChangeKind.filler) ||
+                      plan.retakes.isNotEmpty
                   ? 'Restore all changes'
                   : 'Restore all gaps',
             ),

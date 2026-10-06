@@ -58,7 +58,7 @@ class _WordReviewPanelState extends State<WordReviewPanel> {
         if (_expanded) ...[
           const SizedBox(height: SaSpace.s3),
           Text(
-            'Fix one word at a time. Keep what you said. Times and confidence stay as estimated; your original and earlier exports are kept.',
+            'Fix one word at a time. Keep what you said. Times and confidence stay as estimated; your original and earlier exports are kept. Wording changes rebuild the cut with all retakes kept.',
             style: SaType.bodySm.copyWith(color: p.ink2),
           ),
           for (var i = start; i < end; i++)

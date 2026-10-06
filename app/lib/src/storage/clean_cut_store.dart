@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 
 import '../cut/clean_plan.dart';
 import '../cut/filler_review.dart';
+import '../cut/retake_review.dart';
 import '../model/mark.dart';
 import '../model/script_document.dart';
 import '../transcription/script_alignment.dart';
@@ -30,8 +31,16 @@ CleanPlan _build(Map<String, Object?> args) {
           alignment: alignment,
           screenContext: args['screen'] == true,
         );
-  final plan = withFillerReview(
+  final fillers = withFillerReview(
     base: base,
+    transcript: spoken.transcript,
+    quiet: spoken.quiet,
+    snapshot: snapshot,
+    alignment: alignment,
+    screenContext: args['screen'] == true,
+  );
+  final plan = withRetakeReview(
+    base: fillers,
     transcript: spoken.transcript,
     quiet: spoken.quiet,
     snapshot: snapshot,
@@ -72,11 +81,18 @@ class CleanCutStore {
       'screen': take.mode != TakeMode.camera,
       'base': base?.toJson(),
     });
-    await save(document.id, take, plan);
+    await _save(document.id, take, plan, enrichRetakes: true);
     return plan;
   }
 
-  Future<void> save(String documentId, Take take, CleanPlan plan) async {
+  Future<void> save(String documentId, Take take, CleanPlan plan) =>
+      _save(documentId, take, plan);
+  Future<void> _save(
+    String documentId,
+    Take take,
+    CleanPlan plan, {
+    bool enrichRetakes = false,
+  }) async {
     final job = _queue.then((_) async {
       final document = library.byId(documentId);
       final current = document?.takes
@@ -90,20 +106,39 @@ class CleanCutStore {
           plan.sourceDuration != take.duration) {
         throw const FormatException('Take changed. Rebuild the cut');
       }
+      if (!enrichRetakes) {
+        final before = await load(take);
+        // Public switch saves may change selections, never their provenance.
+        if ((before?.retakes.isNotEmpty == true || plan.retakes.isNotEmpty) &&
+            (before == null ||
+                jsonEncode(
+                      before.retakes
+                          .map((r) => r.withSelected(null).toJson())
+                          .toList(),
+                    ) !=
+                    jsonEncode(
+                      plan.retakes
+                          .map((r) => r.withSelected(null).toJson())
+                          .toList(),
+                    ))) {
+          throw const FormatException('Retake choices changed');
+        }
+      }
       await directory.create(recursive: true);
       final file = File(
         '${directory.path}${Platform.pathSeparator}${newId()}.json',
       );
       final temp = File('${file.path}.tmp');
-      await temp.writeAsString(
-        jsonEncode({
-          'version': 1,
-          'sourcePath': take.path,
-          'wordsPath': take.wordsPath,
-          'plan': plan.toJson(),
-        }),
-        flush: true,
-      );
+      final data = jsonEncode({
+        'version': 1,
+        'sourcePath': take.path,
+        'wordsPath': take.wordsPath,
+        'plan': plan.toJson(),
+      });
+      if (utf8.encode(data).length > 8 * 1024 * 1024) {
+        throw const FormatException('Cut needs smaller sections');
+      }
+      await temp.writeAsString(data, flush: true);
       await temp.rename(file.path);
       final latest = library.byId(documentId);
       final latestTake = latest?.takes

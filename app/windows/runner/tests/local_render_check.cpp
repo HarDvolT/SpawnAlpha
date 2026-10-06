@@ -267,6 +267,14 @@ int wmain(int count, wchar_t** args) {
       const auto filler_audio = Audio(request.output);
       Require(ToneAt(filler_audio, 10800, 330) > 9000 && ToneAt(filler_audio, 57600, 990) > 9000);
       for (size_t first = 0; first + 12000 < filler_audio.size(); first += 4000) Require(ToneAt(filler_audio, first, 770) < 1500);
+      request.output = prefix + L"-retake-cut.mp4"; request.ranges = {{0, 50000}, {1625000, 4000000}};
+      stage = "render reviewed retake range"; RenderLocalVideo(request, cancel, [](double) {});
+      stage = "verify retained attempt picture and clock"; VerifyLocalCut(request, 73, 2425000, false, true);
+      const auto retake_audio = Audio(request.output);
+      Require(ToneAt(retake_audio, 21600, 990) > 9000);
+      for (size_t first = 0; first + 12000 < retake_audio.size(); first += 4000) {
+        Require(ToneAt(retake_audio, first, 330) < 1500 && ToneAt(retake_audio, first, 770) < 1500);
+      }
       const auto silent = prefix + L"-silent-source.mp4", stereo = prefix + L"-stereo-source.mp4";
       stage = "generate silent and 44.1 kHz stereo";
       GenerateExtra(device.get(), silent, 0, 0, 0xff30c050);
@@ -329,7 +337,7 @@ int wmain(int count, wchar_t** args) {
       try { RenderLocalVideo(request, cancel, [](double) {}); } catch (...) { rejected = true; }
       Require(rejected && GetFileAttributesW(request.output.c_str()) == INVALID_FILE_ATTRIBUTES);
     }
-    std::cout << "Local render check passed: streaming PCM/GPU pair, source selection/reordering, reviewed filler tone/picture removal, silent input, stereo resampling, EN/FR/AR caption timing/safe pixels, vertical Arabic, no clipped words, camera inset/end, exact portrait duration, cancel cleanup, damaged input and overwrite protection.\n";
+    std::cout << "Local render check passed: streaming PCM/GPU pair, source selection/reordering, reviewed filler and retake tone/picture removal, silent input, stereo resampling, EN/FR/AR caption timing/safe pixels, vertical Arabic, no clipped words, camera inset/end, exact portrait duration, cancel cleanup, damaged input and overwrite protection.\n";
     MFShutdown(); CoUninitialize(); return 0;
   } catch (...) {
     std::cerr << "Local render check failed at " << stage << ": 0x" << std::hex << static_cast<unsigned long>(winrt::to_hresult()) << "\n";

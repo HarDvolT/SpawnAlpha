@@ -4,6 +4,7 @@ import '../model/script_document.dart';
 import '../transcription/script_alignment.dart';
 import '../transcription/word_timing.dart';
 import 'clean_plan.dart';
+import 'quiet_evidence.dart';
 
 /// Proposals only: lexical matches do not establish an unwanted hesitation.
 /// Boundaries require measured quiet, clear words and the frozen aid policy.
@@ -27,6 +28,8 @@ CleanPlan withFillerReview({
       changes: changes,
       fillersReviewed: true,
       notice: base.notice,
+      retakesReviewed: base.retakesReviewed,
+      retakes: base.retakes,
     );
     speechOnCleanCut(transcript, plan);
     return plan;
@@ -93,11 +96,11 @@ CleanPlan withFillerReview({
       var lower = index == 0
           ? Duration.zero
           : transcript.words[index - 1].end +
-                _padding(transcript.words[index - 1]);
+                wordSafetyMargin(transcript.words[index - 1]);
       var upper = endIndex == bare.length
           ? transcript.duration
           : transcript.words[endIndex].start -
-                _padding(transcript.words[endIndex]);
+                wordSafetyMargin(transcript.words[endIndex]);
       if (lastProposalEnd > lower) lower = lastProposalEnd;
       while (existingIndex < base.changes.length &&
           base.changes[existingIndex].range.end <= first.start) {
@@ -111,13 +114,13 @@ CleanPlan withFillerReview({
           base.changes[existingIndex].range.start < upper) {
         upper = base.changes[existingIndex].range.start;
       }
-      final start = _quietBoundary(
+      final start = quietBoundary(
         quiet,
         lower,
         first.start - const Duration(milliseconds: 100),
         latest: true,
       );
-      final end = _quietBoundary(
+      final end = quietBoundary(
         quiet,
         last.end + const Duration(milliseconds: 100),
         upper,
@@ -153,11 +156,6 @@ CleanPlan withFillerReview({
   return finish();
 }
 
-Duration _padding(SpokenWord word) =>
-    word.confidence == null || word.confidence! < .6
-    ? const Duration(seconds: 1)
-    : const Duration(milliseconds: 100);
-
 bool _contains(List<String> words, List<String> phrase) {
   for (var i = 0; i + phrase.length <= words.length; i++) {
     var equal = true;
@@ -170,32 +168,4 @@ bool _contains(List<String> words, List<String> phrase) {
     if (equal) return true;
   }
   return false;
-}
-
-Duration? _quietBoundary(
-  List<SourceRange> quiet,
-  Duration lower,
-  Duration upper, {
-  required bool latest,
-}) {
-  if (upper <= lower) return null;
-  var lo = 0, hi = quiet.length;
-  while (lo < hi) {
-    final mid = (lo + hi) ~/ 2;
-    if (quiet[mid].end <= lower) {
-      lo = mid + 1;
-    } else {
-      hi = mid;
-    }
-  }
-  Duration? boundary;
-  for (var i = lo; i < quiet.length && quiet[i].start < upper; i++) {
-    final start = quiet[i].start > lower ? quiet[i].start : lower;
-    final end = quiet[i].end < upper ? quiet[i].end : upper;
-    if (end - start < const Duration(milliseconds: 80)) continue;
-    boundary =
-        start + Duration(microseconds: (end - start).inMicroseconds ~/ 2);
-    if (!latest) break;
-  }
-  return boundary;
 }

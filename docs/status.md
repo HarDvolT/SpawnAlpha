@@ -24,7 +24,9 @@ and reversible cutting after Stop are connected. Optional Readable captions
 follow saved actual words/corrections and the cut clock. Reversible filler
 review offers safe optional removals, initially kept; remaining Director's Cut
 tracks are next. Repeated Script sections now have a comparison with original
-listening, partial coverage and wording flags. Owner hardware trials are
+listening, partial coverage and wording flags. Safe reversible Keep attempt
+choices now remove other attempts from video/captions, with Keep all and
+Restore all. Owner hardware trials are
 deferred until they return.** The build order is in
 [product-brief.md](product-brief.md#build-order); it was revised on 2026-09-30.
 
@@ -47,6 +49,22 @@ dot to grow and act out each cue in the cue's colour, and for the next features.
 build step 2 (screen recording).
 
 ## Handover (2026-10-05): from here, Codex on the owner's Windows PC
+
+- **Latest checkpoint (2026-10-06, reversible retake selection):** 618 Flutter
+  tests, 218 screenshot cases, clean analysis and normal Windows Release build.
+  Keep attempt selects a complete frozen Script section only when other
+  attempts have confident words and measured quiet cut boundaries. Cues owned
+  by retained words remain protected; partial/unsafe buttons stay disabled.
+  All attempts start kept. Keep all/Restore all restores choices locally;
+  wording changes rebuild with every attempt kept. Quiet/filler preferences
+  survive old-plan enrichment and overlapping removals are unioned once.
+  Stale saves, forged provenance and oversized plans are rejected. Native
+  decoded tone/picture checks and real app-channel EN/FR/AR selection/restore,
+  exact export clock, captions/subtitles, history/reload and unchanged original
+  bytes pass. EN/AR chosen and unsafe phone PNGs inspected. No owner media used.
+  **Half done:** automatic best-performance ranking is still pending. Next
+  caption motion, screen/sound polish and full coaching. Mobile/paid-launch
+  work and real language/hardware trials remain; owner testing stays deferred.
 
 - **Latest checkpoint (2026-10-06, repeated-section comparison):** 574 Flutter
   tests, 200 screenshot cases, clean analysis and normal Windows Release build.
@@ -772,11 +790,20 @@ build step 2 (screen recording).
    remaining real-language quality trials. Step 4 now has reversible quiet cuts
    and local video export with Readable captions, reversible filler review and
    automatic processing after Stop. Repeated sections now offer a paged
-   comparison and original listening. Next reversible retake decisions,
+   comparison, original listening and safe reversible Keep attempt choices.
+   Automatic best-performance ranking is still pending. Next
    caption/screen/sound polish and delivery coaching; keep originals intact.
    See OpenScreen in the brief for reusable parts.
 
 ## Decisions
+
+- 2026-10-06, first retake selection: start with all attempts kept. Explicit
+  Keep attempt requires a complete kept section and safely removable others;
+  measured quiet and recognized confidence gate removals. Preserve cues owned
+  by retained words; discarded attempts may leave with their own cue gaps.
+  Notes, Screen and computer-only remain protected. Restore choices without
+  touching original media, full recognition or earlier exports. No automatic
+  delivery-quality claim is inferred from script matching alone.
 
 - 2026-10-06, first retake comparison: show factual frozen Script coverage,
   actual wording, uncertainty and source-clock listening. Keep all attempts
@@ -952,6 +979,21 @@ build step 2 (screen recording).
   word lists, not prosody.
 
 ## Session log
+
+- 2026-10-06, safe reversible retake choices:
+  - Added immutable optional selections, shared measured quiet boundaries,
+    retained-cue ownership, unioned overlaps and strict actual-word provenance.
+    Old plan enrichment retains silence/filler preferences; public writes
+    reject rewritten proposals, stale revisions and oversized JSON.
+  - Connected Keep attempt/Keep all, disabled unsafe/partial choices and
+    Restore all. Filler choices inside removed attempts remain recoverable;
+    wording edits reset proposals. Added EN/FR/AR controls and 18 screenshots.
+  - Analysis is clean, all 618 Flutter tests and 218 screenshots pass. Native
+    audio/picture checks and generated app-channel EN/FR/AR exports pass
+    selection/restore, exact clocks, captions/subtitles, reload/history and
+    unchanged original bytes. Normal Release build restored; EN/AR/unsafe PNGs
+    inspected. No owner media, network or new dependency. Automatic ranking,
+    caption/screen/sound polish and full coaching remain next; trials deferred.
 
 - 2026-10-06, repeated-section comparison:
   - Added pure anchored section/attempt grouping and bounded isolate derivation

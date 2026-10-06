@@ -621,7 +621,22 @@ with additive JSON fields; legacy quiet plans still load. `speechOnCleanCut`
 checks that these match complete recognized filler words before excluding
 explicitly enabled words from output captions. It retains every other word and
 its recognition provenance. Full transcripts and earlier exports are untouched.
-New wording revisions rebuild proposals with fillers kept again.
+New wording revisions rebuild proposals with fillers and attempts kept again.
+`cut/quiet_evidence.dart` shares the measured-boundary and confidence margins.
+`cut/retake_review.dart` adds immutable, initially unselected `RetakeChoice`
+groups from the same frozen alignment. Only complete attempts can replace a
+section, and every discarded attempt needs safe measured boundaries. Protected
+cue gaps are indexed by the word that owns them: retained words keep their cues;
+explicitly discarded attempts may leave with their own cues. Notes, Screen and
+null alignment do not acquire choices. `CleanPlan` unions selected quiet,
+filler and discarded-attempt intervals without deleting an overlap twice.
+Caption retiming validates the actual indices, phrase and source-word times
+before excluding complete, confident discarded words. Every other word remains.
+Public saves compare proposal provenance against the current saved plan;
+only the bounded derivation can enrich an older plan. JSON is additive and
+bounded to the same 8 MB limit on write and load. Keep all restores one group;
+Restore all also restores quiet/filler choices. Full transcripts and older
+exports remain immutable.
 `CleanCutStore` computes off the UI thread, writes new atomic sidecars, and
 attaches only to the same transcript and cut revision before and after I/O,
 preserving current script edits and rejecting stale switches.
@@ -663,15 +678,20 @@ anchored attempt. Each comparable section requires at least three exact matches
 Notes do not become retakes. Partial coverage is factual; changed/added wording,
 initial unanchored speech and trailing additions stay in the compared source
 span. Adjacent sections never duplicate mapped words. Timing, uncertainty and
-actual wording stay intact; there is no performance rank or removal decision.
+actual wording stay intact; this comparison supplies no performance rank.
 
 Take review runs this bounded derivation in an isolate only for saved results
 with script alignment. Null alignment (including computer-sound-only), Notes
 and missing snapshots stay unscored. Wording updates replace the derived list;
 generation checks reject stale results after another update or disposal.
 `RetakeReviewPanel` pages sections and attempts, and explicit Hear actions reuse
-the original excerpt player. It creates no new disk file or destructive edit.
-Reversible attempt choice and full delivery scoring are later slices.
+the original excerpt player. The selected saved clean plan now connects safe
+Keep attempt/Keep all controls. Partial or unsafe choices stay disabled. Older
+plans can add proposals through Review retakes while retaining existing
+quiet/filler switches. Filler switches inside a discarded attempt keep their
+independent preference but stay disabled until that attempt is restored.
+Wording updates rebuild proposals with all attempts kept. Full delivery scoring
+and automatic best-performance ranking remain later slices.
 
 ## Local video export
 

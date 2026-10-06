@@ -602,6 +602,16 @@ class _TakeReviewScreenState extends State<TakeReviewScreen> {
                       icon: const Icon(Icons.manage_search_rounded),
                       label: const Text('Review fillers'),
                     ),
+                  if (_clean != null &&
+                      !_clean!.retakesReviewed &&
+                      _sections.isNotEmpty)
+                    OutlinedButton.icon(
+                      onPressed: busy
+                          ? null
+                          : () => _makeCut(reviewFillers: true),
+                      icon: const Icon(Icons.compare_rounded),
+                      label: const Text('Review retakes'),
+                    ),
                   if (_planning) const LinearProgressIndicator(),
                   if (_cutProblem != null)
                     Text(
@@ -624,6 +634,9 @@ class _TakeReviewScreenState extends State<TakeReviewScreen> {
                       sections: _sections,
                       busy: busy,
                       onListen: app.playback.supported ? _hearRange : null,
+                      plan: _clean,
+                      onSelect: (id, index) =>
+                          _saveCut(_clean!.withAttempt(id, index)),
                     ),
                     const SizedBox(height: SaSpace.s5),
                   ],

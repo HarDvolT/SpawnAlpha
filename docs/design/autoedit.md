@@ -145,6 +145,25 @@ earlier exports remain available. **Review fillers** extends an older quiet
 plan without changing its switches. New wording revisions rebuild the plan
 with fillers kept again. Full retake scoring and sound crossfades remain later.
 
+### First Windows retake selection
+
+Repeated frozen Script sections start with **Keep all attempts**. After hearing
+them, **Keep attempt 1**, **Keep attempt 2**, etc. selects a complete section
+and removes the other attempts from the cut and actual captions. Partial or
+unsafe choices stay disabled with a plain explanation. Require measured quiet
+of at least 80ms at both cut boundaries, word safety margins and confident
+discarded wording. Notes, computer-only and Screen context remain protected.
+Accepted pauses/breaths owned by retained words stay protected. Cues owned by
+an explicitly discarded attempt may leave with that attempt; this does not
+shorten a retained attempt's planned pause. All original words/media remain.
+
+Selections are immutable, bound to the words/cut revision and saved locally.
+Keep all restores just this section; Restore all changes also restores silence
+and fillers. Existing quiet/filler switches keep their choices when retake review
+is added. Wording edits rebuild proposals with all attempts kept. A performance
+rank is not inferred from word matching: full pitch/loudness/pace scoring remains
+later. Every selection changes video and subtitle clocks together.
+
 ### First Windows video export
 
 The saved plan now renders to a separate finalized H.264/AAC MP4 in 16:9

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../model/cut_plan.dart';
 import '../review/repeated_sections.dart';
+import '../cut/clean_plan.dart';
 import '../theme/theme.dart';
 import 'format.dart';
 
@@ -11,10 +12,14 @@ class RetakeReviewPanel extends StatefulWidget {
     required this.sections,
     required this.busy,
     this.onListen,
+    this.plan,
+    this.onSelect,
   });
   final List<RepeatedSection> sections;
   final bool busy;
   final ValueChanged<SourceRange>? onListen;
+  final CleanPlan? plan;
+  final void Function(String, int?)? onSelect;
   @override
   State<RetakeReviewPanel> createState() => _RetakeReviewPanelState();
 }
@@ -36,6 +41,9 @@ class _RetakeReviewPanelState extends State<RetakeReviewPanel> {
     final p = SaTheme.of(context), section = widget.sections[_section];
     final pageCount = (section.attempts.length / _pageSize).ceil();
     final first = _attemptPage * _pageSize;
+    final choice = widget.plan?.retakes
+        .where((r) => r.id == section.id)
+        .firstOrNull;
     Widget reading(String text) => Directionality(
       textDirection: section.language.isRtl
           ? TextDirection.rtl
@@ -53,7 +61,9 @@ class _RetakeReviewPanelState extends State<RetakeReviewPanel> {
         Text('Compare attempts', style: SaType.title.copyWith(color: p.ink)),
         const SizedBox(height: SaSpace.s2),
         Text(
-          'Hear each attempt. Everything is kept while you compare.',
+          widget.onSelect == null
+              ? 'Hear each attempt. Everything is kept while you compare.'
+              : 'Hear the original, then choose what stays in your cut.',
           style: SaType.bodySm.copyWith(color: p.ink2),
         ),
         const SizedBox(height: SaSpace.s3),
@@ -63,6 +73,18 @@ class _RetakeReviewPanelState extends State<RetakeReviewPanel> {
         ),
         Text('In your script', style: SaType.bodySm.copyWith(color: p.ink2)),
         reading(section.scriptText),
+        if (choice != null)
+          TextButton.icon(
+            onPressed: widget.busy || choice.selected == null
+                ? null
+                : () => widget.onSelect?.call(choice.id, null),
+            icon: const Icon(Icons.restore_rounded),
+            label: Text(
+              choice.selected == null
+                  ? 'All attempts kept'
+                  : 'Keep all attempts',
+            ),
+          ),
         for (final (offset, attempt)
             in section.attempts.skip(first).take(_pageSize).indexed) ...[
           const SizedBox(height: SaSpace.s3),
@@ -71,6 +93,13 @@ class _RetakeReviewPanelState extends State<RetakeReviewPanel> {
             style: SaType.signalLabel.copyWith(color: p.ink),
           ),
           reading(attempt.text),
+          if (choice != null)
+            Text(
+              choice.selected == null || choice.selected == first + offset
+                  ? 'Kept in cut'
+                  : 'Removed from cut',
+              style: SaType.bodySm.copyWith(color: p.ink2),
+            ),
           Text(
             '${formatCutTime(attempt.range.start)}–${formatCutTime(attempt.range.end)} · ${attempt.matched} of ${section.scriptWords} script words matched${attempt.covered < section.scriptWords ? ' · Partial section' : ''}',
             style: SaType.bodySm.copyWith(color: p.ink2),
@@ -93,6 +122,24 @@ class _RetakeReviewPanelState extends State<RetakeReviewPanel> {
               icon: const Icon(Icons.hearing_rounded),
               label: Text('Hear attempt ${first + offset + 1}'),
             ),
+          if (choice != null && widget.onSelect != null) ...[
+            OutlinedButton(
+              onPressed:
+                  widget.busy ||
+                      choice.selected == first + offset ||
+                      !choice.canSelect(first + offset)
+                  ? null
+                  : () => widget.onSelect!(choice.id, first + offset),
+              child: Text('Keep attempt ${first + offset + 1}'),
+            ),
+            if (!choice.canSelect(first + offset))
+              Text(
+                attempt.covered < section.scriptWords
+                    ? 'This attempt is only part of the section.'
+                    : 'A safe cut was not found. Keep the attempts together.',
+                style: SaType.bodySm.copyWith(color: p.ink2),
+              ),
+          ],
         ],
         if (pageCount > 1)
           Wrap(
