@@ -530,3 +530,18 @@ recordings folder.
 - **SettingsScreen**: the markup source, API key, model, default style, text
   size and mirror setting, plus **Privacy and licences**: what leaves the
   device, and the licence page (`showLicensePage`).
+
+## Word timing foundation (build step 3)
+
+See [word-timing.md](word-timing.md) for the explicit Windows core check, pinned
+prototype inputs and shipping work still required. Pure `transcription/` types
+hold immutable word estimates and assemble tokenizer UTF-8 fragments before
+decoding Arabic text. Alignment compares existing normalized script words,
+preserves each spoken word/attempt and flags additions/substitutions/misses.
+Both restart anchors need exact word runs; punctuation is unspoken. Computation
+is bounded to four million cells; long take sectioning/isolate integration is
+still required. No widgets, paths or platform imports enter the alignment logic.
+The separate native test project decodes local media through Media Foundation
+and runs a pinned CPU recognizer with suppressed logs and cancellation. Its
+15-minute PCM bound is a prototype limit, not a silent product restriction.
+No normal app channel, model download or automatic processing is wired yet.

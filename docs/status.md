@@ -14,8 +14,11 @@ a separate fragmented file, chosen-microphone AAC, Voice
 pace, pause/resume, reader hide/show/Lock and durable local saving/recovery are connected.
 The full generated Screen, Both and computer-sound takes pass on this PC. Computer sound
 is available with an explicit switch, initially off. The cursor companion is connected
-and protected; optional local activity is connected and tested. Longer recording and abrupt-exit recovery checks pass; the native render-core spike also passes. Word alignment is next. Owner hardware trials are deferred until
-they return.** The build order is in
+and protected; optional local activity is connected and tested. Longer recording and
+abrupt-exit recovery checks pass; the native render-core spike also passes. Build step 3
+now has a generated offline speech-to-word-to-script check and an EN/FR/AR alignment
+foundation; normal app word processing/model setup is next. Owner hardware trials are
+deferred until they return.** The build order is in
 [product-brief.md](product-brief.md#build-order); it was revised on 2026-09-30.
 
 The owner's first test on Windows (build #1) found: no microphone permission prompt and no
@@ -38,7 +41,7 @@ build step 2 (screen recording).
   `flutter_secure_storage_windows`). `flutter doctor -v` passes Windows, Visual Studio,
   desktop device and network checks. Android is intentionally not installed yet.
 - **Local checks and launch:** `flutter pub get` succeeds; `flutter analyze` prints
-  **No issues found!**; all **328 tests pass** (226 before Screen integration).
+  **No issues found!**; all **347 tests pass** (226 before Screen integration).
   All **112 screenshot cases pass**, including the source picker, unavailable-preview
   and default/minimum floating prompter in EN/FR/AR. The Windows debug build succeeds.
   Windows Git checkout converted generated
@@ -401,6 +404,23 @@ build step 2 (screen recording).
   Director's Cut (step 4). Keep all new tool/runtime/model files on E: and licence-check
   any speech model/dependency before adding it. The normal main.dart app is open at
   1280 x 720 for the owner's later trial; do not leave a fixture launch target active.
+- **Word timing foundation (twentieth slice, 2026-10-06):** immutable timed words,
+  fragmented UTF-8 assembly and bounded EN/FR/AR alignment preserve changed, added,
+  missed and repeated speech. Three-word anchors on both attempts prevent a lone
+  common word/stutter or initial script deletion from becoming an invented retake.
+  The explicit, non-shipping native speech project uses pinned MIT runtime/model
+  inputs, SHA-256 verified on E:, and notices retained. Generated local WAV and
+  stereo AAC/MP4 recognition, preserved clock gaps, active/pre-start cancellation,
+  and actual native-fragment-to-Dart-script matching pass without private logs,
+  owner audio, devices, remote media, FFmpeg or Python. No normal app model download
+  or processing channel has been added. See word-timing.md for exact scope/reproduction.
+  Analysis is clean and all 347 tests pass; no UI changed since the 112 layout checks.
+  The normal main.dart app remains running for the deferred owner recording trial.
+  **Half done:** native PCM is capped at 15 minutes for this prototype; word timings
+  are estimates. Model setup, chunked background jobs, durable results/progress/retry,
+  confidence flags and real French/Arabic/Darija quality checks remain to build/test.
+  **Next:** complete that step-3 app integration against each take's immutable snapshot;
+  then step 4's Director's Cut. Keep all runtimes/models/files on E: on this PC.
 - **Cue retest history (superseded by normal-app launch above):** `app/tool/cue_check.dart` is a development-only launch target.
   It uses the real Home/practice screens with memory-only scripts, settings and keys;
   optional recordings go under `app/build/cue-check/recordings`, on E: on this PC.
@@ -487,7 +507,7 @@ build step 2 (screen recording).
 | Screen and Screen + camera recording, cursor companion, telemetry | Screen and Both enabled; complete generated protected takes pass, chosen mic/camera, optional computer sound, shared pause, separate files and save/recovery built/tested. Protected companion connected with camera choice and reduced motion. Optional scoped activity and partial recovery are connected/tested; owner hardware trials deferred. |
 | Director's Cut (auto-edit, captions, auto-zoom, finish screen) | Designed (`docs/design/autoedit.md`). Native decode/compose/cut/AAC spike and portable EDL foundation pass; full alignment, exporter and finish UI remain to build. |
 
-328 tests pass (`cd app && flutter test`), 112 screenshot cases pass, and `flutter analyze` is clean.
+347 tests pass (`cd app && flutter test`), 112 screenshot cases pass, and `flutter analyze` is clean.
 
 ## Next steps
 
@@ -543,10 +563,18 @@ build step 2 (screen recording).
    - Fragmented MP4.
    - Native render-core spike: done; see `render-core-spike.md`. Full Cut remains step 4.
 
-   Next is **build step 3: on-device word alignment** in EN/FR/AR, then step 4's Cut.
+   **Build step 3 is started:** the generated offline core and EN/FR/AR alignment
+   pass. Next wire verified model setup, bounded cancellable background processing
+   and durable word results to actual take snapshots; see `word-timing.md`.
+   Then step 4's Cut. Step 3 is not yet a feature in the normal app.
    See OpenScreen in the brief for reusable parts.
 
 ## Decisions
+
+- 2026-10-06, step-3 technical prototype: pinned MIT upstream speech runtime and
+  converted multilingual base weights for generated checks only. No final model
+  quality/default decision or fine-tuned Darija licence approval. Keep processing
+  on the device; register runtime/model notices before normal app integration.
 
 - 2026-10-06, implementation direction: Windows rendering starts with the existing
   C++ Media Foundation/D3D11 stack; the generated GPU cut/zoom/inset/AAC spike passes
@@ -672,6 +700,18 @@ build step 2 (screen recording).
   word lists, not prosody.
 
 ## Session log
+
+- 2026-10-06, word timing slice 20:
+  - Added immutable timed-word data, correct UTF-8 fragment assembly and bounded
+    script alignment in EN/FR/AR, including changes/additions/misses and anchored
+    repeated attempts. Invalid timing is rejected instead of fabricated.
+  - Licence-checked/pinned source and model, kept notices, built a separate CPU
+    prototype, and passed generated local WAV plus stereo AAC/video recognition,
+    clock-gap preservation, cancellation and Dart end-to-end matching. All test
+    downloads/fixtures stay under ignored app/build/asr on E:, never owner media.
+  - Clean analysis and all 347 tests. The 112 earlier layout checks and normal
+    app remain current. Actual step-3 app channel/model setup/durable jobs and
+    language accuracy trials are still pending; see word-timing.md.
 
 - 2026-10-06, Windows recorder slices 18/19:
   - Connected optional anonymous activity, exact pause timing, flushed sidecars and
