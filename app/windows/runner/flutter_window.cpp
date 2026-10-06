@@ -34,6 +34,7 @@ bool FlutterWindow::OnCreate() {
   screen_recorder_ = std::make_unique<ScreenRecorder>(registrar->messenger());
   speech_jobs_ = std::make_unique<SpeechJobs>(registrar->messenger());
   local_player_ = std::make_unique<LocalPlayer>(registrar->messenger(), registrar->texture_registrar());
+  render_jobs_ = std::make_unique<RenderJobs>(registrar->messenger());
   recording_hud_ = std::make_unique<RecordingHud>(GetHandle(), project_, registrar->messenger());
   camera_bubble_ = std::make_unique<CameraBubbleHost>(project_, registrar->messenger(), [this] {
     return screen_recorder_ ? screen_recorder_->LatestCamera() : nullptr;
@@ -53,6 +54,7 @@ bool FlutterWindow::OnCreate() {
 }
 
 void FlutterWindow::OnDestroy() {
+  render_jobs_.reset();
   local_player_.reset();
   speech_jobs_.reset();
   screen_recorder_.reset();

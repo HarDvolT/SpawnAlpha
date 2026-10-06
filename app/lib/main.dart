@@ -26,8 +26,12 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   _registerFontLicenses();
   final dataOverride = Platform.environment['SPAWNALPHA_DATA_DIR'];
-  final documents = dataOverride == null ? await getApplicationDocumentsDirectory() : null;
-  final root = Directory(dataOverride ?? '${documents!.path}${Platform.pathSeparator}SpawnAlpha');
+  final documents = dataOverride == null
+      ? await getApplicationDocumentsDirectory()
+      : null;
+  final root = Directory(
+    dataOverride ?? '${documents!.path}${Platform.pathSeparator}SpawnAlpha',
+  );
   String under(String name) => '${root.path}${Platform.pathSeparator}$name';
 
   final library = ScriptLibrary(FileScriptStore(Directory(under('scripts'))));
@@ -35,11 +39,14 @@ Future<void> main() async {
   await Future.wait([library.load(), settings.load()]);
 
   final services = AppServices(
-      library: library,
-      settings: settings,
-      recordingsDir: Directory(under('recordings')),
-    );
+    library: library,
+    settings: settings,
+    recordingsDir: Directory(under('recordings')),
+  );
   runApp(SpawnAlphaApp(services: services));
+  if (services.renderer.supported) {
+    unawaited(services.videoExports.recover().catchError((Object _) => 0));
+  }
   if (services.recorder.supported) {
     // Recover in the background. The store serializes recovery with new takes.
     unawaited(services.screenTakes.recover().catchError((Object error) => 0));
@@ -59,10 +66,14 @@ void _registerFontLicenses() {
   };
   LicenseRegistry.addLicense(() async* {
     for (final name in ['whisper-cpp', 'whisper-model']) {
-      yield LicenseEntryWithLineBreaks([name], await rootBundle.loadString('assets/licenses/$name.txt'));
+      yield LicenseEntryWithLineBreaks([
+        name,
+      ], await rootBundle.loadString('assets/licenses/$name.txt'));
     }
     for (final MapEntry(key: family, value: file) in fonts.entries) {
-      yield LicenseEntryWithLineBreaks([family], await rootBundle.loadString('assets/fonts/OFL-$file.txt'));
+      yield LicenseEntryWithLineBreaks([
+        family,
+      ], await rootBundle.loadString('assets/fonts/OFL-$file.txt'));
     }
   });
 }

@@ -54,7 +54,8 @@ com_ptr<IMFMediaType> AudioType(GUID subtype, const GpuAudioFormat& audio) {
 struct GpuVideoWriter::Impl {
   ~Impl() { Finish(); }
   HRESULT Start(ID3D11Device* given_device, const std::wstring& path, UINT given_width, UINT given_height, UINT given_fps,
-                const GpuAudioFormat& given_audio) {
+                const GpuAudioFormat& given_audio, bool* created_file, bool fragmented) {
+    if (created_file) *created_file = false;
     if (writer || started) return MF_E_INVALIDREQUEST;
     if (!given_device || path.empty() || given_width < 2 || given_height < 2 ||
         given_width > 4096 || given_height > 4096 || given_width % 2 || given_height % 2 ||
@@ -78,13 +79,16 @@ struct GpuVideoWriter::Impl {
       check_hresult(manager->ResetDevice(device.get(), reset));
       check_hresult(MFCreateFile(MF_ACCESSMODE_READWRITE, MF_OPENMODE_FAIL_IF_EXIST,
           MF_FILEFLAGS_NONE, path.c_str(), bytes.put()));
+      if (created_file) *created_file = true;
       const auto output = VideoType(MFVideoFormat_H264, width, height, fps);
       const UINT64 bits = static_cast<UINT64>(width) * height * fps / 6;
       check_hresult(output->SetUINT32(MF_MT_AVG_BITRATE, static_cast<UINT32>(std::clamp<UINT64>(bits, 2000000, 16000000))));
       // Baseline forbids B-frames, keeping decode/presentation timestamps ordered.
       check_hresult(output->SetUINT32(MF_MT_MPEG2_PROFILE, eAVEncH264VProfile_Base));
       const auto audio_output = audio.sample_rate ? AudioType(MFAudioFormat_AAC, audio) : com_ptr<IMFMediaType>{};
-      check_hresult(MFCreateFMPEG4MediaSink(bytes.get(), output.get(), audio_output.get(), sink.put()));
+      check_hresult(fragmented
+        ? MFCreateFMPEG4MediaSink(bytes.get(), output.get(), audio_output.get(), sink.put())
+        : MFCreateMPEG4MediaSink(bytes.get(), output.get(), audio_output.get(), sink.put()));
       com_ptr<IMFAttributes> attributes;
       check_hresult(MFCreateAttributes(attributes.put(), 4));
       check_hresult(attributes->SetUnknown(MF_SINK_WRITER_D3D_MANAGER, manager.get()));
@@ -154,8 +158,8 @@ struct GpuVideoWriter::Impl {
     video_context->VideoProcessorSetOutputBackgroundColor(processor.get(), FALSE, &black);
   }
 
-  HRESULT WriteFrame(ID3D11Texture2D* source, UINT content_width, UINT content_height, LONGLONG time) {
-    if (!writing || !source || time < 0 || time <= last_time) return E_INVALIDARG;
+  HRESULT WriteFrame(ID3D11Texture2D* source, UINT content_width, UINT content_height, LONGLONG time, LONGLONG duration) {
+    if (!writing || !source || time < 0 || time <= last_time || duration < 0 || duration > 10000000LL) return E_INVALIDARG;
     try {
       PrepareInput(source, content_width, content_height);
       D3D11_TEXTURE2D_DESC desc{};
@@ -185,7 +189,7 @@ struct GpuVideoWriter::Impl {
       check_hresult(MFCreateSample(sample.put()));
       check_hresult(sample->AddBuffer(buffer.get()));
       check_hresult(sample->SetSampleTime(time));
-      check_hresult(sample->SetSampleDuration(10000000LL / fps));
+      check_hresult(sample->SetSampleDuration(duration ? duration : 10000000LL / fps));
       check_hresult(writer->WriteSample(0, sample.get()));
       last_time = time; ++frames;
       return S_OK;
@@ -258,13 +262,13 @@ struct GpuVideoWriter::Impl {
 GpuVideoWriter::GpuVideoWriter() : impl_(std::make_unique<Impl>()) {}
 GpuVideoWriter::~GpuVideoWriter() = default;
 HRESULT GpuVideoWriter::Start(ID3D11Device* device, const std::wstring& path, UINT width, UINT height, UINT fps,
-                              const GpuAudioFormat& audio) {
-  return impl_->Start(device, path, width, height, fps, audio);
+                              const GpuAudioFormat& audio, bool* created_file, bool fragmented) {
+  return impl_->Start(device, path, width, height, fps, audio, created_file, fragmented);
 }
 HRESULT GpuVideoWriter::WriteAudio(const int16_t* pcm, UINT frames, LONGLONG time) {
   return impl_->WriteAudio(pcm, frames, time);
 }
-HRESULT GpuVideoWriter::WriteFrame(ID3D11Texture2D* source, UINT width, UINT height, LONGLONG time) {
-  return impl_->WriteFrame(source, width, height, time);
+HRESULT GpuVideoWriter::WriteFrame(ID3D11Texture2D* source, UINT width, UINT height, LONGLONG time, LONGLONG duration) {
+  return impl_->WriteFrame(source, width, height, time, duration);
 }
 HRESULT GpuVideoWriter::Finish() { return impl_->Finish(); }

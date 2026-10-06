@@ -1,0 +1,136 @@
+import 'dart:async';
+import 'dart:io';
+
+import 'package:flutter/services.dart';
+
+import '../model/cut_plan.dart';
+import '../model/video_export.dart';
+import '../theme/tokens.g.dart';
+
+class VideoRenderRequest {
+  const VideoRenderRequest({
+    required this.source,
+    required this.output,
+    required this.plan,
+    required this.format,
+    this.camera,
+  });
+  final String source, output;
+  final String? camera;
+  final CutPlan plan;
+  final VideoFormat format;
+  Map<String, Object?> toJson() => {
+    'source': source,
+    'camera': camera ?? '',
+    'output': output,
+    'width': format.width,
+    'height': format.height,
+    'cameraInset': SaVideoExport.cameraInset,
+    'cameraMargin': SaVideoExport.cameraMargin,
+    'sourceDurationUs': plan.sourceDuration.inMicroseconds,
+    'ranges': plan.ranges.map((r) => r.toJson()).toList(),
+  };
+}
+
+class RenderCancelled implements Exception {
+  const RenderCancelled();
+}
+
+abstract class VideoRenderer {
+  factory VideoRenderer.platform() =>
+      Platform.isWindows ? WindowsVideoRenderer() : UnavailableRenderer();
+  bool get supported;
+  Future<void> render(
+    VideoRenderRequest request,
+    void Function(double) progress,
+  );
+  Future<void> cancel();
+}
+
+class WindowsVideoRenderer implements VideoRenderer {
+  static const channel = MethodChannel('spawnalpha/render');
+  int? _session;
+  bool _cancelled = false, _running = false;
+  @override
+  bool get supported => true;
+  @override
+  Future<void> render(
+    VideoRenderRequest request,
+    void Function(double) progress,
+  ) async {
+    if (_running) throw StateError('Video export is busy');
+    if (request.plan.sourceDuration > const Duration(hours: 24) ||
+        request.plan.duration > const Duration(hours: 24) ||
+        request.plan.ranges.length > 20001) {
+      throw const FormatException('Invalid video export');
+    }
+    _running = true;
+    _cancelled = false;
+    try {
+      final id = await channel.invokeMethod<int>('start', request.toJson());
+      if (id == null || id <= 0) {
+        throw const FormatException('Invalid render session');
+      }
+      _session = id;
+      if (_cancelled) {
+        await channel.invokeMethod<void>('cancel', {'sessionId': id});
+      }
+      while (true) {
+        final info = await channel.invokeMapMethod<String, Object?>('status', {
+          'sessionId': id,
+        });
+        final state = info?['state'], amount = info?['progress'];
+        if (amount is! num || !amount.isFinite || amount < 0 || amount > 1) {
+          throw const FormatException('Invalid export progress');
+        }
+        if (state == 'ready') {
+          if (_cancelled) throw const RenderCancelled();
+          progress(1);
+          return;
+        }
+        if (state == 'cancelled') throw const RenderCancelled();
+        if (state == 'failed') throw StateError('Video export failed');
+        if (state != 'working') {
+          throw const FormatException('Invalid export state');
+        }
+        progress(amount.toDouble());
+        await Future<void>.delayed(SaDurations.previewPoll);
+      }
+    } on Object {
+      final current = _session;
+      if (current != null) {
+        try {
+          await channel.invokeMethod<void>('cancel', {'sessionId': current});
+        } on Object {
+          /* No private errors. */
+        }
+      }
+      rethrow;
+    } finally {
+      _session = null;
+      _running = false;
+    }
+  }
+
+  @override
+  Future<void> cancel() async {
+    _cancelled = true;
+    final current = _session;
+    if (current != null) {
+      await channel.invokeMethod<void>('cancel', {'sessionId': current});
+    }
+  }
+}
+
+class UnavailableRenderer implements VideoRenderer {
+  @override
+  bool get supported => false;
+  @override
+  Future<void> render(
+    VideoRenderRequest request,
+    void Function(double) progress,
+  ) async =>
+      throw UnsupportedError('Video export is available on Windows first');
+  @override
+  Future<void> cancel() async {}
+}

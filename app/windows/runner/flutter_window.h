@@ -15,6 +15,7 @@
 #include "camera_bubble.h"
 #include "speech_jobs.h"
 #include "local_player.h"
+#include "render_jobs.h"
 
 // A window that does nothing but host a Flutter view.
 class FlutterWindow : public Win32Window {
@@ -44,6 +45,7 @@ class FlutterWindow : public Win32Window {
   std::unique_ptr<CameraBubbleHost> camera_bubble_;
   std::unique_ptr<SpeechJobs> speech_jobs_;
   std::unique_ptr<LocalPlayer> local_player_;
+  std::unique_ptr<RenderJobs> render_jobs_;
 };
 
 #endif  // RUNNER_FLUTTER_WINDOW_H_

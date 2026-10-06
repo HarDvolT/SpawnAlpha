@@ -64,7 +64,11 @@ class Suggestion {
     final kind = SuggestionKind.fromId(json['kind'] as String?);
     final start = json['start'];
     final end = json['end'];
-    if (kind == null || start is! int || end is! int || start < 0 || end < start) {
+    if (kind == null ||
+        start is! int ||
+        end is! int ||
+        start < 0 ||
+        end < start) {
       return null;
     }
     return Suggestion(
@@ -95,6 +99,7 @@ class Take {
     this.activityPath,
     this.wordsPath,
     this.cutPath,
+    this.exportsPath,
     this.recovered = false,
   });
 
@@ -102,13 +107,50 @@ class Take {
   final DateTime recordedAt;
   final Duration duration;
   final TakeMode mode;
-  final String? cameraPath, metadataPath, activityPath, wordsPath, cutPath;
-  Take withWords(String path) => Take(path: this.path, recordedAt: recordedAt, duration: duration,
-    mode: mode, cameraPath: cameraPath, metadataPath: metadataPath, activityPath: activityPath,
-    recovered: recovered, wordsPath: path);
-  Take withCut(String path) => Take(path: this.path, recordedAt: recordedAt, duration: duration,
-    mode: mode, cameraPath: cameraPath, metadataPath: metadataPath, activityPath: activityPath,
-    recovered: recovered, wordsPath: wordsPath, cutPath: path);
+  final String? cameraPath,
+      metadataPath,
+      activityPath,
+      wordsPath,
+      cutPath,
+      exportsPath;
+  Take withWords(String path) => Take(
+    path: this.path,
+    recordedAt: recordedAt,
+    duration: duration,
+    mode: mode,
+    cameraPath: cameraPath,
+    metadataPath: metadataPath,
+    activityPath: activityPath,
+    recovered: recovered,
+    wordsPath: path,
+    exportsPath: exportsPath,
+  );
+  Take withCut(String path) => Take(
+    path: this.path,
+    recordedAt: recordedAt,
+    duration: duration,
+    mode: mode,
+    cameraPath: cameraPath,
+    metadataPath: metadataPath,
+    activityPath: activityPath,
+    recovered: recovered,
+    wordsPath: wordsPath,
+    cutPath: path,
+    exportsPath: exportsPath,
+  );
+  Take withExports(String path) => Take(
+    path: this.path,
+    recordedAt: recordedAt,
+    duration: duration,
+    mode: mode,
+    cameraPath: cameraPath,
+    metadataPath: metadataPath,
+    activityPath: activityPath,
+    recovered: recovered,
+    wordsPath: wordsPath,
+    cutPath: cutPath,
+    exportsPath: path,
+  );
   final bool recovered;
 
   Map<String, Object?> toJson() => {
@@ -122,6 +164,7 @@ class Take {
     'activityPath': ?activityPath,
     'wordsPath': ?wordsPath,
     'cutPath': ?cutPath,
+    'exportsPath': ?exportsPath,
     if (recovered) 'recovered': true,
   };
 
@@ -130,17 +173,25 @@ class Take {
     final at = DateTime.tryParse(json['recordedAt'] as String? ?? '');
     if (path is! String || at == null) return null;
     final precise = json['durationUs'];
-    if (precise != null && (precise is! int || precise < 0 || precise > 1 << 53)) return null;
+    if (precise != null &&
+        (precise is! int || precise < 0 || precise > 1 << 53)) {
+      return null;
+    }
     return Take(
       path: path,
       recordedAt: at,
-      duration: precise is int ? Duration(microseconds: precise) : Duration(milliseconds: json['durationMs'] as int? ?? 0),
-      mode: TakeMode.values.where((v) => v.name == json['mode']).firstOrNull ?? TakeMode.camera,
+      duration: precise is int
+          ? Duration(microseconds: precise)
+          : Duration(milliseconds: json['durationMs'] as int? ?? 0),
+      mode:
+          TakeMode.values.where((v) => v.name == json['mode']).firstOrNull ??
+          TakeMode.camera,
       cameraPath: json['cameraPath'] as String?,
       metadataPath: json['metadataPath'] as String?,
       activityPath: json['activityPath'] as String?,
       wordsPath: json['wordsPath'] as String?,
       cutPath: json['cutPath'] as String?,
+      exportsPath: json['exportsPath'] as String?,
       recovered: json['recovered'] == true,
     );
   }
@@ -190,7 +241,8 @@ class ScriptDocument {
   final NoteDeck notes;
   bool get usesNotes => recordingAid == RecordingAid.notes;
   bool get stageReady => usesNotes ? notes.ready : wordCount > 0;
-  String get contentSummary => usesNotes ? '${notes.cards.length} cards' : '$wordCount words';
+  String get contentSummary =>
+      usesNotes ? '${notes.cards.length} cards' : '$wordCount words';
   final DateTime updatedAt;
 
   late final List<Token> tokens = tokenize(text);
@@ -202,7 +254,9 @@ class ScriptDocument {
 
   String get displayTitle {
     if (title.trim().isNotEmpty) return title.trim();
-    final firstLine = usesNotes ? (notes.cards.firstOrNull?.title.trim() ?? '') : text.trim().split('\n').first;
+    final firstLine = usesNotes
+        ? (notes.cards.firstOrNull?.title.trim() ?? '')
+        : text.trim().split('\n').first;
     if (firstLine.isEmpty) {
       return usesNotes ? 'Untitled notes' : 'Untitled script';
     }
@@ -210,7 +264,8 @@ class ScriptDocument {
   }
 
   /// The script text covered by tokens [start]..[end].
-  String textOf(int start, int end) => text.substring(tokens[start].start, tokens[end].end);
+  String textOf(int start, int end) =>
+      text.substring(tokens[start].start, tokens[end].end);
 
   ScriptDocument copyWith({
     String? title,
@@ -247,19 +302,30 @@ class ScriptDocument {
       language: language,
       style: style,
       marks: normalizeMarks(remapMarks(marks, map), newTokens.length),
-      suggestions: [for (final s in suggestions) ?_remapSuggestion(s, map, newText, newTokens)],
+      suggestions: [
+        for (final s in suggestions)
+          ?_remapSuggestion(s, map, newText, newTokens),
+      ],
       takes: takes,
       recordingAid: recordingAid,
       notes: notes,
     );
   }
 
-  Suggestion? _remapSuggestion(Suggestion s, List<int?> map, String newText, List<Token> newTokens) {
+  Suggestion? _remapSuggestion(
+    Suggestion s,
+    List<int?> map,
+    String newText,
+    List<Token> newTokens,
+  ) {
     if (s.end >= map.length) return null;
     final start = map[s.start];
     final end = map[s.end];
     if (start == null || end == null || end < start) return null;
-    final covered = newText.substring(newTokens[start].start, newTokens[end].end);
+    final covered = newText.substring(
+      newTokens[start].start,
+      newTokens[end].end,
+    );
     if (covered != s.original) return null;
     return Suggestion(
       id: s.id,
@@ -323,8 +389,12 @@ class ScriptDocument {
       text: text,
       language: ScriptLanguage.fromName(json['language'] as String?),
       style: CoachingStyle.fromName(json['style'] as String?),
-      recordingAid: json['recordingAid'] == 'notes' ? RecordingAid.notes : RecordingAid.script,
-      notes: json['notes'] is Map<String, Object?> ? NoteDeck.fromJson(json['notes']! as Map<String, Object?>) : null,
+      recordingAid: json['recordingAid'] == 'notes'
+          ? RecordingAid.notes
+          : RecordingAid.script,
+      notes: json['notes'] is Map<String, Object?>
+          ? NoteDeck.fromJson(json['notes']! as Map<String, Object?>)
+          : null,
       marks: normalizeMarks(listOf('marks', Mark.fromJson), tokenCount),
       suggestions: listOf('suggestions', Suggestion.fromJson),
       takes: listOf('takes', Take.fromJson),

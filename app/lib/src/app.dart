@@ -20,6 +20,9 @@ import 'transcription/speech_backend.dart';
 import 'transcription/speech_models.dart';
 import 'transcription/speech_processor.dart';
 import 'playback/local_playback.dart';
+import 'render/video_renderer.dart';
+import 'render/export_processor.dart';
+import 'storage/video_export_store.dart';
 
 /// The app's shared services, available to every screen through
 /// [AppScope.of].
@@ -38,6 +41,7 @@ class AppServices {
     CameraBubbles? bubbles,
     SpeechBackend? speechBackend,
     LocalPlayback? playback,
+    VideoRenderer? renderer,
   }) : audio = audio ?? AudioInputs.platform(),
        screens = screens ?? ScreenSources.platform(),
        previews = previews ?? ScreenPreviews.platform(),
@@ -47,7 +51,8 @@ class AppServices {
        huds = huds ?? RecordingHuds.platform(),
        bubbles = bubbles ?? CameraBubbles.platform(),
        speechBackend = speechBackend ?? WindowsSpeechBackend(),
-       playback = playback ?? LocalPlayback.platform();
+       playback = playback ?? LocalPlayback.platform(),
+       renderer = renderer ?? VideoRenderer.platform();
 
   final ScriptLibrary library;
   final Settings settings;
@@ -64,6 +69,18 @@ class AppServices {
   final CameraBubbles bubbles;
   final SpeechBackend speechBackend;
   final LocalPlayback playback;
+  final VideoRenderer renderer;
+  late final VideoExportStore videoExports = VideoExportStore(
+    Directory('${recordingsDir.parent.path}${Platform.pathSeparator}exports'),
+    library,
+    inspector,
+  );
+  late final ExportProcessor exports = ExportProcessor(
+    renderer,
+    videoExports,
+    cuts,
+    speech.load,
+  );
   late final SpeechModels speechModels = SpeechModels(
     Directory('${recordingsDir.parent.path}${Platform.pathSeparator}models'),
     speechBackend,

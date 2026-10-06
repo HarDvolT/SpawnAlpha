@@ -18,7 +18,9 @@ and protected; optional local activity is connected and tested. Longer recording
 abrupt-exit recovery checks pass; the native render-core spike also passes. Build step 3
 now has verified offline model setup, bounded local speech jobs, frozen Script/Notes
 processing, durable actual words, script alignment and SRT/VTT export in take review.
-Generated short and 70-second app checks pass; Director's Cut is next. Owner hardware trials are
+Generated short and 70-second app checks pass. Reversible quiet cuts, local
+take playback and first Windows video exports now work; automatic processing
+and remaining Director's Cut tracks are next. Owner hardware trials are
 deferred until they return.** The build order is in
 [product-brief.md](product-brief.md#build-order); it was revised on 2026-09-30.
 
@@ -41,6 +43,24 @@ dot to grow and act out each cue in the cue's colour, and for the next features.
 build step 2 (screen recording).
 
 ## Handover (2026-10-05): from here, Codex on the owner's Windows PC
+
+- **Latest checkpoint (2026-10-06, first Windows video export):** 443 Flutter
+  tests, 161 screenshot cases and clean analysis. Debug/Release native render
+  checks pass selected/reordered source, stereo 44.1 kHz resampling, silent
+  input, visible aperture, camera inset/end, precise portrait clock, damaged
+  input, cancel cleanup and original overwrite protection. The real app-channel
+  generated check passes 1080p/4K landscape, portrait and 4:5, Unicode files,
+  verified history/reload, paused saved-video playback and full export processor.
+  Video is finalized MP4; recordings remain fragmented. Fixed fragment duration
+  hints underreporting a 1080p export. Original sound follows the kept clock.
+  Export adds local actual SRT/VTT and EDL metadata, reversible revision-bound
+  history, progress/cancel and completed-job recovery (including failed caption
+  or library saves). Native probes queue across startup/export owners.
+  **Half done:** full-picture fitting is available; burned captions, crossfades,
+  automatic-on-stop, filler/retake decisions, screen polish, sound cleanup and
+  delivery coaching remain. Owner trials are deferred. Next build automatic
+  processing after Stop and remaining Cut/coaching pieces. Android/iOS and
+  paid-launch/legal work remain later; do not call the product complete.
 
 - **Latest checkpoint (2026-10-06, local take playback):** 430 Flutter tests,
   149 screenshot cases and clean analysis. Windows Debug build and generated
@@ -633,9 +653,8 @@ build step 2 (screen recording).
    samples, and note which local models follow the JSON format reliably. Check
    the phone-to-computer case (LAN address) and the error messages (bad key,
    server off, context too small).
-7. Polish found while testing: an in-app list of takes with playback (needs a
-   video player that supports Windows), and an easier way to extend a pace or
-   energy span beyond one sentence.
+7. In-app Windows take playback and first local video export are built. Remaining
+   polish includes an easier way to extend pace/energy spans beyond one sentence.
 8. **The original build step 2 is implemented and checked locally; owner hardware trials remain deferred:**
    - Camera, Screen, and Screen + camera.
    - The prompter window, HUD and cursor companion, all hidden from capture.
@@ -651,7 +670,9 @@ build step 2 (screen recording).
    **Build step 3 is available on Windows:** verified model setup, bounded
    cancellable background recognition and durable frozen-aid word results pass;
    take review exports SRT/VTT. See `word-timing.md` for estimated timings and
-   remaining real-language quality trials. Next step 4's Cut and processing on stop.
+   remaining real-language quality trials. Step 4 now has reversible quiet cuts
+   and first local video export. Next automatic-on-stop, filler/retake review,
+   caption/screen/sound polish and delivery coaching; keep originals intact.
    See OpenScreen in the brief for reusable parts.
 
 ## Decisions
@@ -812,6 +833,20 @@ build step 2 (screen recording).
   word lists, not prosody.
 
 ## Session log
+
+- 2026-10-06, first Windows video export:
+  - Built the bounded native GPU/PCM renderer, finalized MP4 output, all four
+    formats, optional paired-camera corner, actual cut captions/portable metadata
+    and local saved-video history. Every render uses fresh files; original stays.
+  - Added revision checks, cancelled-job cleanup, decoded verification, queued
+    probe ownership and durable completed-job recovery through caption/library
+    save failures. Fixed a fragmented-file duration hint before enabling export.
+  - Analysis is clean; 443 tests and 161 screenshot cases pass. Native generated
+    checks pass in Debug/Release; the real Windows app-channel check passes all
+    formats, Unicode paths, history reload, saved playback and cancellation.
+    Normal Windows Debug/Release builds pass. EN/AR export PNGs inspected.
+    Owner trials remain deferred; automatic-on-stop and remaining Cut/coaching
+    features are next. No new dependency, bundled codec or copied external code.
 
 - 2026-10-06, private speaker notes feature request:
   - Recorded the requested free-speech aid as Notes mode and added its design

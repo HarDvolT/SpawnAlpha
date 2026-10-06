@@ -99,6 +99,7 @@ String generateTokens(Map<String, dynamic> t) {
   family('prompter', 'SaPrompter', 'Layout constants of the stage.', '', _number);
   family('screen-fx', 'SaScreenFx', 'Defaults for the automatic edit of screen recordings.', '', _number);
   family('review', 'SaReview', 'Studio take review and video playback.', '', _number);
+  family('video-export', 'SaVideoExport', 'Full-picture local export layout.', '', _number);
 
   // ---- type ----
   final type = t['type'] as Map<String, dynamic>;

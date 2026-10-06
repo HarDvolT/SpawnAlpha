@@ -591,7 +591,8 @@ attaches only to the same transcript revision, preserving current script edits.
 `Take.cutPath` is optional; new speech clears stale cuts. `durationUs` now
 preserves the exact clock across disk, with `durationMs` retained for compatibility.
 Take review renders the switches and exports captions from the selected plan.
-Native video rendering and remaining Cut tracks are still next.
+The first native video export now uses these kept ranges; remaining Cut tracks
+are still next.
 
 ## Local take playback
 
@@ -605,3 +606,38 @@ alternate streams or reparse points. Frame-server previews are bounded to
 This preview bound does not limit full-resolution exports. Stop revokes playback,
 closes the OS source, waits for active frame work and releases texture ownership.
 OS exceptions and media paths never enter logs or user-facing error text.
+
+## Local video export
+
+`VideoRenderer` sends a portable plan plus explicitly resolved local files to
+`spawnalpha/render`. One generation-guarded worker owns COM/MF, bounded PCM
+packets, GPU NV12 source frames and D3D11 compositing. A two-frame lookahead
+retains source timestamps through preroll and variable cadence. Display
+apertures exclude decoder padding. The output clock is fixed at 30 Hz with an
+exact shorter final frame; PCM uses cumulative sample boundaries across cuts.
+Mono/stereo resample to 48 kHz; short uncovered source tails keep their clocks.
+Missing audio produces a silent video. A partial camera disappears at its end.
+
+The complete source picture fits each selected output. Optional paired camera
+uses the shared export layout tokens; no inferred face or screen crop. H.264
+and AAC use installed Windows encoders. `GpuVideoWriter` keeps fragmented MP4
+for recordings and uses finalized MP4 for exports: fragment duration hints
+underreported a generated 1080p result. No extra codec/package is shipped.
+Output files are created exclusively. Cancel/failure deletes only the file
+created by that job after all native handles release, preserving originals.
+
+`ExportProcessor` checks the current saved word/cut revisions, loads actual
+speech and retimes captions without losing/splitting words. `VideoExportStore`
+flushes a fresh-name reservation before rendering, verifies output dimensions
+and duration, then journals completion before caption/metadata/library writes.
+Recovery retries complete journals, including caption-save or library failures;
+interrupted renders stay unpromoted. If completion itself cannot be journaled,
+the unlinked bytes stay preserved for later inspection. File checks are local
+and bounded. Shared native recording probes are queued across callers.
+`Take.exportsPath` references a new immutable history catalog. Later transcript
+or cut changes preserve earlier exports. Review watches the selected saved video
+or original, with local file discovery and access to earlier history.
+
+This first exporter has no burned captions, crossfades, noise/loudness polish,
+face reframing or automatic zoom/cursor tracks. Exported EDL metadata has no
+source media path; private revision references remain in local take history.

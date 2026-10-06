@@ -120,8 +120,18 @@ takes need separate activity/context handling before automatic tightening.
 Every removal is listed with its source time and an individual switch. Turning
 it off restores that original interval; saving the plan never modifies media.
 Caption times follow the kept source ranges and actual speech. Filler/retake
-selection, screen zoom/cursor polish and complete video export are subsequent
-slices; never label this conservative first pass a finished Director's Cut.
+selection and screen zoom/cursor polish are subsequent slices; never label this
+conservative first pass a finished Director's Cut.
+
+### First Windows video export
+
+The saved plan now renders to a separate finalized H.264/AAC MP4 in 16:9
+1080p/4K, 9:16 or 4:5. This slice fits the complete source on black space;
+face/target reframing, burned captions, sound polish and crossfades are still
+pending. Both can include its separate camera in a token-sized corner inset.
+Source ranges drive video, bounded audio and actual SRT/VTT captions together.
+Progress/cancel, decoded verification, recoverable completed jobs and immutable
+saved-video history are part of take review; see [take-review.md](take-review.md).
 
 - Never cut inside a word, and never remove a marked pause.
 - Never change what was said. Captions follow speech, and mismatches with the script are flagged.

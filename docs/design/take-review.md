@@ -33,5 +33,21 @@ This surface now includes the first **Your cut** panel: original/cut duration,
 the measured quiet-gap changes, an individual switch and **Restore all gaps**.
 Saved plans and cut-caption clocks preserve all actual words. Screen context
 and missing/uncertain script alignment keep the original. Video preview,
-individual word corrections, full render/export and coaching will extend it,
-using the same frozen take and actual speech.
+individual word corrections and coaching will extend it, using the same frozen
+take and actual speech.
+
+**Save your video** makes a separate local MP4 from the saved cut (or the whole
+take when no cut exists). The first Windows renderer fits the complete picture
+inside 16:9 1080p/4K, 9:16 or 4:5; unused space stays black. It does not yet
+reframe faces or screen targets. Both takes can include the separate camera in
+the bottom-right corner, fitted inside 28% of each output dimension with a 4%
+short-edge margin. These proportions are `video-export` tokens. A switch can
+omit the camera. The original sound keeps its source clock through each cut.
+
+Progress has **Cancel export** until saving starts. Saving verifies decoded
+dimensions and duration before attaching history. Each saved video shows its
+date, format and duration, with **Watch saved video** and **Show saved files**.
+Earlier exports remain available after restoring a gap or processing speech
+again. The player labels saved videos and provides **Watch original take**.
+Actual SRT/VTT captions and the portable cut plan save beside each video.
+Burned-in captions, sound polish and smooth cut transitions are later slices.

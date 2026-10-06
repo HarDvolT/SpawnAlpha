@@ -12,6 +12,8 @@ add_executable(${BINARY_NAME} WIN32
   "local_transcription.cpp"
   "speech_jobs.cpp"
   "local_player.cpp"
+  "local_render.cpp"
+  "render_jobs.cpp"
   "screen_sources.cpp"
   "screen_preview.cpp"
   "floating_prompter.cpp"
@@ -187,3 +189,9 @@ target_compile_features(render_core_check PRIVATE cxx_std_17)
 target_compile_options(render_core_check PRIVATE /W4 /WX /EHsc /wd"4100")
 target_compile_definitions(render_core_check PRIVATE "NOMINMAX")
 target_link_libraries(render_core_check PRIVATE "d3d11.lib" "dxgi.lib" "mf.lib" "mfplat.lib" "mfreadwrite.lib" "mfuuid.lib" "ole32.lib" "oleaut32.lib" "windowsapp.lib")
+
+add_executable(local_render_check EXCLUDE_FROM_ALL "local_render.cpp" "gpu_video_writer.cpp" "recording_probe.cpp" "tests/local_render_check.cpp")
+target_compile_features(local_render_check PRIVATE cxx_std_17)
+target_compile_options(local_render_check PRIVATE /W4 /WX /EHsc /wd"4100")
+target_compile_definitions(local_render_check PRIVATE "NOMINMAX")
+target_link_libraries(local_render_check PRIVATE "d3d11.lib" "dxgi.lib" "mf.lib" "mfplat.lib" "mfreadwrite.lib" "mfuuid.lib" "ole32.lib" "oleaut32.lib" "windowsapp.lib")

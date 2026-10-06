@@ -56,7 +56,7 @@ paid release, a lawyer should review:
 | Material Icons and Symbols | Apache-2.0 | Icons and cue glyphs | Notice | Done: comes with Flutter |
 | OpenScreen (reference and parts source) | MIT | Ideas so far; any copied code later | Keep its copyright notice in copied files and in NOTICES | No code copied yet |
 | whisper.cpp and Whisper models (step 3) | MIT (code and OpenAI's Whisper weights) | Windows CPU speech runtime and explicit public-model first-use download | Notices bundled in assets/licenses and registered on the app licence page; check every fine-tuned model separately | Checked 2026-10-06: pinned upstream v1.9.4 source and converted base weights, exact size/SHA-256 verification. No recording/script upload; see word-timing.md |
-| Video encoding (step 4, render core) | see "Video codecs" below | Export | see below | Open decision |
+| Video encoding (step 4, render core) | Installed Windows Media Foundation H.264/AAC | Local MP4 export | No bundled codec/package; see below | First Windows exporter checked 2026-10-06; launch legal review remains open |
 
 ### Video codecs and the render core
 
@@ -70,6 +70,10 @@ paid release, a lawyer should review:
 - Local take playback uses Windows MediaPlayer with file-only StorageFile sources,
   bounded preview frames and generic errors. No extra player package or codec pack;
   network shares, URLs, alternate streams and reparse points are rejected.
+- Local export uses the same guarded file-only paths and installed D3D11/Media
+  Foundation. Complete-picture compositing, cuts and AAC resampling stay on the
+  device. Fresh output files, recovery journals and captions never overwrite
+  originals; failures never log scripts, media paths or OS exception messages.
 - **If FFmpeg is used at all:**
   - use an **LGPL build** without `--enable-gpl` or `--enable-nonfree`, which means no
     x264 or x265;
@@ -193,6 +197,7 @@ person using the app.
 | Windows render-core risk spike and portable EDL | Checked 2026-10-06 in Debug/Release with generated colour/tone files only. Uses installed D3D11/Media Foundation; no dependency, bundled codec, copied code, model or owner media/input. EDL has no paths/platform IDs. Full exporter/captions/mobile pipeline and launch legal review remain pending; see render-core-spike.md |
 | Optional Windows recording activity: explicit local-only choice, anonymous typing, source scoping, safe recovery | Implemented 2026-10-06. Initially off; setup explains what is saved and never typed text. Fixed Ctrl shortcut allowlist, no AltGr text translation, scan codes, titles, handles or device IDs. Raw-input receiver does not consume owner input and stops with capture. Bounded queue/streaming inspection, no private logs/network/dependency/copied code. Pure privacy/common-clock, in-memory own-window exclusion and generated full-take checks pass. Owner trials deferred |
 | Font licences bundled and shown | Done |
+| Windows first video exporter and local history | Checked 2026-10-06 with generated colors/tones only: all four formats, exact video clock, selected/reordered audio, mono/stereo resampling, silent source, camera inset/end, Unicode paths, paused playback, cancellation, damaged input, overwrite rejection and caption/library failure recovery. No owner media/input, new dependency, copied code, network or bundled codec. Full Cut polish/mobile implementation and launch counsel review remain pending |
 | In-app licence page (Settings, Privacy and licences) | Done |
 | "What leaves your device" explained in Settings | Done |
 | iOS export-compliance flag | Done |

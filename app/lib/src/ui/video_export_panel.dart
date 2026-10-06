@@ -1,0 +1,148 @@
+import 'package:flutter/material.dart';
+
+import '../model/video_export.dart';
+import '../render/export_processor.dart';
+import '../theme/theme.dart';
+import 'format.dart';
+
+class VideoExportPanel extends StatelessWidget {
+  const VideoExportPanel({
+    super.key,
+    required this.format,
+    required this.onFormat,
+    required this.onExport,
+    required this.job,
+    required this.busy,
+    required this.supported,
+    required this.videos,
+    required this.onView,
+    required this.onShow,
+    this.hasCamera = false,
+    this.includeCamera = true,
+    this.onCamera,
+    this.hasCaptions = false,
+  });
+  final VideoFormat format;
+  final ValueChanged<VideoFormat> onFormat;
+  final VoidCallback onExport;
+  final ExportProcessor job;
+  final bool busy, supported, hasCamera, includeCamera, hasCaptions;
+  final ValueChanged<bool>? onCamera;
+  final List<VideoExport> videos;
+  final ValueChanged<VideoExport> onView, onShow;
+
+  Widget _saved(VideoExport video, SaPalette p) => Padding(
+    padding: const EdgeInsets.only(top: SaSpace.s2),
+    child: Wrap(
+      spacing: SaSpace.s2,
+      runSpacing: SaSpace.s2,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        Text(
+          '${video.createdAt.toLocal().toString().substring(0, 16)} · '
+          '${video.format.label} · ${formatCutTime(video.duration)}',
+          style: SaType.signalLabel.copyWith(color: p.ink2),
+        ),
+        TextButton.icon(
+          onPressed: () => onView(video),
+          icon: const Icon(Icons.play_arrow_rounded),
+          label: const Text('Watch saved video'),
+        ),
+        TextButton.icon(
+          onPressed: () => onShow(video),
+          icon: const Icon(Icons.folder_open_outlined),
+          label: const Text('Show saved files'),
+        ),
+      ],
+    ),
+  );
+  @override
+  Widget build(BuildContext context) {
+    final p = SaTheme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Save your video', style: SaType.title.copyWith(color: p.ink)),
+        const SizedBox(height: SaSpace.s3),
+        Wrap(
+          spacing: SaSpace.s3,
+          runSpacing: SaSpace.s3,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            DropdownButton<VideoFormat>(
+              value: format,
+              items: [
+                for (final format in VideoFormat.values)
+                  DropdownMenuItem(value: format, child: Text(format.label)),
+              ],
+              onChanged: busy
+                  ? null
+                  : (value) {
+                      if (value != null) onFormat(value);
+                    },
+            ),
+            FilledButton.icon(
+              onPressed: busy || !supported ? null : onExport,
+              icon: const Icon(Icons.movie_creation_outlined),
+              label: const Text('Save video'),
+            ),
+            if (job.busy && job.phase != ExportPhase.saving)
+              OutlinedButton.icon(
+                onPressed: job.cancel,
+                icon: const Icon(Icons.close_rounded),
+                label: const Text('Cancel export'),
+              ),
+          ],
+        ),
+        Text(
+          'Keeps the whole picture and saves a new MP4 on this device.',
+          style: SaType.bodySm.copyWith(color: p.ink2),
+        ),
+        if (hasCaptions)
+          Text(
+            'SRT and VTT caption files are saved beside the video.',
+            style: SaType.bodySm.copyWith(color: p.ink2),
+          ),
+        if (hasCamera)
+          CheckboxListTile(
+            contentPadding: EdgeInsets.zero,
+            value: includeCamera,
+            onChanged: busy ? null : (value) => onCamera?.call(value ?? false),
+            title: const Text('Include the camera in the corner'),
+          ),
+        if (!supported)
+          Text(
+            'Video export is available on Windows first.',
+            style: SaType.bodySm.copyWith(color: p.ink2),
+          ),
+        if (job.busy) ...[
+          const SizedBox(height: SaSpace.s3),
+          LinearProgressIndicator(
+            value: job.phase == ExportPhase.rendering ? job.progress : null,
+          ),
+          const SizedBox(height: SaSpace.s2),
+          Text(
+            job.phase == ExportPhase.saving
+                ? 'Checking and saving your video…'
+                : 'Making your video…',
+            style: SaType.signalLabel.copyWith(color: p.ink2),
+          ),
+        ],
+        if (job.problem != null)
+          Text(job.problem!, style: SaType.bodySm.copyWith(color: p.danger)),
+        if (job.phase == ExportPhase.cancelled)
+          Text(
+            'Export cancelled. Your original and cut are safe.',
+            style: SaType.bodySm.copyWith(color: p.ink2),
+          ),
+        for (final video in videos.take(8)) _saved(video, p),
+        if (videos.length > 8)
+          ExpansionTile(
+            tilePadding: EdgeInsets.zero,
+            title: const Text('Earlier saved videos'),
+            children: [for (final video in videos.skip(8)) _saved(video, p)],
+          ),
+      ],
+    );
+  }
+}

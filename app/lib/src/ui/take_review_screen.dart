@@ -7,6 +7,8 @@ import '../app.dart';
 import '../cut/clean_plan.dart';
 import '../model/mark.dart';
 import '../model/script_document.dart';
+import '../model/video_export.dart';
+import '../render/export_processor.dart';
 import '../theme/theme.dart';
 import '../transcription/captions.dart';
 import '../transcription/speech_processor.dart';
@@ -15,6 +17,7 @@ import 'format.dart';
 import 'home_screen.dart';
 import 'clean_cut_panel.dart';
 import 'take_player.dart';
+import 'video_export_panel.dart';
 
 class TakeReviewScreen extends StatefulWidget {
   const TakeReviewScreen({super.key, required this.script, required this.take});
@@ -32,6 +35,10 @@ class _TakeReviewScreenState extends State<TakeReviewScreen> {
   CleanPlan? _clean;
   bool _planning = false;
   String? _cutProblem;
+  VideoFormat _format = VideoFormat.landscape;
+  bool _cameraInExport = true, _reviewReady = false;
+  List<VideoExport> _videos = [];
+  VideoExport? _viewing;
   Take _latestTake(AppServices app) =>
       app.library
           .byId(widget.script.id)
@@ -45,8 +52,17 @@ class _TakeReviewScreenState extends State<TakeReviewScreen> {
     if (_loaded) return;
     _loaded = true;
     final app = AppScope.of(context), processor = app.speech;
-    app.cuts.load(_latestTake(app)).then((value) {
-      if (mounted) setState(() => _clean = value);
+    Future.wait([
+      app.cuts.load(_latestTake(app)),
+      app.videoExports.load(_latestTake(app)),
+    ]).then((values) {
+      if (mounted) {
+        setState(() {
+          _clean = values[0] as CleanPlan?;
+          _videos = values[1]! as List<VideoExport>;
+          _reviewReady = true;
+        });
+      }
     });
     if (processor.result?.sourcePath == widget.take.path) {
       _spoken = processor.result;
@@ -55,6 +71,24 @@ class _TakeReviewScreenState extends State<TakeReviewScreen> {
     processor.load(widget.take).then((value) {
       if (mounted) setState(() => _spoken = value);
     });
+  }
+
+  Future<void> _saveVideo() async {
+    final app = AppScope.of(context);
+    final video = await app.exports.export(
+      widget.script,
+      _latestTake(app),
+      _format,
+      clean: _clean,
+      camera: _cameraInExport,
+    );
+    final saved = await app.videoExports.load(_latestTake(app));
+    if (mounted) {
+      setState(() {
+        _videos = saved;
+        if (video != null) _viewing = video;
+      });
+    }
   }
 
   Future<void> _process() async {
@@ -166,11 +200,11 @@ class _TakeReviewScreenState extends State<TakeReviewScreen> {
   Widget build(BuildContext context) {
     final app = AppScope.of(context), p = SaTheme.of(context);
     return ListenableBuilder(
-      listenable: Listenable.merge([app.speech, app.speechModels]),
+      listenable: Listenable.merge([app.speech, app.speechModels, app.exports]),
       builder: (context, _) {
         final job = app.speech,
             model = app.speechModels,
-            busy = job.busy || model.busy || _planning;
+            busy = job.busy || model.busy || _planning || app.exports.busy;
         final spoken = _spoken;
         final words = spoken?.transcript.words ?? const [];
         final alignment = spoken?.alignment;
@@ -185,7 +219,13 @@ class _TakeReviewScreenState extends State<TakeReviewScreen> {
             if (!didPop) {
               showMessage(
                 context,
-                'Cancel processing first. Your recording is safe.',
+                app.exports.busy
+                    ? app.exports.phase == ExportPhase.saving
+                          ? 'Please wait while your video is saved.'
+                          : 'Cancel export first. Your recording is safe.'
+                    : _planning
+                    ? 'Please wait while your cut is saved.'
+                    : 'Cancel processing first. Your recording is safe.',
               );
             }
           },
@@ -213,7 +253,21 @@ class _TakeReviewScreenState extends State<TakeReviewScreen> {
                   style: SaType.bodySm.copyWith(color: p.ink2),
                 ),
                 const SizedBox(height: SaSpace.s4),
-                TakePlayer(backend: app.playback, path: widget.take.path),
+                if (_viewing != null)
+                  TextButton.icon(
+                    onPressed: () => setState(() => _viewing = null),
+                    icon: const Icon(Icons.undo_rounded),
+                    label: const Text('Watch original take'),
+                  ),
+                TakePlayer(
+                  backend: app.playback,
+                  path: _viewing == null
+                      ? widget.take.path
+                      : app.videoExports.file(_viewing!).path,
+                  label: _viewing == null
+                      ? 'Original take'
+                      : 'Saved video · ${_viewing!.format.label}',
+                ),
                 const SizedBox(height: SaSpace.s4),
                 Wrap(
                   spacing: SaSpace.s3,
@@ -235,7 +289,7 @@ class _TakeReviewScreenState extends State<TakeReviewScreen> {
                             : 'Try speech again',
                       ),
                     ),
-                    if (busy)
+                    if (job.busy || model.busy)
                       OutlinedButton.icon(
                         onPressed: job.cancel,
                         icon: const Icon(Icons.close_rounded),
@@ -264,7 +318,7 @@ class _TakeReviewScreenState extends State<TakeReviewScreen> {
                     style: SaType.bodySm.copyWith(color: p.ink2),
                   ),
                 ],
-                if (busy) ...[
+                if (job.busy || model.busy) ...[
                   const SizedBox(height: SaSpace.s4),
                   LinearProgressIndicator(
                     value: model.phase == SpeechModelPhase.downloading
@@ -300,6 +354,29 @@ class _TakeReviewScreenState extends State<TakeReviewScreen> {
                     'Processing cancelled. Your original is safe.',
                     style: SaType.bodySm.copyWith(color: p.ink2),
                   ),
+                const SizedBox(height: SaSpace.s5),
+                VideoExportPanel(
+                  format: _format,
+                  onFormat: (value) => setState(() => _format = value),
+                  onExport: _saveVideo,
+                  job: app.exports,
+                  busy: busy || !_reviewReady || _exporting,
+                  supported: app.renderer.supported,
+                  hasCamera: widget.take.cameraPath != null,
+                  includeCamera: _cameraInExport,
+                  onCamera: (value) => setState(() => _cameraInExport = value),
+                  hasCaptions: words.isNotEmpty,
+                  videos: _videos,
+                  onView: (video) => setState(() => _viewing = video),
+                  onShow: (video) {
+                    if (Platform.isWindows) {
+                      Process.run('explorer', [
+                        '/select,',
+                        app.videoExports.file(video).path,
+                      ]);
+                    }
+                  },
+                ),
                 if (spoken != null) ...[
                   const SizedBox(height: SaSpace.s5),
                   if (_clean != null)

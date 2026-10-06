@@ -26,8 +26,17 @@ abstract class RecordingInspector {
 
 class WindowsRecordingInspector implements RecordingInspector {
   const WindowsRecordingInspector();
+  // Startup recovery and exports share one native probe. Queue ownership even
+  // across service instances; a failed check must release the next caller.
+  static Future<void> _checks = Future<void>.value();
   @override
-  Future<RecordingInfo> inspect(String path) async {
+  Future<RecordingInfo> inspect(String path) {
+    final check = _checks.then((_) => _inspect(path));
+    _checks = check.then<void>((_) {}, onError: (Object _) {});
+    return check;
+  }
+
+  Future<RecordingInfo> _inspect(String path) async {
     final channel = WindowsScreenRecordings.channel;
     final id = await channel.invokeMethod<int>('inspectStart', {'path': path});
     if (id == null || id <= 0) {

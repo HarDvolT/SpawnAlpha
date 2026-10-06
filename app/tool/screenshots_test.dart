@@ -62,6 +62,9 @@ import '../test/model/note_deck_test.dart' show fixtureNotes;
 import '../test/ui/take_review_test.dart' show reviewFixture;
 import '../test/playback/playback_controller_test.dart' show FakePlayback;
 import 'package:spawnalpha/src/ui/take_player.dart';
+import 'package:spawnalpha/src/ui/video_export_panel.dart';
+import 'package:spawnalpha/src/model/video_export.dart';
+import 'package:spawnalpha/src/render/export_processor.dart';
 import 'package:spawnalpha/src/playback/local_playback.dart';
 
 import 'fixtures/cue_check_scripts.dart';
@@ -248,6 +251,28 @@ void main() {
   }
 
   for (final language in ScriptLanguage.values) {
+    for (final brightness in [Brightness.light, Brightness.dark]) {
+      for (final working in [false, true]) {
+        testWidgets('video export $language $brightness working=$working', (tester) async {
+          final script = sampleScripts().firstWhere((s) => s.language == language);
+          await shoot(tester, 'video-export-${language.name}-${brightness.name}-${working ? 'progress' : 'saved'}',
+            phone, (app) {
+              if (working) { app.exports.phase = ExportPhase.rendering; app.exports.progress = .6; }
+              return Scaffold(appBar: AppBar(title: const Text('Your take')), body: ListView(
+                padding: const EdgeInsets.all(SaSpace.s5), children: [
+                  Directionality(textDirection: language.isRtl ? TextDirection.rtl : TextDirection.ltr,
+                    child: Text(script.displayTitle, style: SaType.body)),
+                  const SizedBox(height: SaSpace.s5),
+                  VideoExportPanel(format: VideoFormat.portrait, onFormat: (_) {}, onExport: () {},
+                    job: app.exports, busy: working, supported: true, hasCamera: true, hasCaptions: true,
+                    videos: [VideoExport(id: 'generated', format: VideoFormat.portrait,
+                      duration: const Duration(seconds: 25), createdAt: DateTime(2026, 10, 6, 18, 30))],
+                    onView: (_) {}, onShow: (_) {}),
+                ]));
+            }, [script], brightness: brightness, settle: !working);
+        });
+      }
+    }
     for (final brightness in [Brightness.light, Brightness.dark]) {
       testWidgets('cut changes $language $brightness', (tester) async {
         final spoken = cleanFixture(language);

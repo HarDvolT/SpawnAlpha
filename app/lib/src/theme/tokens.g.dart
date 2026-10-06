@@ -451,6 +451,16 @@ abstract final class SaReview {
   static const double playerMaxHeight = 540.0;
 }
 
+/// Full-picture local export layout.
+///
+/// First full-picture Windows export; optional separate camera inset.
+abstract final class SaVideoExport {
+  /// Camera fits inside this fraction of each output dimension.
+  static const double cameraInset = 0.28;
+  /// Camera corner margin as a fraction of the shorter output edge.
+  static const double cameraMargin = 0.04;
+}
+
 /// The four type voices: display, reading, signal and pencil.
 abstract final class SaFonts {
   static const display = 'Anybody';
