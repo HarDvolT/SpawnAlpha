@@ -17,6 +17,7 @@ add_executable(${BINARY_NAME} WIN32
   "screen_recorder.cpp"
   "recording_probe.cpp"
   "recording_hud.cpp"
+  "camera_capture.cpp"
   "main.cpp"
   "utils.cpp"
   "win32_window.cpp"
@@ -72,7 +73,7 @@ target_compile_definitions(microphone_capture_check PRIVATE "NOMINMAX")
 target_link_libraries(microphone_capture_check PRIVATE "ole32.lib" "windowsapp.lib")
 
 # Captures only its own generated-color window; no private desktop capture.
-add_executable(screen_recording_check EXCLUDE_FROM_ALL "screen_recording_core.cpp" "gpu_video_writer.cpp" "microphone_capture.cpp" "tests/screen_recording_check.cpp")
+add_executable(screen_recording_check EXCLUDE_FROM_ALL "screen_recording_core.cpp" "gpu_video_writer.cpp" "microphone_capture.cpp" "camera_capture.cpp" "tests/screen_recording_check.cpp")
 target_compile_features(screen_recording_check PRIVATE cxx_std_17)
 target_compile_options(screen_recording_check PRIVATE /W4 /WX /EHsc /wd"4100")
 target_compile_definitions(screen_recording_check PRIVATE "NOMINMAX")
@@ -92,3 +93,15 @@ add_executable(recording_fixture_window WIN32 EXCLUDE_FROM_ALL "tests/recording_
 target_compile_features(recording_fixture_window PRIVATE cxx_std_17)
 target_compile_options(recording_fixture_window PRIVATE /W4 /WX /EHsc /wd"4100")
 target_link_libraries(recording_fixture_window PRIVATE "user32.lib" "gdi32.lib")
+
+add_executable(camera_capture_check EXCLUDE_FROM_ALL "camera_capture.cpp" "tests/camera_capture_check.cpp")
+target_compile_features(camera_capture_check PRIVATE cxx_std_17)
+target_compile_options(camera_capture_check PRIVATE /W4 /WX /EHsc /wd"4100")
+target_compile_definitions(camera_capture_check PRIVATE "NOMINMAX" "SPAWNALPHA_CAMERA_FIXTURE")
+target_link_libraries(camera_capture_check PRIVATE "mf.lib" "mfplat.lib" "mfreadwrite.lib" "mfuuid.lib" "ole32.lib" "windowsapp.lib")
+
+add_executable(paired_recording_check EXCLUDE_FROM_ALL "screen_recording_core.cpp" "gpu_video_writer.cpp" "microphone_capture.cpp" "camera_capture.cpp" "tests/paired_recording_check.cpp")
+target_compile_features(paired_recording_check PRIVATE cxx_std_17)
+target_compile_options(paired_recording_check PRIVATE /W4 /WX /EHsc /wd"4100")
+target_compile_definitions(paired_recording_check PRIVATE "NOMINMAX" "SPAWNALPHA_CAMERA_FIXTURE")
+target_link_libraries(paired_recording_check PRIVATE "d3d11.lib" "dxgi.lib" "mf.lib" "mfplat.lib" "mfreadwrite.lib" "mfuuid.lib" "ole32.lib" "oleaut32.lib" "windowsapp.lib" "user32.lib" "gdi32.lib")

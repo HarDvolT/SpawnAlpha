@@ -13,7 +13,14 @@ enum ScreenRecordingPhase {
   failed,
 }
 
-enum ScreenRecordingReason { none, cancelled, source, microphone, encoder }
+enum ScreenRecordingReason {
+  none,
+  cancelled,
+  source,
+  microphone,
+  encoder,
+  camera,
+}
 
 class ScreenRecordingHandle {
   const ScreenRecordingHandle(this.sessionId);
@@ -28,6 +35,7 @@ class ScreenRecordingStatus {
     this.height = 0,
     this.frames = 0,
     this.audioFrames = 0,
+    this.cameraFrames = 0,
     this.duration = Duration.zero,
     this.peakDb = -100,
     this.rmsDb = -100,
@@ -35,7 +43,7 @@ class ScreenRecordingStatus {
   });
   final ScreenRecordingPhase phase;
   final ScreenRecordingReason reason;
-  final int width, height, frames, audioFrames;
+  final int width, height, frames, audioFrames, cameraFrames;
   final Duration duration;
   final double peakDb, rmsDb, loudestRmsDb;
   bool get terminal =>
@@ -55,6 +63,8 @@ abstract class ScreenRecordings {
     required String path,
     required bool recordAudio,
     String? microphoneId,
+    String? cameraId,
+    String? cameraPath,
   });
   Future<ScreenRecordingStatus> status(ScreenRecordingHandle handle);
   Future<void> stop(ScreenRecordingHandle handle);
@@ -75,12 +85,22 @@ class WindowsScreenRecordings implements ScreenRecordings {
     required String path,
     required bool recordAudio,
     String? microphoneId,
+    String? cameraId,
+    String? cameraPath,
   }) async {
+    if ((cameraId == null) != (cameraPath == null) ||
+        cameraId == '' ||
+        cameraPath == '' ||
+        cameraPath == path) {
+      throw ArgumentError('Choose a camera and a separate new file together');
+    }
     final info = await channel.invokeMapMethod<String, Object?>('start', {
       'sourceId': source.id,
       'path': path,
       'recordAudio': recordAudio,
       'microphoneId': ?microphoneId,
+      'cameraId': ?cameraId,
+      'cameraPath': ?cameraPath,
     });
     final id = info?['sessionId'];
     if (id is! int || id <= 0) {
@@ -129,6 +149,7 @@ class WindowsScreenRecordings implements ScreenRecordings {
       height: integer('height'),
       frames: integer('frames'),
       audioFrames: integer('audioFrames'),
+      cameraFrames: info['cameraFrames'] == null ? 0 : integer('cameraFrames'),
       duration: Duration(microseconds: integer('durationUs')),
       peakDb: level('peakDb'),
       rmsDb: level('rmsDb'),
@@ -160,6 +181,8 @@ class UnsupportedScreenRecordings implements ScreenRecordings {
     required String path,
     required bool recordAudio,
     String? microphoneId,
+    String? cameraId,
+    String? cameraPath,
   }) async => throw UnsupportedError('Windows only');
   @override
   Future<ScreenRecordingStatus> status(ScreenRecordingHandle handle) async =>

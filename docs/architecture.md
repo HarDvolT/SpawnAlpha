@@ -418,6 +418,17 @@ recordings folder.
   around the detailed preview route or recording. Saved/recovered takes are mode-labelled.
   `native_screen_take_check.dart` uses an independently generated window and ignored files
   to test the whole protected silent take; it reads no owner data or private desktop.
+- **Paired Windows video core (eleventh recorder slice):** `CameraCapture` opens only
+  the selected opaque Media Foundation video-device link. An asynchronous reader
+  converts frames to owned top-down BGRA snapshots, handles changed formats/stride,
+  and balances callback draining and device shutdown. No default-camera fallback.
+  `ScreenRecordingCore` writes a separate silent fragmented camera MP4, bounded to
+  1280 px on the long edge; microphone audio stays in the screen MP4. Both pictures
+  use the same cadence slot and pause clock. Camera loss/stale frames stops safely
+  with a camera reason, including during Pause. Native checks use generated video,
+  not the owner's camera; fixture entry points are compiled only into explicit check
+  targets. Dart validates paired arguments/counts. Paired manifests, excluded live
+  camera bubble and normal Both setup integration remain next, so Both stays off.
 - **SettingsScreen**: the markup source, API key, model, default style, text
   size and mirror setting, plus **Privacy and licences**: what leaves the
   device, and the licence page (`showLicensePage`).

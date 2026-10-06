@@ -39,6 +39,7 @@ std::string Reason(ScreenRecordingReason reason) {
     case ScreenRecordingReason::source: return "source";
     case ScreenRecordingReason::microphone: return "microphone";
     case ScreenRecordingReason::encoder: return "encoder";
+    case ScreenRecordingReason::camera: return "camera";
     default: return "none";
   }
 }
@@ -50,6 +51,7 @@ EncodableMap Status(const ScreenRecordingStatus& status) {
     {EncodableValue("height"), EncodableValue(static_cast<int32_t>(status.height))},
     {EncodableValue("frames"), EncodableValue(static_cast<int64_t>(status.frames))},
     {EncodableValue("audioFrames"), EncodableValue(static_cast<int64_t>(status.audio_frames))},
+    {EncodableValue("cameraFrames"), EncodableValue(static_cast<int64_t>(status.camera_frames))},
     {EncodableValue("durationUs"), EncodableValue(status.duration_100ns / 10)},
     {EncodableValue("peakDb"), EncodableValue(status.peak_db)},
     {EncodableValue("rmsDb"), EncodableValue(status.rms_db)},
@@ -119,9 +121,14 @@ struct ScreenRecorder::Impl {
           const auto source = StringArgument(*args, "sourceId");
           const auto path = StringArgument(*args, "path");
           const auto microphone = StringArgument(*args, "microphoneId");
+          const auto camera = StringArgument(*args, "cameraId");
+          const auto camera_path = StringArgument(*args, "cameraPath");
           const auto audio = args->find(EncodableValue("recordAudio"));
           if (!source || !path || path->empty() || audio == args->end() || !std::holds_alternative<bool>(audio->second)) {
             result->Error("invalid", "Choose the screen and microphone first."); return;
+          }
+          if ((camera == nullptr) != (camera_path == nullptr) || (camera && (camera->empty() || camera_path->empty() || *camera_path == *path))) {
+            result->Error("invalid", "Choose a camera and a separate file."); return;
           }
           HMONITOR monitor = nullptr; HWND window = nullptr;
           if (!ResolveScreenSource(*source, &monitor, &window)) {
@@ -129,7 +136,8 @@ struct ScreenRecorder::Impl {
           }
           auto next = std::make_unique<ScreenRecordingCore>();
           winrt::check_hresult(next->Start(monitor, window, winrt::to_hstring(*path).c_str(),
-              microphone ? winrt::to_hstring(*microphone).c_str() : L"", std::get<bool>(audio->second)));
+              microphone ? winrt::to_hstring(*microphone).c_str() : L"", std::get<bool>(audio->second),
+              camera ? winrt::to_hstring(*camera).c_str() : L"", camera_path ? winrt::to_hstring(*camera_path).c_str() : L""));
           active = std::move(next); ++generation;
           result->Success(EncodableValue(EncodableMap{{EncodableValue("sessionId"), EncodableValue(generation)}}));
         } else if (call.method_name() == "status") {

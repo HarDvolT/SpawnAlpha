@@ -1,6 +1,6 @@
 # Status
 
-Last updated: 2026-10-05
+Last updated: 2026-10-06
 
 ## Where we are
 
@@ -36,7 +36,7 @@ build step 2 (screen recording).
   `flutter_secure_storage_windows`). `flutter doctor -v` passes Windows, Visual Studio,
   desktop device and network checks. Android is intentionally not installed yet.
 - **Local checks and launch:** `flutter pub get` succeeds; `flutter analyze` prints
-  **No issues found!**; all **239 tests pass** (226 before Screen integration).
+  **No issues found!**; all **242 tests pass** (226 before Screen integration).
   All **84 screenshot cases pass**, including the source picker, unavailable-preview
   and default/minimum floating prompter in EN/FR/AR. The Windows debug build succeeds.
   Windows Git checkout converted generated
@@ -223,6 +223,19 @@ build step 2 (screen recording).
   contrast/Arabic metadata typography corrected. HUD slice was pushed in `cbfdad5`.
   **Next:** Screen + camera with separate crash-safe files and a shared pause clock;
   then system audio, companion and privacy-limited telemetry. Both remains disabled.
+- **Resume here (screen recorder slice 11, paired video core):** the native recorder
+  opens the exact chosen camera through Media Foundation and writes a separate silent
+  fragmented camera MP4. Screen and camera share every frame timestamp and pause gap;
+  microphone sound remains in the screen file. No fallback from a missing camera.
+  Asynchronous frames own their pixels, handle first-frame format/stride changes, and
+  drain before device release. Native generated-video checks pass normal pair capture,
+  stop while paused, camera loss, repeated camera open/close and plain Screen regression.
+  Dart validates paired arguments, camera counts and camera-loss status. No owner camera,
+  private desktop or microphone was used for these paired checks; fixtures stay ignored.
+  Analysis is clean, 242 tests pass and the normal Windows debug build succeeds.
+  **Half done:** the paired capture core is ready, but Both stays disabled until paired
+  manifests/recovery, excluded live camera bubble and normal setup/control wiring work.
+  Continue those next; the owner authorized continued work and will try everything later.
 - **Cue retest history (superseded by normal-app launch above):** `app/tool/cue_check.dart` is a development-only launch target.
   It uses the real Home/practice screens with memory-only scripts, settings and keys;
   optional recordings go under `app/build/cue-check/recordings`, on E: on this PC.
@@ -477,6 +490,16 @@ build step 2 (screen recording).
   word lists, not prosody.
 
 ## Session log
+
+- 2026-10-06, Windows recorder slice 11 (paired video core):
+  - Added exact-device asynchronous camera snapshots and a separate fragmented file
+    on the screen recording/pause clock. Camera loss saves the partial pair explicitly.
+    Microphone audio is recorded once in the screen file; no new dependency or copied code.
+  - Generated native pair checks pass normal capture, stop while paused and camera loss;
+    repeated camera lifecycle and plain Screen pause regression pass. Fixed the first
+    Media Foundation format-change callback before decoding the owned camera pixels.
+    Dart argument/count/error tests pass; analysis is clean, 242 tests pass and Windows
+    builds. Owner trials remain deferred; paired recovery/bubble/setup follow next.
 
 - 2026-10-05, Windows recorder slice 10 (normal Screen recording):
   - Connected protected countdown/HUD/reader, chosen capture/audio, Voice, pause,

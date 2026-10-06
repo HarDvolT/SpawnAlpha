@@ -288,6 +288,8 @@ class ScreenTakeController extends ChangeNotifier {
       'The source closed or became unavailable. The captured part is saved.',
     ScreenRecordingReason.microphone =>
       'The microphone disconnected. The captured part is saved.',
+    ScreenRecordingReason.camera =>
+        'The camera disconnected. The captured part is saved.',
     ScreenRecordingReason.encoder =>
       'Recording stopped early. The readable part is saved.',
     _ => null,

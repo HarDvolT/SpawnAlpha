@@ -2,6 +2,7 @@
 #include "gpu_video_writer.h"
 #include "microphone_capture.h"
 #include "recording_clock.h"
+#include "camera_capture.h"
 #include <d3d11_4.h>
 #include <dxgi.h>
 #include <windows.graphics.capture.interop.h>
@@ -43,11 +44,13 @@ struct CapturedFrame {
 struct ScreenRecordingCore::Impl : std::enable_shared_from_this<Impl> {
   ~Impl() { StopAndJoin(); }
   HRESULT Start(HMONITOR monitor, HWND window, const std::wstring& path,
-                const std::wstring& microphone_id, bool record_audio) {
-    if (worker.joinable() || (!monitor && !window) || (monitor && window) || path.empty()) return E_INVALIDARG;
+                const std::wstring& microphone_id, bool record_audio,
+                const std::wstring& camera_id, const std::wstring& camera_path) {
+    if (worker.joinable() || (!monitor && !window) || (monitor && window) || path.empty() ||
+        camera_id.empty() != camera_path.empty() || (!camera_path.empty() && camera_path == path)) return E_INVALIDARG;
     try {
-      worker = std::thread([this, monitor, window, path, microphone_id, record_audio] {
-        Run(monitor, window, path, microphone_id, record_audio);
+      worker = std::thread([this, monitor, window, path, microphone_id, record_audio, camera_id, camera_path] {
+        Run(monitor, window, path, microphone_id, record_audio, camera_id, camera_path);
       });
       return S_OK;
     } catch (...) { return winrt::to_hresult(); }
@@ -165,9 +168,12 @@ struct ScreenRecordingCore::Impl : std::enable_shared_from_this<Impl> {
     }
   }
   void Run(HMONITOR monitor, HWND window, const std::wstring& path,
-           const std::wstring& microphone_id, bool record_audio) noexcept {
-    bool initialized = false, writer_started = false;
+           const std::wstring& microphone_id, bool record_audio,
+           const std::wstring& camera_id, const std::wstring& camera_path) noexcept {
+    bool initialized = false, writer_started = false, camera_writer_started = false;
     GpuVideoWriter writer;
+    GpuVideoWriter camera_writer;
+    CameraCapture camera;
     MicrophoneCapture microphone;
     ScreenRecordingReason stage = ScreenRecordingReason::source;
     try {
@@ -207,6 +213,29 @@ struct ScreenRecordingCore::Impl : std::enable_shared_from_this<Impl> {
       const double scale = std::min(1.0, 1920.0 / std::max(first->width, first->height));
       const UINT width = std::max<UINT>(2, static_cast<UINT>(first->width * scale) / 2 * 2);
       const UINT height = std::max<UINT>(2, static_cast<UINT>(first->height * scale) / 2 * 2);
+      if (!camera_id.empty()) {
+        stage = ScreenRecordingReason::camera;
+#ifdef SPAWNALPHA_CAMERA_FIXTURE
+        check_hresult(camera.OpenFixture(camera_id));
+#else
+        check_hresult(camera.Open(camera_id));
+#endif
+        const auto camera_wait = QpcTime();
+        std::shared_ptr<const CameraFrame> camera_first;
+        while (!stop && !camera.Failed() && QpcTime() - camera_wait < 5 * kSecond) {
+          camera_first = camera.Latest(); if (camera_first) break; Sleep(5);
+        }
+        if (stop) { Fail(ScreenRecordingReason::cancelled); throw hresult_error(E_ABORT); }
+        if (!camera_first || camera.Failed()) throw hresult_error(E_FAIL);
+        const double camera_scale = std::min(1.0, 1280.0 / std::max(camera_first->width, camera_first->height));
+        const UINT camera_width = std::max<UINT>(2, static_cast<UINT>(camera_first->width * camera_scale) / 2 * 2);
+        const UINT camera_height = std::max<UINT>(2, static_cast<UINT>(camera_first->height * camera_scale) / 2 * 2);
+        stage = ScreenRecordingReason::encoder;
+        // Camera stays a separate, silent fragmented MP4. Chosen microphone
+        // audio lives in the screen file once, on the same recording clock.
+        check_hresult(camera_writer.Start(device.get(), camera_path, camera_width, camera_height, kFramesPerSecond));
+        camera_writer_started = true;
+      }
       if (record_audio) {
         stage = ScreenRecordingReason::microphone;
         check_hresult(microphone.Open(microphone_id));
@@ -233,6 +262,10 @@ struct ScreenRecordingCore::Impl : std::enable_shared_from_this<Impl> {
           Fail(ScreenRecordingReason::source); break;
         }
         const LONGLONG now = QpcTime();
+        const auto camera_frame = camera_id.empty() ? nullptr : camera.Latest();
+        if (!camera_id.empty() && (camera.Failed() || !camera_frame || now - camera_frame->arrived_100ns > 5 * kSecond)) {
+          Fail(ScreenRecordingReason::camera); break;
+        }
         if (paused != wanted_paused.load()) {
           paused = wanted_paused.load();
           clock.Pause(paused, now);
@@ -250,8 +283,21 @@ struct ScreenRecordingCore::Impl : std::enable_shared_from_this<Impl> {
             const LONGLONG time = static_cast<LONGLONG>(next_frame) * kSecond / kFramesPerSecond;
             stage = ScreenRecordingReason::encoder;
             check_hresult(writer.WriteFrame(frame->texture.get(), frame->width, frame->height, time));
+            if (camera_frame) {
+              D3D11_TEXTURE2D_DESC camera_desc{};
+              camera_desc.Width = camera_frame->width; camera_desc.Height = camera_frame->height;
+              camera_desc.MipLevels = 1; camera_desc.ArraySize = 1;
+              camera_desc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
+              camera_desc.SampleDesc.Count = 1; camera_desc.Usage = D3D11_USAGE_DEFAULT;
+              camera_desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+              const D3D11_SUBRESOURCE_DATA pixels{camera_frame->bgra.data(), camera_frame->width * 4, 0};
+              com_ptr<ID3D11Texture2D> camera_texture;
+              check_hresult(device->CreateTexture2D(&camera_desc, &pixels, camera_texture.put()));
+              check_hresult(camera_writer.WriteFrame(camera_texture.get(), camera_frame->width, camera_frame->height, time));
+            }
             std::lock_guard<std::mutex> lock(status_mutex);
-            ++status.frames; status.duration_100ns = time + kSecond / kFramesPerSecond;
+            ++status.frames; if (camera_frame) ++status.camera_frames;
+            status.duration_100ns = time + kSecond / kFramesPerSecond;
           }
           ++next_frame;
         }
@@ -264,6 +310,7 @@ struct ScreenRecordingCore::Impl : std::enable_shared_from_this<Impl> {
     }
     stop = true;
     microphone.Stop();
+    camera.Stop();
     CloseCapture();
     if (writer_started) {
       SetState(ScreenRecordingState::saving);
@@ -271,6 +318,8 @@ struct ScreenRecordingCore::Impl : std::enable_shared_from_this<Impl> {
     }
     // Release all WinRT/COM objects before uninitializing the worker apartment.
     writer.Finish();
+    if (camera_writer_started && FAILED(camera_writer.Finish())) Fail(ScreenRecordingReason::encoder);
+    camera_writer.Finish();
     rt_device = nullptr; context = nullptr; device = nullptr;
     if (initialized) uninit_apartment();
     const auto result = Status();
@@ -295,8 +344,9 @@ struct ScreenRecordingCore::Impl : std::enable_shared_from_this<Impl> {
 ScreenRecordingCore::ScreenRecordingCore() : impl_(std::make_shared<Impl>()) {}
 ScreenRecordingCore::~ScreenRecordingCore() { impl_->StopAndJoin(); }
 HRESULT ScreenRecordingCore::Start(HMONITOR monitor, HWND window, const std::wstring& path,
-                                  const std::wstring& microphone_id, bool record_audio) {
-  return impl_->Start(monitor, window, path, microphone_id, record_audio);
+                                  const std::wstring& microphone_id, bool record_audio,
+                                  const std::wstring& camera_id, const std::wstring& camera_path) {
+  return impl_->Start(monitor, window, path, microphone_id, record_audio, camera_id, camera_path);
 }
 void ScreenRecordingCore::RequestStop() { impl_->stop = true; }
 void ScreenRecordingCore::SetPaused(bool paused) { impl_->wanted_paused = paused; }

@@ -67,7 +67,7 @@ class TestRecorder implements ScreenRecordings {
   @override
   bool get supported => true;
   @override
-  Future<ScreenRecordingHandle> start({required ScreenSource source, required String path, required bool recordAudio, String? microphoneId}) async {
+  Future<ScreenRecordingHandle> start({required ScreenSource source, required String path, required bool recordAudio, String? microphoneId, String? cameraId, String? cameraPath}) async {
     expect(await File(path.replaceFirst('-screen.mp4', '.json')).exists(), isTrue);
     events.add('capture'); audio = recordAudio; microphone = microphoneId;
     await File(path).writeAsString('fixture', flush: true);

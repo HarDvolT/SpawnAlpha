@@ -80,8 +80,94 @@ void main() {
     expect(status.reason, ScreenRecordingReason.source);
     expect(status.duration, const Duration(seconds: 3));
     expect(status.audioFrames, 144000);
+    expect(status.cameraFrames, 0);
     expect(status.loudestRmsDb, -12);
   });
+
+  test('paired start sends only the chosen camera and separate file', () async {
+    MethodCall? request;
+    messenger.setMockMethodCallHandler(WindowsScreenRecordings.channel, (
+      call,
+    ) async {
+      request = call;
+      return {'sessionId': 8};
+    });
+    await backend.start(
+      source: source,
+      path: 'local/screen.mp4',
+      recordAudio: false,
+      cameraId: 'chosen-camera-link',
+      cameraPath: 'local/camera.mp4',
+    );
+    expect(request!.arguments, {
+      'sourceId': source.id,
+      'path': 'local/screen.mp4',
+      'recordAudio': false,
+      'cameraId': 'chosen-camera-link',
+      'cameraPath': 'local/camera.mp4',
+    });
+  });
+
+  test('rejects incomplete camera choices before asking Windows', () async {
+    var calls = 0;
+    messenger.setMockMethodCallHandler(WindowsScreenRecordings.channel, (
+      _,
+    ) async {
+      calls++;
+      return {'sessionId': 8};
+    });
+    for (final choice in [
+      ('chosen', null),
+      (null, 'local/camera.mp4'),
+      ('', 'local/camera.mp4'),
+      ('chosen', ''),
+      ('chosen', 'local/screen.mp4'),
+    ]) {
+      await expectLater(
+        backend.start(
+          source: source,
+          path: 'local/screen.mp4',
+          recordAudio: false,
+          cameraId: choice.$1,
+          cameraPath: choice.$2,
+        ),
+        throwsArgumentError,
+      );
+    }
+    expect(calls, 0);
+  });
+
+  test(
+    'camera loss maps partial paired counts and rejects invalid counts',
+    () async {
+      final reply = <String, Object?>{
+        'state': 'finished',
+        'reason': 'camera',
+        'width': 640,
+        'height': 360,
+        'frames': 30,
+        'cameraFrames': 30,
+        'audioFrames': 0,
+        'durationUs': 1000000,
+        'peakDb': -100,
+        'rmsDb': -100,
+        'loudestRmsDb': -100,
+      };
+      messenger.setMockMethodCallHandler(
+        WindowsScreenRecordings.channel,
+        (_) async => reply,
+      );
+      final status = await backend.status(const ScreenRecordingHandle(8));
+      expect(status.reason, ScreenRecordingReason.camera);
+      expect(status.cameraFrames, status.frames);
+      expect(status.terminal, isTrue);
+      reply['cameraFrames'] = -1;
+      await expectLater(
+        backend.status(const ScreenRecordingHandle(8)),
+        throwsFormatException,
+      );
+    },
+  );
 
   test(
     'old-session status is terminal and stop identifies only its session',
@@ -102,12 +188,12 @@ void main() {
       await backend.stop(handle);
       expect(request!.method, 'stop');
       expect(request!.arguments, {'sessionId': 3});
-    await backend.pause(handle, true);
-    expect(request!.method, 'pause');
-    expect(request!.arguments, {'sessionId': 3, 'paused': true});
-    await backend.release(handle);
-    expect(request!.method, 'release');
-    expect(request!.arguments, {'sessionId': 3});
+      await backend.pause(handle, true);
+      expect(request!.method, 'pause');
+      expect(request!.arguments, {'sessionId': 3, 'paused': true});
+      await backend.release(handle);
+      expect(request!.method, 'release');
+      expect(request!.arguments, {'sessionId': 3});
     },
   );
 
