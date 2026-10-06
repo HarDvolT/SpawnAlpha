@@ -14,7 +14,7 @@ a separate fragmented file, chosen-microphone AAC, Voice
 pace, pause/resume, reader hide/show/Lock and durable local saving/recovery are connected.
 The full generated Screen, Both and computer-sound takes pass on this PC. Computer sound
 is available with an explicit switch, initially off. The cursor companion is connected
-and protected; optional local activity is connected and tested. Longer recording and abrupt-exit recovery checks pass; the render-core spike is next. Owner hardware trials are deferred until
+and protected; optional local activity is connected and tested. Longer recording and abrupt-exit recovery checks pass; the native render-core spike also passes. Word alignment is next. Owner hardware trials are deferred until
 they return.** The build order is in
 [product-brief.md](product-brief.md#build-order); it was revised on 2026-09-30.
 
@@ -38,7 +38,7 @@ build step 2 (screen recording).
   `flutter_secure_storage_windows`). `flutter doctor -v` passes Windows, Visual Studio,
   desktop device and network checks. Android is intentionally not installed yet.
 - **Local checks and launch:** `flutter pub get` succeeds; `flutter analyze` prints
-  **No issues found!**; all **321 tests pass** (226 before Screen integration).
+  **No issues found!**; all **328 tests pass** (226 before Screen integration).
   All **112 screenshot cases pass**, including the source picker, unavailable-preview
   and default/minimum floating prompter in EN/FR/AR. The Windows debug build succeeds.
   Windows Git checkout converted generated
@@ -373,11 +373,34 @@ build step 2 (screen recording).
   recovers the pair once. A 30-second generated-window take with resize and three pauses decodes
   correctly and shows 0 MiB additional private-memory growth after warm-up. This is a short soak,
   not proof of hour-long performance. No owner desktop/typing/camera/sound was saved in checks.
-  Native core is pushed in d0571fd; UI/storage/recovery integration is ready to push next.
+  Native core is pushed in d0571fd; UI/storage/recovery integration is pushed in 5d6d382.
   **Half done:** owner hardware, multi-monitor DPI, capture-exclusion and longer real-session
   trials remain deferred by request. Native cursor is still baked into raw WGC video;
   replacement/smoothing must be designed alongside the Cut's clean-source preview.
   **Next:** the approved native render-core spike, then on-device word alignment (build step 3).
+- **Render-core risk spike (nineteenth slice, 2026-10-06):** the explicit, non-shipping
+  render_core_check target generates its own four-second H.264/AAC source, reads two
+  GPU-backed tracks, crops/zooms/composites and joins [1s,2s) with [3s,4s). The saved result
+  decodes to 60 ordered frames with verified pixels and the correct 440/880 Hz sound;
+  skipped 220/660 Hz sound is absent. Debug and Release pass; Release renders this
+  two-second 640 x 360 cut in about 0.44 seconds. No new dependency, copied code, bundled
+  codec or owner capture. Decoder frame-interval selection and releasing all COM/GPU
+  objects before shutdown fixed issues found by the spike. Read render-core-spike.md
+  for scope, limitations and reproduction; this is not a shipping Cut/preview/export UI.
+  A pure immutable portable cut plan now validates EN/FR/AR, source intervals, joins,
+  retake reordering and JSON round trips without file paths or platform fields.
+  Final activity hardening (pushed in 3ad86d5) excludes reserved reader shortcuts, tracks modifiers in
+  event order, skips typing from windows spanning outside the selected display, and
+  tolerates sub-millisecond container rounding without hiding truncated activity.
+  An unavailable receiver gives a plain Switch Activity off retry message.
+  All 328 tests and 112 layout cases pass; analysis is clean; normal release builds pass.
+  **Half done:** owner hardware/comfort/exclusion/multi-monitor and hour-long trials
+  are still deferred. Styled Cut captions/masks/blur, clean cursor sources, bounded PCM
+  export/preview/cancellation and mobile render implementations are not built.
+  **Next build step:** on-device word transcription/alignment (step 3), followed by
+  Director's Cut (step 4). Keep all new tool/runtime/model files on E: and licence-check
+  any speech model/dependency before adding it. The normal main.dart app is open at
+  1280 x 720 for the owner's later trial; do not leave a fixture launch target active.
 - **Cue retest history (superseded by normal-app launch above):** `app/tool/cue_check.dart` is a development-only launch target.
   It uses the real Home/practice screens with memory-only scripts, settings and keys;
   optional recordings go under `app/build/cue-check/recordings`, on E: on this PC.
@@ -461,10 +484,10 @@ build step 2 (screen recording).
 | Compliance groundwork ([compliance.md](compliance.md)) | Rules and checklist written, licence page in the app, no secrets in the repo. Legal documents and filings are still to do |
 | Windows display/window selection and live preview | Built/tested locally and owner-confirmed; pushed in `d85687e` / `18170a6` |
 | Excluded floating prompter | Built/tested and connected to Screen/Both recording, native exclusion and protected take checks pass; owner placement/shortcut trials deferred |
-| Screen and Screen + camera recording, cursor companion, telemetry | Screen and Both enabled; complete generated protected takes pass, chosen mic/camera, optional computer sound, shared pause, separate files and save/recovery built/tested. Protected companion connected with camera choice and reduced motion. Telemetry remains; owner hardware trials deferred. |
-| Director's Cut (auto-edit, captions, auto-zoom, finish screen) | Designed (`docs/design/autoedit.md`). Not built; needs a native render core. |
+| Screen and Screen + camera recording, cursor companion, telemetry | Screen and Both enabled; complete generated protected takes pass, chosen mic/camera, optional computer sound, shared pause, separate files and save/recovery built/tested. Protected companion connected with camera choice and reduced motion. Optional scoped activity and partial recovery are connected/tested; owner hardware trials deferred. |
+| Director's Cut (auto-edit, captions, auto-zoom, finish screen) | Designed (`docs/design/autoedit.md`). Native decode/compose/cut/AAC spike and portable EDL foundation pass; full alignment, exporter and finish UI remain to build. |
 
-301 tests pass (`cd app && flutter test`), 109 screenshot cases pass, and `flutter analyze` is clean.
+328 tests pass (`cd app && flutter test`), 112 screenshot cases pass, and `flutter analyze` is clean.
 
 ## Next steps
 
@@ -513,16 +536,23 @@ build step 2 (screen recording).
 7. Polish found while testing: an in-app list of takes with playback (needs a
    video player that supports Windows), and an easier way to extend a pace or
    energy span beyond one sentence.
-8. Then **build step 2, the Windows recorder**:
+8. **Build step 2 is implemented and checked locally; owner hardware trials remain deferred:**
    - Camera, Screen, and Screen + camera.
    - The prompter window, HUD and cursor companion, all hidden from capture.
    - Cursor, click and key-burst telemetry.
    - Fragmented MP4.
-   - A spike of the render core for the Director's Cut.
+   - Native render-core spike: done; see `render-core-spike.md`. Full Cut remains step 4.
 
+   Next is **build step 3: on-device word alignment** in EN/FR/AR, then step 4's Cut.
    See OpenScreen in the brief for reusable parts.
 
 ## Decisions
+
+- 2026-10-06, implementation direction: Windows rendering starts with the existing
+  C++ Media Foundation/D3D11 stack; the generated GPU cut/zoom/inset/AAC spike passes
+  without introducing FFmpeg or another runtime. Keep the EDL renderer-independent.
+  The final cross-platform native/FFI boundary is still open. Activity is initially
+  off per setup visit; its defaults still need the owner's deferred trial.
 
 - 2026-10-06, Windows implementation of the approved companion design: reuse the
   existing reader/timeline, keep the camera card docked until an explicit follow choice,
@@ -611,8 +641,8 @@ build step 2 (screen recording).
 
 ## Open questions (from the brief)
 
-- Which render core should the Director's Cut use (native encoders or an LGPL FFmpeg, GPU
-  compositing, through FFI)? Spike it early.
+- The Windows native render candidate passes; settle the mobile GPU/codec backends and
+  final native/FFI boundary when the full Cut exporter is built.
 - How good is word alignment for Moroccan Darija and Darija–French switching? The review and
   the Cut both depend on it.
 - Which cloud model to use for markup, and how much the free tier includes.
@@ -642,6 +672,18 @@ build step 2 (screen recording).
   word lists, not prosody.
 
 ## Session log
+
+- 2026-10-06, Windows recorder slices 18/19:
+  - Connected optional anonymous activity, exact pause timing, flushed sidecars and
+    durable partial recovery. Generated full-process crash/reopen and 30-second
+    resize/three-pause checks pass; no owner data was recorded. Fixed clipping to the
+    surviving video and retained privacy under source/shortcut/modifier changes.
+  - Completed the GPU render-risk spike and portable EN/FR/AR cut plan. Two kept ranges
+    re-encode to verified video/audio in about 0.44 seconds for this small Release fixture.
+    Readers/COM/GPU teardown is safe. The real Cut UI/exporter and ASR remain future steps.
+  - All 328 tests, 112 screenshots, clean analysis and normal Windows release builds.
+    Native activity privacy/lifecycle, full protected generated take, abrupt-exit
+    recovery and Debug/Release rendering checks pass. Owner trials remain deferred.
 
 - 2026-10-06, Windows recorder slice 17 (cursor companion):
   - Added the protected compact reader, follow spring, edge flipping, stillness docking,

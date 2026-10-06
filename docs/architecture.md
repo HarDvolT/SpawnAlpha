@@ -503,7 +503,9 @@ recordings folder.
   `RecordingActivity` owns one message-only raw-input receiver thread and a 60 Hz
   high-resolution cursor timer. It respects an existing raw-input registration,
   never suppresses legacy input, and releases registration/timer/window on stop.
-  Source-window/root and display bounds filter input; own-process windows are
+  Source-window/root and display bounds filter input; display typing requires a
+  fully contained foreground window. Modifier-only state tracks raw events in order,
+  including key releases, and reserved prompter shortcuts are dropped. Own-process windows are
   excluded from cursor, clicks and focus. Only anonymous key counts and a fixed
   Ctrl shortcut enum enter the bounded queue. No characters, scan codes, device
   IDs, window handles or titles enter disk serialization. The encoding worker
@@ -520,6 +522,11 @@ recordings folder.
   `tool/native_activity_take_check.dart` exercises full protected saving; `crash`
   exits deliberately, then `recover <generated fixture directory>` tests actual
   partial video/sidecar recovery. No owner input or private desktop is saved.
+- **Render-core spike and portable plan:** see [render-core-spike.md](render-core-spike.md).
+  The non-shipping generated check verifies GPU NV12 decoding, two-stream composition,
+  source-range cuts and matching AAC against the existing encoder. The pure immutable
+  `model/cut_plan.dart` uses half-open source intervals, maps continuous output time and
+  carries no file paths/platform data. This is a foundation, not an enabled export UI.
 - **SettingsScreen**: the markup source, API key, model, default style, text
   size and mirror setting, plus **Privacy and licences**: what leaves the
   device, and the licence page (`showLicensePage`).

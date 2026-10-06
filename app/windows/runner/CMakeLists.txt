@@ -175,3 +175,10 @@ target_compile_features(recording_activity_runtime_check PRIVATE cxx_std_17)
 target_compile_options(recording_activity_runtime_check PRIVATE /W4 /WX /EHsc /wd"4100")
 target_compile_definitions(recording_activity_runtime_check PRIVATE "NOMINMAX")
 target_link_libraries(recording_activity_runtime_check PRIVATE "user32.lib" "dwmapi.lib")
+
+# Generated-media-only GPU decode/compose/trim/re-encode risk spike. Explicit.
+add_executable(render_core_check EXCLUDE_FROM_ALL "gpu_video_writer.cpp" "tests/render_core_check.cpp")
+target_compile_features(render_core_check PRIVATE cxx_std_17)
+target_compile_options(render_core_check PRIVATE /W4 /WX /EHsc /wd"4100")
+target_compile_definitions(render_core_check PRIVATE "NOMINMAX")
+target_link_libraries(render_core_check PRIVATE "d3d11.lib" "dxgi.lib" "mf.lib" "mfplat.lib" "mfreadwrite.lib" "mfuuid.lib" "ole32.lib" "oleaut32.lib" "windowsapp.lib")

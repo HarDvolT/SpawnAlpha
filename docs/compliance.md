@@ -182,6 +182,7 @@ person using the app.
 
 | Item | Status |
 |---|---|
+| Windows render-core risk spike and portable EDL | Checked 2026-10-06 in Debug/Release with generated colour/tone files only. Uses installed D3D11/Media Foundation; no dependency, bundled codec, copied code, model or owner media/input. EDL has no paths/platform IDs. Full exporter/captions/mobile pipeline and launch legal review remain pending; see render-core-spike.md |
 | Optional Windows recording activity: explicit local-only choice, anonymous typing, source scoping, safe recovery | Implemented 2026-10-06. Initially off; setup explains what is saved and never typed text. Fixed Ctrl shortcut allowlist, no AltGr text translation, scan codes, titles, handles or device IDs. Raw-input receiver does not consume owner input and stops with capture. Bounded queue/streaming inspection, no private logs/network/dependency/copied code. Pure privacy/common-clock, in-memory own-window exclusion and generated full-take checks pass. Owner trials deferred |
 | Font licences bundled and shown | Done |
 | In-app licence page (Settings, Privacy and licences) | Done |
