@@ -33,6 +33,9 @@ bool FlutterWindow::OnCreate() {
   floating_prompter_ = std::make_unique<FloatingPrompterHost>(GetHandle(), project_, registrar->messenger());
   screen_recorder_ = std::make_unique<ScreenRecorder>(registrar->messenger());
   recording_hud_ = std::make_unique<RecordingHud>(GetHandle(), project_, registrar->messenger());
+  camera_bubble_ = std::make_unique<CameraBubbleHost>(project_, registrar->messenger(), [this] {
+    return screen_recorder_ ? screen_recorder_->LatestCamera() : nullptr;
+  });
   SetChildContent(flutter_controller_->view()->GetNativeWindow());
 
   flutter_controller_->engine()->SetNextFrameCallback([&]() {
@@ -49,6 +52,7 @@ bool FlutterWindow::OnCreate() {
 
 void FlutterWindow::OnDestroy() {
   screen_recorder_.reset();
+  camera_bubble_.reset();
   recording_hud_.reset();
   floating_prompter_.reset();
   screen_preview_.reset();

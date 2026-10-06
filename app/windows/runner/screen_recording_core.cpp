@@ -173,7 +173,6 @@ struct ScreenRecordingCore::Impl : std::enable_shared_from_this<Impl> {
     bool initialized = false, writer_started = false, camera_writer_started = false;
     GpuVideoWriter writer;
     GpuVideoWriter camera_writer;
-    CameraCapture camera;
     MicrophoneCapture microphone;
     ScreenRecordingReason stage = ScreenRecordingReason::source;
     try {
@@ -326,6 +325,7 @@ struct ScreenRecordingCore::Impl : std::enable_shared_from_this<Impl> {
     SetState(result.frames ? ScreenRecordingState::finished : ScreenRecordingState::failed);
   }
   std::thread worker;
+  CameraCapture camera;
   std::atomic<bool> stop{false}, source_closed{false}, capture_failed{false}, wanted_paused{false};
   mutable std::mutex status_mutex;
   ScreenRecordingStatus status{};
@@ -351,3 +351,4 @@ HRESULT ScreenRecordingCore::Start(HMONITOR monitor, HWND window, const std::wst
 void ScreenRecordingCore::RequestStop() { impl_->stop = true; }
 void ScreenRecordingCore::SetPaused(bool paused) { impl_->wanted_paused = paused; }
 ScreenRecordingStatus ScreenRecordingCore::Status() const { return impl_->Status(); }
+std::shared_ptr<const CameraFrame> ScreenRecordingCore::LatestCamera() const { return impl_->camera.Latest(); }

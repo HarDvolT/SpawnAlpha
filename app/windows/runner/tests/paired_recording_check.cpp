@@ -1,5 +1,6 @@
 // Both files use synthetic images. No private desktop, camera or microphone.
 #include "../screen_recording_core.h"
+#include "../camera_capture.h"
 #include <mfapi.h>
 #include <mfidl.h>
 #include <mfreadwrite.h>
@@ -59,6 +60,8 @@ int wmain(int count, wchar_t** args) {
     ULONGLONG origin = 0;
     bool paused = false, resumed = false, stopped = false;
     UINT64 held_frames = 0; LONGLONG held_duration = -1;
+    std::shared_ptr<const CameraFrame> preview;
+    LONGLONG held_arrival = 0; bool preview_live_while_paused = false;
     while (GetTickCount64() < deadline) {
       MSG msg{}; while (PeekMessageW(&msg, nullptr, 0, 0, PM_REMOVE)) { TranslateMessage(&msg); DispatchMessageW(&msg); }
       const auto state = capture.Status();
@@ -71,6 +74,10 @@ int wmain(int count, wchar_t** args) {
         if (state.state == ScreenRecordingState::paused) {
           if (held_duration < 0) { held_frames = state.frames; held_duration = state.duration_100ns; }
           Require(state.frames == held_frames && state.duration_100ns == held_duration);
+          const auto current = capture.LatestCamera();
+          Require(current && current->bgra.size() == static_cast<size_t>(current->width) * current->height * 4);
+          if (!preview) { preview = current; held_arrival = current->arrived_100ns; }
+          if (current->arrived_100ns > held_arrival) preview_live_while_paused = true;
         }
         if (!stop_paused && !resumed && elapsed > 1700) { capture.SetPaused(false); resumed = true; }
         if (!camera_loss && !stopped && elapsed > (stop_paused ? 1700U : 2800U)) { capture.RequestStop(); stopped = true; }
@@ -81,6 +88,7 @@ int wmain(int count, wchar_t** args) {
     Require(paused && held_duration >= 0 && (resumed || stop_paused) && (stopped || camera_loss));
     Require(state.reason == (camera_loss ? ScreenRecordingReason::camera : ScreenRecordingReason::none));
     Require(state.state == ScreenRecordingState::finished && state.frames >= (stop_paused || camera_loss ? 15U : 45U) && state.frames == state.camera_frames);
+    Require(preview_live_while_paused && preview && !preview->bgra.empty() && !capture.LatestCamera());
     stage = "decode paired files"; winrt::check_hresult(MFStartup(MF_VERSION));
     const auto screen = Decode(args[1]), camera = Decode(args[2]);
     Require(screen.first == state.frames && camera.first == state.frames && screen.second == camera.second);

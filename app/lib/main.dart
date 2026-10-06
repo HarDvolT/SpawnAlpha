@@ -11,12 +11,16 @@ import 'src/storage/script_store.dart';
 import 'src/storage/settings.dart';
 import 'src/ui/floating_prompter_screen.dart';
 import 'src/ui/recording_hud_screen.dart';
+import 'src/ui/camera_bubble_screen.dart';
 
 @pragma('vm:entry-point')
 Future<void> floatingPrompterMain() => runFloatingPrompter();
 
 @pragma('vm:entry-point')
 Future<void> recordingHudMain() => runRecordingHud();
+
+@pragma('vm:entry-point')
+Future<void> cameraBubbleMain() => runCameraBubble();
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();

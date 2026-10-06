@@ -401,6 +401,8 @@ abstract final class SaPrompter {
   static const double countdownWindowSize = 320.0;
   /// Live microphone meter in the recording HUD.
   static const double micMeterHeight = 3.0;
+  /// Diameter of the excluded desktop camera self-view beside the reader.
+  static const double cameraBubbleSize = 240.0;
 }
 
 /// Defaults for the automatic edit of screen recordings.

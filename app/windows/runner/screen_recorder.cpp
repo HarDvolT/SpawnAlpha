@@ -173,4 +173,7 @@ struct ScreenRecorder::Impl {
   int64_t probe_generation = 0;
 };
 ScreenRecorder::ScreenRecorder(flutter::BinaryMessenger* messenger) : impl_(std::make_unique<Impl>(messenger)) {}
+std::shared_ptr<const CameraFrame> ScreenRecorder::LatestCamera() const {
+  return impl_->active ? impl_->active->LatestCamera() : nullptr;
+}
 ScreenRecorder::~ScreenRecorder() = default;

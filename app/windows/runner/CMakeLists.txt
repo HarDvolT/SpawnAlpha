@@ -18,6 +18,7 @@ add_executable(${BINARY_NAME} WIN32
   "recording_probe.cpp"
   "recording_hud.cpp"
   "camera_capture.cpp"
+  "camera_bubble.cpp"
   "main.cpp"
   "utils.cpp"
   "win32_window.cpp"

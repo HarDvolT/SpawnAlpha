@@ -167,6 +167,14 @@ disabled until separate camera files share this clock and recovery flow.
 ### Screen + camera, on a desktop
 - Everything in Screen mode, plus a **camera bubble** (`radius-full`) the speaker can see. The bubble is a preview only and is excluded from capture, because the camera is recorded to its own file.
 - Park the bubble beside the prompter, under the webcam, so both sit near the lens. In the Cut, a bubble that would cover the cursor or a zoom target slides to the nearest free corner on `spring-smooth`.
+- The Windows bubble uses `camera-bubble-size`, with circular native and Flutter bounds.
+  It verifies exclusion before becoming visible, initially says **Camera starts at go**,
+  then uses the recording camera's latest owned frame without opening a second camera.
+  A glass strip says **Hidden from recording** and shows the chosen camera's display name.
+  Drag the strip to move it; **Hide camera preview** hides only this self-view. The camera
+  file keeps recording. Closing/finalizing the take destroys the bubble. Pausing holds
+  saved pictures while the self-view stays live for framing. Failed exclusion prevents
+  a Both take from starting. File paths and opaque camera IDs never reach this child.
 - After recording, pick a layout: **Bubble** (a circle in any corner, a quarter of the frame's height), **Side by side** (screen 70%, camera 30%), **Camera only**, **Screen only**. With section retakes (step 4), the layout can change per section.
 
 ### Screen, on a phone (later)

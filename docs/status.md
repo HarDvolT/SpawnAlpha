@@ -36,8 +36,8 @@ build step 2 (screen recording).
   `flutter_secure_storage_windows`). `flutter doctor -v` passes Windows, Visual Studio,
   desktop device and network checks. Android is intentionally not installed yet.
 - **Local checks and launch:** `flutter pub get` succeeds; `flutter analyze` prints
-  **No issues found!**; all **249 tests pass** (226 before Screen integration).
-  All **84 screenshot cases pass**, including the source picker, unavailable-preview
+  **No issues found!**; all **256 tests pass** (226 before Screen integration).
+  All **90 screenshot cases pass**, including the source picker, unavailable-preview
   and default/minimum floating prompter in EN/FR/AR. The Windows debug build succeeds.
   Windows Git checkout converted generated
   tokens to CRLF, causing the exact-generation test to fail: `.gitattributes` now keeps
@@ -246,6 +246,19 @@ build step 2 (screen recording).
   duplicate pairs. EN/FR/AR and partial/retry tests pass; analysis is clean, 249 tests pass.
   Native core slice 11 was pushed in `149e27c`. **Next:** excluded live camera bubble,
   paired controller/setup and a clear partial-camera warning; Both is still disabled.
+- **Resume here (screen recorder slice 13, excluded camera bubble):** a separate
+  circular Flutter/native self-view verifies exclusion before its first visible frame.
+  It reads owned camera snapshots from the recording core, converts only preview pixels
+  to a leased Flutter texture, and opens no second device. It starts beside the reader,
+  supports dragging and preview-only Hide, and receives only display name/geometry.
+  Both saved videos pause while its live framing feed continues; native generated-frame
+  checks verify this and retained snapshots after stop. The native window smoke check
+  passes exclusion-before-visibility, stale close and repeated open/close without opening
+  the owner's camera. EN/FR/AR layout/control tests and six screenshots pass; the small
+  privacy label was simplified after PNG inspection. Analysis is clean, 256 tests and
+  90 screenshot cases pass; Windows builds. Slice 12 was pushed in `fdeef2b`.
+  **Next:** connect bubble ownership/partial warnings and selected-camera handoff to
+  normal Both setup, then owner camera/microphone trials. Both remains disabled so far.
 - **Cue retest history (superseded by normal-app launch above):** `app/tool/cue_check.dart` is a development-only launch target.
   It uses the real Home/practice screens with memory-only scripts, settings and keys;
   optional recordings go under `app/build/cue-check/recordings`, on E: on this PC.
@@ -500,6 +513,15 @@ build step 2 (screen recording).
   word lists, not prosody.
 
 ## Session log
+
+- 2026-10-06, Windows recorder slice 13 (excluded camera bubble):
+  - Added the design-sized circular self-view, exclusion before visibility, recorder-owned
+    frames/leased texture, native drag and preview-only hide. No second camera stream,
+    file/device IDs in child, private logs, new dependency or input hooks.
+  - Native window lifetime/exclusion smoke and paired live-preview-during-pause check
+    pass. EN/FR/AR controls/layout and waiting/live screenshot cases pass; inspected EN/AR
+    PNGs and reduced wrapping in the privacy label. Analysis is clean, 256 tests and
+    90 screenshots pass; Windows builds. Both setup/controller integration remains next.
 
 - 2026-10-06, Windows recorder slice 12 (paired storage/recovery):
   - Flushed both file reservations and chosen-camera display metadata before capture,

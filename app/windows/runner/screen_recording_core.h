@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <memory>
 #include <string>
+struct CameraFrame;
 
 enum class ScreenRecordingState { starting, recording, paused, saving, finished, failed };
 enum class ScreenRecordingReason { none, cancelled, source, microphone, encoder, camera };
@@ -29,6 +30,7 @@ class ScreenRecordingCore {
   void RequestStop();
   void SetPaused(bool paused);
   ScreenRecordingStatus Status() const;
+  std::shared_ptr<const CameraFrame> LatestCamera() const;
  private:
   struct Impl;
   std::shared_ptr<Impl> impl_;

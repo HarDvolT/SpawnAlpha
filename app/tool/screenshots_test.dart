@@ -48,6 +48,8 @@ import 'package:spawnalpha/src/ui/screen_preview_screen.dart';
 import 'package:spawnalpha/src/ui/floating_prompter_screen.dart';
 import 'package:spawnalpha/src/ui/recording_hud_screen.dart';
 import 'package:spawnalpha/src/recording/recording_hud.dart';
+import 'package:spawnalpha/src/recording/camera_bubble.dart';
+import 'package:spawnalpha/src/ui/camera_bubble_screen.dart';
 
 import 'fixtures/cue_check_scripts.dart';
 
@@ -514,6 +516,18 @@ void main() {
     final script = await _markedUp(sampleScripts()[0]);
     await shoot(tester, 'record-no-camera', phone, (_) => RecordScreen(script: script), [script]);
   });
+
+  for (final (language, name) in [('en', 'Chosen camera'), ('fr', 'Caméra choisie'), ('ar', 'الكاميرا المختارة')]) {
+    for (final live in [false, true]) {
+      testWidgets('camera bubble $language $live', (tester) async {
+        await shoot(tester, 'camera-bubble-$language-${live ? 'live' : 'waiting'}',
+          Size.square(SaPrompter.cameraBubbleSize),
+          (_) => CameraBubbleScreen(initial: CameraBubbleState(name: name,
+            live: live, textureId: 1, width: 1280, height: 720),
+            preview: ColoredBox(color: SaPalette.dark.stageTintSlower)), []);
+      });
+    }
+  }
 
   for (final (name, at) in [('countdown-landing', 70), ('countdown', 700)]) {
     testWidgets(name, (tester) async {

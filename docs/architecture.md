@@ -431,8 +431,17 @@ recordings folder.
   paths before capture and verifies their dimensions/durations independently. Paired
   recovery restricts camera paths/links too; missing/unreadable camera output retains
   the useful Screen take, local camera bytes and explicit cameraReadable metadata.
-  EN/FR/AR edits and failed-save retries preserve one pair. The excluded live camera
-  bubble and normal Both setup integration remain next, so Both stays off.
+  EN/FR/AR edits and failed-save retries preserve one pair.
+- **Excluded camera self-view (thirteenth slice):** `CameraBubbleHost` verifies affinity
+  before visibility and starts a separate retained `cameraBubbleMain` engine. Its native
+  ellipse and Flutter ClipOval use `camera-bubble-size`; drag is native and close/Hide
+  hides only the self-view. The UI-thread timer reads immutable owned `LatestCamera`
+  snapshots from `ScreenRecorder`, converts BGRA to RGBA, and retains pixel leases until
+  Flutter releases them. It opens no second device, accesses no files, and transfers only
+  display name/texture dimensions to the child. Live framing continues during Pause.
+  Matching session IDs guard close; recorder finalizes before engine shutdown. Generated
+  pause/retained-snapshot and native exclusion/lifetime checks pass; EN/FR/AR widget/layout
+  and screenshot cases pass. Normal Both setup/ownership integration remains next.
 - **SettingsScreen**: the markup source, API key, model, default style, text
   size and mirror setting, plus **Privacy and licences**: what leaves the
   device, and the licence page (`showLicensePage`).
