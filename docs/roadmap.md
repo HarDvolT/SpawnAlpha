@@ -94,6 +94,17 @@ saying plainly.
   patents and licences favour the platform encoders (Media Foundation, MediaCodec,
   AVFoundation) over a bundled encoder; see [compliance.md](compliance.md).
 
+## Owner's extension (2026-10-06): private speaker notes
+
+Add Notes alongside the scripted prompter for unscripted recording: private
+topic cards with bullet reminders, advanced manually by button or shortcut.
+This is a recorder extension, usable with Camera/Screen/Both, with the same
+capture-exclusion guarantee. The existing scripted workflow/defaults stay
+available. Build in small pieces before finishing word-processing integration,
+which must distinguish a verbatim script from talking points. Notes captions
+follow actual speech and do not score script adherence. No change to the seven
+main build stages; see [design/speaker-notes.md](design/speaker-notes.md).
+
 ## Fonts (design v2)
 
 - **The fonts:** Anybody (display), Readex Pro (reading), Martian Mono (signal), Caveat

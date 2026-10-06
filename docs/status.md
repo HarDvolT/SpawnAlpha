@@ -21,6 +21,11 @@ foundation; normal app word processing/model setup is next. Owner hardware trial
 deferred until they return.** The build order is in
 [product-brief.md](product-brief.md#build-order); it was revised on 2026-09-30.
 
+**New request (2026-10-06):** private talking-point cards for unscripted videos.
+The Notes design is recorded in `docs/design/speaker-notes.md`; no app code is
+implemented yet. Build it as a small recorder extension, then finish step-3
+processing with the Script/Notes distinction preserved.
+
 The owner's first test on Windows (build #1) found: no microphone permission prompt and no
 sound in takes; a prompter that scrolled away from the word being read; effects that were too
 weak and generic; a generic first screen; and no screen recording yet. Build #2 fixes the first
@@ -421,6 +426,21 @@ build step 2 (screen recording).
   confidence flags and real French/Arabic/Darija quality checks remain to build/test.
   **Next:** complete that step-3 app integration against each take's immutable snapshot;
   then step 4's Director's Cut. Keep all runtimes/models/files on E: on this PC.
+- **Private speaker notes request (2026-10-06):** the owner wants a presentation-like
+  aid with reminders instead of a full script, visible only to the speaker, with
+  a button/shortcut to advance. Recorded the planned **Notes** mode alongside
+  **Script**, independently of Camera/Screen/Both. One title/bullet card at a time,
+  Previous/Next and the existing Ctrl+Shift arrow chords; the last card never
+  ends a take. Reuse the protected reader, EN/FR/AR directionality and existing
+  tokens. Notes captions follow actual speech; no verbatim-script mismatch scoring.
+  Product brief, recording/auto-edit design and privacy notes are updated.
+  **Done:** design/specification only; code, tests and screenshots are unchanged
+  from the 347-test/112-layout checkpoint. The private design artifact is behind.
+  **Not built:** deck storage/editor, manual navigation, protected notes UI,
+  record-time snapshots/card events and aid-aware speech processing.
+  **Next:** implement the immutable text deck and pure card controller with
+  EN/FR/AR tests, then the editor/Stage window and shortcut/capture-exclusion trial;
+  continue step-3 model/background processing after that. No new dependency.
 - **Cue retest history (superseded by normal-app launch above):** `app/tool/cue_check.dart` is a development-only launch target.
   It uses the real Home/practice screens with memory-only scripts, settings and keys;
   optional recordings go under `app/build/cue-check/recordings`, on E: on this PC.
@@ -556,12 +576,16 @@ build step 2 (screen recording).
 7. Polish found while testing: an in-app list of takes with playback (needs a
    video player that supports Windows), and an easier way to extend a pace or
    energy span beyond one sentence.
-8. **Build step 2 is implemented and checked locally; owner hardware trials remain deferred:**
+8. **The original build step 2 is implemented and checked locally; owner hardware trials remain deferred:**
    - Camera, Screen, and Screen + camera.
    - The prompter window, HUD and cursor companion, all hidden from capture.
    - Cursor, click and key-burst telemetry.
    - Fragmented MP4.
    - Native render-core spike: done; see `render-core-spike.md`. Full Cut remains step 4.
+
+   **New recorder extension:** Notes mode, requested 2026-10-06, is specified but
+   not built. Next implement the deck/manual controller, then editor/protected
+   Stage cards and navigation trials; see `design/speaker-notes.md`.
 
    **Build step 3 is started:** the generated offline core and EN/FR/AR alignment
    pass. Next wire verified model setup, bounded cancellable background processing
@@ -570,6 +594,12 @@ build step 2 (screen recording).
    See OpenScreen in the brief for reusable parts.
 
 ## Decisions
+
+- 2026-10-06, the owner: add private presentation-like talking-point cards for
+  unscripted videos, with button or shortcut advancement. Implement as an
+  additional Notes aid beside Script; recording mode remains Camera/Screen/Both.
+  Notes are reminders, not a verbatim script: speech-based captions and review
+  must preserve that distinction. The first slice is local text cards.
 
 - 2026-10-06, step-3 technical prototype: pinned MIT upstream speech runtime and
   converted multilingual base weights for generated checks only. No final model
@@ -700,6 +730,16 @@ build step 2 (screen recording).
   word lists, not prosody.
 
 ## Session log
+
+- 2026-10-06, private speaker notes feature request:
+  - Recorded the requested free-speech aid as Notes mode and added its design
+    specification: manual cards/buttons/shortcuts, exclusion, last-card behavior,
+    EN/FR/AR, local snapshots and accurate speech-based captions.
+  - Updated the brief, design index, recording/auto-edit rules, roadmap and privacy
+    table. No app implementation, dependency or default change in this session.
+  - Next build the pure deck/controller, then editor/Stage/recording integration;
+    word-processing integration remains pending. Existing validation is 347 tests
+    and 112 layout cases; documentation links/diff were checked for this change.
 
 - 2026-10-06, word timing slice 20:
   - Added immutable timed-word data, correct UTF-8 fragment assembly and bounded

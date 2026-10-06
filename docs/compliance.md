@@ -78,6 +78,7 @@ paid release, a lawyer should review:
 
 | Data | Where it lives | Leaves the device? | Notes |
 |---|---|---|---|
+| Speaker-note decks and take snapshots (planned) | App documents folder | No automatic transmission | Private topic cards must be excluded from screen capture. Any later cloud action must be explicitly selected and named; captions follow actual speech |
 | Scripts and marks | App documents folder | Only when the user runs markup with an online provider. Then the script text goes to that provider (Anthropic, OpenAI, Google, Mistral, or the user's own server) | The editor names the provider on the button. The privacy policy must list providers |
 | API keys | Platform secure storage | Only to the provider they belong to | Never logged |
 | Recordings (video, audio: face and voice) | App documents folder | No, for now. Future online transcription must be opt-in | Personal data. Face reframing runs on the device and must never identify people, so it doesn't become biometric processing under GDPR Art. 9 |

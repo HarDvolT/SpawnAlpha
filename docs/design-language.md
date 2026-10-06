@@ -39,6 +39,7 @@ The product direction behind it, and the open decisions, are in [roadmap.md](roa
 | [design/README.md](design/README.md) | The brand book: principles, voice, colour, the cue vocabulary, type, shape, states, iconography, right to left, accessibility |
 | [design/prompter.md](design/prompter.md) | The prompter's anatomy; the guide (dot, underline, spotlight), motion (line step, smooth, one phrase) and pace (voice, timed, manual); the bouncing dot's rules; kinetic cues; sizes, mirror mode, keyboard |
 | [design/recording.md](design/recording.md) | Camera, Screen and Screen + camera modes; setting up a take (microphones, sound check, blocked access); where the prompter goes in each; hiding it from capture; the recording flow |
+| [design/speaker-notes.md](design/speaker-notes.md) | Planned private talking-point cards for free speech; manual navigation, protected window, shortcuts and speech-processing rules |
 | [design/motion.md](design/motion.md) | Springs, the signature motion of each cue, every animated moment, haptics and reduced motion |
 | [design/autoedit.md](design/autoedit.md) | The Director's Cut: the auto-edit pipeline (align, clean, polish, review, export), captions, zooms, guarantees and honest limits |
 | [design/tokens.json](design/tokens.json) | All tokens: colours per theme (including glass and caption colours), the four font families and type styles, spacing, radii, shadow, durations, easings, springs, prompter constants, and the screen-effect defaults |

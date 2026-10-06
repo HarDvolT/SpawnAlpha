@@ -14,6 +14,12 @@ A take goes through five passes. Their output is one **edit decision list** (EDL
 - Align the transcript to the script tokens. Each token gets a time range, or is marked **missed**. Spoken words that aren't in the script are marked **added**.
 - Detect **restarts**: a script span spoken twice or more. Each attempt is a candidate retake.
 
+The planned **Notes** recording aid has no verbatim script. Transcribe its actual
+speech for captions; the deck can provide vocabulary and timed topic anchors.
+Never force bullet text into word alignment, call paraphrases missed/changed,
+or use script-adherence scoring on free speech. Its review/retake policy needs
+separate implementation; see [speaker-notes.md](speaker-notes.md).
+
 ### 2. Clean
 - **Dead air:**
   - Gaps longer than 0.7s shrink to 0.25s.

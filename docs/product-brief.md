@@ -8,6 +8,11 @@ This is a teleprompter that coaches your delivery. Most teleprompters only show 
 
 **Pitch:** the AI directs, you perform, the AI checks.
 
+The owner also requested **Notes mode** on 2026-10-06: a private deck of talking
+points for a video spoken freely. It is an additional recording aid, alongside
+the scripted prompter; its design is in [design/speaker-notes.md](design/speaker-notes.md).
+It is planned, not implemented yet.
+
 ## Who it's for
 
 The app is for three kinds of speaker, and each script gets a coaching style that sets how the AI marks it up.
@@ -54,7 +59,19 @@ Center alignment, Kinetic word effects and Voice pace when a microphone works
   - which lines were skipped or changed
 - Each section gets a score. The user can jump to the weakest one and retake just that section.
 
+### Speaking freely with Notes
+
+- Prepare cards with a topic title and a few bullet-point reminders.
+- See one private card while recording Camera, Screen or Screen + camera.
+- Move to the next/previous card with a button or desktop shortcut.
+- Notes stay hidden from the recording; the last card never ends the take.
+- Speak in your own words. Captions follow the recorded speech, and review does
+  not judge whether each note was read word for word.
+
 ## Decisions so far
+
+- **Recording aid:** Script for coached reading, or Notes for private manually
+  advanced talking-point cards. Requested by the owner on 2026-10-06.
 
 - **Platforms:** Windows on desktop plus Android and iOS. The proposed stack is **Flutter**, which covers all three from one codebase.
 - **Languages:** English, French and Arabic.
@@ -76,6 +93,8 @@ Revised 2026-09-30 by the owner. Screen recording moves up, and the automatic ed
    - Camera, Screen, and Screen + camera.
    - The prompter window, HUD and cursor companion, all hidden from capture.
    - Cursor, click and key-burst telemetry for the edit.
+   - Private Notes cards as an extension requested on 2026-10-06, with manual
+     navigation independent of the selected recording mode.
 3. **Word timing.** Word-level transcription aligned to the script. The review, the Director's Cut, retakes and voice-follow all build on it.
 4. **Director's Cut v1.** The automatic edit, ready when you stop:
    - trims that keep marked pauses, and filler removal;

@@ -12,6 +12,17 @@ SpawnAlpha records three ways, and the prompter works in all of them. The rule t
 
 Pick the mode with the mode switcher on the record screen (icons `videocam_rounded`, `screen_share_rounded`, `picture_in_picture_alt_rounded`). The app remembers the last mode per device.
 
+## Recording aid: Script or Notes
+
+The owner requested **Notes** on 2026-10-06 for speaking freely from private topic
+cards, advanced with Previous/Next buttons or desktop shortcuts. This choice is
+independent of Camera/Screen/Screen + camera. Notes reuse the capture-protected
+reader window; they have no word guide, automatic pace or scrolling. The last
+card never stops a take. Captions follow actual speech, and bullet points are
+not a verbatim script to score against. See [speaker-notes.md](speaker-notes.md)
+for the planned editor, navigation, design, privacy and snapshot rules.
+This extension is not implemented yet; the existing flow table describes Script.
+
 ## One flow for every mode
 
 | State | What the speaker sees | Prompter | Tally |
