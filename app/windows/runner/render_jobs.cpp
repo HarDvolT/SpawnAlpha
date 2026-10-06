@@ -55,6 +55,20 @@ LocalRenderRequest Request(const Map& args) {
     if (!range) throw std::runtime_error("Invalid render range");
     request.ranges.push_back({Integer(*range, "startUs"), Integer(*range, "endUs")});
   }
+  if (const auto found = args.find(Value("zoomSteps")); found != args.end()) {
+    const auto* steps = std::get_if<flutter::EncodableList>(&found->second);
+    const auto* spring = std::get_if<Map>(&Field(args, "zoomSpring"));
+    if (!steps || steps->size() > 20000 || !spring) throw std::runtime_error("Invalid screen zoom");
+    request.zoom_spring = {Number(*spring, "mass"), Number(*spring, "stiffness"), Number(*spring, "damping")};
+    for (const auto& value : *steps) {
+      const auto* step = std::get_if<Map>(&value);
+      if (!step) throw std::runtime_error("Invalid screen zoom");
+      const auto sw = Integer(*step, "width"), sh = Integer(*step, "height");
+      if (sw < 1 || sw > 100000 || sh < 1 || sh > 100000) throw std::runtime_error("Invalid screen zoom");
+      request.zoom_steps.push_back({Integer(*step, "timeUs"), Number(*step, "x"), Number(*step, "y"),
+        Number(*step, "factor"), static_cast<UINT>(sw), static_cast<UINT>(sh)});
+    }
+  }
   if (const auto found = args.find(Value("captions")); found != args.end()) {
     const auto* captions = std::get_if<flutter::EncodableList>(&found->second);
     if (!captions || captions->size() > 100000) throw std::runtime_error("Invalid captions");

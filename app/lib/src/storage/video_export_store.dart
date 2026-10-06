@@ -7,6 +7,7 @@ import '../model/video_export.dart';
 import '../model/mark.dart';
 import '../recording/recording_inspector.dart';
 import 'script_store.dart';
+import '../render/screen_zooms.dart';
 
 class ExportReservation {
   const ExportReservation(
@@ -16,11 +17,13 @@ class ExportReservation {
     this.plan, {
     this.srt,
     this.vtt,
+    this.screenZooms,
   });
   final String scriptId, source;
   final VideoExport video;
   final CutPlan plan;
   final String? srt, vtt;
+  final ScreenZooms? screenZooms;
   Map<String, Object?> toJson({bool complete = false}) => {
     'version': 1,
     'scriptId': scriptId,
@@ -30,6 +33,7 @@ class ExportReservation {
     'complete': complete,
     'srt': srt,
     'vtt': vtt,
+    if (screenZooms != null) 'screenZooms': screenZooms!.toJson(),
   };
 }
 
@@ -49,8 +53,13 @@ class VideoExportStore {
   File _journal(VideoExport video) =>
       File('${pending.path}${Platform.pathSeparator}${video.id}.json');
   Future<void> _write(File file, Object json) async {
+    final bytes = utf8.encode(jsonEncode(json));
+    // Never write a journal too large for the bounded recovery reader.
+    if (bytes.length > 32 * 1024 * 1024) {
+      throw const FormatException('Export metadata is too large');
+    }
     final temp = File('${file.path}.tmp');
-    await temp.writeAsString(jsonEncode(json), flush: true);
+    await temp.writeAsBytes(bytes, flush: true);
     await temp.rename(file.path);
   }
 
@@ -61,8 +70,11 @@ class VideoExportStore {
     CutPlan plan, {
     String? srt,
     String? vtt,
+    ScreenZooms? screenZooms,
   }) async {
-    if (plan.sourceDuration != take.duration ||
+    if ((screenZooms?.count ?? 0) != video.zoomCount ||
+        (screenZooms?.steps.any((s) => s.time > plan.duration) ?? false) ||
+        plan.sourceDuration != take.duration ||
         plan.duration != video.duration ||
         video.wordsPath != take.wordsPath ||
         video.cutPath != take.cutPath ||
@@ -82,6 +94,7 @@ class VideoExportStore {
       plan,
       srt: srt,
       vtt: vtt,
+      screenZooms: screenZooms,
     );
     await _write(_journal(video), reservation.toJson());
     return reservation;
@@ -153,6 +166,8 @@ class VideoExportStore {
         ..remove('wordsPath')
         ..remove('cutPath'),
       'plan': reservation.plan.toJson(),
+      if (reservation.screenZooms != null)
+        'screenZooms': reservation.screenZooms!.toJson(),
     });
     await _attach(reservation);
   }
@@ -247,6 +262,15 @@ class VideoExportStore {
           continue;
         }
         final plan = CutPlan.fromJson(json['plan']! as Map<String, Object?>);
+        final zooms = json['screenZooms'] == null
+            ? null
+            : ScreenZooms.fromJson(
+                json['screenZooms']! as Map<String, Object?>,
+              );
+        if ((zooms?.count ?? 0) != video.zoomCount ||
+            (zooms?.steps.any((s) => s.time > plan.duration) ?? false)) {
+          continue;
+        }
         if (plan.duration != video.duration) continue;
         final srt = json['srt'], vtt = json['vtt'];
         if (video.captions &&
@@ -264,6 +288,7 @@ class VideoExportStore {
             plan,
             srt: srt as String?,
             vtt: vtt as String?,
+            screenZooms: zooms,
           ),
         );
         ++recovered;

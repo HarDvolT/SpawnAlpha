@@ -10,6 +10,7 @@ import '../model/caption_style.dart';
 import '../model/video_export.dart';
 import '../theme/tokens.g.dart';
 import '../transcription/captions.dart';
+import 'screen_zooms.dart';
 
 class VideoRenderRequest {
   VideoRenderRequest({
@@ -21,6 +22,7 @@ class VideoRenderRequest {
     this.captionStyle = CaptionStyle.readable,
     this.captionMotion = true,
     this.softAudioJoins = false,
+    this.screenZooms,
     List<Caption> captions = const [],
   }) : captions = List.unmodifiable(
          captions.map(
@@ -32,6 +34,10 @@ class VideoRenderRequest {
            ),
          ),
        ) {
+    if (screenZooms != null &&
+        screenZooms!.steps.any((s) => s.time > plan.duration)) {
+      throw const FormatException('Invalid zoom clock');
+    }
     if (captions.length > 100000) {
       throw const FormatException('Too many captions');
     }
@@ -91,6 +97,7 @@ class VideoRenderRequest {
   final CaptionStyle captionStyle;
   final bool captionMotion;
   final bool softAudioJoins;
+  final ScreenZooms? screenZooms;
   final List<Caption> captions;
   Map<String, Object?> toJson() => {
     'source': source,
@@ -105,6 +112,14 @@ class VideoRenderRequest {
         ? SaVideoExport.audioJoinFade.inMicroseconds
         : 0,
     'ranges': plan.ranges.map((r) => r.toJson()).toList(),
+    if (screenZooms != null && screenZooms!.count > 0) ...{
+      'zoomSteps': screenZooms!.steps.map((s) => s.toJson()).toList(),
+      'zoomSpring': {
+        'mass': SaSprings.camera.mass,
+        'stiffness': SaSprings.camera.stiffness,
+        'damping': SaSprings.camera.damping,
+      },
+    },
     'captions': [
       for (final caption in _displayCaptions)
         {

@@ -790,6 +790,32 @@ changes at continuous boundaries. Invalid duration/packet/range inputs fail
 before mutation. Generated decoded AAC verifies join attenuation and unchanged
 distant tone levels; contiguous split/whole exports have identical decoded PCM.
 
-Room-tone crossfades, noise/loudness polish,
-face reframing and automatic zoom/cursor tracks remain. Exported EDL metadata has no
+`ScreenZoomPlanner` streams only bounded click/shortcut/typing-burst targets
+from the existing anonymous local activity. Clusters stay within the token
+time/distance window; typing needs three timings and a fresh same-size visible
+cursor or focus rectangle. Burst evidence must all survive the kept range.
+Discarded/reordered ranges carry only their own targets; contiguous splits
+produce the same track. Lead/hold clamp to each range, overlapping targets pan
+and a discontinuous cut resets the view. Source dimensions translate resized
+window targets into the recording's full-picture fit. Work/targets/keyframes
+are bounded, without retaining cursor paths or key identities.
+
+The worker rejects symlink, oversized, misplaced or malformed activity and
+returns a generic full-picture notice. Optional Auto-zoom starts on only for
+Screen/Both activity; switching off leaves the full image. Immutable export
+journals/portable metadata freeze validated target steps, with no activity or
+source paths. `zoomCount` is additive, zero for legacy history. Recovery uses
+these frozen steps even if activity later disappears. Journals enforce the
+same byte bound before writing as the recovery reader uses.
+
+Native `ScreenZoom` evaluates camera-token springs on the output clock,
+including over/critical/underdamping and interrupted pans. Even NV12 source
+rectangles clamp inside the visible source aperture; destination geometry,
+camera inset and captions stay fixed. Generated wide/portrait decoded pixels
+verify zoom-in and restored full view; app-channel EN/FR/AR exports verify
+wide/feed/portrait on/off, caption clocks, history and unchanged originals.
+Microsoft API reference: [video processor source rectangle](https://learn.microsoft.com/en-us/windows/win32/api/d3d11/nf-d3d11-id3d11videocontext-videoprocessorsetstreamsourcerect).
+
+Room-tone crossfades, noise/loudness polish, pointing-word zooms,
+face reframing and cursor tracks remain. Exported EDL metadata has no
 source media path; private revision references remain in local take history.

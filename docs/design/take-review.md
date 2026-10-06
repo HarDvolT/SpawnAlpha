@@ -104,8 +104,13 @@ stale results. Nothing is uploaded or cut by listening.
 
 **Save your video** makes a separate local MP4 from the saved cut (or the whole
 take when no cut exists). The first Windows renderer fits the complete picture
-inside 16:9 1080p/4K, 9:16 or 4:5; unused space stays black. It does not yet
-reframe faces or screen targets. Both takes can include the separate camera in
+inside 16:9 1080p/4K, 9:16 or 4:5; unused space stays black. Screen/Both with
+local activity offer **Auto-zoom screen activity**, initially on. Nearby clicks,
+shortcuts and anonymous typing bursts produce spring zooms on the kept clock;
+switching off keeps the full picture. Missing/unreadable activity explains
+the full-picture fallback. History lists the zoom count. Original media/input
+remains intact; no typed characters are used. Face reframing remains separate.
+Both takes can include the separate camera in
 the bottom-right corner, fitted inside 28% of each output dimension with a 4%
 short-edge margin. These proportions are `video-export` tokens. A switch can
 omit the camera. The original sound keeps its source clock through each cut.

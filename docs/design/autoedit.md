@@ -175,11 +175,33 @@ room; gains never exceed one. The switch can keep the original cut sound.
 History records the choice for each saved video. This first sound slice is a
 join fade, not a room-tone crossfade, noise reduction or a LUFS normalizer.
 
+### Windows activity zooms
+
+**Auto-zoom screen activity** uses only the anonymous local sidecar, and can
+be disabled before export. It groups at least two clicks/shortcuts/typing
+bursts within `zoom-cluster-window` and `zoom-cluster-distance`. Three anonymous
+key timings make one typing burst; no typed text or arbitrary key identity is
+read. Key/shortcut positions require a recent source-sized focus rectangle or
+visible cursor. A lone click remains full-picture until ripple rendering exists.
+Use `zoom-default`, or `zoom-max` for a measured small focused target. Enter
+at `zoom-lead` before the first event and hold until `zoom-hold` after the last.
+Overlapping zooms pan on `spring-camera`; the source boundary resets the view
+when a discontinuous cut enters another range. Never borrow removed activity.
+
+Coordinates keep their source dimensions through resizing and translate to
+the recorded full-picture fit before cropping. Clamp the viewport to the
+recorded image; no guessed face targets or hidden windows. Captions retain
+their output clock and safe zones. Save the local zoom decisions alongside
+the export without the private source/activity path. Missing or unreadable
+activity keeps the whole picture and explains that choice. Cursor cleanup,
+ripples, keycaps, backdrop and directional blur remain subsequent tracks.
+
 ### First Windows video export
 
 The saved plan now renders to a separate finalized H.264/AAC MP4 in 16:9
-1080p/4K, 9:16 or 4:5. This slice fits the complete source on black space;
-face/target reframing, sound polish and crossfades are still pending.
+1080p/4K, 9:16 or 4:5. This slice fits the complete source on black space unless
+optional screen activity zooms are enabled. Face/pointing-word reframing,
+further sound polish and room-tone crossfades are still pending.
 Optional Readable, Cue, Punch and Karaoke captions now follow saved actual
 speech, using bundled display fonts, the fixed caption plate and safe margins.
 Corrected words and subtitle files share the kept clock. Cue reveals words

@@ -214,7 +214,7 @@ class Compositor {
     inset_ = inset; margin_ = margin;
   }
   com_ptr<ID3D11Texture2D> Compose(const Frame& main, const Frame& camera,
-      const RECT& main_box, const RECT& camera_box, UINT index) {
+      const RECT& main_box, const RECT& camera_box, UINT index, const RECT& main_crop) {
     const UINT mw = main_box.right - main_box.left, mh = main_box.bottom - main_box.top;
     const UINT cw = camera_box.right - camera_box.left, ch = camera_box.bottom - camera_box.top;
     const FLOAT black[4] = {0, 0, 0, 1}; context_->ClearRenderTargetView(clear_.get(), black);
@@ -222,12 +222,12 @@ class Compositor {
     com_ptr<ID3D11VideoProcessorInputView> inputs[2];
     D3D11_VIDEO_PROCESSOR_STREAM streams[2]{};
     const RECT full{0, 0, static_cast<LONG>(width_), static_cast<LONG>(height_)};
-    // First export slice: fit the whole picture. No inferred face crop/zoom.
+    // Keep the frame placement fixed while the selected source viewport moves.
     const LONG margin = static_cast<LONG>(std::min(width_, height_) * margin_);
     const LONG inset_w = static_cast<LONG>(width_ * inset_);
     const LONG inset_h = std::min(static_cast<LONG>(height_ * inset_), inset_w);
     const RECT inset{full.right - margin - inset_w, full.bottom - margin - inset_h, full.right - margin, full.bottom - margin};
-    const RECT sources[] = {main_box, camera_box};
+    const RECT sources[] = {main_crop, camera_box};
     const RECT destinations[] = {Fit(mw, mh, full), camera.image ? Fit(cw, ch, inset) : inset};
     UINT count = 1;
     for (UINT stream = 0; stream < 2; ++stream) {
@@ -286,6 +286,8 @@ void RenderLocalVideo(const LocalRenderRequest& request, std::atomic<bool>& canc
     UINT token = 0; com_ptr<IMFDXGIDeviceManager> manager;
     check_hresult(MFCreateDXGIDeviceManager(&token, manager.put())); check_hresult(manager->ResetDevice(device.get(), token));
     VideoReader main, camera; main.Open(request.source, manager.get());
+    ScreenZoom zoom;
+    zoom.Open(request.zoom_steps, request.zoom_spring, main.width, main.height, total_us);
     if (!request.camera.empty()) camera.Open(request.camera, manager.get());
     AudioReader audio; const bool has_audio = audio.Open(request.source);
     Compositor compositor; compositor.Open(device.get(), request.width, request.height, !request.camera.empty(),
@@ -308,11 +310,14 @@ void RenderLocalVideo(const LocalRenderRequest& request, std::atomic<bool>& canc
       const auto source_ticks = request.ranges[video_range].start_us * 10 + output_ticks - starts[video_range] * 10;
       if (video_range != previous_video_range) {
         main.Reset(source_ticks); if (!request.camera.empty()) camera.Reset(source_ticks); previous_video_range = video_range;
+        if (video_range == 0 || request.ranges[video_range - 1].end_us != request.ranges[video_range].start_us)
+          zoom.Reset(starts[video_range]);
       }
+      const RECT main_box{main.x, main.y, main.x + static_cast<LONG>(main.width), main.y + static_cast<LONG>(main.height)};
       const auto image = compositor.Compose(main.At(source_ticks, true, cancel),
         request.camera.empty() ? Frame{} : camera.At(source_ticks, false, cancel),
-        {main.x, main.y, main.x + static_cast<LONG>(main.width), main.y + static_cast<LONG>(main.height)},
-        {camera.x, camera.y, camera.x + static_cast<LONG>(camera.width), camera.y + static_cast<LONG>(camera.height)}, frame);
+        main_box, {camera.x, camera.y, camera.x + static_cast<LONG>(camera.width), camera.y + static_cast<LONG>(camera.height)},
+        frame, zoom.Crop(main_box, output_ticks / 10));
       captions.Draw(image.get(), output_ticks / 10);
       check_hresult(writer.WriteFrame(image.get(), request.width, request.height, output_ticks, end_ticks - output_ticks));
       if (has_audio) {

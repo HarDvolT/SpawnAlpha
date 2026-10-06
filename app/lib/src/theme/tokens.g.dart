@@ -434,6 +434,14 @@ abstract final class SaPrompter {
 abstract final class SaScreenFx {
   /// Zoom factor on a click or typing burst.
   static const double zoomDefault = 1.8;
+  /// Maximum event spacing inside one local screen activity cluster.
+  static const Duration zoomClusterWindow = Duration(milliseconds: 1300);
+  /// Maximum normalized source-axis distance inside one activity cluster.
+  static const double zoomClusterDistance = 0.3;
+  /// Anonymous key timings needed to count one typing burst.
+  static const double zoomTypingMinimum = 3.0;
+  /// Largest normalized axis of a measured focused target eligible for zoom-max.
+  static const double zoomSmallTarget = 0.12;
   /// Never zoom further; small targets get zoom-max.
   static const double zoomMax = 2.4;
   /// Zooms start this long before the click they frame (the edit knows the future).

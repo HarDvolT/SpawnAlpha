@@ -109,7 +109,9 @@ Revised 2026-09-30 by the owner. Screen recording moves up, and the automatic ed
      Settings switch; it checks installed weights without downloading;
    - trims that keep marked pauses, and filler removal;
    - captions from the script;
-   - auto-zoom and a smooth cursor;
+   - Windows screen activity auto-zoom is available with an on/off export
+     choice and saved target/history track; pointing-word zooms and smooth
+     cursor polish remain;
    - 16:9 and 9:16 export;
    - the finish screen.
 5. **Delivery review and section retakes.** The best take is chosen by how well it matches the script.

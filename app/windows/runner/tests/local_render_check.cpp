@@ -8,6 +8,8 @@
 #include <filesystem>
 #include <wincodec.h>
 #include "../audio_join_fade.h"
+void SaveCaptionPng(const std::wstring&, UINT, UINT, const BYTE*);
+std::vector<BYTE> CaptionPixels(IMFSourceReader*, IMFSample*, UINT, UINT);
 
 void CheckAudioJoinEnvelope() {
   for (uint32_t channels : {1u, 2u}) {
@@ -50,6 +52,73 @@ double WindowRms(const std::vector<int16_t>& pcm, size_t start, size_t frames) {
   Require(start + frames <= pcm.size()); double sum = 0;
   for (size_t i = start; i < start + frames; ++i) sum += static_cast<double>(pcm[i]) * pcm[i];
   return std::sqrt(sum / frames);
+}
+
+void CheckScreenZoomCrop() {
+  ScreenZoom zoom;
+  zoom.Open({{200000, .8, .5, 1.8, 640, 360}, {900000, .2, .5, 2.4, 640, 360},
+    {2000000, .2, .5, 1, 640, 360}}, {1, 90, 19}, 640, 360, 4000000);
+  const RECT full{0, 0, 640, 360};
+  Require(zoom.Crop(full, 0).right == 640);
+  LONG previous_width = 640;
+  for (int64_t time = 0; time < 4000000; time += 33333) {
+    const auto crop = zoom.Crop(full, time);
+    Require(crop.left >= 0 && crop.top >= 0 && crop.right <= 640 && crop.bottom <= 360 &&
+      crop.right > crop.left && crop.bottom > crop.top);
+    if (time < 900000) Require(crop.right - crop.left <= previous_width);
+    previous_width = crop.right - crop.left;
+  }
+  Require(previous_width == 640);
+  ScreenZoom resized;
+  resized.Open({{0, .9, .5, 2.4, 320, 360}}, {1, 90, 19}, 640, 360, 4000000);
+  const auto crop = resized.Crop(full, 1500000);
+  Require(crop.left > 260 && crop.right < 640); // Account for recorded letterboxing.
+  resized.Reset(2000000); Require(resized.Crop(full, 2000000).right == 640);
+  bool rejected = false;
+  try { ScreenZoom invalid; invalid.Open({{0, 2, .5, 2.4, 640, 360}}, {1, 90, 19}, 640, 360, 4000000); }
+  catch (...) { rejected = true; }
+  Require(rejected);
+}
+
+void GenerateZoomSource(ID3D11Device* device, const std::wstring& path) {
+  GpuVideoWriter writer; check_hresult(writer.Start(device, path, kWidth, kHeight, 30));
+  std::vector<uint32_t> pixels(kWidth * kHeight);
+  for (UINT y = 0; y < kHeight; ++y) for (UINT x = 0; x < kWidth; ++x)
+    pixels[y * kWidth + x] = x < kWidth * .4 ? 0xff306be0 : x > kWidth * .6 ? 0xffe04830 : 0xff25b64a;
+  D3D11_TEXTURE2D_DESC desc{}; desc.Width = kWidth; desc.Height = kHeight;
+  desc.MipLevels = desc.ArraySize = 1; desc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
+  desc.SampleDesc.Count = 1; desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+  D3D11_SUBRESOURCE_DATA data{pixels.data(), kWidth * 4, 0}; com_ptr<ID3D11Texture2D> texture;
+  check_hresult(device->CreateTexture2D(&desc, &data, texture.put()));
+  for (UINT frame = 0; frame < 120; ++frame)
+    check_hresult(writer.WriteFrame(texture.get(), kWidth, kHeight, frame * kSecond / 30));
+  check_hresult(writer.Finish());
+}
+
+void VerifyZoomPixels(const LocalRenderRequest& request) {
+  com_ptr<IMFAttributes> attributes; check_hresult(MFCreateAttributes(attributes.put(), 1));
+  check_hresult(attributes->SetUINT32(MF_SOURCE_READER_ENABLE_VIDEO_PROCESSING, TRUE));
+  com_ptr<IMFSourceReader> reader; check_hresult(MFCreateSourceReaderFromURL(request.output.c_str(), attributes.get(), reader.put()));
+  com_ptr<IMFMediaType> type; check_hresult(MFCreateMediaType(type.put()));
+  check_hresult(type->SetGUID(MF_MT_MAJOR_TYPE, MFMediaType_Video)); check_hresult(type->SetGUID(MF_MT_SUBTYPE, MFVideoFormat_RGB32));
+  check_hresult(reader->SetCurrentMediaType(kVideoStream, nullptr, type.get()));
+  int frames = 0;
+  while (true) {
+    DWORD flags = 0; int64_t time = 0; com_ptr<IMFSample> sample;
+    check_hresult(reader->ReadSample(kVideoStream, 0, nullptr, &flags, &time, sample.put()));
+    if (sample) {
+      const auto pixels = CaptionPixels(reader.get(), sample.get(), request.width, request.height);
+      const size_t center = (request.height / 2 * request.width + request.width / 2) * 4;
+      if (frames == 0 || frames == 112) Require(pixels[center + 1] > pixels[center + 2] + 80);
+      if (frames == 30) {
+        Require(pixels[center + 2] > pixels[center + 1] + 80);
+        SaveCaptionPng(request.output + L".png", request.width, request.height, pixels.data());
+      }
+      ++frames;
+    }
+    if (flags & MF_SOURCE_READERF_ENDOFSTREAM) break;
+  }
+  Require(frames == 120);
 }
 
 void SaveCaptionPng(const std::wstring& path, UINT width, UINT height, const BYTE* bytes) {
@@ -399,6 +468,7 @@ int wmain(int count, wchar_t** args) {
   const char* stage = "initialize";
   try {
     stage = "pure packet-independent sound join envelope"; CheckAudioJoinEnvelope();
+    stage = "screen zoom springs, resize fit and cut reset"; CheckScreenZoomCrop();
     check_hresult(MFStartup(MF_VERSION));
     {
       com_ptr<ID3D11Device> device;
@@ -406,10 +476,20 @@ int wmain(int count, wchar_t** args) {
         D3D11_CREATE_DEVICE_BGRA_SUPPORT | D3D11_CREATE_DEVICE_VIDEO_SUPPORT,
         nullptr, 0, D3D11_SDK_VERSION, device.put(), nullptr, nullptr));
       const std::wstring prefix(args[1]), source = prefix + L"-source.mp4";
+      std::atomic<bool> cancel{false};
       stage = "generate"; Generate(device.get(), source);
+      const auto zoom_source = prefix + L"-zoom-source.mp4";
+      stage = "generate spatial zoom source"; GenerateZoomSource(device.get(), zoom_source);
+      for (bool vertical : {false, true}) {
+        LocalRenderRequest zoomed{zoom_source, L"", prefix + (vertical ? L"-zoom-portrait.mp4" : L"-zoom-wide.mp4"),
+          4000000, vertical ? 1080u : 1920u, vertical ? 1920u : 1080u, {{0, 4000000}}};
+        zoomed.zoom_steps = {{200000, .8, .5, 1.8, kWidth, kHeight}, {2100000, .8, .5, 1, kWidth, kHeight}};
+        zoomed.zoom_spring = {1, 90, 19};
+        stage = "render spatial screen zoom"; RenderLocalVideo(zoomed, cancel, [](double) {});
+        stage = "verify zoom and restored whole-picture pixels"; VerifyZoomPixels(zoomed);
+      }
       LocalRenderRequest request{source, source, prefix + L"-pair.mp4", 4000000, 640, 360, {{1000000, 2000000}, {3000000, 4000000}}};
       request.camera_inset = .28; request.camera_margin = .04;
-      std::atomic<bool> cancel{false};
       stage = "render streaming pair"; RenderLocalVideo(request, cancel, [](double) {});
       stage = "verify pair clock and pixels"; VerifyLocalCut(request, 60, 2000000);
       stage = "verify selected audio"; const auto audio = Audio(request.output);

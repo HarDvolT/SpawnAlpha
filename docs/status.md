@@ -20,7 +20,9 @@ now has verified offline model setup, bounded local speech jobs, frozen Script/N
 processing, durable actual words, script alignment and SRT/VTT export in take review.
 Generated short and 70-second app checks pass. Reversible quiet cuts, local
 take playback and first Windows video exports now work. Automatic local speech
-and reversible cutting after Stop are connected. Optional sound-join fades
+and reversible cutting after Stop are connected. Optional local screen
+activity zooms follow clicks, shortcuts and typing on the cut clock, with
+an on/off export choice and frozen target history. Optional sound-join fades
 soften internal cut edges without shifting words. Optional Readable/Cue/Punch/Karaoke captions
 follow saved actual words/corrections and the cut clock. Reversible filler
 review offers safe optional removals, initially kept; remaining Director's Cut
@@ -50,6 +52,23 @@ dot to grow and act out each cue in the cue's colour, and for the next features.
 build step 2 (screen recording).
 
 ## Handover (2026-10-05): from here, Codex on the owner's Windows PC
+
+- **Latest checkpoint (2026-10-06, screen activity zooms):** 698 Flutter tests,
+  254 screenshots, clean analysis and normal Windows Release build. Optional
+  Auto-zoom follows bounded nearby clicks/shortcuts and three anonymous typing
+  timings with a fresh cursor/focus target. Time/spatial clusters cannot chain
+  across the screen; cut/reordered activity retains its source identity.
+  Camera-token springs pan overlapping targets and reset at discontinuous
+  cuts. Resize coordinates clamp to the visible recording; camera/captions
+  keep their layout/clock. Missing/malformed activity retains the full image
+  with a generic notice. Immutable target history/recovery excludes private
+  paths and survives activity removal. Native geometry and decoded wide/
+  portrait zoom/full-return pixels pass; actual Windows app-channel EN/FR/AR
+  wide/feed/portrait on/off exports pass subtitles, history and unchanged
+  source/activity bytes. EN/AR phone/native PNGs inspected. No owner media/
+  input or new dependency. **Half done:** pointing-word zooms, cursor/ripple/
+  keycap/frame polish and further sound/coaching remain. Continue these Cut
+  tracks before voice-follow/mobile; owner trials remain deferred.
 
 - **Latest checkpoint (2026-10-06, optional sound-join fades):** 669 Flutter
   tests, 254 screenshots, clean analysis and normal Windows Release build.
@@ -846,11 +865,19 @@ build step 2 (screen recording).
    automatic processing after Stop. Repeated sections now offer a paged
    comparison, original listening and safe reversible Keep attempt choices.
    Automatic best-performance ranking is still pending. Next
-   screen effects and remaining sound polish/delivery coaching; short optional
-   sound-join fades are connected. Keep originals intact.
+   pointing-word zooms, cursor/frame effects and remaining sound polish/delivery
+   coaching; optional activity zooms and short sound-join fades are connected.
+   Keep originals intact.
    See OpenScreen in the brief for reusable parts.
 
 ## Decisions
+
+- 2026-10-06, Windows activity zooms: offer optional Auto-zoom for Screen/Both
+  with existing local activity, initially on. Use bounded measured nearby
+  clicks/shortcuts/typing and existing camera springs; never invent targets
+  or read typed characters. Keep the full picture when disabled or activity
+  is unavailable. Store exact targets/count per immutable video, so recovery
+  and captions preserve the same output clock. Cursor/frame work follows.
 
 - 2026-10-06, first sound polish: optional de-click fades at discontinuous
   internal joins, enabled for new cut exports and saved per video. Keep the
@@ -1052,6 +1079,26 @@ build step 2 (screen recording).
   word lists, not prosody.
 
 ## Session log
+
+- 2026-10-06, screen activity zooms:
+  - Added the streaming bounded pure planner, strict local sidecar worker,
+    source-dimension targets and range-aware immutable output track. Lead/hold,
+    typing/cluster thresholds come from design tokens. No removed activity is
+    borrowed; contiguous source splits preserve decisions. Bad/missing files
+    retain the full picture without private diagnostics.
+  - Native source crops evaluate under/critical/overdamped springs, preserve
+    pan velocity, reset across cuts and clamp even NV12 apertures. Studio
+    on/off controls, count history, portable metadata and completion recovery
+    retain the exact track. Recovery rejects malformed tracks; removing the
+    activity file after completion cannot change the saved video.
+  - Clean analysis, 698 tests, 254 screenshot cases and normal Release pass.
+    Generated native geometry/resize/pan/reset and wide/portrait decoded zoom/
+    full-return pixels pass. Actual Windows app-channel EN/FR/AR wide/feed/
+    portrait on/off exports retain caption/subtitle clocks, immutable history
+    and unchanged source/activity bytes. EN/AR UI/native PNGs inspected.
+    No owner media/input, new dependency, copied code, model or upload.
+    Pointing-word zooms, cursor/frame effects, further sound/coaching and mobile/
+    launch work remain; owner trials stay deferred.
 
 - 2026-10-06, optional sound-join fades:
   - Added a bounded packet-independent PCM envelope at internal discontinuous

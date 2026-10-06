@@ -31,6 +31,9 @@ class VideoExportPanel extends StatelessWidget {
     this.hasAudioJoins = false,
     this.softAudioJoins = true,
     this.onSoftAudioJoins,
+    this.hasScreenActivity = false,
+    this.autoZoom = true,
+    this.onAutoZoom,
   });
   final VideoFormat format;
   final ValueChanged<VideoFormat> onFormat;
@@ -50,6 +53,8 @@ class VideoExportPanel extends StatelessWidget {
   final ValueChanged<bool>? onCaptionMotion;
   final bool hasAudioJoins, softAudioJoins;
   final ValueChanged<bool>? onSoftAudioJoins;
+  final bool hasScreenActivity, autoZoom;
+  final ValueChanged<bool>? onAutoZoom;
   final List<VideoExport> videos;
   final ValueChanged<VideoExport> onView, onShow;
 
@@ -64,7 +69,8 @@ class VideoExportPanel extends StatelessWidget {
           '${video.createdAt.toLocal().toString().substring(0, 16)} · '
           '${video.format.label} · ${formatCutTime(video.duration)}'
           '${video.burnedCaptions ? ' · ${video.captionStyle.label} captions${video.captionMotion ? '' : ' · Still'}' : ''}'
-          '${video.softAudioJoins ? ' · Soft sound joins' : ''}',
+          '${video.softAudioJoins ? ' · Soft sound joins' : ''}'
+          '${video.zoomCount > 0 ? ' · ${video.zoomCount} zooms' : ''}',
           style: SaType.signalLabel.copyWith(color: p.ink2),
         ),
         TextButton.icon(
@@ -119,7 +125,9 @@ class VideoExportPanel extends StatelessWidget {
           ],
         ),
         Text(
-          'Keeps the whole picture and saves a new MP4 on this device.',
+          hasScreenActivity && autoZoom
+              ? 'Saves a new MP4 on this device.'
+              : 'Keeps the whole picture and saves a new MP4 on this device.',
           style: SaType.bodySm.copyWith(color: p.ink2),
         ),
         if (hasAudioJoins)
@@ -131,6 +139,16 @@ class VideoExportPanel extends StatelessWidget {
                 : (value) => onSoftAudioJoins?.call(value ?? false),
             title: const Text('Soften sound at cuts'),
             subtitle: const Text('Smooth the joins while keeping word timing.'),
+          ),
+        if (hasScreenActivity)
+          CheckboxListTile(
+            contentPadding: EdgeInsets.zero,
+            value: autoZoom,
+            onChanged: busy
+                ? null
+                : (value) => onAutoZoom?.call(value ?? false),
+            title: const Text('Auto-zoom screen activity'),
+            subtitle: const Text('Follow clicks and typing on this device.'),
           ),
         if (hasCaptions)
           Text(
@@ -209,6 +227,8 @@ class VideoExportPanel extends StatelessWidget {
         ],
         if (job.problem != null)
           Text(job.problem!, style: SaType.bodySm.copyWith(color: p.danger)),
+        if (job.notice != null)
+          Text(job.notice!, style: SaType.bodySm.copyWith(color: p.ink2)),
         if (job.phase == ExportPhase.cancelled)
           Text(
             'Export cancelled. Your original and cut are safe.',

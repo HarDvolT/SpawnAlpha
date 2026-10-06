@@ -16,6 +16,9 @@ import '../transcription/caption_cues.dart';
 import '../transcription/word_timing.dart';
 import '../transcription/speech_processor.dart';
 import 'video_renderer.dart';
+import 'screen_zooms.dart';
+import 'screen_zoom_loader.dart';
+import '../theme/tokens.g.dart';
 
 enum ExportPhase { idle, preparing, rendering, saving, done, cancelled, failed }
 
@@ -52,7 +55,7 @@ class ExportProcessor extends ChangeNotifier {
   final Future<SavedTranscript?> Function(Take) loadWords;
   ExportPhase phase = ExportPhase.idle;
   double progress = 0;
-  String? problem, source;
+  String? problem, source, notice;
   VideoExport? result;
   bool _cancelled = false;
   bool get busy =>
@@ -74,11 +77,13 @@ class ExportProcessor extends ChangeNotifier {
     CaptionStyle captionStyle = CaptionStyle.readable,
     bool captionMotion = true,
     bool softAudioJoins = true,
+    bool autoZoom = true,
   }) async {
     if (busy) return null;
     source = take.path;
     result = null;
     problem = null;
+    notice = null;
     progress = 0;
     _cancelled = false;
     _phase(ExportPhase.preparing);
@@ -129,6 +134,29 @@ class ExportProcessor extends ChangeNotifier {
           : clean == null
           ? speechOnCut(spoken.transcript, plan)
           : speechOnCleanCut(spoken.transcript, clean);
+      final zooms =
+          autoZoom && take.mode != TakeMode.camera && take.activityPath != null
+          ? await compute(
+              loadScreenZooms,
+              ScreenZoomJob(
+                take.path,
+                take.activityPath!,
+                plan,
+                ZoomPolicy(
+                  window: SaScreenFx.zoomClusterWindow,
+                  distance: SaScreenFx.zoomClusterDistance,
+                  lead: SaScreenFx.zoomLead,
+                  hold: SaScreenFx.zoomHold,
+                  factor: SaScreenFx.zoomDefault,
+                  maximum: SaScreenFx.zoomMax,
+                  typingMinimum: SaScreenFx.zoomTypingMinimum.toInt(),
+                  smallTarget: SaScreenFx.zoomSmallTarget,
+                ),
+              ),
+            )
+          : LoadedScreenZooms(ScreenZooms(0, const []));
+      if (_cancelled) throw const RenderCancelled();
+      if (zooms.unavailable) notice = 'Screen activity is unavailable. This video keeps the whole picture.';
       final video = VideoExport(
         id: newId(),
         format: format,
@@ -143,6 +171,7 @@ class ExportProcessor extends ChangeNotifier {
         captionStyle: burnedCaptions ? captionStyle : CaptionStyle.readable,
         captionMotion: captionMotion,
         softAudioJoins: softAudioJoins && plan.hasJoins,
+        zoomCount: zooms.zooms.count,
       );
       final captionTracks = video.captions
           ? await compute(
@@ -158,6 +187,7 @@ class ExportProcessor extends ChangeNotifier {
         plan,
         srt: captions == null ? null : subtitleText(captions),
         vtt: captions == null ? null : subtitleText(captions, vtt: true),
+        screenZooms: zooms.zooms,
       );
       reserved = reservation;
       if (_cancelled) throw const RenderCancelled();
@@ -173,6 +203,7 @@ class ExportProcessor extends ChangeNotifier {
           captionStyle: video.captionStyle,
           captionMotion: video.captionMotion,
           softAudioJoins: video.softAudioJoins,
+          screenZooms: zooms.zooms,
         ),
         (amount) {
           progress = amount;

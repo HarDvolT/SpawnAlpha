@@ -78,6 +78,13 @@ paid release, a lawyer should review:
   cut boundaries; they never amplify, upload, overlap words or change clocks.
   Original sound and earlier exports remain intact. No extra DSP library,
   copied code, model or noise/loudness claim is introduced.
+- Optional screen zooms use only existing local anonymous click, shortcut and
+  typing timing/position data. No typed characters or key identities are read.
+  Bounded parsing rejects unknown payloads and malformed/misplaced activity;
+  a generic notice retains the full picture. Export decisions contain only
+  normalized targets/times/source dimensions, never source/activity paths.
+  They stay on the device and can be disabled per export. Installed D3D11
+  source rectangles and existing spring tokens need no new dependency/model.
 - Optional captions on video use installed DirectWrite/Direct2D and the already
   bundled OFL Anybody/Reem Kufi fonts through a private local font collection.
   No font installation/download, new package, copied code or network service.
@@ -224,6 +231,7 @@ person using the app.
 | Repeated Script section comparison | Checked 2026-10-06 with generated EN/FR/AR word fixtures and full review widgets. Uses frozen scripts/actual wording in a bounded isolate; ordinary repetition, Notes and null alignment remain unscored. Partial coverage and uncertain wording are shown honestly. Explicit listening preserves every cut choice and original; no best-performance or recognition-quality claim, dependency, upload or private logs. Real language/hardware trials remain pending |
 | Safe reversible retake selection | Checked 2026-10-06 with EN/FR/AR word/quiet fixtures, 800-attempt bounds, stale/forged-plan rejection, full review controls and generated native tone/picture exports. All attempts start kept; only explicit choices discard complete confident words at measured safe boundaries. Cues owned by retained words remain protected; Notes/Screen/computer-only stay unscored. Native app-channel selection/restore, exact cut clocks, burned captions/SRT, history/reload and original-byte checks pass. No owner media/input, dependency, upload or private logs. Automatic performance ranking, real-language/hardware trials and launch legal work remain pending |
 | Optional Windows sound-join fades | Checked 2026-10-06 with generated mono/stereo packets, short ranges, packet boundaries, disabled/continuous joins, decoded AAC attenuation and unchanged distant tone levels/whole-versus-contiguous PCM. EN/FR/AR export controls, immutable history and cut/caption clocks pass. Only retained internal join edges are attenuated; no overlap, amplification, source modification or new DSP library. No owner media/input, dependency, copied code, upload, model or private logs. Room-tone crossfades, LUFS/noise/de-essing, hardware listening and launch legal work remain pending |
+| Optional Windows activity zooms | Checked 2026-10-06 with EN/FR/AR pure targets, cut/reorder/source-resize clocks, fresh cursor/focus, bounded clusters/typing, malformed/private payload rejection, missing files and crash-truncated traces. Generated native wide/portrait decoded pixels pass clamped spring crops, pan/reset and full-picture return; actual app-channel EN/FR/AR wide/feed/portrait on/off exports preserve captions/history and source/activity bytes. Completed-job recovery preserves exact frozen targets after activity removal. No owner media/input, new dependency, copied code, model, upload or private logs. Pointing-word zooms, cursor/frame polish, hardware trials and launch legal work remain pending |
 | In-app licence page (Settings, Privacy and licences) | Done |
 | "What leaves your device" explained in Settings | Done |
 | iOS export-compliance flag | Done |
