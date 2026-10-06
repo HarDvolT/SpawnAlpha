@@ -19,8 +19,9 @@ abrupt-exit recovery checks pass; the native render-core spike also passes. Buil
 now has verified offline model setup, bounded local speech jobs, frozen Script/Notes
 processing, durable actual words, script alignment and SRT/VTT export in take review.
 Generated short and 70-second app checks pass. Reversible quiet cuts, local
-take playback and first Windows video exports now work; automatic processing
-and remaining Director's Cut tracks are next. Owner hardware trials are
+take playback and first Windows video exports now work. Automatic local speech
+and reversible cutting after Stop are connected; remaining Director's Cut
+tracks are next. Owner hardware trials are
 deferred until they return.** The build order is in
 [product-brief.md](product-brief.md#build-order); it was revised on 2026-09-30.
 
@@ -43,6 +44,22 @@ dot to grow and act out each cue in the cue's colour, and for the next features.
 build step 2 (screen recording).
 
 ## Handover (2026-10-05): from here, Codex on the owner's Windows PC
+
+- **Latest checkpoint (2026-10-06, automatic review after Stop):** 456 Flutter
+  tests, 167 screenshot cases, clean analysis and a normal Windows Release build.
+  Camera/Screen/Both now open take review directly,
+  retain sound/camera warnings and release live camera/preview/microphone meters
+  until returning to setup. The default-enabled setting checks an installed
+  model only, finds actual words and saves a reversible quiet cut; automatic
+  processing never downloads. Missing setup offers the disclosed explicit action.
+  Progress/cancel is above the player. Pre-start cancellation and single-job
+  ownership pass. Generated Release app-channel checks pass Script/Notes,
+  frozen aids, durable words/cuts, reuse and reload. The already verified public
+  model is installed in the owner's ignored `local-data/models` on E: and was
+  checked for exact size/SHA-256. No owner recording was processed in these checks.
+  **Half done:** filler/retake decisions, corrections, captions/screen/sound polish
+  and delivery coaching remain. Owner trials are deferred. Build those next;
+  Android/iOS and paid-launch/legal work remain later. Do not call the app finished.
 
 - **Latest checkpoint (2026-10-06, first Windows video export):** 443 Flutter
   tests, 161 screenshot cases and clean analysis. Debug/Release native render
@@ -671,11 +688,17 @@ build step 2 (screen recording).
    cancellable background recognition and durable frozen-aid word results pass;
    take review exports SRT/VTT. See `word-timing.md` for estimated timings and
    remaining real-language quality trials. Step 4 now has reversible quiet cuts
-   and first local video export. Next automatic-on-stop, filler/retake review,
+   and first local video export with automatic processing after Stop. Next filler/retake review,
    caption/screen/sound polish and delivery coaching; keep originals intact.
    See OpenScreen in the brief for reusable parts.
 
 ## Decisions
+
+- 2026-10-06, implementation of the approved after-Stop workflow: **Make a cut
+  after recording** starts enabled and can be switched off. It verifies existing
+  offline weights without a download, then saves actual speech and reversible
+  cuts locally. Missing setup requires the explicit disclosed model action.
+  Reopening a take preserves existing words/cut choices; originals stay intact.
 
 - 2026-10-06, initial Cut guardrails: automatic cleaning requires measured quiet
   frames (20ms, RMS/peak at most -60 dBFS), never just an estimated word gap.
@@ -833,6 +856,21 @@ build step 2 (screen recording).
   word lists, not prosody.
 
 ## Session log
+
+- 2026-10-06, automatic review after Stop:
+  - Connected Camera/Screen/Both to review with persistent capture warnings and
+    released live inputs; Record another resets the aid and restores setup.
+    Added the default-enabled local processing setting and installed-only check.
+    Model/speech/cut cancellation preserves originals and saved words; automatic
+    reuse preserves existing choices. Slow initial reads cannot replace new cuts.
+  - EN/FR/AR Script/Notes processing, no-network missing/pre-start setup,
+    single-owner cancellation, review progress and recorder-input lifetime tests
+    pass. Analysis is clean, all 456 tests and 167 screenshots pass, and the normal
+    Windows Release build succeeds. EN setup/AR progress PNGs inspected.
+    The generated Release channel
+    check verifies actual speech, frozen aids and durable/reused words/cuts.
+    Copied the verified public model to the owner's local-data on E: after checking
+    size/SHA-256 again. No new dependency or owner speech used; trials deferred.
 
 - 2026-10-06, first Windows video export:
   - Built the bounded native GPU/PCM renderer, finalized MP4 output, all four

@@ -25,6 +25,7 @@ class SpeechModels extends ChangeNotifier {
   String? problem;
   bool _cancelled = false;
   http.Client? _download;
+  Future<void>? _work;
   bool get busy =>
       phase == SpeechModelPhase.checking ||
       phase == SpeechModelPhase.downloading;
@@ -34,25 +35,55 @@ class SpeechModels extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> _begin({required bool download}) {
+    final running = _work;
+    if (running != null) return running;
+    _cancelled = false;
+    final work = Future<void>(() => _prepare(download: download))
+        .whenComplete(() => _work = null);
+    _work = work;
+    return work;
+  }
+
+  /// Automatic-on-stop checks the installed file without any network request.
+  Future<bool> checkInstalled() async {
+    if (!ready) await _begin(download: false);
+    return ready;
+  }
+
+  /// Explicit first-use action may download; wait for any installed-file check.
   Future<void> prepare() async {
-    if (busy || ready) return;
+    final checking = _work;
+    if (checking != null) {
+      await checking;
+      if (_cancelled) return;
+    }
+    if (!ready) await _begin(download: true);
+  }
+
+  Future<void> _prepare({required bool download}) async {
+    if (ready) return;
     if (!backend.supported) {
       problem = 'Offline speech is available on Windows first.';
       _phase(SpeechModelPhase.failed);
       return;
     }
-    _cancelled = false;
     problem = null;
     progress = 0;
     final partial = File('${file.path}.partial');
     try {
       _phase(SpeechModelPhase.checking);
+      if (_cancelled) throw const SpeechCancelled();
       if (await file.exists() && await backend.verify(file.path)) {
         if (_cancelled) throw const SpeechCancelled();
         _phase(SpeechModelPhase.ready);
         return;
       }
       if (_cancelled) throw const SpeechCancelled();
+      if (!download) {
+        _phase(SpeechModelPhase.missing);
+        return;
+      }
       await directory.create(recursive: true);
       _phase(SpeechModelPhase.downloading);
       final client = _download = _client();
@@ -114,6 +145,10 @@ class SpeechModels extends ChangeNotifier {
   Future<void> cancel() async {
     _cancelled = true;
     _download?.close();
-    await backend.cancel();
+    try {
+      await backend.cancel();
+    } on Object {
+      /* Keep cancellation requested. */
+    }
   }
 }

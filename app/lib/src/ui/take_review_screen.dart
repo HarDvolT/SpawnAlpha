@@ -13,6 +13,7 @@ import '../theme/theme.dart';
 import '../transcription/captions.dart';
 import '../transcription/speech_processor.dart';
 import '../transcription/speech_models.dart';
+import '../transcription/take_processing.dart';
 import 'format.dart';
 import 'home_screen.dart';
 import 'clean_cut_panel.dart';
@@ -20,9 +21,18 @@ import 'take_player.dart';
 import 'video_export_panel.dart';
 
 class TakeReviewScreen extends StatefulWidget {
-  const TakeReviewScreen({super.key, required this.script, required this.take});
+  const TakeReviewScreen({
+    super.key,
+    required this.script,
+    required this.take,
+    this.processAfterStop = false,
+    this.fromRecording = false,
+    this.recordingNotice,
+  });
   final ScriptDocument script;
   final Take take;
+  final bool processAfterStop, fromRecording;
+  final String? recordingNotice;
   @override
   State<TakeReviewScreen> createState() => _TakeReviewScreenState();
 }
@@ -52,14 +62,27 @@ class _TakeReviewScreenState extends State<TakeReviewScreen> {
     if (_loaded) return;
     _loaded = true;
     final app = AppScope.of(context), processor = app.speech;
+    if (widget.processAfterStop) {
+      Future<void>(() async {
+        if (mounted) await _process(automatic: true);
+      });
+    }
+    final loadingTake = _latestTake(app);
     Future.wait([
-      app.cuts.load(_latestTake(app)),
-      app.videoExports.load(_latestTake(app)),
+      app.cuts.load(loadingTake),
+      app.videoExports.load(loadingTake),
     ]).then((values) {
       if (mounted) {
         setState(() {
-          _clean = values[0] as CleanPlan?;
-          _videos = values[1]! as List<VideoExport>;
+          final latest = _latestTake(app);
+          // A slow disk read must not replace a newly processed or edited cut.
+          if (latest.wordsPath == loadingTake.wordsPath &&
+              latest.cutPath == loadingTake.cutPath) {
+            _clean = values[0] as CleanPlan?;
+          }
+          if (latest.exportsPath == loadingTake.exportsPath) {
+            _videos = values[1]! as List<VideoExport>;
+          }
           _reviewReady = true;
         });
       }
@@ -68,8 +91,10 @@ class _TakeReviewScreenState extends State<TakeReviewScreen> {
       _spoken = processor.result;
       return;
     }
-    processor.load(widget.take).then((value) {
-      if (mounted) setState(() => _spoken = value);
+    processor.load(loadingTake).then((value) {
+      if (mounted && _latestTake(app).wordsPath == loadingTake.wordsPath) {
+        setState(() => _spoken = value);
+      }
     });
   }
 
@@ -91,15 +116,21 @@ class _TakeReviewScreenState extends State<TakeReviewScreen> {
     }
   }
 
-  Future<void> _process() async {
+  Future<void> _process({bool automatic = false}) async {
     final app = AppScope.of(context);
-    await app.speech.process(widget.script, widget.take);
-    if (mounted && app.speech.result?.sourcePath == widget.take.path) {
+    await app.processing.run(
+      widget.script,
+      _latestTake(app),
+      automatic: automatic,
+    );
+    final take = _latestTake(app);
+    final spoken = await app.speech.load(take),
+        clean = await app.cuts.load(take);
+    if (mounted) {
       setState(() {
-        _spoken = app.speech.result;
-        _clean = null;
+        _spoken = spoken;
+        _clean = clean;
       });
-      await _makeCut();
     }
   }
 
@@ -200,12 +231,26 @@ class _TakeReviewScreenState extends State<TakeReviewScreen> {
   Widget build(BuildContext context) {
     final app = AppScope.of(context), p = SaTheme.of(context);
     return ListenableBuilder(
-      listenable: Listenable.merge([app.speech, app.speechModels, app.exports]),
+      listenable: Listenable.merge([
+        app.speech,
+        app.speechModels,
+        app.exports,
+        app.processing,
+      ]),
       builder: (context, _) {
         final job = app.speech,
             model = app.speechModels,
-            busy = job.busy || model.busy || _planning || app.exports.busy;
+            busy =
+                job.busy ||
+                model.busy ||
+                _planning ||
+                app.exports.busy ||
+                app.processing.busy;
         final spoken = _spoken;
+        final processingBusy = job.busy || model.busy || app.processing.busy;
+        final needsSetup =
+            app.processing.source == widget.take.path &&
+            app.processing.phase == TakeProcessPhase.needsSetup;
         final words = spoken?.transcript.words ?? const [];
         final alignment = spoken?.alignment;
         final changed = alignment?['words'] is List
@@ -253,6 +298,78 @@ class _TakeReviewScreenState extends State<TakeReviewScreen> {
                   style: SaType.bodySm.copyWith(color: p.ink2),
                 ),
                 const SizedBox(height: SaSpace.s4),
+                if (widget.recordingNotice != null) ...[
+                  Text(
+                    widget.recordingNotice!,
+                    style: SaType.body.copyWith(color: p.danger),
+                  ),
+                  const SizedBox(height: SaSpace.s4),
+                ],
+                if (widget.fromRecording)
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: TextButton.icon(
+                      onPressed: busy ? null : () => Navigator.pop(context),
+                      icon: const Icon(Icons.videocam_outlined),
+                      label: const Text('Record another'),
+                    ),
+                  ),
+                if (needsSetup) ...[
+                  Text(
+                    'Set up offline speech to make your cut. First use downloads a 148 MB model from Hugging Face. No recording is uploaded.',
+                    style: SaType.bodySm.copyWith(color: p.ink2),
+                  ),
+                  const SizedBox(height: SaSpace.s3),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: FilledButton.icon(
+                      onPressed: busy ? null : _process,
+                      icon: const Icon(Icons.subtitles_outlined),
+                      label: const Text('Find spoken words'),
+                    ),
+                  ),
+                  const SizedBox(height: SaSpace.s4),
+                ],
+                if (processingBusy) ...[
+                  const SizedBox(height: SaSpace.s3),
+                  LinearProgressIndicator(
+                    value: model.phase == SpeechModelPhase.downloading
+                        ? model.progress
+                        : job.phase == SpeechPhase.running
+                        ? job.progress
+                        : null,
+                  ),
+                  const SizedBox(height: SaSpace.s2),
+                  Wrap(
+                    spacing: SaSpace.s3,
+                    runSpacing: SaSpace.s2,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      Text(
+                        app.processing.phase == TakeProcessPhase.cut
+                            ? 'Making your cut…'
+                            : model.phase == SpeechModelPhase.downloading
+                            ? 'Downloading offline speech…'
+                            : model.phase == SpeechModelPhase.checking ||
+                                  app.processing.phase ==
+                                      TakeProcessPhase.checking
+                            ? 'Checking offline speech…'
+                            : job.phase == SpeechPhase.saving
+                            ? 'Saving spoken words…'
+                            : 'Finding spoken words…',
+                        style: SaType.signalLabel.copyWith(color: p.ink2),
+                      ),
+                      OutlinedButton.icon(
+                        onPressed: app.processing.busy
+                            ? app.processing.cancel
+                            : job.cancel,
+                        icon: const Icon(Icons.close_rounded),
+                        label: const Text('Cancel processing'),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: SaSpace.s4),
+                ],
                 if (_viewing != null)
                   TextButton.icon(
                     onPressed: () => setState(() => _viewing = null),
@@ -278,22 +395,17 @@ class _TakeReviewScreenState extends State<TakeReviewScreen> {
                       icon: const Icon(Icons.folder_open_outlined),
                       label: const Text('Show original file'),
                     ),
-                    FilledButton.icon(
-                      onPressed: busy || !app.speechBackend.supported
-                          ? null
-                          : _process,
-                      icon: const Icon(Icons.subtitles_outlined),
-                      label: Text(
-                        spoken == null
-                            ? 'Find spoken words'
-                            : 'Try speech again',
-                      ),
-                    ),
-                    if (job.busy || model.busy)
-                      OutlinedButton.icon(
-                        onPressed: job.cancel,
-                        icon: const Icon(Icons.close_rounded),
-                        label: const Text('Cancel processing'),
+                    if (!needsSetup)
+                      FilledButton.icon(
+                        onPressed: busy || !app.speechBackend.supported
+                            ? null
+                            : _process,
+                        icon: const Icon(Icons.subtitles_outlined),
+                        label: Text(
+                          spoken == null
+                              ? 'Find spoken words'
+                              : 'Try speech again',
+                        ),
                       ),
                   ],
                 ),
@@ -311,32 +423,11 @@ class _TakeReviewScreenState extends State<TakeReviewScreen> {
                   'Speech processing supports takes up to 24 hours. Your original is always kept.',
                   style: SaType.bodySm.copyWith(color: p.ink2),
                 ),
-                if (!model.ready) ...[
+                if (!model.ready && !needsSetup) ...[
                   const SizedBox(height: SaSpace.s3),
                   Text(
                     'First use downloads a 148 MB speech model from Hugging Face. No recording is uploaded.',
                     style: SaType.bodySm.copyWith(color: p.ink2),
-                  ),
-                ],
-                if (job.busy || model.busy) ...[
-                  const SizedBox(height: SaSpace.s4),
-                  LinearProgressIndicator(
-                    value: model.phase == SpeechModelPhase.downloading
-                        ? model.progress
-                        : job.phase == SpeechPhase.running
-                        ? job.progress
-                        : null,
-                  ),
-                  const SizedBox(height: SaSpace.s2),
-                  Text(
-                    model.phase == SpeechModelPhase.downloading
-                        ? 'Downloading offline speech…'
-                        : model.phase == SpeechModelPhase.checking
-                        ? 'Checking the model…'
-                        : job.phase == SpeechPhase.saving
-                        ? 'Saving spoken words…'
-                        : 'Finding spoken words…',
-                    style: SaType.signalLabel.copyWith(color: p.ink2),
                   ),
                 ],
                 if (job.problem != null)
@@ -347,6 +438,12 @@ class _TakeReviewScreenState extends State<TakeReviewScreen> {
                 if (model.problem != null)
                   Text(
                     model.problem!,
+                    style: SaType.bodySm.copyWith(color: p.danger),
+                  ),
+                if (app.processing.source == widget.take.path &&
+                    app.processing.problem != null)
+                  Text(
+                    app.processing.problem!,
                     style: SaType.bodySm.copyWith(color: p.danger),
                   ),
                 if (job.phase == SpeechPhase.cancelled)

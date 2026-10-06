@@ -65,6 +65,7 @@ import 'package:spawnalpha/src/ui/take_player.dart';
 import 'package:spawnalpha/src/ui/video_export_panel.dart';
 import 'package:spawnalpha/src/model/video_export.dart';
 import 'package:spawnalpha/src/render/export_processor.dart';
+import 'package:spawnalpha/src/transcription/take_processing.dart';
 import 'package:spawnalpha/src/playback/local_playback.dart';
 
 import 'fixtures/cue_check_scripts.dart';
@@ -251,6 +252,19 @@ void main() {
   }
 
   for (final language in ScriptLanguage.values) {
+    for (final processing in [false, true]) {
+      testWidgets('after stop $language processing=$processing', (tester) async {
+        final take = Take(path: 'generated.mp4', recordedAt: DateTime(2026), duration: const Duration(seconds: 3));
+        final spoken = reviewFixture(language, take);
+        await shoot(tester, 'after-stop-${language.name}-${processing ? 'progress' : 'setup'}', desktop, (app) {
+          app.processing.source = take.path;
+          app.processing.phase = processing ? TakeProcessPhase.cut : TakeProcessPhase.needsSetup;
+          if (processing) { app.speechModels.phase = SpeechModelPhase.ready; app.speech.result = spoken; }
+          return TakeReviewScreen(script: spoken.snapshot!, take: take, fromRecording: true,
+            recordingNotice: 'The camera stopped early. The screen recording is safe.');
+        }, [spoken.snapshot!], settle: !processing);
+      });
+    }
     for (final brightness in [Brightness.light, Brightness.dark]) {
       for (final working in [false, true]) {
         testWidgets('video export $language $brightness working=$working', (tester) async {

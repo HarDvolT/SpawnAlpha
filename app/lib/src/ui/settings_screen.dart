@@ -183,6 +183,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   value: settings.mirror,
                   onChanged: (v) => settings.update((s) => s.mirror = v),
                 ),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Make a cut after recording'),
+                  subtitle: const Text('Once offline speech is set up, find words and make a reversible cut after Stop. Your original is kept.'),
+                  value: settings.processAfterStop,
+                  onChanged: (v) => settings.update((s) => s.processAfterStop = v),
+                ),
                 const Divider(height: 40),
                 Text('Privacy and licences', style: theme.textTheme.titleMedium),
                 const SizedBox(height: 8),

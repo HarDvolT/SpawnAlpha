@@ -574,6 +574,16 @@ modified. Failed/interrupted jobs can be retried; orphan sidecars remain local.
 `Take.wordsPath` is optional for legacy compatibility. Take review shows actual
 speech, progress/cancel/retry and local SRT/VTT export; full Cut is still next.
 
+`TakeProcessing` owns the post-stop sequence: installed-only verification,
+actual speech, latest take revision and reversible cut creation. Its automatic
+path never downloads a model and reuses saved words/cut choices. Explicit setup
+can download after disclosure. `SpeechModels` shares a guarded work future so
+concurrent checks/setup and cancellation before scheduling cannot start a second
+native owner or reset cancellation. Camera/Screen/Both release live input previews
+and microphone meters before opening review, carry persistent capture warnings,
+and restore setup on return. The saved setting can disable this sequence.
+Initial review reads compare word/cut/export revisions before applying results.
+
 ## Reversible cleaning foundation (build step 4)
 
 Native recognition also returns conservative 20ms measured quiet intervals,

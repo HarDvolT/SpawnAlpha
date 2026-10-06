@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -11,6 +12,7 @@ import 'package:spawnalpha/src/theme/theme.dart';
 import 'package:spawnalpha/src/transcription/speech_models.dart';
 import 'package:spawnalpha/src/transcription/speech_processor.dart';
 import 'package:spawnalpha/src/transcription/word_timing.dart';
+import 'package:spawnalpha/src/transcription/take_processing.dart';
 import 'package:spawnalpha/src/ui/take_review_screen.dart';
 
 import '../transcription/speech_processor_test.dart' show FakeSpeech;
@@ -58,6 +60,73 @@ SavedTranscript reviewFixture(
 
 void main() {
   for (final language in ScriptLanguage.values) {
+    testWidgets('new take starts processing and keeps warning $language', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(1280, 900);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final take = Take(
+        path: 'generated.mp4',
+        recordedAt: DateTime(2026),
+        duration: const Duration(seconds: 3),
+      );
+      final spoken = reviewFixture(language, take);
+      final script = spoken.snapshot!.copyWith(takes: [take]);
+      final library = ScriptLibrary(MemoryScriptStore());
+      await library.save(script);
+      final backend = FakeSpeech('unused')
+        ..deferred = Completer<List<Object?>>();
+      final services = AppServices(
+        library: library,
+        settings: Settings(secrets: MemorySecretStore()),
+        recordingsDir: Directory.systemTemp,
+        speechBackend: backend,
+      );
+      services.speechModels.phase = SpeechModelPhase.ready;
+      await tester.pumpWidget(
+        AppScope(
+          services: services,
+          child: MaterialApp(
+            theme: buildTheme(Brightness.light),
+            home: TakeReviewScreen(
+              script: script,
+              take: take,
+              processAfterStop: true,
+              fromRecording: true,
+              recordingNotice:
+                  'The camera stopped early. The screen recording is safe.',
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 1));
+      expect(backend.started.isCompleted, isTrue);
+      expect(find.textContaining('camera stopped early'), findsOneWidget);
+      expect(
+        tester
+            .widget<TextButton>(
+              find.widgetWithText(TextButton, 'Record another'),
+            )
+            .onPressed,
+        isNull,
+      );
+      await tester.scrollUntilVisible(
+        find.text('Cancel processing'),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Cancel processing'));
+      await tester.pumpAndSettle();
+      expect(services.processing.phase, TakeProcessPhase.cancelled);
+      expect(library.byId(script.id)!.takes.single.wordsPath, isNull);
+      await tester.pumpWidget(const SizedBox());
+      services.processing.dispose();
+      services.speech.dispose();
+      services.speechModels.dispose();
+      library.dispose();
+    });
     for (final notes in [false, true]) {
       testWidgets(
         'review keeps actual speech and aid policy $language Notes=$notes',
@@ -91,7 +160,11 @@ void main() {
           );
           await tester.pumpAndSettle();
           final transcript = find.byType(SelectableText);
-          await tester.scrollUntilVisible(transcript, 250, scrollable: find.byType(Scrollable).first);
+          await tester.scrollUntilVisible(
+            transcript,
+            250,
+            scrollable: find.byType(Scrollable).first,
+          );
           expect(
             tester.widget<SelectableText>(transcript).data,
             spoken.transcript.words.map((w) => w.text).join(' '),
@@ -152,11 +225,23 @@ void main() {
       ),
     );
     await tester.pump();
-    await tester.scrollUntilVisible(find.text('Cancel processing'), 200, scrollable: find.byType(Scrollable).first);
+    await tester.scrollUntilVisible(
+      find.text('Cancel processing'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
     expect(find.text('Cancel processing'), findsOneWidget);
-    await tester.scrollUntilVisible(find.byType(LinearProgressIndicator), 150, scrollable: find.byType(Scrollable).first);
+    await tester.scrollUntilVisible(
+      find.byType(LinearProgressIndicator),
+      150,
+      scrollable: find.byType(Scrollable).first,
+    );
     expect(find.byType(LinearProgressIndicator), findsOneWidget);
-    await tester.scrollUntilVisible(find.text('Cancel processing'), -150, scrollable: find.byType(Scrollable).first);
+    await tester.scrollUntilVisible(
+      find.widgetWithText(FilledButton, 'Find spoken words'),
+      150,
+      scrollable: find.byType(Scrollable).first,
+    );
     expect(
       tester
           .widget<FilledButton>(
@@ -164,6 +249,11 @@ void main() {
           )
           .onPressed,
       isNull,
+    );
+    await tester.scrollUntilVisible(
+      find.text('Cancel processing'),
+      -150,
+      scrollable: find.byType(Scrollable).first,
     );
     await tester.tap(find.text('Cancel processing'));
     await tester.pump();

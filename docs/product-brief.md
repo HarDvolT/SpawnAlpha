@@ -100,6 +100,8 @@ Revised 2026-09-30 by the owner. Screen recording moves up, and the automatic ed
      navigation independent of the selected recording mode.
 3. **Word timing.** Word-level transcription aligned to the script. The review, the Director's Cut, retakes and voice-follow all build on it.
 4. **Director's Cut v1.** The automatic edit, ready when you stop:
+   - automatic processing starts enabled after offline speech setup, with a
+     Settings switch; it checks installed weights without downloading;
    - trims that keep marked pauses, and filler removal;
    - captions from the script;
    - auto-zoom and a smooth cursor;

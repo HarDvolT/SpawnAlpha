@@ -1,5 +1,20 @@
 # Take review
 
+After a new recording saves, Camera/Screen/Both open this review directly,
+carrying any sound/camera/activity warning as a persistent reading-voice notice.
+The recorder releases live previews and microphone meters while reviewing.
+**Record another** returns to setup after processing ends or is cancelled.
+
+**Make a cut after recording** starts enabled in Settings. It checks only the
+installed offline model, then finds actual words and saves a reversible cut.
+Automatic processing never downloads anything. If speech is not set up, review
+explains the 148 MB public model and offers **Find spoken words** for explicit
+setup. Saved words/cuts are reused when reopening; review does not repeat a job.
+Progress/cancel spans the installed-model check, speech and cut saving. Failure
+keeps the original and any successfully saved words for retry.
+Setup and active processing sit above the video preview so their progress and
+cancel action are visible without scrolling. Record another aligns to the left.
+
 The take opens in the themed Studio with a paused local video player. Play/pause,
 seek and mute controls sit below the picture and support keyboard focus and
 accessible labels. The preview uses the Stage dark background inside the Studio,

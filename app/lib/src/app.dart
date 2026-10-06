@@ -19,6 +19,7 @@ import 'ui/home_screen.dart';
 import 'transcription/speech_backend.dart';
 import 'transcription/speech_models.dart';
 import 'transcription/speech_processor.dart';
+import 'transcription/take_processing.dart';
 import 'playback/local_playback.dart';
 import 'render/video_renderer.dart';
 import 'render/export_processor.dart';
@@ -95,6 +96,7 @@ class AppServices {
     Directory('${recordingsDir.path}${Platform.pathSeparator}cuts'),
     library,
   );
+  late final TakeProcessing processing = TakeProcessing(speech, cuts);
   late final ScreenTakeStore screenTakes = ScreenTakeStore(
     recordingsDir,
     library,

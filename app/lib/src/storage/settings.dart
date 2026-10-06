@@ -60,6 +60,7 @@ class Settings extends ChangeNotifier {
   double fontSize = 44;
   bool mirror = false;
   TakeMode recordMode = TakeMode.camera;
+  bool processAfterStop = true;
 
   /// Null until the first camera companion choice; no cursor data is stored.
   bool? companionCameraFollow;
@@ -128,8 +129,8 @@ class Settings extends ChangeNotifier {
       try {
         final json = jsonDecode(await file.readAsString());
         if (json is Map<String, Object?>) _read(json);
-      } on FormatException catch (e) {
-        debugPrint('Ignoring unreadable settings: $e');
+      } on FormatException {
+        // Preserve unreadable settings without logging private stored text.
       }
     }
     for (final p in MarkupProvider.values.where((p) => p.isRemote)) {
@@ -140,14 +141,17 @@ class Settings extends ChangeNotifier {
           key = await _secrets.read('anthropic_api_key');
         }
         if (key != null && key.isNotEmpty) _keys[p] = key;
-      } on Exception catch (e) {
-        debugPrint('Could not read the ${p.label} API key: $e');
+      } on Object {
+        // Secure-storage errors may contain private diagnostics.
       }
     }
     notifyListeners();
   }
 
   void _read(Map<String, Object?> json) {
+    processAfterStop = json['processAfterStop'] is bool
+        ? json['processAfterStop']! as bool
+        : true;
     companionCameraFollow = json['companionCameraFollow'] is bool
         ? json['companionCameraFollow'] as bool
         : null;
@@ -196,6 +200,7 @@ class Settings extends ChangeNotifier {
     'fontSize': fontSize,
     'mirror': mirror,
     'recordMode': recordMode.name,
+    'processAfterStop': processAfterStop,
     if (companionCameraFollow != null)
       'companionCameraFollow': companionCameraFollow,
     'kinetic': kinetic,

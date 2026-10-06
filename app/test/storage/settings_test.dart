@@ -16,6 +16,15 @@ void main() {
 
   File file() => File('${dir.path}/settings.json');
 
+  test('after-stop starts enabled and remembers an explicit off choice', () async {
+    final settings = Settings(file: file(), secrets: MemorySecretStore());
+    await file().writeAsString('{}'); await settings.load();
+    expect(settings.processAfterStop, isTrue);
+    await settings.update((s) => s.processAfterStop = false);
+    final reloaded = Settings(file: file(), secrets: MemorySecretStore()); await reloaded.load();
+    expect(reloaded.processAfterStop, isFalse);
+  });
+
   test('camera companion defaults to an unanswered choice and remembers either answer', () async {
     final settings = Settings(file: file(), secrets: MemorySecretStore());
     await settings.load();

@@ -29,6 +29,7 @@ import 'screen_source_picker.dart';
 import 'screen_preview_screen.dart';
 import 'notes_stage.dart';
 import 'notes_editor_screen.dart';
+import 'take_review_screen.dart';
 import '../storage/camera_take_store.dart';
 
 /// Records the camera with the coached prompter over the preview. The
@@ -61,6 +62,7 @@ class _RecordScreenState extends State<RecordScreen> with WidgetsBindingObserver
   Timer? _clock;
   bool _saving = false;
   bool _startingCamera = false;
+  bool _reviewing = false;
   CameraTakeSnapshot? _cameraSnapshot;
 
   Future<void> _noteChanged(int index) async {
@@ -524,7 +526,7 @@ class _RecordScreenState extends State<RecordScreen> with WidgetsBindingObserver
     _script = services.library.byId(_script.id) ?? _script;
     final take = owner.take;
     if (take != null) {
-      _showSaved(take, owner.problem);
+      await _showSaved(take, owner.problem);
     } else if (owner.problem != null) {
       showMessage(context, owner.problem!);
     }
@@ -585,7 +587,7 @@ class _RecordScreenState extends State<RecordScreen> with WidgetsBindingObserver
       _script = _script.copyWith(takes: [..._script.takes, take]);
       await services.library.save(_script);
       await _cameraSnapshot?.finish(take);
-      if (mounted) _showSaved(take, await _soundProblem(take, loudest));
+      if (mounted) await _showSaved(take, await _soundProblem(take, loudest));
     } on Object {
       if (mounted) {
         showMessage(context, 'The take could not be saved. Its data stays on this device.');
@@ -595,6 +597,7 @@ class _RecordScreenState extends State<RecordScreen> with WidgetsBindingObserver
       if (mounted) {
         setState(() {});
         await _mic?.watchEveryMic();
+        if (_camera == null && _needsCamera && _cameras.isNotEmpty) await _openCamera(_cameraIndex);
       }
     }
   }
@@ -640,57 +643,37 @@ class _RecordScreenState extends State<RecordScreen> with WidgetsBindingObserver
     return null;
   }
 
-  void _showSaved(Take take, String? soundProblem) {
-    showDialog<void>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(
-          soundProblem == null
-              ? 'Take saved'
-              : take.mode == TakeMode.camera
-              ? 'Take saved, but check the sound'
-              : 'Take saved, with a warning',
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (soundProblem != null) ...[
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Icon(
-                    take.mode == TakeMode.camera ? Icons.mic_off_rounded : Icons.warning_amber_rounded,
-                    color: SaTheme.of(context).danger,
-                    size: 20,
-                  ),
-                  const SizedBox(width: SaSpace.s2),
-                  Expanded(child: Text(soundProblem)),
-                ],
-              ),
-              const SizedBox(height: SaSpace.s3),
-            ],
-            Text('${formatDuration(take.duration)} recorded.\n\n${take.path}'),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              _prompter.restart();
-            },
-            child: const Text('Record another'),
-          ),
-          FilledButton(
-            onPressed: () {
-              Navigator.pop(context);
-              Navigator.pop(this.context, _script);
-            },
-            child: const Text('Done'),
-          ),
-        ],
-      ),
-    );
+  Future<void> _showSaved(Take take, String? soundProblem) async {
+    final services = AppScope.of(context);
+    setState(() => _reviewing = true);
+    ++_cameraGeneration;
+    final camera = _camera;
+    _camera = null;
+    for (final close in <Future<void> Function()>[
+      () async => _mic?.stopWatchingAll(),
+      () async => _mic?.stop(),
+      () async => _screenPreview?.stop(),
+      () async => camera?.dispose(),
+    ]) {
+      try { await close(); } on Object { /* Continue releasing the other previews. */ }
+    }
+    try {
+      if (mounted) {
+        await Navigator.of(context).push<void>(MaterialPageRoute(builder: (_) => TakeReviewScreen(
+          script: services.library.byId(_script.id) ?? _script, take: take,
+          fromRecording: true, recordingNotice: soundProblem,
+          processAfterStop: services.settings.processAfterStop && services.speechBackend.supported,
+        )));
+      }
+    } finally {
+      if (mounted) {
+        _script = services.library.byId(_script.id) ?? _script;
+        _prompter.restart();
+        _notes.restart();
+        setState(() => _reviewing = false);
+        await _mic?.start(services.settings.audioInputId);
+      }
+    }
   }
 
   // ---- build --------------------------------------------------------------
@@ -771,6 +754,7 @@ class _RecordScreenState extends State<RecordScreen> with WidgetsBindingObserver
   }
 
   bool get _busy =>
+      _reviewing ||
       _startingCamera ||
       _recording ||
       _countdown != null ||
