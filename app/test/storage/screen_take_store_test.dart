@@ -14,6 +14,7 @@ import 'package:spawnalpha/src/storage/screen_take_store.dart';
 
 class FakeInspector implements RecordingInspector {
   final inspected = <String>[];
+  final byPath = <String, RecordingInfo>{};
   RecordingInfo info = const RecordingInfo(
     readable: true,
     hasAudio: true,
@@ -24,7 +25,7 @@ class FakeInspector implements RecordingInspector {
   @override
   Future<RecordingInfo> inspect(String path) async {
     inspected.add(path);
-    return info;
+    return byPath[path] ?? info;
   }
 }
 
@@ -68,11 +69,15 @@ void main() {
     language: language,
     style: CoachingStyle.presentation,
   );
-  Future<PendingScreenTake> reserve(ScriptDocument script) => store.reserve(
+  Future<PendingScreenTake> reserve(
+    ScriptDocument script, {
+    String? cameraName,
+  }) => store.reserve(
     presentation: FloatingPresentation(script: script),
     source: source,
     recordAudio: true,
     microphoneName: 'Chosen microphone',
+    cameraName: cameraName,
     pace: 'voice',
   );
 
@@ -214,6 +219,133 @@ void main() {
       final restored = Take.fromJson(both.toJson())!;
       expect(restored.mode, TakeMode.both);
       expect(restored.cameraPath, 'camera.mp4');
+    },
+  );
+
+  for (final language in ScriptLanguage.values) {
+    test(
+      'paired snapshot, files and recovery survive edits in ${language.name}',
+      () async {
+        final original = script(language);
+        await library.save(original);
+        final name = switch (language) {
+          ScriptLanguage.en => 'Chosen camera',
+          ScriptLanguage.fr => 'Caméra choisie',
+          ScriptLanguage.ar => 'الكاميرا المختارة',
+        };
+        final pending = await reserve(original, cameraName: name);
+        final before =
+            jsonDecode(await File(pending.metadataPath).readAsString()) as Map;
+        expect(before['mode'], 'both');
+        expect(before['camera'], '${pending.id}-camera.mp4');
+        expect(before['cameraName'], name);
+        expect(before.containsKey('cameraId'), isFalse);
+        await File(pending.videoPath).writeAsBytes([1]);
+        await File(pending.cameraPath!).writeAsBytes([2]);
+        await library.save(original.withText('${original.text} Later.'));
+        expect(await store.recover(), 1);
+        final take = library.byId(original.id)!.takes.single;
+        expect(take.mode, TakeMode.both);
+        expect(take.cameraPath, pending.cameraPath);
+        expect(take.recovered, isTrue);
+        expect(library.byId(original.id)!.text, '${original.text} Later.');
+        final after =
+            jsonDecode(await File(pending.metadataPath).readAsString()) as Map;
+        expect((after['script'] as Map)['text'], original.text);
+        expect(after['cameraReadable'], isTrue);
+        expect(after['cameraDurationUs'], 3000000);
+        expect(await store.recover(), 0);
+      },
+    );
+  }
+
+  test(
+    'normal paired finish saves both paths with separate verified details',
+    () async {
+      final original = script(ScriptLanguage.en);
+      await library.save(original);
+      final pending = await reserve(original, cameraName: 'Chosen camera');
+      await File(pending.cameraPath!).writeAsBytes([2]);
+      inspector.byPath[pending.cameraPath!] = const RecordingInfo(
+        readable: true,
+        width: 1280,
+        height: 720,
+        duration: Duration(seconds: 3),
+      );
+      final take = await store.finish(pending, status);
+      expect(take.mode, TakeMode.both);
+      expect(take.cameraPath, pending.cameraPath);
+      final metadata =
+          jsonDecode(await File(pending.metadataPath).readAsString()) as Map;
+      expect(metadata['hasAudio'], isTrue);
+      expect(metadata['cameraWidth'], 1280);
+      expect(metadata['cameraHeight'], 720);
+      expect(metadata['cameraReadable'], isTrue);
+    },
+  );
+
+  test(
+    'missing or unreadable camera preserves the screen and camera data',
+    () async {
+      final original = script(ScriptLanguage.en);
+      await library.save(original);
+      for (final missing in [true, false]) {
+        final pending = await reserve(original, cameraName: 'Chosen camera');
+        await File(pending.videoPath).writeAsBytes([1]);
+        if (!missing) {
+          await File(pending.cameraPath!).writeAsBytes([2]);
+          inspector.byPath[pending.cameraPath!] = const RecordingInfo();
+        }
+        expect(await store.recover(), 1);
+        final take = library.byId(original.id)!.takes.last;
+        expect(take.mode, TakeMode.screen);
+        expect(take.cameraPath, isNull);
+        final metadata =
+            jsonDecode(await File(pending.metadataPath).readAsString()) as Map;
+        expect(metadata['mode'], 'both');
+        expect(metadata['cameraReadable'], isFalse);
+        if (!missing) {
+          expect(await File(pending.cameraPath!).readAsBytes(), [2]);
+        }
+      }
+    },
+  );
+
+  test('paired recovery rejects an external camera path', () async {
+    final original = script(ScriptLanguage.en);
+    await library.save(original);
+    final pending = await reserve(original, cameraName: 'Chosen camera');
+    await File(pending.videoPath).writeAsBytes([1]);
+    final metadata =
+        jsonDecode(await File(pending.metadataPath).readAsString()) as Map;
+    metadata['camera'] = '../private.mp4';
+    await File(pending.metadataPath).writeAsString(jsonEncode(metadata));
+    expect(await store.recover(), 0);
+    expect(inspector.inspected, isEmpty);
+    expect(library.byId(original.id)!.takes, isEmpty);
+  });
+
+  test(
+    'paired save failure keeps a manifest and persists one pair on retry',
+    () async {
+      final original = script(ScriptLanguage.en);
+      await library.save(original);
+      final pending = await reserve(original, cameraName: 'Chosen camera');
+      await File(pending.videoPath).writeAsBytes([1]);
+      await File(pending.cameraPath!).writeAsBytes([2]);
+      scripts.fail = true;
+      await expectLater(
+        store.finish(pending, status),
+        throwsA(isA<FileSystemException>()),
+      );
+      scripts.fail = false;
+      expect(await store.recover(), 1);
+      expect(await store.recover(), 0);
+      expect(scripts.scripts[original.id]!.takes, hasLength(1));
+      expect(
+        scripts.scripts[original.id]!.takes.single.cameraPath,
+        pending.cameraPath,
+      );
     },
   );
 }

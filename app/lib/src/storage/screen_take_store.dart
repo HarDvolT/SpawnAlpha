@@ -16,8 +16,10 @@ class PendingScreenTake {
     required this.metadataPath,
     required this.snapshot,
     required this.recordedAt,
+    this.cameraPath,
   });
   final String id, videoPath, metadataPath;
+  final String? cameraPath;
   final ScriptDocument snapshot;
   final DateTime recordedAt;
 }
@@ -46,6 +48,7 @@ class ScreenTakeStore {
     required ScreenSource source,
     required bool recordAudio,
     String? microphoneName,
+    String? cameraName,
     required String pace,
   }) => _exclusive(() async {
     await directory.create(recursive: true);
@@ -53,12 +56,14 @@ class ScreenTakeStore {
     String under(String name) =>
         '${directory.path}${Platform.pathSeparator}$name';
     while (await File(under('$id.json')).exists() ||
-        await File(under('$id-screen.mp4')).exists()) {
+        await File(under('$id-screen.mp4')).exists() ||
+        await File(under('$id-camera.mp4')).exists()) {
       id = newId();
     }
     final at = DateTime.now();
     final videoPath = under('$id-screen.mp4');
     final metadataPath = under('$id.json');
+    final cameraPath = cameraName == null ? null : under('$id-camera.mp4');
     final snapshot = presentation.script.copyWith(
       takes: const [],
       suggestions: const [],
@@ -67,8 +72,10 @@ class ScreenTakeStore {
       'version': 1,
       'state': 'pending',
       'id': id,
-      'mode': 'screen',
+      'mode': cameraPath == null ? 'screen' : 'both',
       'video': '$id-screen.mp4',
+      if (cameraPath != null) 'camera': '$id-camera.mp4',
+      'cameraName': ?cameraName,
       'recordedAt': at.toIso8601String(),
       'script': snapshot.toJson(),
       'presentation': presentation.encode(),
@@ -88,6 +95,7 @@ class ScreenTakeStore {
       metadataPath: metadataPath,
       snapshot: snapshot,
       recordedAt: at,
+      cameraPath: cameraPath,
     );
   });
 
@@ -102,6 +110,7 @@ class ScreenTakeStore {
     return _save(
       pending,
       info,
+      cameraInfo: await _cameraInfo(pending.cameraPath),
       recovered: false,
       reason: status.reason.name,
       loudestRmsDb: status.loudestRmsDb,
@@ -111,7 +120,11 @@ class ScreenTakeStore {
   /// Cancellation before capture creates no video. Keep a small explicit local
   /// record of the cancellation, rather than retrying an empty take on startup.
   Future<void> abandon(PendingScreenTake pending) => _exclusive(() async {
-    if (await File(pending.videoPath).exists()) return;
+    if (await File(pending.videoPath).exists() ||
+        (pending.cameraPath != null &&
+            await File(pending.cameraPath!).exists())) {
+      return;
+    }
     final metadata = jsonDecode(
       await File(pending.metadataPath).readAsString(),
     ) as Map<String, dynamic>;
@@ -125,12 +138,14 @@ class ScreenTakeStore {
     required bool recovered,
     required String reason,
     double? loudestRmsDb,
+    RecordingInfo? cameraInfo,
   }) async {
     final take = Take(
       path: pending.videoPath,
       recordedAt: pending.recordedAt,
       duration: info.duration,
-      mode: TakeMode.screen,
+      mode: cameraInfo == null ? TakeMode.screen : TakeMode.both,
+      cameraPath: cameraInfo == null ? null : pending.cameraPath,
       metadataPath: pending.metadataPath,
       recovered: recovered,
     );
@@ -157,6 +172,12 @@ class ScreenTakeStore {
       'hasAudio': info.hasAudio,
       'stopReason': reason,
       'loudestRmsDb': ?loudestRmsDb,
+      if (pending.cameraPath != null) 'cameraReadable': cameraInfo != null,
+      if (cameraInfo != null) ...{
+        'cameraWidth': cameraInfo.width,
+        'cameraHeight': cameraInfo.height,
+        'cameraDurationUs': cameraInfo.duration.inMicroseconds,
+      },
     });
     await _write(File(pending.metadataPath), metadata);
     return existing ?? take;
@@ -176,13 +197,16 @@ class ScreenTakeStore {
             jsonDecode(await entry.readAsString()) as Map<String, dynamic>;
         if (metadata['version'] != 1 ||
             metadata['state'] != 'pending' ||
-            metadata['mode'] != 'screen') {
+            !const ['screen', 'both'].contains(metadata['mode'])) {
           continue;
         }
         final id = metadata['id'];
         if (id is! String ||
             !RegExp(r'^[a-zA-Z0-9_-]+$').hasMatch(id) ||
             metadata['video'] != '$id-screen.mp4' ||
+            (metadata['mode'] == 'both' &&
+                metadata['camera'] != '$id-camera.mp4') ||
+            (metadata['mode'] == 'screen' && metadata['camera'] != null) ||
             entry.absolute.path !=
                 File('${directory.path}${Platform.pathSeparator}$id.json')
                     .absolute
@@ -200,6 +224,16 @@ class ScreenTakeStore {
         }
         final info = await inspector.inspect(video.path);
         if (!info.readable) continue;
+        final cameraPath = metadata['mode'] == 'both'
+            ? '${directory.path}${Platform.pathSeparator}$id-camera.mp4'
+            : null;
+        // Reject a substituted camera link too. A genuinely missing/unreadable
+        // camera can still leave a useful screen take, without following links.
+        if (cameraPath != null &&
+            await FileSystemEntity.type(cameraPath, followLinks: false) ==
+                FileSystemEntityType.link) {
+          continue;
+        }
         final pending = PendingScreenTake(
           id: id,
           videoPath: video.path,
@@ -208,8 +242,15 @@ class ScreenTakeStore {
             Map<String, Object?>.from(metadata['script'] as Map),
           ),
           recordedAt: DateTime.parse(metadata['recordedAt'] as String),
+          cameraPath: cameraPath,
         );
-        await _save(pending, info, recovered: true, reason: 'interrupted');
+        await _save(
+          pending,
+          info,
+          recovered: true,
+          reason: 'interrupted',
+          cameraInfo: await _cameraInfo(cameraPath),
+        );
         ++recovered;
       } on Object {
         /* Preserve local data for a later retry, without private logs. */
@@ -222,5 +263,20 @@ class ScreenTakeStore {
     final temp = File('${target.path}.tmp');
     await temp.writeAsString(jsonEncode(metadata), flush: true);
     await temp.rename(target.path);
+  }
+
+  Future<RecordingInfo?> _cameraInfo(String? path) async {
+    if (path == null ||
+        await FileSystemEntity.type(path, followLinks: false) !=
+            FileSystemEntityType.file) {
+      return null;
+    }
+    try {
+      final info = await inspector.inspect(path);
+      return info.readable ? info : null;
+    } on Object {
+      // Preserve the screen and the local camera file even if decoding fails.
+      return null;
+    }
   }
 }

@@ -427,8 +427,12 @@ recordings folder.
   use the same cadence slot and pause clock. Camera loss/stale frames stops safely
   with a camera reason, including during Pause. Native checks use generated video,
   not the owner's camera; fixture entry points are compiled only into explicit check
-  targets. Dart validates paired arguments/counts. Paired manifests, excluded live
-  camera bubble and normal Both setup integration remain next, so Both stays off.
+  targets. Dart validates paired arguments/counts. `ScreenTakeStore` reserves both local
+  paths before capture and verifies their dimensions/durations independently. Paired
+  recovery restricts camera paths/links too; missing/unreadable camera output retains
+  the useful Screen take, local camera bytes and explicit cameraReadable metadata.
+  EN/FR/AR edits and failed-save retries preserve one pair. The excluded live camera
+  bubble and normal Both setup integration remain next, so Both stays off.
 - **SettingsScreen**: the markup source, API key, model, default style, text
   size and mirror setting, plus **Privacy and licences**: what leaves the
   device, and the licence page (`showLicensePage`).

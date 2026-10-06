@@ -36,7 +36,7 @@ build step 2 (screen recording).
   `flutter_secure_storage_windows`). `flutter doctor -v` passes Windows, Visual Studio,
   desktop device and network checks. Android is intentionally not installed yet.
 - **Local checks and launch:** `flutter pub get` succeeds; `flutter analyze` prints
-  **No issues found!**; all **242 tests pass** (226 before Screen integration).
+  **No issues found!**; all **249 tests pass** (226 before Screen integration).
   All **84 screenshot cases pass**, including the source picker, unavailable-preview
   and default/minimum floating prompter in EN/FR/AR. The Windows debug build succeeds.
   Windows Git checkout converted generated
@@ -236,6 +236,16 @@ build step 2 (screen recording).
   **Half done:** the paired capture core is ready, but Both stays disabled until paired
   manifests/recovery, excluded live camera bubble and normal setup/control wiring work.
   Continue those next; the owner authorized continued work and will try everything later.
+- **Resume here (screen recorder slice 12, paired storage/recovery):** `ScreenTakeStore`
+  reserves both new local paths and flushes the chosen camera's display name and exact
+  presentation before capture. It verifies the files separately and saves Both with
+  both paths and independent dimensions/durations. Camera audio is not duplicated.
+  Missing/unreadable camera output keeps the useful Screen take, marks cameraReadable
+  false in the local Both manifest, and preserves camera bytes. Recovery rejects external
+  camera paths/links, preserves later edits, and retries failed library saves without
+  duplicate pairs. EN/FR/AR and partial/retry tests pass; analysis is clean, 249 tests pass.
+  Native core slice 11 was pushed in `149e27c`. **Next:** excluded live camera bubble,
+  paired controller/setup and a clear partial-camera warning; Both is still disabled.
 - **Cue retest history (superseded by normal-app launch above):** `app/tool/cue_check.dart` is a development-only launch target.
   It uses the real Home/practice screens with memory-only scripts, settings and keys;
   optional recordings go under `app/build/cue-check/recordings`, on E: on this PC.
@@ -490,6 +500,14 @@ build step 2 (screen recording).
   word lists, not prosody.
 
 ## Session log
+
+- 2026-10-06, Windows recorder slice 12 (paired storage/recovery):
+  - Flushed both file reservations and chosen-camera display metadata before capture,
+    verified paired output separately, and retained useful screen output if camera
+    decoding fails. Recovery restricts both paths and preserves local camera bytes.
+  - EN/FR/AR snapshot/edit/recovery tests, normal paired save, partial camera, external
+    path rejection and failed-save retry pass. Analysis is clean, 249 tests pass.
+    No dependency or UI change; protected bubble and Both setup integration remain next.
 
 - 2026-10-06, Windows recorder slice 11 (paired video core):
   - Added exact-device asynchronous camera snapshots and a separate fragmented file
