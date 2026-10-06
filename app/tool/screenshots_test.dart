@@ -41,6 +41,7 @@ import 'package:spawnalpha/src/ui/library_screen.dart';
 import 'package:spawnalpha/src/ui/settings_screen.dart';
 import 'package:spawnalpha/src/ui/prompter_screen.dart';
 import 'package:spawnalpha/src/ui/record_screen.dart';
+import 'package:spawnalpha/src/ui/record_setup.dart';
 import 'package:spawnalpha/src/ui/recording_widgets.dart';
 import 'package:spawnalpha/src/ui/script_page.dart';
 import 'package:spawnalpha/src/ui/screen_source_picker.dart';
@@ -457,9 +458,10 @@ void main() {
   }
 
   for (final (index, language) in [(0, 'en'), (1, 'fr'), (2, 'ar')]) {
-    testWidgets('Screen recording setup $language', (tester) async {
+    for (final computerSound in [false, true]) {
+    testWidgets('Screen recording setup $language computerSound=$computerSound', (tester) async {
       final script = await _markedUp(sampleScripts()[index]);
-      await shoot(tester, 'record-screen-setup-$language', desktop, (services) {
+      await shoot(tester, 'record-screen-setup-$language${computerSound ? '-computer-sound' : ''}', desktop, (services) {
         services.settings.recordMode = TakeMode.screen;
         // No native recorder command is made by this setup-only screenshot.
         return AppScope(services: AppServices(library: services.library, settings: services.settings,
@@ -468,8 +470,16 @@ void main() {
       }, [script], settle: false, before: (tester) async {
         await tester.pump(const Duration(milliseconds: 300));
         await tester.pump(const Duration(milliseconds: 300));
+        if (computerSound) {
+          await tester.scrollUntilVisible(find.byType(ComputerSoundChoice), 200,
+            scrollable: find.descendant(of: find.byType(ListView), matching: find.byType(Scrollable)).first);
+          await tester.pumpAndSettle();
+          await tester.tap(find.descendant(of: find.byType(ComputerSoundChoice), matching: find.byType(Switch)));
+          await tester.pumpAndSettle();
+        }
       });
     });
+    }
   }
 
   for (final (language, name) in [('en', 'My presentation'), ('fr', 'Présentation française'), ('ar', 'عرض تقديمي')]) {
@@ -540,6 +550,12 @@ void main() {
       });
     }
   }
+
+  testWidgets('recording HUD with computer sound only', (tester) async {
+    await shoot(tester, 'recording-hud-computer-sound-only', Size(SaPrompter.hudWidth, SaPrompter.hudHeight),
+      (_) => const RecordingHudScreen(initial: HudState(phase: HudPhase.recording,
+        recordAudio: false, recordSystemAudio: true, duration: Duration(seconds: 8))), []);
+  });
 
   testWidgets('record screen, no camera', (tester) async {
     CameraPlatform.instance = _NoCameras();

@@ -95,7 +95,13 @@ struct ScreenRecorder::Impl {
       const auto* args = call.arguments() ? std::get_if<EncodableMap>(call.arguments()) : nullptr;
       if (!args) { result->Error("invalid", "Choose the screen and microphone first."); return; }
       try {
-        if (call.method_name() == "inspectStart") {
+        if (call.method_name() == "audioFixture") {
+#ifdef SPAWNALPHA_AUDIO_FIXTURE
+          result->Success(EncodableValue(true));
+#else
+          result->NotImplemented();
+#endif
+        } else if (call.method_name() == "inspectStart") {
           const auto path = StringArgument(*args, "path");
           if (!path || path->size() < 4 || (*path)[1] != ':' ||
               ((*path)[2] != '\\' && (*path)[2] != '/') || path->find('\0') != std::string::npos) {

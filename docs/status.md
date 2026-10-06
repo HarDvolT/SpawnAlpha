@@ -12,8 +12,9 @@ floating prompter, camera bubble and protected countdown/HUD are built and teste
 and Both are enabled in normal Windows setup: chosen-source GPU video, chosen camera in
 a separate fragmented file, chosen-microphone AAC, Voice
 pace, pause/resume, reader hide/show/Lock and durable local saving/recovery are connected.
-The full silent generated Screen and Both takes pass on this PC. System audio,
-cursor companion and telemetry remain next; owner hardware trials are deferred until
+The full generated Screen, Both and computer-sound takes pass on this PC. Computer sound
+is available with an explicit switch, initially off. Cursor companion and telemetry
+remain next; owner hardware trials are deferred until
 they return.** The build order is in
 [product-brief.md](product-brief.md#build-order); it was revised on 2026-09-30.
 
@@ -37,8 +38,8 @@ build step 2 (screen recording).
   `flutter_secure_storage_windows`). `flutter doctor -v` passes Windows, Visual Studio,
   desktop device and network checks. Android is intentionally not installed yet.
 - **Local checks and launch:** `flutter pub get` succeeds; `flutter analyze` prints
-  **No issues found!**; all **272 tests pass** (226 before Screen integration).
-  All **93 screenshot cases pass**, including the source picker, unavailable-preview
+  **No issues found!**; all **281 tests pass** (226 before Screen integration).
+  All **97 screenshot cases pass**, including the source picker, unavailable-preview
   and default/minimum floating prompter in EN/FR/AR. The Windows debug build succeeds.
   Windows Git checkout converted generated
   tokens to CRLF, causing the exact-generation test to fail: `.gitattributes` now keeps
@@ -301,6 +302,30 @@ build step 2 (screen recording).
   normal setup stays off until the explicit off-by-default Computer sound switch,
   frozen controller choice and durable audio metadata/warnings are connected. Continue
   that next; owner testing is deferred again by request (2026-10-06).
+- **Resume here (screen recorder slice 16, normal computer sound):** Screen/Both
+  setup offers Computer sound, off on each visit and frozen for the take. Its caption
+  explains the default Windows playback mix, including other apps, and local storage.
+  Camera mode never uses it; wide and narrower Windows layouts both expose the choice.
+  Playback alone still requires Record without microphone and uses Timed pace. HUD
+  says Computer sound only instead of Without sound, keeps the mic meter empty and
+  shows a sound-on icon. Microphone levels alone drive Voice. Pending/saved/recovered
+  manifests preserve the separate audio choices, scope, frames/strongest level, without
+  playback IDs. Quiet sound/start failure/device loss warn plainly and keep local
+  recovery. Saved Screen/Both warnings use a general warning title/icon so camera or
+  playback failure is not labelled as microphone failure. Changing the default playback
+  endpoint stops the pinned stream safely.
+  EN/FR/AR choice/snapshot/recovery/control tests pass; narrower setup is checked too.
+  All 281 tests and 97 screenshots pass; analysis prints No issues found! Normal Windows
+  debug and release builds succeed. Inspected
+  EN/AR setup and computer-only HUD PNGs; waited for the switch animation for on-state
+  screenshots. The explicit non-shipping audio_ui_fixture links generated endpoints
+  and requires a native handshake before capture. Full protected countdown/reader/HUD,
+  computer sound without microphone/Voice activity, common pause, durable take and
+  cleanup pass; no real playback/microphone content is saved in fixture files.
+  Slice 15 was pushed in `bc420fe`. **Half done:** owner actual camera/mic/playback,
+  default-output change, placement and exclusion trials remain deferred by request.
+  **Next:** cursor companion, privacy-limited telemetry, then the render-core spike.
+  Restore the normal main.dart launch after the explicit audio test target.
 - **Cue retest history (superseded by normal-app launch above):** `app/tool/cue_check.dart` is a development-only launch target.
   It uses the real Home/practice screens with memory-only scripts, settings and keys;
   optional recordings go under `app/build/cue-check/recordings`, on E: on this PC.
@@ -384,10 +409,10 @@ build step 2 (screen recording).
 | Compliance groundwork ([compliance.md](compliance.md)) | Rules and checklist written, licence page in the app, no secrets in the repo. Legal documents and filings are still to do |
 | Windows display/window selection and live preview | Built/tested locally and owner-confirmed; pushed in `d85687e` / `18170a6` |
 | Excluded floating prompter | Built/tested and connected to Screen/Both recording, native exclusion and protected take checks pass; owner placement/shortcut trials deferred |
-| Screen and Screen + camera recording, cursor companion, telemetry | Screen and Both enabled; complete generated protected takes pass, chosen audio/camera, shared pause, separate files and save/recovery built/tested. System audio, companion and telemetry remain to build; owner hardware trials deferred. |
+| Screen and Screen + camera recording, cursor companion, telemetry | Screen and Both enabled; complete generated protected takes pass, chosen mic/camera, optional computer sound, shared pause, separate files and save/recovery built/tested. Companion and telemetry remain to build; owner hardware trials deferred. |
 | Director's Cut (auto-edit, captions, auto-zoom, finish screen) | Designed (`docs/design/autoedit.md`). Not built; needs a native render core. |
 
-270 tests pass (`cd app && flutter test`), 93 screenshot cases pass, and `flutter analyze` is clean.
+281 tests pass (`cd app && flutter test`), 97 screenshot cases pass, and `flutter analyze` is clean.
 
 ## Next steps
 
@@ -547,7 +572,9 @@ build step 2 (screen recording).
   recording, and during the set-up one more per microphone. Screen capture preview works;
   the native screen/audio save pipeline passes tests. Screen and Both are enabled with
   separate camera capture and common pause timing; actual chosen-camera hardware trials
-  are deferred. System audio remains off until loopback is implemented.
+  are deferred. Computer sound is enabled by explicit per-visit choice and captures
+  the default Windows playback mix, not app-specific or other-device audio. Default
+  playback changes stop safely; the owner's routing/disconnection trial is pending.
 - Live preview uses an 8-bit SDR, 15 fps CPU readback path. Full-display preview can show
   recursion because the setup/preview window is not excluded yet. The recording GPU/
   platform-encoder pipeline and protected main/HUD/reader pass native tests and are
@@ -556,6 +583,17 @@ build step 2 (screen recording).
   word lists, not prosody.
 
 ## Session log
+
+- 2026-10-06, Windows recorder slice 16 (normal computer sound):
+  - Connected the explicit off-by-default setup switch, frozen owner choice, separate
+    manifest audio consent/scope, honest playback-only HUD and quiet/device warnings.
+    Default routing changes stop rather than leave the old endpoint recording silence.
+    Voice/meter remain microphone-only; Camera never records playback.
+  - EN/FR/AR snapshots, recovery, setup and controls pass, including narrower Windows
+    setup. All 281 tests and 97 layout cases pass; analysis is clean. Full generated
+    native UI take verifies protected controls/common pause/durable sound choice/cleanup.
+    The helper refuses capture without the explicit fixture binary; no owner sound or
+    microphone is saved. Owner trial remains deferred; companion/telemetry are next.
 
 - 2026-10-06, Windows recorder slice 15 (computer-sound core):
   - Added pinned Windows stereo loopback, bounded shared-clock microphone/playback

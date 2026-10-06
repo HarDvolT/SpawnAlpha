@@ -130,13 +130,38 @@ void main() {
         find.text('No microphone found. Fix it above, or '),
         findsOneWidget,
       );
-      await tester.tap(find.text('record without sound'));
+      final computerSound = find.byType(ComputerSoundChoice);
+      await tester.ensureVisible(computerSound);
+      await tester.pumpAndSettle();
+      expect(tester.widget<ComputerSoundChoice>(computerSound).value, isFalse);
+      await tester.tap(
+        find.descendant(of: computerSound, matching: find.byType(Switch)),
+      );
+      await tester.pump();
+      expect(tester.widget<ComputerSoundChoice>(computerSound).value, isTrue);
+      expect(
+        tester.widget<RecordButton>(find.byType(RecordButton)).enabled,
+        isFalse,
+      );
+      await tester.tap(find.text('record without microphone'));
       await tester.pump();
       expect(
         tester.widget<RecordButton>(find.byType(RecordButton)).enabled,
         isTrue,
       );
-      expect(find.textContaining('System audio is off'), findsOneWidget);
+      expect(
+        find.textContaining('Computer sound only · Timed pace'),
+        findsOneWidget,
+      );
+      expect(find.textContaining('not only the chosen window'), findsOneWidget);
+      tester.view.physicalSize = const Size(900, 1000);
+      await tester.pumpAndSettle();
+      expect(
+        tester
+            .widget<ComputerSoundChoice>(find.byType(ComputerSoundChoice))
+            .value,
+        isTrue,
+      );
       expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox());
       library.dispose();
@@ -204,6 +229,12 @@ void main() {
           TakeMode.both,
         );
         expect(find.text(name), findsOneWidget);
+        expect(
+          tester
+              .widget<ComputerSoundChoice>(find.byType(ComputerSoundChoice))
+              .value,
+          isFalse,
+        );
         expect(find.textContaining('generated-camera'), findsNothing);
         expect(camera.events, ['camera-preview']);
         expect(find.byType(ClipOval), findsOneWidget);
@@ -228,6 +259,47 @@ void main() {
         expect(camera.events.last, 'camera-preview');
         expect(settings.recordMode, TakeMode.both);
         expect(find.text('Generated window'), findsNWidgets(2));
+        await tester.ensureVisible(find.byType(ComputerSoundChoice));
+        await tester.pumpAndSettle();
+        await tester.tap(
+          find.descendant(
+            of: find.byType(ComputerSoundChoice),
+            matching: find.byType(Switch),
+          ),
+        );
+        await tester.pump();
+        expect(
+          tester
+              .widget<ComputerSoundChoice>(find.byType(ComputerSoundChoice))
+              .value,
+          isTrue,
+        );
+        // Camera setup never offers whole-playback capture.
+        await tester.drag(find.byType(ListView), const Offset(0, 900));
+        await tester.pumpAndSettle();
+        await tester.tap(
+          find.descendant(
+            of: find.byType(RecordModeTiles),
+            matching: find.text('Camera'),
+          ),
+        );
+        await tester.pumpAndSettle();
+        expect(find.byType(ComputerSoundChoice), findsNothing);
+        await tester.tap(
+          find.descendant(
+            of: find.byType(RecordModeTiles),
+            matching: find.text('Screen'),
+          ),
+        );
+        await tester.pumpAndSettle();
+        await tester.ensureVisible(find.byType(ComputerSoundChoice));
+        await tester.pumpAndSettle();
+        expect(
+          tester
+              .widget<ComputerSoundChoice>(find.byType(ComputerSoundChoice))
+              .value,
+          isTrue,
+        );
         expect(tester.takeException(), isNull);
         await tester.pumpWidget(const SizedBox());
         await tester.pump();

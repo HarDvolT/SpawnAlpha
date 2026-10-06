@@ -119,6 +119,18 @@ target_include_directories(paired_ui_fixture PRIVATE "${CMAKE_SOURCE_DIR}")
 target_link_libraries(paired_ui_fixture PRIVATE $<TARGET_PROPERTY:${BINARY_NAME},LINK_LIBRARIES>)
 add_dependencies(paired_ui_fixture flutter_assemble)
 
+# Full protected UI take with generated playback only. A native handshake
+# prevents this Dart check from ever enabling real loopback in a normal binary.
+set(AUDIO_UI_SOURCES ${PAIRED_UI_SOURCES})
+list(REMOVE_ITEM AUDIO_UI_SOURCES "microphone_capture.cpp")
+list(APPEND AUDIO_UI_SOURCES "tests/audio_capture_fixture.cpp")
+add_executable(audio_ui_fixture WIN32 EXCLUDE_FROM_ALL ${AUDIO_UI_SOURCES})
+apply_standard_settings(audio_ui_fixture)
+set_property(TARGET audio_ui_fixture PROPERTY COMPILE_DEFINITIONS ${PAIRED_UI_DEFINITIONS} "SPAWNALPHA_AUDIO_FIXTURE")
+target_include_directories(audio_ui_fixture PRIVATE "${CMAKE_SOURCE_DIR}")
+target_link_libraries(audio_ui_fixture PRIVATE $<TARGET_PROPERTY:${BINARY_NAME},LINK_LIBRARIES>)
+add_dependencies(audio_ui_fixture flutter_assemble)
+
 # Explicit audio checks. The full pipeline links generated endpoints so no
 # private playback/microphone samples can be written to its fixture videos.
 add_executable(recording_audio_mixer_check EXCLUDE_FROM_ALL "tests/recording_audio_mixer_check.cpp")

@@ -1,6 +1,7 @@
 // End-to-end check: only the generated fixture window, silent video, an in-memory
 // script/library, and ignored test files. No private desktop, camera or mic.
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -27,7 +28,10 @@ Future<void> recordingHudMain() => runRecordingHud();
 @pragma('vm:entry-point')
 Future<void> cameraBubbleMain() => runCameraBubble();
 Future<void> main() => runGeneratedTake();
-Future<void> runGeneratedTake({String? cameraFixture}) async {
+Future<void> runGeneratedTake({
+  String? cameraFixture,
+  bool generatedSystemAudio = false,
+}) async {
   WidgetsFlutterBinding.ensureInitialized();
   runApp(
     MaterialApp(
@@ -39,6 +43,16 @@ Future<void> runGeneratedTake({String? cameraFixture}) async {
   ScreenTakeController? owner;
   Timer? action;
   try {
+    if (generatedSystemAudio &&
+        await WindowsScreenRecordings.channel.invokeMethod<bool>(
+              'audioFixture',
+              const {},
+            ) !=
+            true) {
+      throw StateError(
+        'Generated audio requires the non-shipping fixture binary',
+      );
+    }
     final root = Directory.current.path;
     fixture = await Process.start(
       '$root/build/windows/x64/runner/Debug/recording_fixture_window.exe',
@@ -111,6 +125,7 @@ Future<void> runGeneratedTake({String? cameraFixture}) async {
       presentation: FloatingPresentation(script: script),
       source: source,
       recordAudio: false,
+      recordSystemAudio: generatedSystemAudio,
       cameraId: cameraFixture,
       cameraName: cameraFixture == null ? null : 'Generated camera',
     );
@@ -132,8 +147,22 @@ Future<void> runGeneratedTake({String? cameraFixture}) async {
     if (hud?['ownerExcluded'] != false || reader?['visible'] != false) {
       throw StateError('Cleanup failed');
     }
-    if (await store.recover() != 0 || library.scripts.single.takes.length != 1) {
+    if (await store.recover() != 0 ||
+        library.scripts.single.takes.length != 1) {
       throw StateError('Save retry failed');
+    }
+    if (generatedSystemAudio) {
+      final metadata =
+          jsonDecode(await File(take.metadataPath!).readAsString()) as Map;
+      final info = await const WindowsRecordingInspector().inspect(take.path);
+      if (!info.hasAudio ||
+          metadata['recordSystemAudio'] != true ||
+          metadata['recordAudio'] != false ||
+          controller.status!.systemAudioFrames <= 0 ||
+          controller.status!.loudestRmsDb != -100 ||
+          controller.status!.loudestSystemRmsDb <= -40) {
+        throw StateError('Generated sound missing or leaking into Voice');
+      }
     }
     if (cameraFixture != null) {
       if (take.mode != TakeMode.both || take.cameraPath == null) {
@@ -158,13 +187,17 @@ Future<void> runGeneratedTake({String? cameraFixture}) async {
       );
     } else {
       debugPrint(
-        'Native screen take check passed: protected countdown/reader/HUD, silent video, pause/resume, hide/show, one durable take, clean shutdown.',
+        generatedSystemAudio
+            ? 'Native generated audio take check passed: protected controls, computer sound without microphone/Voice activity, shared pause, durable sound choice and clean shutdown.'
+            : 'Native screen take check passed: protected countdown/reader/HUD, silent video, pause/resume, hide/show, one durable take, clean shutdown.',
       );
     }
     library.dispose();
   } on Object {
     debugPrint(
-      cameraFixture == null
+      generatedSystemAudio
+          ? 'Native generated audio take check failed.'
+          : cameraFixture == null
           ? 'Native screen take check failed.'
           : 'Native paired take check failed.',
     );

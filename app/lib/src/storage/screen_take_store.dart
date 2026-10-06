@@ -47,6 +47,7 @@ class ScreenTakeStore {
     required FloatingPresentation presentation,
     required ScreenSource source,
     required bool recordAudio,
+    bool recordSystemAudio = false,
     String? microphoneName,
     String? cameraName,
     required String pace,
@@ -87,6 +88,8 @@ class ScreenTakeStore {
         'height': source.height,
       },
       'recordAudio': recordAudio,
+      'recordSystemAudio': recordSystemAudio,
+      if (recordSystemAudio) 'systemAudioScope': 'windowsPlaybackMix',
       'microphoneName': ?microphoneName,
     });
     return PendingScreenTake(
@@ -114,6 +117,8 @@ class ScreenTakeStore {
       recovered: false,
       reason: status.reason.name,
       loudestRmsDb: status.loudestRmsDb,
+      loudestSystemRmsDb: status.loudestSystemRmsDb,
+      systemAudioFrames: status.systemAudioFrames,
     );
   });
 
@@ -138,6 +143,8 @@ class ScreenTakeStore {
     required bool recovered,
     required String reason,
     double? loudestRmsDb,
+    double? loudestSystemRmsDb,
+    int? systemAudioFrames,
     RecordingInfo? cameraInfo,
   }) async {
     final take = Take(
@@ -172,6 +179,8 @@ class ScreenTakeStore {
       'hasAudio': info.hasAudio,
       'stopReason': reason,
       'loudestRmsDb': ?loudestRmsDb,
+      'loudestSystemRmsDb': ?loudestSystemRmsDb,
+      'systemAudioFrames': ?systemAudioFrames,
       if (pending.cameraPath != null) 'cameraReadable': cameraInfo != null,
       if (cameraInfo != null) ...{
         'cameraWidth': cameraInfo.width,

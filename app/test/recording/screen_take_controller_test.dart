@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -6,6 +7,7 @@ import 'package:spawnalpha/src/model/script_document.dart';
 import 'package:spawnalpha/src/model/script_language.dart';
 import 'package:spawnalpha/src/recording/floating_prompter.dart';
 import 'package:spawnalpha/src/recording/recording_hud.dart';
+import 'package:spawnalpha/src/recording/recording_inspector.dart';
 import 'package:spawnalpha/src/recording/screen_recording.dart';
 import 'package:spawnalpha/src/recording/screen_source.dart';
 import 'package:spawnalpha/src/recording/screen_take_controller.dart';
@@ -81,6 +83,8 @@ class TestRecorder implements ScreenRecordings {
   ScreenRecordingReason reason = ScreenRecordingReason.none;
   Future<void> Function(int)? onStatus;
   bool? audio;
+  bool? systemAudio;
+  bool quietSystem = false;
   String? microphone;
   String? camera, cameraFile;
   bool writeCamera = true;
@@ -102,6 +106,7 @@ class TestRecorder implements ScreenRecordings {
     );
     events.add('capture');
     audio = recordAudio;
+    systemAudio = recordSystemAudio;
     microphone = microphoneId;
     camera = cameraId;
     cameraFile = cameraPath;
@@ -125,6 +130,8 @@ class TestRecorder implements ScreenRecordings {
       duration: const Duration(seconds: 3),
       frames: 90,
       audioFrames: audio == true ? 144000 : 0,
+      systemAudioFrames: systemAudio == true ? 144000 : 0,
+      loudestSystemRmsDb: systemAudio == true && !quietSystem ? -18 : -100,
       loudestRmsDb: -20,
       rmsDb: -20,
       peakDb: -10,
@@ -216,6 +223,7 @@ void main() {
   Future<void> start(
     ScriptLanguage language, {
     bool audio = true,
+    bool systemAudio = false,
     bool both = false,
   }) async {
     final script = ScriptDocument.create(
@@ -231,12 +239,89 @@ void main() {
       presentation: FloatingPresentation(script: script),
       source: source,
       recordAudio: audio,
+      recordSystemAudio: systemAudio,
       microphoneId: 'chosen',
       microphoneName: 'Chosen microphone',
       cameraId: both ? 'chosen-camera' : null,
       cameraName: both ? 'Chosen camera' : null,
     );
   }
+
+  for (final language in ScriptLanguage.values) {
+    test(
+      'computer-only paired take preserves $language audio choice without Voice activity',
+      () async {
+        recorder.onStatus = (n) async {
+          if (n == 3) owner.stop();
+        };
+        await start(language, audio: false, systemAudio: true, both: true);
+        expect(owner.take!.mode, TakeMode.both);
+        expect(recorder.audio, isFalse);
+        expect(recorder.systemAudio, isTrue);
+        expect(reader.states.every((state) => !state.speaking), isTrue);
+        expect(
+          huds.states.every(
+            (state) => state.recordSystemAudio && !state.recordAudio,
+          ),
+          isTrue,
+        );
+        expect(owner.problem, isNull);
+        final metadata = jsonDecode(
+          await File(owner.take!.metadataPath!).readAsString(),
+        ) as Map;
+        expect(metadata['recordSystemAudio'], isTrue);
+        expect(metadata['recordAudio'], isFalse);
+        expect(metadata['systemAudioScope'], 'windowsPlaybackMix');
+        expect(metadata['systemAudioFrames'], 144000);
+        expect(metadata['microphoneName'], isNull);
+      },
+    );
+  }
+  test(
+    'silent requested playback and playback loss warn without losing video',
+    () async {
+      recorder.quietSystem = true;
+      recorder.reason = ScreenRecordingReason.systemAudio;
+      recorder.onStatus = (n) async {
+        if (n == 2) owner.stop();
+      };
+      await start(ScriptLanguage.en, systemAudio: true);
+      expect(owner.take, isNotNull);
+      expect(owner.problem, contains('playback device became unavailable'));
+      expect(owner.problem, contains('Windows played almost nothing'));
+      expect(events.indexOf('release'), lessThan(events.indexOf('unprotect')));
+    },
+  );
+  test(
+    'playback startup failure explains the device and keeps local recovery',
+    () async {
+      owner.dispose();
+      final inspector = FakeInspector()
+        ..info = const RecordingInfo(
+          readable: false,
+          hasAudio: false,
+          width: 0,
+          height: 0,
+          duration: Duration.zero,
+        );
+      owner = ScreenTakeController(
+        recorder: recorder,
+        huds: huds,
+        floating: reader,
+        store: ScreenTakeStore(dir, library, inspector),
+        wait: (_) async {},
+      );
+      recorder.reason = ScreenRecordingReason.systemAudio;
+      recorder.onStatus = (n) async {
+        if (n == 1) owner.stop();
+      };
+      await start(ScriptLanguage.en, systemAudio: true);
+      expect(owner.take, isNull);
+      expect(owner.problem, contains('Computer sound is unavailable'));
+      expect(owner.problem, contains('Windows playback device'));
+      expect(await dir.list().isEmpty, isFalse);
+    },
+  );
 
   for (final language in ScriptLanguage.values) {
     test(

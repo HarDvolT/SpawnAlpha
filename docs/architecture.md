@@ -469,7 +469,16 @@ recordings folder.
   Dart/native protocol. The explicit audio pipeline check links generated endpoint
   implementations; no real microphone/playback content can reach fixture files. A
   separate format/lifetime check opens real loopback but discards every sample in memory.
-  Setup toggle/manifests/controller integration remain next; normal setup stays off.
+  Normal Screen/Both setup offers the explicit Computer sound switch, initially off
+  per visit and frozen during a take. The owner passes its snapshot to native start,
+  manifest and HUD; recovery preserves that choice without native endpoint IDs.
+  Playback-only takes still need an explicit no-microphone choice and Timed pace;
+  HUD labels them Computer sound only with an empty microphone meter. Quiet playback
+  and device failure warn without losing readable video. Native loopback checks the
+  default every 250 ms and stops if routing changes, without opening a replacement.
+  `audio_ui_fixture` links only generated endpoints and completes the whole protected
+  take via `native_audio_take_check.dart`; a native fixture handshake refuses the
+  shipping binary before any capture. This target is excluded from normal builds.
 - **SettingsScreen**: the markup source, API key, model, default style, text
   size and mirror setting, plus **Privacy and licences**: what leaves the
   device, and the licence page (`showLicensePage`).

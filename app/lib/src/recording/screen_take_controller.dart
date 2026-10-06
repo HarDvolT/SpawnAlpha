@@ -71,6 +71,7 @@ class ScreenTakeController extends ChangeNotifier {
   String? _cameraId, _cameraName;
   Future<void>? _run;
   bool _audio = true;
+  bool _systemAudio = false;
   String _microphone = 'Microphone';
   final _voice = VoiceActivity();
   bool get busy =>
@@ -98,6 +99,7 @@ class ScreenTakeController extends ChangeNotifier {
     required FloatingPresentation presentation,
     required ScreenSource source,
     required bool recordAudio,
+    bool recordSystemAudio = false,
     String? microphoneId,
     String microphoneName = 'Microphone',
     String? cameraId,
@@ -118,6 +120,7 @@ class ScreenTakeController extends ChangeNotifier {
     _unsafe = false;
     readerVisible = true;
     _audio = recordAudio;
+    _systemAudio = recordSystemAudio;
     _microphone = microphoneName;
     _cameraId = cameraId;
     _cameraName = cameraName;
@@ -176,6 +179,7 @@ class ScreenTakeController extends ChangeNotifier {
         presentation: presentation,
         source: source,
         recordAudio: _audio,
+        recordSystemAudio: _systemAudio,
         microphoneName: _audio ? _microphone : null,
         cameraName: _cameraName,
         pace: presentation.pace.name,
@@ -189,6 +193,7 @@ class ScreenTakeController extends ChangeNotifier {
         source: source,
         path: pending.videoPath,
         recordAudio: _audio,
+        recordSystemAudio: _systemAudio,
         microphoneId: microphoneId,
         cameraId: _cameraId,
         cameraPath: pending.cameraPath,
@@ -282,6 +287,10 @@ class ScreenTakeController extends ChangeNotifier {
                 problem =
                     '${problem == null ? '' : '${problem!} '}$_microphone heard almost nothing. Check your sound before the next take.';
               }
+              if (_systemAudio && (status?.loudestSystemRmsDb ?? -100) < -55) {
+                problem =
+                    '${problem == null ? '' : '${problem!} '}Windows played almost nothing. Check computer sound before the next take.';
+              }
             }
           } on Object {
             try {
@@ -289,7 +298,9 @@ class ScreenTakeController extends ChangeNotifier {
             } on Object {
               /* Preserve recovery. */
             }
-            problem = 'No take saved yet. Any captured video stays on this PC for recovery when you reopen the app.';
+            problem = status?.reason == ScreenRecordingReason.systemAudio
+                ? 'Computer sound is unavailable. Check the Windows playback device. No take saved yet; any captured video stays on this PC for recovery.'
+                : 'No take saved yet. Any captured video stays on this PC for recovery when you reopen the app.';
           }
         }
         final reader = _reader;
@@ -337,6 +348,8 @@ class ScreenTakeController extends ChangeNotifier {
       'The microphone disconnected. The captured part is saved.',
     ScreenRecordingReason.camera =>
       'The camera disconnected. The captured part is saved.',
+    ScreenRecordingReason.systemAudio =>
+      'The playback device became unavailable. The captured part is saved.',
     ScreenRecordingReason.encoder =>
       'Recording stopped early. The readable part is saved.',
     _ => null,
@@ -359,6 +372,7 @@ class ScreenTakeController extends ChangeNotifier {
         microphone: _microphone,
         peakDb: status?.peakDb ?? -100,
         recordAudio: _audio,
+        recordSystemAudio: _systemAudio,
         prompterOpen: readerVisible,
       ),
     );

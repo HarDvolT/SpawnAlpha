@@ -24,6 +24,14 @@ struct AudioCapture {
       EDataFlow flow{};
       check_hresult(device.as<IMMEndpoint>()->GetDataFlow(&flow));
       if (flow != direction) return E_INVALIDARG;
+      if (loopback) {
+        LPWSTR endpoint_id = nullptr;
+        check_hresult(device->GetId(&endpoint_id));
+        std::unique_ptr<wchar_t, decltype(&CoTaskMemFree)> owned_id(endpoint_id, CoTaskMemFree);
+        if (!owned_id) throw winrt::hresult_error(E_POINTER);
+        default_render_id = owned_id.get(); render_devices = devices;
+        next_default_check = 0;
+      }
       check_hresult(device->Activate(__uuidof(IAudioClient), CLSCTX_ALL, nullptr, client.put_void()));
       WAVEFORMATEX format{};
       format.wFormatTag = WAVE_FORMAT_PCM;
@@ -48,6 +56,19 @@ struct AudioCapture {
   HRESULT Read(MicrophonePacket& packet) {
     packet = {};
     if (!running || !capture) return E_UNEXPECTED;
+    if (render_devices && GetTickCount64() >= next_default_check) {
+      next_default_check = GetTickCount64() + 250;
+      // A changed default routes playback away from the pinned endpoint even
+      // if it remains plugged in. Stop rather than silently capture the old mix.
+      com_ptr<IMMDevice> current;
+      auto checked = render_devices->GetDefaultAudioEndpoint(eRender, eConsole, current.put());
+      if (FAILED(checked)) return checked;
+      LPWSTR endpoint_id = nullptr;
+      checked = current->GetId(&endpoint_id);
+      std::unique_ptr<wchar_t, decltype(&CoTaskMemFree)> owned_id(endpoint_id, CoTaskMemFree);
+      if (FAILED(checked)) return checked;
+      if (!owned_id || default_render_id != owned_id.get()) return AUDCLNT_E_DEVICE_INVALIDATED;
+    }
     BYTE* bytes = nullptr; UINT32 frames = 0; DWORD flags = 0;
     UINT64 position = 0, qpc = 0;
     const HRESULT result = capture->GetBuffer(&bytes, &frames, &flags, &position, &qpc);
@@ -70,9 +91,13 @@ struct AudioCapture {
   void Stop() {
     if (client && running) client->Stop();
     running = false; capture = nullptr; client = nullptr;
+    render_devices = nullptr; default_render_id.clear(); next_default_check = 0;
   }
   bool running = false;
   UINT channels = 1;
+  ULONGLONG next_default_check = 0;
+  std::wstring default_render_id;
+  com_ptr<IMMDeviceEnumerator> render_devices;
   com_ptr<IAudioClient> client;
   com_ptr<IAudioCaptureClient> capture;
 };

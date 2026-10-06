@@ -63,6 +63,7 @@ class _RecordScreenState extends State<RecordScreen>
 
   /// The user chose to record although no microphone works.
   bool _allowSilent = false;
+  bool _recordSystemAudio = false;
 
   ScreenSource? _screenSource;
   bool _openingScreenPreview = false;
@@ -71,6 +72,9 @@ class _RecordScreenState extends State<RecordScreen>
   ScreenPreviewController? _screenPreview;
   bool _changingMode = false;
   bool get _screenMode => _mode != TakeMode.camera;
+  String get _withoutMicrophone => _screenMode && _recordSystemAudio
+      ? 'record without microphone'
+      : 'record without sound';
   bool get _needsCamera => _mode != TakeMode.screen;
   int _cameraGeneration = 0;
 
@@ -428,9 +432,11 @@ class _RecordScreenState extends State<RecordScreen>
       if (problem != null) {
         showMessage(
           context,
-          '$problem. Fix it in the set-up, or record without sound.',
+          '$problem. Fix it in the set-up, or $_withoutMicrophone.',
           action: SnackBarAction(
-            label: 'Record without sound',
+            label: _screenMode && _recordSystemAudio
+                ? 'Record without microphone'
+                : 'Record without sound',
             onPressed: () {
               setState(() => _allowSilent = true);
               _startCountdown();
@@ -481,6 +487,7 @@ class _RecordScreenState extends State<RecordScreen>
       presentation: presentation,
       source: source,
       recordAudio: !_allowSilent,
+      recordSystemAudio: _recordSystemAudio,
       microphoneId: _mic?.input?.id,
       microphoneName: _mic?.input?.name ?? 'Microphone',
       cameraId: cameraChoice?.deviceId,
@@ -617,7 +624,9 @@ class _RecordScreenState extends State<RecordScreen>
         title: Text(
           soundProblem == null
               ? 'Take saved'
-              : 'Take saved, but check the sound',
+              : take.mode == TakeMode.camera
+              ? 'Take saved, but check the sound'
+              : 'Take saved, with a warning',
         ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
@@ -628,7 +637,9 @@ class _RecordScreenState extends State<RecordScreen>
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Icon(
-                    Icons.mic_off_rounded,
+                    take.mode == TakeMode.camera
+                        ? Icons.mic_off_rounded
+                        : Icons.warning_amber_rounded,
                     color: SaTheme.of(context).danger,
                     size: 20,
                   ),
@@ -994,6 +1005,13 @@ class _RecordScreenState extends State<RecordScreen>
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            if (_screenMode)
+              ComputerSoundChoice(
+                value: _recordSystemAudio,
+                onChanged: _busy
+                    ? null
+                    : (value) => setState(() => _recordSystemAudio = value),
+              ),
             PrompterControls(
               controller: _prompter,
               mirror: settings.mirror,
@@ -1185,7 +1203,7 @@ class _RecordScreenState extends State<RecordScreen>
           state: _screenSource == null ? 'CHOOSE' : 'READY',
           ok: _screenSource != null,
           child: Text(
-            _screenSource == null ? 'Choose a display or window above.' : 'The floating reader and controls are hidden from the recording. System audio is off.',
+            _screenSource == null ? 'Choose a display or window above.' : 'The floating reader and controls are hidden from the recording.',
             style: SaType.caption.copyWith(color: stage.stageChromeText),
           ),
         ),
@@ -1228,6 +1246,13 @@ class _RecordScreenState extends State<RecordScreen>
                     ),
             );
           },
+        ),
+      if (_screenMode)
+        ComputerSoundChoice(
+          value: _recordSystemAudio,
+          onChanged: busy
+              ? null
+              : (value) => setState(() => _recordSystemAudio = value),
         ),
       SetupStep(
         number: mic != null && mic.supported ? 4 : 3,
@@ -1358,7 +1383,7 @@ class _RecordScreenState extends State<RecordScreen>
             InkWell(
               onTap: () => setState(() => _allowSilent = true),
               child: Text(
-                'record without sound',
+                _withoutMicrophone,
                 style: SaType.caption.copyWith(
                   color: stage.stageText,
                   fontWeight: FontWeight.w700,
@@ -1371,7 +1396,11 @@ class _RecordScreenState extends State<RecordScreen>
         );
       } else {
         line = Text(
-          '3, 2, 1, then $guide${_prompter.mode == ScrollMode.voice ? ', at the pace of your voice' : ''}.',
+          '${_allowSilent
+              ? _screenMode && _recordSystemAudio
+                    ? 'Computer sound only · Timed pace. '
+                    : 'Without sound · Timed pace. '
+              : ''}3, 2, 1, then $guide${!_allowSilent && _prompter.mode == ScrollMode.voice ? ', at the pace of your voice' : ''}.',
           style: SaType.caption.copyWith(color: stage.stageChromeText),
         );
       }

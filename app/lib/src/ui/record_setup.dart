@@ -116,6 +116,54 @@ class SetupStep extends StatelessWidget {
   }
 }
 
+/// Explicit whole-playback choice, kept visible beside microphone setup.
+class ComputerSoundChoice extends StatelessWidget {
+  const ComputerSoundChoice({
+    super.key,
+    required this.value,
+    required this.onChanged,
+  });
+  final bool value;
+  final ValueChanged<bool>? onChanged;
+  @override
+  Widget build(BuildContext context) {
+    final stage = SaPalette.dark;
+    return Padding(
+      padding: const EdgeInsets.all(SaSpace.s3),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Computer sound',
+                  style: SaType.label.copyWith(color: stage.stageText),
+                ),
+              ),
+              Semantics(
+                label: 'Computer sound',
+                child: Switch.adaptive(
+                  value: value,
+                  onChanged: onChanged,
+                  activeThumbColor: stage.stageText,
+                  activeTrackColor: stage.stageOk,
+                  inactiveThumbColor: stage.stageChromeText,
+                  inactiveTrackColor: stage.stageLine,
+                ),
+              ),
+            ],
+          ),
+          Text(
+          'Records the default Windows playback sound, not only the chosen window. Stays on this PC.',
+            style: SaType.caption.copyWith(color: stage.stageChromeText),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 /// Camera, Screen and Both. The screen modes arrive in build step 2.
 class RecordModeTiles extends StatelessWidget {
   const RecordModeTiles({

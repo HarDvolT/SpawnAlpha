@@ -103,6 +103,8 @@ void main() {
         final before =
             jsonDecode(await File(pending.metadataPath).readAsString()) as Map;
         expect(before['state'], 'pending');
+        expect(before['recordSystemAudio'], isFalse);
+        expect(before['systemAudioScope'], isNull);
         expect((before['script'] as Map)['text'], original.text);
         expect(jsonEncode(before), isNot(contains(source.id)));
         expect(await File(pending.videoPath).exists(), isFalse);
@@ -116,6 +118,39 @@ void main() {
         expect(after['state'], 'saved');
         expect((after['script'] as Map)['text'], original.text);
         expect(await store.recover(), 0);
+      },
+    );
+  }
+
+  for (final language in ScriptLanguage.values) {
+    test(
+      'computer-sound consent stays with the recovered $language take',
+      () async {
+        final original = script(language);
+        await library.save(original);
+        final pending = await store.reserve(
+          presentation: FloatingPresentation(script: original),
+          source: source,
+          recordAudio: false,
+          recordSystemAudio: true,
+          pace: 'timed',
+        );
+        final before =
+            jsonDecode(await File(pending.metadataPath).readAsString()) as Map;
+        expect(before['recordSystemAudio'], isTrue);
+        expect(before['recordAudio'], isFalse);
+        expect(before['systemAudioScope'], 'windowsPlaybackMix');
+        expect(jsonEncode(before), isNot(contains(source.id)));
+        await File(pending.videoPath).writeAsString('generated fixture');
+        await library.save(original.withText('${original.text} More.'));
+        expect(await store.recover(), 1);
+        expect(await store.recover(), 0);
+        final after =
+            jsonDecode(await File(pending.metadataPath).readAsString()) as Map;
+        expect(after['state'], 'recovered');
+        expect(after['recordSystemAudio'], isTrue);
+        expect(after['recordAudio'], isFalse);
+        expect(library.byId(original.id)!.text, '${original.text} More.');
       },
     );
   }
