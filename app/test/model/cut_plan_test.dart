@@ -5,6 +5,22 @@ import 'package:spawnalpha/src/model/cut_plan.dart';
 import 'package:spawnalpha/src/model/script_language.dart';
 
 void main() {
+  test('only discontinuous internal ranges have sound joins', () {
+    SourceRange span(int start, int end) => SourceRange(
+      start: Duration(seconds: start),
+      end: Duration(seconds: end),
+    );
+    CutPlan plan(List<SourceRange> ranges) => CutPlan(
+      takeId: 'generated',
+      language: ScriptLanguage.en,
+      sourceDuration: const Duration(seconds: 4),
+      ranges: ranges,
+    );
+    expect(plan([span(1, 3)]).hasJoins, isFalse);
+    expect(plan([span(0, 2), span(2, 4)]).hasJoins, isFalse);
+    expect(plan([span(0, 1), span(3, 4)]).hasJoins, isTrue);
+    expect(plan([span(3, 4), span(0, 1)]).hasJoins, isTrue);
+  });
   List<SourceRange> ranges() => [
     SourceRange(
       start: const Duration(seconds: 1),

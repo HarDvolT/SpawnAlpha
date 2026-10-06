@@ -156,6 +156,16 @@ void main() {
         });
         await tester.pumpAndSettle();
         expect(find.text('Removed from cut'), findsOneWidget);
+        final softSound = find.widgetWithText(
+          CheckboxListTile,
+          'Soften sound at cuts',
+        );
+        expect(softSound, findsOneWidget);
+        expect(tester.widget<CheckboxListTile>(softSound).value, isTrue);
+        await tester.ensureVisible(softSound);
+        await tester.tap(softSound);
+        await tester.pumpAndSettle();
+        expect(tester.widget<CheckboxListTile>(softSound).value, isFalse);
         expect(
           (await tester.runAsync(
             () => services.cuts.load(library.byId(script.id)!.takes.single),

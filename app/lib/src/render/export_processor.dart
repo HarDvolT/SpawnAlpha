@@ -73,6 +73,7 @@ class ExportProcessor extends ChangeNotifier {
     bool burnedCaptions = true,
     CaptionStyle captionStyle = CaptionStyle.readable,
     bool captionMotion = true,
+    bool softAudioJoins = true,
   }) async {
     if (busy) return null;
     source = take.path;
@@ -141,6 +142,7 @@ class ExportProcessor extends ChangeNotifier {
             burnedCaptions && timed != null && timed.words.isNotEmpty,
         captionStyle: burnedCaptions ? captionStyle : CaptionStyle.readable,
         captionMotion: captionMotion,
+        softAudioJoins: softAudioJoins && plan.hasJoins,
       );
       final captionTracks = video.captions
           ? await compute(
@@ -170,6 +172,7 @@ class ExportProcessor extends ChangeNotifier {
           captions: video.burnedCaptions ? captionTracks!.$2 : const [],
           captionStyle: video.captionStyle,
           captionMotion: video.captionMotion,
+          softAudioJoins: video.softAudioJoins,
         ),
         (amount) {
           progress = amount;

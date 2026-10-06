@@ -178,12 +178,14 @@ Future<void> main() async {
           clean: plan,
           captionStyle: style,
           captionMotion: selection == null,
+          softAudioJoins: selection != null,
         );
         require(
           video != null &&
               video.burnedCaptions &&
               video.captionStyle == style &&
               video.captionMotion == (selection == null) &&
+              video.softAudioJoins == (selection != null) &&
               exports.phase == ExportPhase.done,
         );
         final changed = selection != null;
@@ -206,6 +208,9 @@ Future<void> main() async {
       stage = 'reload choices and original';
       await library.load();
       final latest = library.byId(document.id)!.takes.single;
+      require(
+        (await store.load(latest)).where((v) => v.softAudioJoins).length == 1,
+      );
       require((await cuts.load(latest))!.retakes.single.selected == null);
       require(
         (await store.load(latest)).length == 3 &&

@@ -37,6 +37,10 @@ LocalRenderRequest Request(const Map& args) {
   LocalRenderRequest request;
   request.source = Path(args, "source"); request.camera = Path(args, "camera"); request.output = Path(args, "output");
   request.source_duration_us = Integer(args, "sourceDurationUs");
+  if (args.find(Value("audioJoinFadeUs")) != args.end())
+    request.audio_join_fade_us = Integer(args, "audioJoinFadeUs");
+  if (request.audio_join_fade_us < 0 || request.audio_join_fade_us > 100000)
+    throw std::runtime_error("Invalid sound joins");
   const auto* inset = std::get_if<double>(&Field(args, "cameraInset"));
   const auto* margin = std::get_if<double>(&Field(args, "cameraMargin"));
   if (!inset || !margin || !std::isfinite(*inset) || !std::isfinite(*margin)) throw std::runtime_error("Invalid render layout");

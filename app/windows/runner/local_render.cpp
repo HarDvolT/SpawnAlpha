@@ -1,6 +1,7 @@
 #include "local_render.h"
 #include "gpu_video_writer.h"
 #include "local_media_path.h"
+#include "audio_join_fade.h"
 #include <d3d11_4.h>
 #include <mfapi.h>
 #include <mfidl.h>
@@ -267,6 +268,7 @@ void RenderLocalVideo(const LocalRenderRequest& request, std::atomic<bool>& canc
   Require(request.source_duration_us > 0 && request.source_duration_us <= 24LL * 60 * 60 * 1000000 &&
     !request.ranges.empty() && request.ranges.size() <= 20001 && request.width >= 2 && request.height >= 2 &&
     request.width <= 4096 && request.height <= 4096 && request.width % 2 == 0 && request.height % 2 == 0);
+  Require(request.audio_join_fade_us >= 0 && request.audio_join_fade_us <= 100000);
   int64_t total_us = 0;
   std::vector<int64_t> starts;
   for (const auto& range : request.ranges) {
@@ -323,7 +325,11 @@ void RenderLocalVideo(const LocalRenderRequest& request, std::atomic<bool>& canc
           Require(count > 0);
           const auto source_sample = SampleAtUs(request.ranges[audio_range].start_us) + audio_position - SampleAtUs(starts[audio_range]);
           if (audio_range != previous_audio_range) { audio.Reset(request.ranges[audio_range].start_us * 10); previous_audio_range = audio_range; }
-          const auto pcm = audio.At(source_sample, count, cancel);
+          auto pcm = audio.At(source_sample, count, cancel);
+          ApplyAudioJoinFade(pcm, audio.channels, audio_position,
+            SampleAtUs(starts[audio_range]), range_end, request.audio_join_fade_us * kRate / 2000000,
+            audio_range > 0 && request.ranges[audio_range - 1].end_us != request.ranges[audio_range].start_us,
+            audio_range + 1 < request.ranges.size() && request.ranges[audio_range].end_us != request.ranges[audio_range + 1].start_us);
           check_hresult(writer.WriteAudio(pcm.data(), count, audio_position * kSecond / kRate));
           audio_position += count;
         }

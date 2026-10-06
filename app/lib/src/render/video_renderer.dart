@@ -20,6 +20,7 @@ class VideoRenderRequest {
     this.camera,
     this.captionStyle = CaptionStyle.readable,
     this.captionMotion = true,
+    this.softAudioJoins = false,
     List<Caption> captions = const [],
   }) : captions = List.unmodifiable(
          captions.map(
@@ -89,6 +90,7 @@ class VideoRenderRequest {
   final VideoFormat format;
   final CaptionStyle captionStyle;
   final bool captionMotion;
+  final bool softAudioJoins;
   final List<Caption> captions;
   Map<String, Object?> toJson() => {
     'source': source,
@@ -99,6 +101,9 @@ class VideoRenderRequest {
     'cameraInset': SaVideoExport.cameraInset,
     'cameraMargin': SaVideoExport.cameraMargin,
     'sourceDurationUs': plan.sourceDuration.inMicroseconds,
+    'audioJoinFadeUs': softAudioJoins && plan.hasJoins
+        ? SaVideoExport.audioJoinFade.inMicroseconds
+        : 0,
     'ranges': plan.ranges.map((r) => r.toJson()).toList(),
     'captions': [
       for (final caption in _displayCaptions)

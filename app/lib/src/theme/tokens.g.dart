@@ -502,6 +502,9 @@ abstract final class SaVideoExport {
   static const double captionSlowerWidth = 118.0;
   /// Anybody width axis for accepted faster caption words.
   static const double captionFasterWidth = 82.0;
+  /// Total de-click envelope at an internal discontinuous sound join; half on each side, with no
+  /// clock overlap.
+  static const Duration audioJoinFade = Duration(milliseconds: 20);
 }
 
 /// The four type voices: display, reading, signal and pencil.

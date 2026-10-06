@@ -141,3 +141,6 @@ identity is retained through a cut, rather than re-aligning shortened words.
 Accepted gap cues break phrases. Notes and changed/added/uncertain words get no
 borrowed cues. Arabic decorative stretching stays out of saved words/SRT/VTT.
 Still preserves timings/color without movement and is recorded in video history.
+Optional short sound fades soften internal cut joins without overlapping words
+or changing any video/subtitle/word time. Original recognition and source PCM
+remain read-only; the exported audio alone carries the optional attenuation.

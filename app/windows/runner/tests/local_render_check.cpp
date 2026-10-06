@@ -7,6 +7,50 @@
 #include <fstream>
 #include <filesystem>
 #include <wincodec.h>
+#include "../audio_join_fade.h"
+
+void CheckAudioJoinEnvelope() {
+  for (uint32_t channels : {1u, 2u}) {
+    std::vector<int16_t> whole(1600 * channels);
+    for (size_t i = 0; i < whole.size(); ++i) whole[i] = i % channels ? -12000 : 12000;
+    const auto original = whole;
+    ApplyAudioJoinFade(whole, channels, 0, 0, 1600, 480, true, true);
+    for (size_t frame = 0; frame < 1600; ++frame) for (uint32_t ch = 0; ch < channels; ++ch) {
+      Require(std::abs(whole[frame * channels + ch]) <= 12000);
+      if (frame >= 480 && frame < 1120) Require(whole[frame * channels + ch] == original[frame * channels + ch]);
+      if (frame > 0 && frame < 480) Require(std::abs(whole[frame * channels + ch]) >= std::abs(whole[(frame - 1) * channels + ch]));
+    }
+    Require(whole.front() == 0 && whole.back() == 0);
+    std::vector<int16_t> packeted;
+    for (size_t first = 0; first < 1600; first += 137) {
+      const auto end = std::min<size_t>(first + 137, 1600);
+      std::vector<int16_t> packet(original.begin() + first * channels, original.begin() + end * channels);
+      ApplyAudioJoinFade(packet, channels, first, 0, 1600, 480, true, true);
+      packeted.insert(packeted.end(), packet.begin(), packet.end());
+    }
+    Require(packeted == whole);
+    auto continuous = original; ApplyAudioJoinFade(continuous, channels, 0, 0, 1600, 480, false, false);
+    Require(continuous == original);
+    auto disabled = original; ApplyAudioJoinFade(disabled, channels, 0, 0, 1600, 0, true, true);
+    Require(disabled == original);
+    for (UINT frames = 1; frames <= 10; ++frames) {
+      std::vector<int16_t> tiny(frames * channels, 12000);
+      ApplyAudioJoinFade(tiny, channels, 0, 0, frames, 480, true, true);
+      Require(std::all_of(tiny.begin(), tiny.end(), [](int16_t value) { return value >= 0 && value <= 12000; }));
+    }
+  }
+  for (const auto invalid : {0u, 3u}) {
+    std::vector<int16_t> pcm(100, 12000); bool rejected = false;
+    try { ApplyAudioJoinFade(pcm, invalid, 0, 0, 100, 480, true, true); } catch (...) { rejected = true; }
+    Require(rejected);
+  }
+}
+
+double WindowRms(const std::vector<int16_t>& pcm, size_t start, size_t frames) {
+  Require(start + frames <= pcm.size()); double sum = 0;
+  for (size_t i = start; i < start + frames; ++i) sum += static_cast<double>(pcm[i]) * pcm[i];
+  return std::sqrt(sum / frames);
+}
 
 void SaveCaptionPng(const std::wstring& path, UINT width, UINT height, const BYTE* bytes) {
   Require(GetFileAttributesW(path.c_str()) == INVALID_FILE_ATTRIBUTES);
@@ -354,6 +398,7 @@ int wmain(int count, wchar_t** args) {
   const auto com = CoInitializeEx(nullptr, COINIT_MULTITHREADED); if (FAILED(com)) return 3;
   const char* stage = "initialize";
   try {
+    stage = "pure packet-independent sound join envelope"; CheckAudioJoinEnvelope();
     check_hresult(MFStartup(MF_VERSION));
     {
       com_ptr<ID3D11Device> device;
@@ -375,6 +420,26 @@ int wmain(int count, wchar_t** args) {
       stage = "verify reordered ranges"; VerifyLocalCut(request, 60, 2000000);
       const auto reversed = Audio(request.output);
       Require(ToneAt(reversed, 12000, 880) > 9000 && ToneAt(reversed, 60000, 440) > 9000);
+      const auto join_source = prefix + L"-join-source.mp4";
+      stage = "generate sound join source"; GenerateExtra(device.get(), join_source, 1, kRate, 0xff25b64a);
+      auto joins = request; joins.source = join_source; joins.source_duration_us = 1000000;
+      joins.ranges = {{123000, 623000}, {201000, 701000}}; joins.output = prefix + L"-join-raw.mp4";
+      stage = "render untreated sound join"; RenderLocalVideo(joins, cancel, [](double) {});
+      const auto raw_join = Audio(joins.output);
+      joins.audio_join_fade_us = 20000; joins.output = prefix + L"-join-soft.mp4";
+      stage = "render softened sound join"; RenderLocalVideo(joins, cancel, [](double) {});
+      VerifyLocalCut(joins, 30, 1000000); const auto soft_join = Audio(joins.output);
+      stage = "verify decoded join attenuation and untouched distant speech";
+      const auto raw_level = WindowRms(raw_join, 23904, 192), soft_level = WindowRms(soft_join, 23904, 192);
+      if (!(raw_level > 5000 && soft_level < raw_level * .65))
+        std::cout << "Generated sound join RMS: raw=" << raw_level << " soft=" << soft_level << "\n";
+      Require(raw_level > 5000 && soft_level < raw_level * .65);
+      for (size_t at : {12000u, 36000u}) Require(std::abs(WindowRms(raw_join, at, 960) - WindowRms(soft_join, at, 960)) < 500);
+      joins.ranges = {{0, 1000000}}; joins.audio_join_fade_us = 0; joins.output = prefix + L"-join-whole.mp4";
+      stage = "render continuous sound reference"; RenderLocalVideo(joins, cancel, [](double) {}); const auto whole_join = Audio(joins.output);
+      joins.ranges = {{0, 500000}, {500000, 1000000}}; joins.audio_join_fade_us = 20000; joins.output = prefix + L"-join-continuous.mp4";
+      stage = "render adjacent ranges without a fade"; RenderLocalVideo(joins, cancel, [](double) {});
+      Require(Audio(joins.output) == whole_join);
       const auto filler_source = prefix + L"-filler-source.mp4";
       stage = "generate filler tone islands"; GenerateFillerSource(device.get(), filler_source);
       const auto uncut_filler = Audio(filler_source); Require(ToneAt(uncut_filler, 52800, 770) > 5000);

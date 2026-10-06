@@ -20,7 +20,8 @@ now has verified offline model setup, bounded local speech jobs, frozen Script/N
 processing, durable actual words, script alignment and SRT/VTT export in take review.
 Generated short and 70-second app checks pass. Reversible quiet cuts, local
 take playback and first Windows video exports now work. Automatic local speech
-and reversible cutting after Stop are connected. Optional Readable/Cue/Punch/Karaoke captions
+and reversible cutting after Stop are connected. Optional sound-join fades
+soften internal cut edges without shifting words. Optional Readable/Cue/Punch/Karaoke captions
 follow saved actual words/corrections and the cut clock. Reversible filler
 review offers safe optional removals, initially kept; remaining Director's Cut
 tracks are next. Repeated Script sections now have a comparison with original
@@ -49,6 +50,22 @@ dot to grow and act out each cue in the cue's colour, and for the next features.
 build step 2 (screen recording).
 
 ## Handover (2026-10-05): from here, Codex on the owner's Windows PC
+
+- **Latest checkpoint (2026-10-06, optional sound-join fades):** 669 Flutter
+  tests, 254 screenshots, clean analysis and normal Windows Release build.
+  Soften sound at cuts starts on for discontinuous internal joins and can be
+  switched off. A 20ms total envelope uses 10ms of each retained side without
+  overlapping words, amplification or a clock change. Continuous source spans
+  and outer edges keep their sound; old history defaults off. Choice/history
+  and source/caption clocks pass EN/FR/AR full review/export checks. Native
+  mono/stereo, small ranges, packet splitting, decoded join attenuation and
+  distant-tone levels pass; whole/contiguous decoded PCM is identical. Actual
+  app-channel keep/select/restore exports preserve choices/history and original
+  bytes. EN/AR phone PNGs inspected. No owner media/input or new dependency.
+  **Half done:** room-tone crossfades, LUFS/noise/de-essing, screen polish,
+  automatic best-performance ranking and full coaching remain. Continue the
+  screen effects and sound tracks before voice-follow/mobile. Actual listening
+  and language/hardware trials stay deferred; mobile/paid-launch work remains.
 
 - **Latest checkpoint (2026-10-06, Cue/Punch delivery captions):** 663 Flutter
   tests, 254 screenshot cases, clean analysis and normal Windows Release build.
@@ -829,10 +846,16 @@ build step 2 (screen recording).
    automatic processing after Stop. Repeated sections now offer a paged
    comparison, original listening and safe reversible Keep attempt choices.
    Automatic best-performance ranking is still pending. Next
-   screen/sound polish and delivery coaching; keep originals intact.
+   screen effects and remaining sound polish/delivery coaching; short optional
+   sound-join fades are connected. Keep originals intact.
    See OpenScreen in the brief for reusable parts.
 
 ## Decisions
+
+- 2026-10-06, first sound polish: optional de-click fades at discontinuous
+  internal joins, enabled for new cut exports and saved per video. Keep the
+  source/word/caption clock exact and continuous/outer edges intact. This is
+  a join envelope, not the future room-tone crossfade or noise/LUFS processor.
 
 - 2026-10-06, delivery captions: offer all four Windows styles. Cue starts for
   wide/feed and Punch for portrait until a person chooses a style; preserve
@@ -1029,6 +1052,22 @@ build step 2 (screen recording).
   word lists, not prosody.
 
 ## Session log
+
+- 2026-10-06, optional sound-join fades:
+  - Added a bounded packet-independent PCM envelope at internal discontinuous
+    joins, plus actual-join detection, a default-on reversible export switch
+    and additive immutable history/portable metadata. Gains never exceed one;
+    contiguous source spans and outer edges remain untouched. No overlap or
+    change to original bytes, ASR, cut/caption/word clocks or earlier exports.
+  - Clean analysis, 669 tests and 254 screenshots pass. Native mono/stereo,
+    tiny ranges, packet splitting and disabled/continuous samples pass;
+    decoded AAC attenuates the join while distant tone levels stay intact.
+    Whole/contiguous exports decode to identical PCM. Actual Windows app-channel
+    EN/FR/AR retake keep/select/restore exports retain the sound choice, Still,
+    exact clocks, subtitle/history/reload and original bytes. Normal Release
+    restored; EN/AR phone PNGs inspected. No owner media/input, new dependency,
+    copied code or upload. Screen effects, remaining sound and coaching follow;
+    owner trials stay deferred.
 
 - 2026-10-06, Cue/Punch delivery captions:
   - Added source-identity cue mapping on a bounded worker, actual gap-phrase

@@ -125,6 +125,7 @@ void main() {
             clean: clean,
             captionStyle: style,
             captionMotion: false,
+            softAudioJoins: style != CaptionStyle.karaoke,
           ))!;
           final expected = captionsFromSpeech(
             speechOnCleanCut(transcript, clean),
@@ -135,6 +136,14 @@ void main() {
           );
           expect(renderer.request!.captionStyle, style);
           expect(renderer.request!.captionMotion, isFalse);
+          expect(
+            renderer.request!.softAudioJoins,
+            style != CaptionStyle.karaoke,
+          );
+          expect(
+            renderer.request!.toJson()['audioJoinFadeUs'],
+            style == CaptionStyle.karaoke ? 0 : 20000,
+          );
           expect(
             renderer.request!.captions
                 .expand((c) => c.words)
@@ -147,6 +156,13 @@ void main() {
           );
           expect(video.captionStyle, style);
           expect(video.captionMotion, isFalse);
+          expect(video.softAudioJoins, style != CaptionStyle.karaoke);
+          expect(
+            (await store.load(library.byId(script.id)!.takes.single))
+                .single
+                .softAudioJoins,
+            style != CaptionStyle.karaoke,
+          );
           expect(
             (await store.load(library.byId(script.id)!.takes.single))
                 .single
@@ -157,6 +173,10 @@ void main() {
               jsonDecode(await store.file(video, 'json').readAsString()) as Map;
           expect((metadata['video'] as Map)['captionStyle'], style.name);
           expect((metadata['video'] as Map)['captionMotion'], isFalse);
+          expect(
+            (metadata['video'] as Map)['softAudioJoins'],
+            style != CaptionStyle.karaoke,
+          );
           job.dispose();
         },
       );

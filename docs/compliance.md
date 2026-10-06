@@ -74,6 +74,10 @@ paid release, a lawyer should review:
   Foundation. Complete-picture compositing, cuts and AAC resampling stay on the
   device. Fresh output files, recovery journals and captions never overwrite
   originals; failures never log scripts, media paths or OS exception messages.
+  Optional sound-join fades transform only bounded decoded PCM at internal
+  cut boundaries; they never amplify, upload, overlap words or change clocks.
+  Original sound and earlier exports remain intact. No extra DSP library,
+  copied code, model or noise/loudness claim is introduced.
 - Optional captions on video use installed DirectWrite/Direct2D and the already
   bundled OFL Anybody/Reem Kufi fonts through a private local font collection.
   No font installation/download, new package, copied code or network service.
@@ -219,6 +223,7 @@ person using the app.
 | Original filler phrase listening | Checked 2026-10-06 with generated video and EN/FR/AR widgets. Only the explicit Hear action starts sound; it plays a bounded original excerpt and pauses on the existing status poll. Scrolling cannot repeat the request; backgrounding, replacement and disposal cancel it. Cut decisions and original files remain unchanged. No owner media, new dependency, network or private logs |
 | Repeated Script section comparison | Checked 2026-10-06 with generated EN/FR/AR word fixtures and full review widgets. Uses frozen scripts/actual wording in a bounded isolate; ordinary repetition, Notes and null alignment remain unscored. Partial coverage and uncertain wording are shown honestly. Explicit listening preserves every cut choice and original; no best-performance or recognition-quality claim, dependency, upload or private logs. Real language/hardware trials remain pending |
 | Safe reversible retake selection | Checked 2026-10-06 with EN/FR/AR word/quiet fixtures, 800-attempt bounds, stale/forged-plan rejection, full review controls and generated native tone/picture exports. All attempts start kept; only explicit choices discard complete confident words at measured safe boundaries. Cues owned by retained words remain protected; Notes/Screen/computer-only stay unscored. Native app-channel selection/restore, exact cut clocks, burned captions/SRT, history/reload and original-byte checks pass. No owner media/input, dependency, upload or private logs. Automatic performance ranking, real-language/hardware trials and launch legal work remain pending |
+| Optional Windows sound-join fades | Checked 2026-10-06 with generated mono/stereo packets, short ranges, packet boundaries, disabled/continuous joins, decoded AAC attenuation and unchanged distant tone levels/whole-versus-contiguous PCM. EN/FR/AR export controls, immutable history and cut/caption clocks pass. Only retained internal join edges are attenuated; no overlap, amplification, source modification or new DSP library. No owner media/input, dependency, copied code, upload, model or private logs. Room-tone crossfades, LUFS/noise/de-essing, hardware listening and launch legal work remain pending |
 | In-app licence page (Settings, Privacy and licences) | Done |
 | "What leaves your device" explained in Settings | Done |
 | iOS export-compliance flag | Done |

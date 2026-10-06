@@ -15,6 +15,69 @@ import '../render/export_processor_test.dart' show FakeRenderer;
 import '../storage/screen_take_store_test.dart' show FakeInspector;
 
 void main() {
+  for (final mode in ['choose', 'busy', 'continuous']) {
+    testWidgets('sound join controls/history: $mode', (tester) async {
+      final library = ScriptLibrary(MemoryScriptStore()),
+          inspector = FakeInspector();
+      final job = ExportProcessor(
+        FakeRenderer(inspector),
+        VideoExportStore(Directory.systemTemp, library, inspector),
+        CleanCutStore(Directory.systemTemp, library),
+        (_) async => null,
+      );
+      var soft = true;
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: buildTheme(Brightness.light),
+          home: Scaffold(
+            body: StatefulBuilder(
+              builder: (context, update) => VideoExportPanel(
+                format: VideoFormat.landscape,
+                onFormat: (_) {},
+                onExport: () {},
+                job: job,
+                busy: mode == 'busy',
+                supported: true,
+                hasAudioJoins: mode != 'continuous',
+                softAudioJoins: soft,
+                onSoftAudioJoins: (value) => update(() => soft = value),
+                videos: [
+                  VideoExport(
+                    id: 'generated',
+                    format: VideoFormat.landscape,
+                    duration: const Duration(seconds: 2),
+                    createdAt: DateTime(2026),
+                    softAudioJoins: true,
+                  ),
+                ],
+                onView: (_) {},
+                onShow: (_) {},
+              ),
+            ),
+          ),
+        ),
+      );
+      final choice = find.widgetWithText(
+        CheckboxListTile,
+        'Soften sound at cuts',
+      );
+      if (mode == 'continuous') {
+        expect(choice, findsNothing);
+      } else if (mode == 'busy') {
+        expect(tester.widget<CheckboxListTile>(choice).onChanged, isNull);
+      } else {
+        expect(tester.widget<CheckboxListTile>(choice).value, isTrue);
+        await tester.tap(choice);
+        await tester.pumpAndSettle();
+        expect(soft, isFalse);
+      }
+      expect(find.textContaining('Soft sound joins'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox());
+      job.dispose();
+      library.dispose();
+    });
+  }
   for (final mode in ['choose', 'cue', 'punch', 'busy', 'off', 'missing']) {
     testWidgets('caption style controls and history: $mode', (tester) async {
       tester.view.physicalSize = const Size(430, 900);

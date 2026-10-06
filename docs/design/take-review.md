@@ -109,6 +109,11 @@ reframe faces or screen targets. Both takes can include the separate camera in
 the bottom-right corner, fitted inside 28% of each output dimension with a 4%
 short-edge margin. These proportions are `video-export` tokens. A switch can
 omit the camera. The original sound keeps its source clock through each cut.
+**Soften sound at cuts** appears for internal discontinuous joins, starts on
+and can be switched off. A short 20ms envelope uses 10ms of each retained side,
+with no overlap or clock change. Continuous spans and outer edges keep their
+sound. History labels the choice as **Soft sound joins**. Noise/loudness and
+room-tone crossfades remain separate work.
 
 Progress has **Cancel export** until saving starts. Saving verifies decoded
 dimensions and duration before attaching history. Each saved video shows its

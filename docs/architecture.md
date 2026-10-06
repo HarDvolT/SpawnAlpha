@@ -779,6 +779,17 @@ Microsoft API references: [font axes](https://learn.microsoft.com/en-us/windows/
 [character spacing](https://learn.microsoft.com/en-us/windows/win32/api/dwrite_1/nf-dwrite_1-idwritetextlayout1-setcharacterspacing)
 and [drawing transforms](https://learn.microsoft.com/en-us/windows/win32/direct2d/direct2d-transforms-overview).
 
-Crossfades, noise/loudness polish,
+`CutPlan.hasJoins` distinguishes discontinuous internal joins from contiguous
+source spans and outer trims. New exports start `softAudioJoins` on for those
+joins, with an optional review switch and additive history/portable field;
+old exports default false. Native `ApplyAudioJoinFade` applies the design's
+20ms de-click envelope, half on each retained side, to bounded PCM packets.
+It is packet-independent, shortens to tiny ranges and never amplifies or
+overlaps audio. No extra samples, caption/word clock shift, source writes or
+changes at continuous boundaries. Invalid duration/packet/range inputs fail
+before mutation. Generated decoded AAC verifies join attenuation and unchanged
+distant tone levels; contiguous split/whole exports have identical decoded PCM.
+
+Room-tone crossfades, noise/loudness polish,
 face reframing and automatic zoom/cursor tracks remain. Exported EDL metadata has no
 source media path; private revision references remain in local take history.

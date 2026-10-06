@@ -34,6 +34,50 @@ void main() {
     () => TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(WindowsVideoRenderer.channel, null),
   );
+  test('sound join option is clock-neutral and only applies to real joins', () {
+    VideoRenderRequest build(CutPlan plan, bool soft) => VideoRenderRequest(
+      source: request.source,
+      output: request.output,
+      format: request.format,
+      plan: plan,
+      softAudioJoins: soft,
+    );
+    expect(build(request.plan, true).toJson()['audioJoinFadeUs'], 20000);
+    expect(build(request.plan, false).toJson()['audioJoinFadeUs'], 0);
+    expect(build(request.plan, true).plan.toJson(), request.plan.toJson());
+    final continuous = CutPlan(
+      takeId: 'generated',
+      language: ScriptLanguage.en,
+      sourceDuration: const Duration(seconds: 4),
+      ranges: [
+        SourceRange(start: Duration.zero, end: const Duration(seconds: 2)),
+        SourceRange(
+          start: const Duration(seconds: 2),
+          end: const Duration(seconds: 4),
+        ),
+      ],
+    );
+    expect(build(continuous, true).toJson()['audioJoinFadeUs'], 0);
+  });
+  test('sound join history is additive and rejects malformed choices', () {
+    final video = VideoExport(
+      id: 'generated',
+      format: request.format,
+      duration: const Duration(seconds: 2),
+      createdAt: DateTime(2026),
+      softAudioJoins: true,
+    );
+    expect(VideoExport.fromJson(video.toJson()).softAudioJoins, isTrue);
+    expect(
+      VideoExport.fromJson(video.toJson()..remove('softAudioJoins'))
+          .softAudioJoins,
+      isFalse,
+    );
+    expect(
+      () => VideoExport.fromJson(video.toJson()..['softAudioJoins'] = 20000),
+      throwsFormatException,
+    );
+  });
   for (final language in ScriptLanguage.values) {
     test(
       'caption channel uses complete actual wording and output clock $language',

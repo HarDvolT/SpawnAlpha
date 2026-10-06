@@ -15,6 +15,7 @@ struct LocalRenderRequest {
   double camera_inset = 0, camera_margin = 0;
   std::vector<RenderCaption> captions;
   CaptionLayout caption_layout;
+  int64_t audio_join_fade_us = 0;
 };
 // COM/MF initialized worker only. Original media is read-only, packets are bounded,
 // output is created exclusively, and failure/cancellation removes only that output.

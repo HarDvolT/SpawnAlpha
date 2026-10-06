@@ -45,6 +45,13 @@ class CutPlan {
   Duration get duration =>
       ranges.fold(Duration.zero, (sum, range) => sum + range.duration);
 
+  bool get hasJoins {
+    for (var i = 1; i < ranges.length; i++) {
+      if (ranges[i - 1].end != ranges[i].start) return true;
+    }
+    return false;
+  }
+
   Duration? sourceTime(Duration outputTime) {
     if (outputTime.isNegative) return null;
     var remaining = outputTime;

@@ -57,6 +57,7 @@ class _TakeReviewScreenState extends State<TakeReviewScreen> {
   CaptionStyle _captionStyle = CaptionStyle.cue;
   bool _captionStyleChosen = false;
   bool? _captionMotion;
+  bool _softAudioJoins = true;
   List<VideoExport> _videos = [];
   VideoExport? _viewing;
   final _reviewScroll = ScrollController();
@@ -188,6 +189,7 @@ class _TakeReviewScreenState extends State<TakeReviewScreen> {
       burnedCaptions: _burnedCaptions,
       captionStyle: _captionStyle,
       captionMotion: _captionMotion ?? !MediaQuery.disableAnimationsOf(context),
+      softAudioJoins: _softAudioJoins,
     );
     final saved = await app.videoExports.load(_latestTake(app));
     if (mounted) {
@@ -576,6 +578,10 @@ class _TakeReviewScreenState extends State<TakeReviewScreen> {
                   includeCamera: _cameraInExport,
                   onCamera: (value) => setState(() => _cameraInExport = value),
                   hasCaptions: words.isNotEmpty,
+                  hasAudioJoins: _clean?.asCutPlan().hasJoins ?? false,
+                  softAudioJoins: _softAudioJoins,
+                  onSoftAudioJoins: (value) =>
+                      setState(() => _softAudioJoins = value),
                   burnedCaptions: _burnedCaptions,
                   captionStyle: _captionStyle,
                   captionMotion:

@@ -28,6 +28,9 @@ class VideoExportPanel extends StatelessWidget {
     this.onCaptionStyle,
     this.captionMotion = true,
     this.onCaptionMotion,
+    this.hasAudioJoins = false,
+    this.softAudioJoins = true,
+    this.onSoftAudioJoins,
   });
   final VideoFormat format;
   final ValueChanged<VideoFormat> onFormat;
@@ -45,6 +48,8 @@ class VideoExportPanel extends StatelessWidget {
   final ValueChanged<CaptionStyle>? onCaptionStyle;
   final bool captionMotion;
   final ValueChanged<bool>? onCaptionMotion;
+  final bool hasAudioJoins, softAudioJoins;
+  final ValueChanged<bool>? onSoftAudioJoins;
   final List<VideoExport> videos;
   final ValueChanged<VideoExport> onView, onShow;
 
@@ -58,7 +63,8 @@ class VideoExportPanel extends StatelessWidget {
         Text(
           '${video.createdAt.toLocal().toString().substring(0, 16)} · '
           '${video.format.label} · ${formatCutTime(video.duration)}'
-          '${video.burnedCaptions ? ' · ${video.captionStyle.label} captions${video.captionMotion ? '' : ' · Still'}' : ''}',
+          '${video.burnedCaptions ? ' · ${video.captionStyle.label} captions${video.captionMotion ? '' : ' · Still'}' : ''}'
+          '${video.softAudioJoins ? ' · Soft sound joins' : ''}',
           style: SaType.signalLabel.copyWith(color: p.ink2),
         ),
         TextButton.icon(
@@ -116,6 +122,16 @@ class VideoExportPanel extends StatelessWidget {
           'Keeps the whole picture and saves a new MP4 on this device.',
           style: SaType.bodySm.copyWith(color: p.ink2),
         ),
+        if (hasAudioJoins)
+          CheckboxListTile(
+            contentPadding: EdgeInsets.zero,
+            value: softAudioJoins,
+            onChanged: busy
+                ? null
+                : (value) => onSoftAudioJoins?.call(value ?? false),
+            title: const Text('Soften sound at cuts'),
+            subtitle: const Text('Smooth the joins while keeping word timing.'),
+          ),
         if (hasCaptions)
           Text(
             'SRT and VTT caption files are saved beside the video.',

@@ -164,6 +164,17 @@ is added. Wording edits rebuild proposals with all attempts kept. A performance
 rank is not inferred from word matching: full pitch/loudness/pace scoring remains
 later. Every selection changes video and subtitle clocks together.
 
+### Windows sound joins
+
+**Soften sound at cuts** starts enabled when the selected plan joins separated
+or reordered source ranges. It applies a `audio-join-fade` 20ms de-click
+envelope, half on each side of the join, without overlapping words or changing
+the video/subtitle clock. Adjacent continuous ranges and the take's outer
+edges keep their sound. Tiny ranges shorten the envelope to their available
+room; gains never exceed one. The switch can keep the original cut sound.
+History records the choice for each saved video. This first sound slice is a
+join fade, not a room-tone crossfade, noise reduction or a LUFS normalizer.
+
 ### First Windows video export
 
 The saved plan now renders to a separate finalized H.264/AAC MP4 in 16:9
