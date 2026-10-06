@@ -76,7 +76,7 @@ Future<void> main() async {
             'coordinates': 'sourcePixels',
             'keys': 'timingOnly',
           }),
-          for (final ms in [500, 700])
+          for (final ms in [700])
             jsonEncode({
               'type': 'click',
               'timeUs': ms * 1000,
@@ -90,7 +90,7 @@ Future<void> main() async {
           jsonEncode({
             'type': 'end',
             'timeUs': 4000000,
-            'events': 2,
+            'events': 1,
             'complete': true,
           }),
           '',
@@ -101,9 +101,9 @@ Future<void> main() async {
       final frozen = ScriptDocument.create(
         language: language,
         text: switch (language) {
-          ScriptLanguage.en => 'We launch today.',
-          ScriptLanguage.fr => 'Nous lançons demain.',
-          ScriptLanguage.ar => 'نحن نبدأ الآن.',
+          ScriptLanguage.en => 'Click here now.',
+          ScriptLanguage.fr => 'Cliquez ici maintenant.',
+          ScriptLanguage.ar => 'اضغط هنا الآن.',
         },
       );
       final take = Take(
@@ -134,6 +134,7 @@ Future<void> main() async {
             sourcePath: source.path,
             transcript: words,
             snapshot: frozen,
+            alignment: {'attemptCount': 1},
           ).toJson(),
         ),
         flush: true,
@@ -167,7 +168,7 @@ Future<void> main() async {
         require(track.count == video.zoomCount);
         if (enabled) {
           require(
-            track.steps.first.time == const Duration(milliseconds: 200) &&
+            track.steps.first.time == const Duration(milliseconds: 400) &&
                 track.steps.last.time == const Duration(milliseconds: 2100),
           );
         }
@@ -195,7 +196,7 @@ Future<void> main() async {
     }
     // ignore: avoid_print
     print(
-      'Local screen zoom check passed: EN/FR/AR, wide/feed/portrait, zoom on/off, caption clocks, immutable targets/history and unchanged source/activity bytes.',
+      'Local screen zoom check passed: EN/FR/AR spoken pointing phrases, one click, wide/feed/portrait, zoom on/off, caption clocks, immutable targets/history and unchanged source/activity bytes.',
     );
   } on Object {
     // ignore: avoid_print

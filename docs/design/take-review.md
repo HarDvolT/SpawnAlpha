@@ -106,8 +106,12 @@ stale results. Nothing is uploaded or cut by listening.
 take when no cut exists). The first Windows renderer fits the complete picture
 inside 16:9 1080p/4K, 9:16 or 4:5; unused space stays black. Screen/Both with
 local activity offer **Auto-zoom screen activity**, initially on. Nearby clicks,
-shortcuts and anonymous typing bursts produce spring zooms on the kept clock;
-switching off keeps the full picture. Missing/unreadable activity explains
+shortcuts and anonymous typing bursts produce spring zooms on the kept clock.
+Reliable actually spoken frozen Script pointing phrases also justify a nearby
+visible click. Notes/uncertain/unsaid words and discarded phrases supply no
+bonus; ordinary click clusters still work. English, French and Arabic use
+their normalized language lexicon. Switching off keeps the full picture.
+Missing/unreadable activity explains
 the full-picture fallback. History lists the zoom count. Original media/input
 remains intact; no typed characters are used. Face reframing remains separate.
 Both takes can include the separate camera in

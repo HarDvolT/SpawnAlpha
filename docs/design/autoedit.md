@@ -196,11 +196,23 @@ the export without the private source/activity path. Missing or unreadable
 activity keeps the whole picture and explains that choice. Cursor cleanup,
 ripples, keycaps, backdrop and directional blur remain subsequent tracks.
 
+For a frozen Script, a nearby click can also use reliable actually spoken
+pointing phrases: English "here"/"this button", French "ici"/"ce bouton"/
+"cette option", and Arabic "هنا"/"هذا الزر"/"هذه الخانة". Use the normalized
+language lexicon and the full source alignment, never Notes bullets or unsaid
+script text. Every phrase word must be an exact reliable or explicitly corrected
+match in the same attempt, without extra words or a long intervening gap.
+`zoom-point-window` is the maximum distance from the spoken phrase to the click.
+Both the click and the whole phrase must survive the same kept source range;
+discarded attempts cannot supply evidence. A visible click still supplies the
+position. The ordinary Auto-zoom switch controls these targets too, and no
+transcript text is written into portable zoom metadata.
+
 ### First Windows video export
 
 The saved plan now renders to a separate finalized H.264/AAC MP4 in 16:9
 1080p/4K, 9:16 or 4:5. This slice fits the complete source on black space unless
-optional screen activity zooms are enabled. Face/pointing-word reframing,
+optional screen activity zooms are enabled. Face reframing,
 further sound polish and room-tone crossfades are still pending.
 Optional Readable, Cue, Punch and Karaoke captions now follow saved actual
 speech, using bundled display fonts, the fixed caption plate and safe margins.

@@ -794,6 +794,14 @@ distant tone levels; contiguous split/whole exports have identical decoded PCM.
 from the existing anonymous local activity. Clusters stay within the token
 time/distance window; typing needs three timings and a fresh same-size visible
 cursor or focus rectangle. Burst evidence must all survive the kept range.
+`pointingPhrases` uses the normalized EN/FR/AR lexicon and full frozen Script
+alignment to retain only complete exact reliable/corrected actually spoken
+phrases. Notes, absent alignment, uncertainty, changed/added words, separate
+attempts/sentences and long gaps supply no evidence. A visible click within
+the point-window token can count as a target; the whole phrase and click must
+survive the same source range. Losing phrase evidence retains the click's
+ordinary cluster evidence. Point intervals/text never enter portable tracks.
+Oversized/unusable script alignment leaves ordinary activity zooms available.
 Discarded/reordered ranges carry only their own targets; contiguous splits
 produce the same track. Lead/hold clamp to each range, overlapping targets pan
 and a discontinuous cut resets the view. Source dimensions translate resized
@@ -816,6 +824,6 @@ verify zoom-in and restored full view; app-channel EN/FR/AR exports verify
 wide/feed/portrait on/off, caption clocks, history and unchanged originals.
 Microsoft API reference: [video processor source rectangle](https://learn.microsoft.com/en-us/windows/win32/api/d3d11/nf-d3d11-id3d11videocontext-videoprocessorsetstreamsourcerect).
 
-Room-tone crossfades, noise/loudness polish, pointing-word zooms,
+Room-tone crossfades, noise/loudness polish,
 face reframing and cursor tracks remain. Exported EDL metadata has no
 source media path; private revision references remain in local take history.

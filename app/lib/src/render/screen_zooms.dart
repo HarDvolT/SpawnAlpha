@@ -13,8 +13,9 @@ class ZoomPolicy {
     required this.maximum,
     required this.typingMinimum,
     required this.smallTarget,
+    this.pointWindow = Duration.zero,
   });
-  final Duration window, lead, hold;
+  final Duration window, lead, hold, pointWindow;
   final double distance, factor, maximum, smallTarget;
   final int typingMinimum;
 }
@@ -134,8 +135,10 @@ class _Target {
     this.small, {
     int? startUs,
     this.evidence = 1,
+    this.pointing,
   }) : startUs = startUs ?? timeUs;
   final int timeUs, startUs, width, height, evidence;
+  final SourceRange? pointing;
   final double x, y;
   final bool small;
 }
@@ -143,11 +146,14 @@ class _Target {
 /// Streaming evidence collector. Cursor paths and anonymous key events are not
 /// retained; only bounded spatial click/shortcut/typing-burst targets survive.
 class ScreenZoomPlanner {
-  ScreenZoomPlanner(this.policy) {
+  ScreenZoomPlanner(this.policy, {List<SourceRange> pointing = const []})
+    : _pointing = List.unmodifiable(pointing) {
     if (policy.window <= Duration.zero ||
         policy.window > const Duration(seconds: 5) ||
         policy.lead.isNegative ||
         policy.hold <= Duration.zero ||
+        policy.pointWindow.isNegative ||
+        policy.pointWindow > const Duration(seconds: 5) ||
         !policy.distance.isFinite ||
         policy.distance <= 0 ||
         policy.distance > 1 ||
@@ -163,8 +169,20 @@ class ScreenZoomPlanner {
         policy.smallTarget > 1) {
       throw const FormatException('Invalid screen zoom policy');
     }
+    if (pointing.length > 100000) {
+      throw const FormatException('Too many pointing phrases');
+    }
+    var previous = Duration.zero;
+    for (final phrase in pointing) {
+      if (phrase.start < previous) {
+        throw const FormatException('Unordered pointing phrases');
+      }
+      previous = phrase.end;
+    }
   }
   final ZoomPolicy policy;
+  final List<SourceRange> _pointing;
+  int _pointVisits = 0;
   final _targets = <_Target>[];
   ActivityEvent? _cursor, _focus;
   int _previous = -1, _keys = 0, _keyTime = -1, _keyStart = -1;
@@ -246,6 +264,55 @@ class ScreenZoomPlanner {
     _targets.add(target);
   }
 
+  _Target? _pointed(_Target? target) {
+    if (target == null || policy.pointWindow == Duration.zero) return target;
+    final window = policy.pointWindow.inMicroseconds;
+    var low = 0, high = _pointing.length;
+    while (low < high) {
+      final mid = (low + high) ~/ 2;
+      if (_pointing[mid].end.inMicroseconds < target.timeUs - window) {
+        low = mid + 1;
+      } else {
+        high = mid;
+      }
+    }
+    // Choose the closest phrase; ties retain the earlier source interval.
+    SourceRange? chosen;
+    var distance = window + 1;
+    for (
+      var i = low;
+      i < _pointing.length &&
+          _pointing[i].start.inMicroseconds <= target.timeUs + window;
+      ++i
+    ) {
+      if (++_pointVisits > 1000000) {
+        throw const FormatException('Too much pointing evidence');
+      }
+      final phrase = _pointing[i];
+      final delta = math.max(
+        0,
+        math.max(
+          phrase.start.inMicroseconds - target.timeUs,
+          target.timeUs - phrase.end.inMicroseconds,
+        ),
+      );
+      if (delta < distance) {
+        chosen = phrase;
+        distance = delta;
+      }
+    }
+    if (chosen == null) return target;
+    return _Target(
+      target.timeUs,
+      target.x,
+      target.y,
+      target.width,
+      target.height,
+      target.small,
+      pointing: chosen,
+    );
+  }
+
   void _finishKeys() {
     if (_keys >= policy.typingMinimum) {
       final target = _keyTarget!;
@@ -286,7 +353,7 @@ class ScreenZoomPlanner {
       case 'focus':
         _focus = event;
       case 'click':
-        _add(_target(event, click: true));
+        _add(_pointed(_target(event, click: true)));
       case 'shortcut':
         _add(_target(event));
       case 'key':
@@ -336,7 +403,18 @@ class ScreenZoomPlanner {
       }
       var group = <_Target>[];
       void commit() {
-        if (group.fold<int>(0, (sum, target) => sum + target.evidence) < 2) {
+        if (group.fold<int>(
+              0,
+              (sum, target) =>
+                  sum +
+                  target.evidence +
+                  (target.pointing != null &&
+                          target.pointing!.start >= range.start &&
+                          target.pointing!.end <= range.end
+                      ? 1
+                      : 0),
+            ) <
+            2) {
           group.clear();
           return;
         }

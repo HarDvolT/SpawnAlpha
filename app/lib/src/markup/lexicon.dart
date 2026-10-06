@@ -16,6 +16,7 @@ class Lexicon {
         numberWords = PhraseSet(lists['numbers']!),
         units = PhraseSet(lists['units']!),
         fillers = PhraseSet(lists['fillers']!),
+        pointing = PhraseSet(lists['pointing']!),
         tightenings = {
           for (final e in tightenings.entries) PhraseSet.split(e.key).join(' '): e.value,
         };
@@ -46,6 +47,9 @@ class Lexicon {
 
   /// Possible hesitations, never proof that a meaningful word can be removed.
   final PhraseSet fillers;
+
+  /// Spoken phrases that can justify a nearby visible screen target.
+  final PhraseSet pointing;
 
   /// Wordy phrases and a shorter way to say them. An empty replacement
   /// means the phrase can go.
@@ -135,6 +139,7 @@ class PhraseSet {
 }
 
 const _english = {
+  'pointing': ['here', 'this button'],
   'fillers': ['um', 'uh', 'like', 'you know'],
   'steps': [
     'first', 'firstly', 'second', 'secondly', 'third', 'thirdly', 'then', 'next', 'after that',
@@ -196,6 +201,7 @@ const _englishTightenings = {
 };
 
 const _french = {
+  'pointing': ['ici', 'ce bouton', 'cette option'],
   'fillers': ['euh', 'ben', 'du coup', 'genre'],
   'steps': [
     "d'abord", 'premièrement', 'deuxièmement', 'troisièmement', 'ensuite', 'puis', 'après',
@@ -259,6 +265,7 @@ const _frenchTightenings = {
 };
 
 const _arabic = {
+  'pointing': ['هنا', 'هذا الزر', 'هذه الخانة'],
   'fillers': ['امم', 'يعني', 'واش', 'إيه'],
   'steps': [
     'أولاً', 'أولا', 'ثانياً', 'ثانيا', 'ثالثاً', 'ثالثا', 'ثم', 'بعد ذلك', 'بعدها', 'بعدين',

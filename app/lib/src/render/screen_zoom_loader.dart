@@ -2,13 +2,22 @@ import 'dart:io';
 
 import '../model/cut_plan.dart';
 import '../recording/activity_trace.dart';
+import '../transcription/pointing_phrases.dart';
+import '../transcription/speech_processor.dart';
 import 'screen_zooms.dart';
 
 class ScreenZoomJob {
-  const ScreenZoomJob(this.source, this.activity, this.plan, this.policy);
+  const ScreenZoomJob(
+    this.source,
+    this.activity,
+    this.plan,
+    this.policy, {
+    this.spoken,
+  });
   final String source, activity;
   final CutPlan plan;
   final ZoomPolicy policy;
+  final SavedTranscript? spoken;
 }
 
 class LoadedScreenZooms {
@@ -32,7 +41,24 @@ Future<LoadedScreenZooms> loadScreenZooms(ScreenZoomJob job) async {
       throw const FormatException('Invalid activity location');
     }
     await inspectActivity(file, limit: job.plan.sourceDuration);
-    final planner = ScreenZoomPlanner(job.policy);
+    var pointing = <SourceRange>[];
+    final spoken = job.spoken;
+    if (spoken != null &&
+        spoken.sourcePath == job.source &&
+        spoken.transcript.duration == job.plan.sourceDuration &&
+        spoken.transcript.language == job.plan.language) {
+      try {
+        pointing = pointingPhrases(
+          source: spoken.transcript,
+          snapshot: spoken.snapshot,
+          aligned: spoken.alignment != null,
+          maximumSpan: job.policy.window,
+        );
+      } on FormatException {
+        // An oversized/unusable script cannot disable ordinary activity zooms.
+      }
+    }
+    final planner = ScreenZoomPlanner(job.policy, pointing: pointing);
     await for (final row in activityRows(file)) {
       if (row['type'] == 'header' || row['type'] == 'end') continue;
       final event = ActivityEvent.fromJson(row);

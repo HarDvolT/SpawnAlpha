@@ -18,7 +18,10 @@ import 'export_processor_test.dart' show FakeRenderer;
 import '../storage/screen_take_store_test.dart'
     show FakeInspector, FailingStore;
 
-Future<File> activityFor(File source) async {
+Future<File> activityFor(
+  File source, {
+  List<int> clicks = const [500, 700],
+}) async {
   final file = File('${source.path}.activity.jsonl');
   await file.writeAsString(
     [
@@ -28,7 +31,7 @@ Future<File> activityFor(File source) async {
         'coordinates': 'sourcePixels',
         'keys': 'timingOnly',
       }),
-      for (final ms in [500, 700])
+      for (final ms in clicks)
         jsonEncode({
           'type': 'click',
           'timeUs': ms * 1000,
@@ -42,7 +45,7 @@ Future<File> activityFor(File source) async {
       jsonEncode({
         'type': 'end',
         'timeUs': 4000000,
-        'events': 2,
+        'events': clicks.length,
         'complete': true,
       }),
       '',
@@ -77,6 +80,79 @@ void main() {
     await root.delete(recursive: true);
   });
   for (final language in ScriptLanguage.values) {
+    for (final mode in ['on', 'off', 'notes', 'unaligned']) {
+      test(
+        'export worker uses reliable spoken points only $language $mode',
+        () async {
+          final source = File('${root.path}/generated.mp4');
+          await source.writeAsString('generated screen');
+          final activity = await activityFor(source, clicks: [700]);
+          final frozen =
+              ScriptDocument.create(
+                language: language,
+                text: switch (language) {
+                  ScriptLanguage.en => 'Click here now.',
+                  ScriptLanguage.fr => 'Cliquez ici maintenant.',
+                  ScriptLanguage.ar => 'اضغط هنا الآن.',
+                },
+              ).copyWith(
+                recordingAid: mode == 'notes'
+                    ? RecordingAid.notes
+                    : RecordingAid.script,
+              );
+          final take = Take(
+            path: source.path,
+            recordedAt: DateTime(2026),
+            duration: const Duration(seconds: 4),
+            mode: TakeMode.screen,
+            wordsPath: '${source.path}.words.json',
+            activityPath: activity.path,
+          );
+          final document = frozen.copyWith(takes: [take]);
+          await library.save(document);
+          final spoken = SavedTranscript(
+            sourcePath: source.path,
+            snapshot: frozen,
+            alignment: mode == 'unaligned' ? null : {'attemptCount': 1},
+            transcript: WordTranscript(
+              language: language,
+              duration: take.duration,
+              words: [
+                for (final (i, t) in frozen.tokens.indexed)
+                  SpokenWord(
+                    text: t.text,
+                    start: Duration(milliseconds: 400 + i * 200),
+                    end: Duration(milliseconds: 550 + i * 200),
+                    confidence: .9,
+                  ),
+              ],
+            ),
+          );
+          final job = ExportProcessor(
+            renderer,
+            store,
+            cuts,
+            (_) async => spoken,
+          );
+          final result = (await job.export(
+            document,
+            take,
+            VideoFormat.landscape,
+            autoZoom: mode != 'off',
+          ))!;
+          expect(result.zoomCount, mode == 'on' ? 1 : 0);
+          expect(renderer.request!.screenZooms!.count, result.zoomCount);
+          expect(renderer.request!.captions.first.text, frozen.text);
+          expect(
+            (await store.load(library.byId(document.id)!.takes.single))
+                .single
+                .zoomCount,
+            result.zoomCount,
+          );
+          job.dispose();
+        },
+      );
+    }
     for (final mode in ['on', 'off', 'unavailable']) {
       test(
         'zoom export preserves words, activity and history $language $mode',

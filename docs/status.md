@@ -53,6 +53,22 @@ build step 2 (screen recording).
 
 ## Handover (2026-10-05): from here, Codex on the owner's Windows PC
 
+- **Latest checkpoint (2026-10-06, spoken pointing zooms):** 726 Flutter tests,
+  clean analysis and normal Windows Release build. A reliable actually spoken
+  frozen Script phrase near a visible click can now trigger a zoom: English
+  here/this button, French ici/ce bouton/cette option, Arabic هنا/هذا الزر/هذه
+  الخانة, with normalized language forms. Multiword phrases require complete
+  exact reliable/corrected speech in one attempt without added words, sentence
+  breaks or long gaps. Notes, absent alignment and uncertain/unsaid words
+  supply no bonus. The whole phrase and click must survive the same source
+  range; losing the phrase retains ordinary cluster evidence. Actual Windows
+  app-channel one-click EN/FR/AR wide/feed/portrait on/off exports pass caption
+  clocks, immutable targets/history and unchanged source/activity bytes.
+  No new UI surface; 254 screenshot cases remain from the activity zoom slice.
+  No owner media/input or dependency. **Half done:** cursor/ripple/keycap/frame
+  polish, further sound and full coaching. Continue those Cut tracks before
+  voice-follow/mobile; owner trials stay deferred.
+
 - **Latest checkpoint (2026-10-06, screen activity zooms):** 698 Flutter tests,
   254 screenshots, clean analysis and normal Windows Release build. Optional
   Auto-zoom follows bounded nearby clicks/shortcuts and three anonymous typing
@@ -865,12 +881,18 @@ build step 2 (screen recording).
    automatic processing after Stop. Repeated sections now offer a paged
    comparison, original listening and safe reversible Keep attempt choices.
    Automatic best-performance ranking is still pending. Next
-   pointing-word zooms, cursor/frame effects and remaining sound polish/delivery
+   cursor/frame effects and remaining sound polish/delivery
    coaching; optional activity zooms and short sound-join fades are connected.
    Keep originals intact.
    See OpenScreen in the brief for reusable parts.
 
 ## Decisions
+
+- 2026-10-06, pointing-word zooms: use the normalized EN/FR/AR lexicon and
+  reliable/corrected actually spoken frozen Script phrases near a visible
+  click. Require whole retained source evidence, never Notes/unsaid text.
+  The ordinary Auto-zoom choice controls this too; no transcript text enters
+  portable target metadata. Unusable alignment leaves activity clusters intact.
 
 - 2026-10-06, Windows activity zooms: offer optional Auto-zoom for Screen/Both
   with existing local activity, initially on. Use bounded measured nearby
@@ -1079,6 +1101,21 @@ build step 2 (screen recording).
   word lists, not prosody.
 
 ## Session log
+
+- 2026-10-06, spoken pointing zooms:
+  - Added natural EN/FR/AR lexicon phrases, bounded frozen-source alignment
+    and a token proximity window. Complete exact reliable/corrected phrase
+    timing can boost one visible click; uncertain/changed/added/unsaid words,
+    Notes, sentence boundaries and long phrase gaps cannot. Cut/reorder
+    provenance requires the entire phrase in the same retained source range;
+    ordinary cluster evidence survives when the phrase does not.
+  - Clean analysis and all 726 tests pass. Existing Screen/Both controls and
+    native crop code are reused. Actual Windows app-channel one-click
+    EN/FR/AR wide/feed/portrait on/off exports pass exact caption/subtitle
+    clocks, frozen target/history reload and original source/activity bytes.
+    Normal Release restored; no new dependency/model/upload or owner input.
+    Cursor/ripple/keycap/frame polish and further sound/coaching are next;
+    mobile/launch work and owner hardware trials remain.
 
 - 2026-10-06, screen activity zooms:
   - Added the streaming bounded pure planner, strict local sidecar worker,

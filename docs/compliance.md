@@ -85,6 +85,10 @@ paid release, a lawyer should review:
   normalized targets/times/source dimensions, never source/activity paths.
   They stay on the device and can be disabled per export. Installed D3D11
   source rectangles and existing spring tokens need no new dependency/model.
+  Spoken pointing targets use the frozen Script and existing saved local words,
+  with exact reliable/corrected alignment and whole-phrase cut provenance.
+  Notes and uncertain/unsaid speech supply no bonus; no transcript text is
+  added to portable zoom metadata or diagnostics. No new collection or upload.
 - Optional captions on video use installed DirectWrite/Direct2D and the already
   bundled OFL Anybody/Reem Kufi fonts through a private local font collection.
   No font installation/download, new package, copied code or network service.

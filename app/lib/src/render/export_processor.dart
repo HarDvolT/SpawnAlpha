@@ -151,7 +151,9 @@ class ExportProcessor extends ChangeNotifier {
                   maximum: SaScreenFx.zoomMax,
                   typingMinimum: SaScreenFx.zoomTypingMinimum.toInt(),
                   smallTarget: SaScreenFx.zoomSmallTarget,
+                  pointWindow: SaScreenFx.zoomPointWindow,
                 ),
+                spoken: spoken,
               ),
             )
           : LoadedScreenZooms(ScreenZooms(0, const []));
