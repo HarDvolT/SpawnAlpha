@@ -14,6 +14,8 @@ add_executable(${BINARY_NAME} WIN32
   "gpu_video_writer.cpp"
   "microphone_capture.cpp"
   "screen_recording_core.cpp"
+  "recording_activity.cpp"
+  "recording_activity_schema.cpp"
   "screen_recorder.cpp"
   "recording_probe.cpp"
   "recording_hud.cpp"
@@ -74,11 +76,11 @@ target_compile_definitions(microphone_capture_check PRIVATE "NOMINMAX")
 target_link_libraries(microphone_capture_check PRIVATE "ole32.lib" "windowsapp.lib")
 
 # Captures only its own generated-color window; no private desktop capture.
-add_executable(screen_recording_check EXCLUDE_FROM_ALL "screen_recording_core.cpp" "gpu_video_writer.cpp" "microphone_capture.cpp" "camera_capture.cpp" "tests/screen_recording_check.cpp")
+add_executable(screen_recording_check EXCLUDE_FROM_ALL "recording_activity.cpp" "recording_activity_schema.cpp" "screen_recording_core.cpp" "gpu_video_writer.cpp" "microphone_capture.cpp" "camera_capture.cpp" "tests/screen_recording_check.cpp")
 target_compile_features(screen_recording_check PRIVATE cxx_std_17)
 target_compile_options(screen_recording_check PRIVATE /W4 /WX /EHsc /wd"4100")
 target_compile_definitions(screen_recording_check PRIVATE "NOMINMAX")
-target_link_libraries(screen_recording_check PRIVATE "d3d11.lib" "dxgi.lib" "mf.lib" "mfplat.lib" "mfreadwrite.lib" "mfuuid.lib" "ole32.lib" "oleaut32.lib" "windowsapp.lib" "user32.lib" "gdi32.lib")
+target_link_libraries(screen_recording_check PRIVATE "dwmapi.lib" "d3d11.lib" "dxgi.lib" "mf.lib" "mfplat.lib" "mfreadwrite.lib" "mfuuid.lib" "ole32.lib" "oleaut32.lib" "windowsapp.lib" "user32.lib" "gdi32.lib")
 
 add_executable(recording_probe_check EXCLUDE_FROM_ALL "recording_probe.cpp" "tests/recording_probe_check.cpp")
 target_compile_features(recording_probe_check PRIVATE cxx_std_17)
@@ -105,11 +107,11 @@ target_compile_options(camera_capture_check PRIVATE /W4 /WX /EHsc /wd"4100")
 target_compile_definitions(camera_capture_check PRIVATE "NOMINMAX" "SPAWNALPHA_CAMERA_FIXTURE")
 target_link_libraries(camera_capture_check PRIVATE "mf.lib" "mfplat.lib" "mfreadwrite.lib" "mfuuid.lib" "ole32.lib" "windowsapp.lib")
 
-add_executable(paired_recording_check EXCLUDE_FROM_ALL "screen_recording_core.cpp" "gpu_video_writer.cpp" "microphone_capture.cpp" "camera_capture.cpp" "tests/paired_recording_check.cpp")
+add_executable(paired_recording_check EXCLUDE_FROM_ALL "recording_activity.cpp" "recording_activity_schema.cpp" "screen_recording_core.cpp" "gpu_video_writer.cpp" "microphone_capture.cpp" "camera_capture.cpp" "tests/paired_recording_check.cpp")
 target_compile_features(paired_recording_check PRIVATE cxx_std_17)
 target_compile_options(paired_recording_check PRIVATE /W4 /WX /EHsc /wd"4100")
 target_compile_definitions(paired_recording_check PRIVATE "NOMINMAX" "SPAWNALPHA_CAMERA_FIXTURE")
-target_link_libraries(paired_recording_check PRIVATE "d3d11.lib" "dxgi.lib" "mf.lib" "mfplat.lib" "mfreadwrite.lib" "mfuuid.lib" "ole32.lib" "oleaut32.lib" "windowsapp.lib" "user32.lib" "gdi32.lib")
+target_link_libraries(paired_recording_check PRIVATE "dwmapi.lib" "d3d11.lib" "dxgi.lib" "mf.lib" "mfplat.lib" "mfreadwrite.lib" "mfuuid.lib" "ole32.lib" "oleaut32.lib" "windowsapp.lib" "user32.lib" "gdi32.lib")
 
 # Explicit UI check binary only. It reads generated video as the camera while
 # exercising the real protected windows, channels, common clock and local store.
@@ -147,8 +149,29 @@ target_compile_options(system_audio_capture_check PRIVATE /W4 /WX /EHsc /wd"4100
 target_compile_definitions(system_audio_capture_check PRIVATE "NOMINMAX")
 target_link_libraries(system_audio_capture_check PRIVATE "ole32.lib" "windowsapp.lib")
 
-add_executable(audio_recording_check EXCLUDE_FROM_ALL "screen_recording_core.cpp" "gpu_video_writer.cpp" "camera_capture.cpp" "tests/audio_capture_fixture.cpp" "tests/screen_recording_check.cpp")
+add_executable(audio_recording_check EXCLUDE_FROM_ALL "recording_activity.cpp" "recording_activity_schema.cpp" "screen_recording_core.cpp" "gpu_video_writer.cpp" "camera_capture.cpp" "tests/audio_capture_fixture.cpp" "tests/screen_recording_check.cpp")
 target_compile_features(audio_recording_check PRIVATE cxx_std_17)
 target_compile_options(audio_recording_check PRIVATE /W4 /WX /EHsc /wd"4100")
 target_compile_definitions(audio_recording_check PRIVATE "NOMINMAX" "SPAWNALPHA_AUDIO_FIXTURE")
-target_link_libraries(audio_recording_check PRIVATE "d3d11.lib" "dxgi.lib" "mf.lib" "mfplat.lib" "mfreadwrite.lib" "mfuuid.lib" "ole32.lib" "oleaut32.lib" "windowsapp.lib" "user32.lib" "gdi32.lib")
+target_link_libraries(audio_recording_check PRIVATE "dwmapi.lib" "d3d11.lib" "dxgi.lib" "mf.lib" "mfplat.lib" "mfreadwrite.lib" "mfuuid.lib" "ole32.lib" "oleaut32.lib" "windowsapp.lib" "user32.lib" "gdi32.lib")
+
+# Timing-only activity fixtures never register an input receiver or read the PC.
+add_executable(recording_activity_check EXCLUDE_FROM_ALL "recording_activity_schema.cpp" "tests/recording_activity_check.cpp")
+target_compile_features(recording_activity_check PRIVATE cxx_std_17)
+target_compile_options(recording_activity_check PRIVATE /W4 /WX /EHsc /wd"4100")
+target_compile_definitions(recording_activity_check PRIVATE "NOMINMAX")
+set(ACTIVITY_UI_SOURCES ${PAIRED_UI_SOURCES})
+list(REMOVE_ITEM ACTIVITY_UI_SOURCES "recording_activity.cpp")
+list(APPEND ACTIVITY_UI_SOURCES "tests/activity_capture_fixture.cpp")
+add_executable(activity_ui_fixture WIN32 EXCLUDE_FROM_ALL ${ACTIVITY_UI_SOURCES})
+apply_standard_settings(activity_ui_fixture)
+set_property(TARGET activity_ui_fixture PROPERTY COMPILE_DEFINITIONS ${PAIRED_UI_DEFINITIONS} "SPAWNALPHA_ACTIVITY_FIXTURE")
+target_include_directories(activity_ui_fixture PRIVATE "${CMAKE_SOURCE_DIR}")
+target_link_libraries(activity_ui_fixture PRIVATE $<TARGET_PROPERTY:${BINARY_NAME},LINK_LIBRARIES>)
+add_dependencies(activity_ui_fixture flutter_assemble)
+
+add_executable(recording_activity_runtime_check EXCLUDE_FROM_ALL "recording_activity.cpp" "recording_activity_schema.cpp" "tests/recording_activity_runtime_check.cpp")
+target_compile_features(recording_activity_runtime_check PRIVATE cxx_std_17)
+target_compile_options(recording_activity_runtime_check PRIVATE /W4 /WX /EHsc /wd"4100")
+target_compile_definitions(recording_activity_runtime_check PRIVATE "NOMINMAX")
+target_link_libraries(recording_activity_runtime_check PRIVATE "user32.lib" "dwmapi.lib")

@@ -246,9 +246,25 @@ The Director's Cut edits screen recordings from what happened, not from pixels. 
 - **Cursor:** position at 60 Hz, and the cursor shape (arrow, text beam, hand).
 - **Clicks:** time, position and button.
 - **Keys:** times of key presses and modifier chords, such as Ctrl+S. Letters are **never** logged: typing is recorded as "a burst of 16 keys", not the text. Shortcut badges show only modifier chords.
-- **Windows:** the focused window's rectangle and title, so zooms frame the right thing and the backdrop can crop to one app.
+- **Windows:** the focused window's rectangle, so zooms frame the right thing and the backdrop can crop to one app. Do not collect titles: they can contain private text. The chosen source's friendly name already lives in the local take manifest.
 
 Telemetry stays with the take on the device. It is what makes zooms land **before** a click (`zoom-lead`) and the cursor smooth without guessing.
+
+Set-up offers **Activity for automatic edits**, initially off on each visit. Its caption is
+**Saves mouse positions, clicks and typing timing on this PC. Never saves what you type.**
+The choice freezes during countdown and recording. Camera-only takes do not collect activity.
+For a window take, input is limited to that window; for a display take, it is limited to the
+chosen display. SpawnAlpha's protected controls and reader never contribute input or focus.
+Unknown shortcuts are anonymous key presses; only Ctrl+A/C/S/V/X/Y/Z (optionally Shift)
+get named badges. Alt/AltGr/Windows combinations stay anonymous. No text translation,
+scan codes, key identities, device identities, window titles or native handles are saved.
+
+The versioned JSON-lines sidecar uses the video's clock, removes paused activity, and
+stores source-relative coordinates with the current source dimensions (including resize).
+Flush it every second and at stop; a truncated last line can be ignored after a crash.
+Failure stops safely and preserves the readable video. Recovery uses only activity within
+the surviving decoded video's duration, keeping the original sidecar bytes. Activity can be absent in old takes
+and when switched off; future editing must work without it.
 
 ## Effects at set-up
 

@@ -41,6 +41,7 @@ std::string Reason(ScreenRecordingReason reason) {
     case ScreenRecordingReason::encoder: return "encoder";
     case ScreenRecordingReason::camera: return "camera";
     case ScreenRecordingReason::systemAudio: return "systemAudio";
+    case ScreenRecordingReason::activity: return "activity";
     default: return "none";
   }
 }
@@ -54,6 +55,7 @@ EncodableMap Status(const ScreenRecordingStatus& status) {
     {EncodableValue("audioFrames"), EncodableValue(static_cast<int64_t>(status.audio_frames))},
     {EncodableValue("cameraFrames"), EncodableValue(static_cast<int64_t>(status.camera_frames))},
     {EncodableValue("systemAudioFrames"), EncodableValue(static_cast<int64_t>(status.system_audio_frames))},
+    {EncodableValue("activityEvents"), EncodableValue(static_cast<int64_t>(status.activity_events))},
     {EncodableValue("durationUs"), EncodableValue(status.duration_100ns / 10)},
     {EncodableValue("peakDb"), EncodableValue(status.peak_db)},
     {EncodableValue("rmsDb"), EncodableValue(status.rms_db)},
@@ -95,7 +97,13 @@ struct ScreenRecorder::Impl {
       const auto* args = call.arguments() ? std::get_if<EncodableMap>(call.arguments()) : nullptr;
       if (!args) { result->Error("invalid", "Choose the screen and microphone first."); return; }
       try {
-        if (call.method_name() == "audioFixture") {
+        if (call.method_name() == "activityFixture") {
+#ifdef SPAWNALPHA_ACTIVITY_FIXTURE
+          result->Success(EncodableValue(true));
+#else
+          result->NotImplemented();
+#endif
+        } else if (call.method_name() == "audioFixture") {
 #ifdef SPAWNALPHA_AUDIO_FIXTURE
           result->Success(EncodableValue(true));
 #else
@@ -132,6 +140,7 @@ struct ScreenRecorder::Impl {
           const auto microphone = StringArgument(*args, "microphoneId");
           const auto camera = StringArgument(*args, "cameraId");
           const auto camera_path = StringArgument(*args, "cameraPath");
+          const auto activity_path = StringArgument(*args, "activityPath");
           const auto audio = args->find(EncodableValue("recordAudio"));
           const auto system_audio = args->find(EncodableValue("recordSystemAudio"));
           if (!source || !path || path->empty() || audio == args->end() || !std::holds_alternative<bool>(audio->second)) {
@@ -143,6 +152,9 @@ struct ScreenRecorder::Impl {
           if ((camera == nullptr) != (camera_path == nullptr) || (camera && (camera->empty() || camera_path->empty() || *camera_path == *path))) {
             result->Error("invalid", "Choose a camera and a separate file."); return;
           }
+          if (activity_path && (activity_path->empty() || *activity_path == *path || (camera_path && *activity_path == *camera_path))) {
+            result->Error("invalid", "Choose a separate local activity file."); return;
+          }
           HMONITOR monitor = nullptr; HWND window = nullptr;
           if (!ResolveScreenSource(*source, &monitor, &window)) {
             result->Error("source", "This source is unavailable. Choose another."); return;
@@ -151,7 +163,8 @@ struct ScreenRecorder::Impl {
           winrt::check_hresult(next->Start(monitor, window, winrt::to_hstring(*path).c_str(),
               microphone ? winrt::to_hstring(*microphone).c_str() : L"", std::get<bool>(audio->second),
               camera ? winrt::to_hstring(*camera).c_str() : L"", camera_path ? winrt::to_hstring(*camera_path).c_str() : L"",
-              system_audio != args->end() && std::get<bool>(system_audio->second)));
+              system_audio != args->end() && std::get<bool>(system_audio->second),
+              activity_path ? winrt::to_hstring(*activity_path).c_str() : L""));
           active = std::move(next); ++generation;
           result->Success(EncodableValue(EncodableMap{{EncodableValue("sessionId"), EncodableValue(generation)}}));
         } else if (call.method_name() == "status") {

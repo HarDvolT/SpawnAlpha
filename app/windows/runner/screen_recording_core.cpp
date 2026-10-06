@@ -4,6 +4,7 @@
 #include "recording_clock.h"
 #include "recording_audio_mixer.h"
 #include "camera_capture.h"
+#include "recording_activity.h"
 #include <d3d11_4.h>
 #include <dxgi.h>
 #include <windows.graphics.capture.interop.h>
@@ -46,12 +47,12 @@ struct ScreenRecordingCore::Impl : std::enable_shared_from_this<Impl> {
   ~Impl() { StopAndJoin(); }
   HRESULT Start(HMONITOR monitor, HWND window, const std::wstring& path,
                 const std::wstring& microphone_id, bool record_audio,
-                const std::wstring& camera_id, const std::wstring& camera_path, bool record_system_audio) {
+                const std::wstring& camera_id, const std::wstring& camera_path, bool record_system_audio, const std::wstring& activity_path) {
     if (worker.joinable() || (!monitor && !window) || (monitor && window) || path.empty() ||
         camera_id.empty() != camera_path.empty() || (!camera_path.empty() && camera_path == path)) return E_INVALIDARG;
     try {
-      worker = std::thread([this, monitor, window, path, microphone_id, record_audio, camera_id, camera_path, record_system_audio] {
-        Run(monitor, window, path, microphone_id, record_audio, camera_id, camera_path, record_system_audio);
+      worker = std::thread([this, monitor, window, path, microphone_id, record_audio, camera_id, camera_path, record_system_audio, activity_path] {
+        Run(monitor, window, path, microphone_id, record_audio, camera_id, camera_path, record_system_audio, activity_path);
       });
       return S_OK;
     } catch (...) { return winrt::to_hresult(); }
@@ -219,13 +220,36 @@ struct ScreenRecordingCore::Impl : std::enable_shared_from_this<Impl> {
   }
   void Run(HMONITOR monitor, HWND window, const std::wstring& path,
            const std::wstring& microphone_id, bool record_audio,
-           const std::wstring& camera_id, const std::wstring& camera_path, bool record_system_audio) noexcept {
+           const std::wstring& camera_id, const std::wstring& camera_path, bool record_system_audio, const std::wstring& activity_path) noexcept {
     bool initialized = false, writer_started = false, camera_writer_started = false;
     GpuVideoWriter writer;
     GpuVideoWriter camera_writer;
     MicrophoneCapture microphone;
     SystemAudioCapture system;
     RecordingAudioMixer mixer;
+    RecordingActivity activity;
+    ActivityWriter activity_writer;
+    std::unique_ptr<RecordingClock> activity_clock;
+    std::vector<ActivityEvent> activity_pending;
+    auto drain_activity = [&](bool final) {
+      if (activity_path.empty() || !activity_clock) return;
+      auto events = activity.Drain();
+      activity_pending.insert(activity_pending.end(), events.begin(), events.end());
+      if (activity_pending.size() > 8192 || activity.Failed()) {
+        Fail(ScreenRecordingReason::activity); throw hresult_error(E_FAIL);
+      }
+      const auto end = Status().duration_100ns;
+      std::vector<ActivityEvent> later;
+      for (const auto& event : activity_pending) {
+        int64_t time = 0;
+        if (!activity_clock->Event(event.qpc_100ns, time)) continue;
+        if (time >= end) { if (!final) later.push_back(event); continue; }
+        const auto saved = activity_writer.Write(event, time);
+        if (FAILED(saved)) { Fail(ScreenRecordingReason::activity); check_hresult(saved); }
+      }
+      activity_pending.swap(later);
+      std::lock_guard<std::mutex> lock(status_mutex); status.activity_events = activity_writer.Count();
+    };
     ScreenRecordingReason stage = ScreenRecordingReason::source;
     try {
       init_apartment(apartment_type::multi_threaded); initialized = true;
@@ -311,6 +335,14 @@ struct ScreenRecordingCore::Impl : std::enable_shared_from_this<Impl> {
       }
       const LONGLONG origin = QpcTime();
       RecordingClock clock(origin);
+      if (!activity_path.empty()) {
+        stage = ScreenRecordingReason::activity;
+        check_hresult(activity_writer.Start(activity_path));
+        activity_clock = std::make_unique<RecordingClock>(origin);
+        check_hresult(activity.Start(monitor, window));
+        check_hresult(activity_writer.Flush());
+      }
+      LONGLONG activity_flush = origin;
       bool paused = false;
       { std::lock_guard<std::mutex> lock(status_mutex); status.width = width; status.height = height; }
       SetState(ScreenRecordingState::recording);
@@ -329,6 +361,7 @@ struct ScreenRecordingCore::Impl : std::enable_shared_from_this<Impl> {
         if (paused != wanted_paused.load()) {
           paused = wanted_paused.load();
           clock.Pause(paused, now);
+          if (activity_clock) activity_clock->Pause(paused, now);
           SetState(paused ? ScreenRecordingState::paused : ScreenRecordingState::recording);
         }
         const LONGLONG elapsed = clock.Time(now);
@@ -367,6 +400,12 @@ struct ScreenRecordingCore::Impl : std::enable_shared_from_this<Impl> {
           }
           ++next_frame;
         }
+        drain_activity(false);
+        if (!activity_path.empty() && now - activity_flush >= kSecond) {
+          const auto flushed = activity_writer.Flush();
+          if (FAILED(flushed)) { Fail(ScreenRecordingReason::activity); check_hresult(flushed); }
+          activity_flush = now;
+        }
         Sleep(2);
       }
       SetState(ScreenRecordingState::saving);
@@ -379,6 +418,10 @@ struct ScreenRecordingCore::Impl : std::enable_shared_from_this<Impl> {
       if (Status().reason == ScreenRecordingReason::none) Fail(stage);
     }
     stop = true;
+    activity.Stop();
+    try { drain_activity(true); }
+    catch (...) { Fail(ScreenRecordingReason::activity); }
+    if (FAILED(activity_writer.Finish(Status().duration_100ns, Status().reason == ScreenRecordingReason::none))) Fail(ScreenRecordingReason::activity);
     if (writer_started && record_system_audio) {
       try { FlushMixed(writer, mixer, Status().duration_100ns); }
       catch (...) { Fail(ScreenRecordingReason::encoder); }
@@ -421,8 +464,8 @@ ScreenRecordingCore::ScreenRecordingCore() : impl_(std::make_shared<Impl>()) {}
 ScreenRecordingCore::~ScreenRecordingCore() { impl_->StopAndJoin(); }
 HRESULT ScreenRecordingCore::Start(HMONITOR monitor, HWND window, const std::wstring& path,
                                   const std::wstring& microphone_id, bool record_audio,
-                                  const std::wstring& camera_id, const std::wstring& camera_path, bool record_system_audio) {
-  return impl_->Start(monitor, window, path, microphone_id, record_audio, camera_id, camera_path, record_system_audio);
+                                  const std::wstring& camera_id, const std::wstring& camera_path, bool record_system_audio, const std::wstring& activity_path) {
+  return impl_->Start(monitor, window, path, microphone_id, record_audio, camera_id, camera_path, record_system_audio, activity_path);
 }
 void ScreenRecordingCore::RequestStop() { impl_->stop = true; }
 void ScreenRecordingCore::SetPaused(bool paused) { impl_->wanted_paused = paused; }

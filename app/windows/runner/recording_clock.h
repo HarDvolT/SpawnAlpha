@@ -29,6 +29,14 @@ class RecordingClock {
     }
     return std::max<int64_t>(0, time);
   }
+  bool Event(int64_t qpc, int64_t& time) const {
+    if (qpc < origin_) return false;
+    for (const auto& pause : pauses_) {
+      if (qpc >= pause.start && (pause.end < 0 || qpc < pause.end)) return false;
+    }
+    time = Time(qpc);
+    return true;
+  }
   std::vector<AudioSlice> Audio(int64_t qpc, size_t frames, uint32_t rate) const {
     std::vector<AudioSlice> slices;
     if (!rate || !frames) return slices;

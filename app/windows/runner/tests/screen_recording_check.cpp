@@ -6,6 +6,7 @@
 #include <iostream>
 #include <cmath>
 #include <vector>
+#include <psapi.h>
 
 #ifdef SPAWNALPHA_AUDIO_FIXTURE
 void ConfigureAudioFixture(bool idle, bool fail, bool loss);
@@ -148,6 +149,8 @@ void Decode(const std::wstring& path, const ScreenRecordingStatus& status, bool 
 int wmain(int count, wchar_t** args) {
   if (count != 2 && count != 3) return 2;
   bool pause = count == 3 && (std::wcscmp(args[2], L"--pause") == 0 || std::wcscmp(args[2], L"--microphone-pause") == 0);
+  const bool long_take = count == 3 && std::wcscmp(args[2], L"--long") == 0;
+  if (long_take) pause = true;
   bool audio = count == 3 && (std::wcscmp(args[2], L"--microphone") == 0 || std::wcscmp(args[2], L"--microphone-pause") == 0);
   bool system = false, idle = false, bad_system = false, lost_system = false;
 #ifdef SPAWNALPHA_AUDIO_FIXTURE
@@ -165,7 +168,7 @@ int wmain(int count, wchar_t** args) {
   const bool close = count == 3 && std::wcscmp(args[2], L"--close") == 0;
   const bool cancel = count == 3 && std::wcscmp(args[2], L"--cancel") == 0;
   const bool bad_mic = count == 3 && std::wcscmp(args[2], L"--missing-microphone") == 0;
-  if (count == 3 && !system && !audio && !minimize && !close && !cancel && !bad_mic && !pause) return 2;
+  if (count == 3 && !system && !audio && !minimize && !close && !cancel && !bad_mic && !pause && !long_take) return 2;
   const HRESULT com = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
   if (FAILED(com)) return 3;
   HWND window = nullptr;
@@ -187,7 +190,9 @@ int wmain(int count, wchar_t** args) {
     bool resized = false, stopped = false;
     bool requested_pause = false, requested_resume = false, saw_pause = false;
     UINT64 paused_frames = 0; LONGLONG paused_duration = -1;
-    while (GetTickCount64() - start < 15000) {
+    size_t baseline_memory = 0, peak_memory = 0;
+    int extra_pause = 0;
+    while (GetTickCount64() - start < (long_take ? 45000U : 15000U)) {
       MSG message{};
       while (PeekMessage(&message, nullptr, 0, 0, PM_REMOVE)) { TranslateMessage(&message); DispatchMessage(&message); }
       const auto status = recorder.Status();
@@ -199,17 +204,27 @@ int wmain(int count, wchar_t** args) {
       if (status.state == ScreenRecordingState::recording || status.state == ScreenRecordingState::paused) {
         if (!recording_start) recording_start = GetTickCount64();
         const auto elapsed = GetTickCount64() - recording_start;
+        if (long_take && elapsed > 5000) {
+          PROCESS_MEMORY_COUNTERS_EX memory{}; memory.cb = sizeof(memory);
+          Require(K32GetProcessMemoryInfo(GetCurrentProcess(), reinterpret_cast<PROCESS_MEMORY_COUNTERS*>(&memory), sizeof(memory)));
+          if (!baseline_memory) baseline_memory = memory.PrivateUsage;
+          peak_memory = std::max(peak_memory, memory.PrivateUsage);
+          const ULONGLONG times[] = {8000, 9000, 16000, 17000};
+          if (extra_pause < 4 && elapsed > times[extra_pause]) {
+            recorder.SetPaused(extra_pause % 2 == 0); ++extra_pause;
+          }
+        }
         if (!resized && elapsed > 1000) {
           SetWindowPos(window, nullptr, 120, 120, 320, 240, SWP_NOZORDER | SWP_NOACTIVATE); resized = true;
         }
         if (pause && !requested_pause && elapsed > 800) { recorder.SetPaused(true); requested_pause = true; }
-        if (status.state == ScreenRecordingState::paused) {
+        if (status.state == ScreenRecordingState::paused && extra_pause == 0) {
           saw_pause = true;
           if (paused_duration < 0) { paused_duration = status.duration_100ns; paused_frames = status.frames; }
           Require(status.duration_100ns == paused_duration && status.frames == paused_frames);
         }
         if (pause && !requested_resume && elapsed > 1800) { recorder.SetPaused(false); requested_resume = true; }
-        if (!stopped && elapsed > (pause ? 3400U : 2400U)) {
+        if (!stopped && elapsed > (long_take ? 30000U : pause ? 3400U : 2400U)) {
           if (minimize) ShowWindow(window, SW_MINIMIZE);
           else if (close) { DestroyWindow(window); window = nullptr; }
           else recorder.RequestStop();
@@ -232,7 +247,13 @@ int wmain(int count, wchar_t** args) {
     Require(status.state == ScreenRecordingState::finished);
     Require(status.reason == ((minimize || close) ? ScreenRecordingReason::source : lost_system ? ScreenRecordingReason::systemAudio : ScreenRecordingReason::none));
     Require(status.width == 640 && status.height == 360 && status.duration_100ns >= 20000000);
-    if (pause) Require(saw_pause && requested_resume && status.duration_100ns < 28000000);
+    if (pause) Require(saw_pause && requested_resume && (long_take || status.duration_100ns < 28000000));
+    if (long_take) {
+      Require(extra_pause == 4 && status.frames > 650 && status.duration_100ns > 260000000 && status.duration_100ns < 290000000);
+      Require(baseline_memory > 0 && peak_memory - baseline_memory < 128ULL * 1024 * 1024);
+      std::cout << "Long take check passed: 30 seconds, three pauses, bounded private-memory growth ("
+          << (peak_memory - baseline_memory) / 1024 / 1024 << " MiB).\n";
+    }
     Require(audio || system ? status.audio_frames >= 48000 : status.audio_frames == 0);
     stage = "decode saved recording";
     Decode(args[1], status, audio || system, system, audio, idle);
