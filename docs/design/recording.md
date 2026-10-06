@@ -176,6 +176,35 @@ chosen display name and safe local file names. Director's Cut layout choices rem
   - The choice is remembered.
   - While following on camera, the card carries an "Eyes to the lens" reminder.
 
+#### Windows companion controls
+The HUD's **Companion** button switches the same reader between its regular window
+and a `companion-width` by `companion-height` card. It keeps the current word, guide,
+alignment, mirror and playback state. The following card is click-through; the HUD
+and existing global shortcuts remain available. Turning Companion off docks the
+regular reader under the lens. Hiding it suspends pointer sampling until shown again.
+The header keeps **Hidden from recording**; the footer says **Companion · follows mouse**
+or **Companion · under the lens**. It contains no resizing or opacity controls.
+Its glass uses `companion-opacity` and `radius-md`; switching off restores the regular
+reader's chosen opacity and rectangular resize bounds.
+One phrase keeps its focus and brightness. If a phrase is taller than the compact
+reading area, step within it as the dot reaches a new line so the current word stays
+visible. The footer places the camera's Follow anyway beside its placement label.
+
+Pointer samples stay in memory. Poll at `dur-companion-poll`; movement smaller than
+`companion-jitter` is hand jitter. Place the card `companion-gap` behind the movement
+direction, flip the target away from edges and clamp the entire card to the current
+monitor's work area, including while its spring is moving. After `dur-companion-rest`,
+spring back to top centre. Reduced motion keeps it docked with no pointer sampling.
+
+With a camera, the first Companion press expands the excluded HUD to
+`hud-question-height`. Say **Following the mouse pulls your eyes away from the camera.**
+Offer **Keep docked** as the primary action and **Follow anyway** as the secondary;
+Cancel leaves the placement unchanged. Remember the choice locally. **Camera companion
+choice** in the HUD lets the speaker change it later. Pause and Stop remain available
+while choosing. The docked camera card also offers **Follow anyway**, opening this
+same HUD panel. No separate unprotected dialog is opened. Lock is unavailable in
+Companion; the following card is already click-through.
+
 ### Screen + camera, on a desktop
 - Everything in Screen mode, plus a **camera bubble** (`radius-full`) the speaker can see. The bubble is a preview only and is excluded from capture, because the camera is recorded to its own file.
 - Park the bubble beside the prompter, under the webcam, so both sit near the lens. In the Cut, a bubble that would cover the cursor or a zoom target slides to the nearest free corner on `spring-smooth`.

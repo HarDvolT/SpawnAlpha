@@ -16,3 +16,15 @@ The prompter that follows the mouse, for screen recordings: a small glass card t
 - **Docking:** after 2s of stillness it docks centred under the lens and widens to three lines. It re-attaches on the next move.
 - **Visibility:** it is always hidden from capture (`WDA_EXCLUDEFROMCAPTURE`). The preview's "The recording sees" view shows the video without it.
 - **Don't** start following on camera without the warning, because eyes that chase the cursor look shifty. **Don't** cover the pointer or the menu it just opened.
+
+## Windows implementation
+
+The scaled browser demonstration above uses smaller type and simplified lines. The
+real Windows reader uses `stage-s`, the existing cue guide and One phrase behaviour,
+with `companion-width`, `companion-height`, `companion-gap`, `companion-jitter` and
+`dur-companion-rest`. Its fixed width preserves wrapping while following or docking;
+there is no animated width change. It carries **Hidden from recording** at all times.
+The HUD owns its placement and the protected camera-choice panel. The docked card's
+**Follow anyway** opens that panel; Pause and Stop stay available. Reduced motion
+keeps the card docked. Detailed controls and ownership are in
+[recording.md](../../recording.md#windows-companion-controls).

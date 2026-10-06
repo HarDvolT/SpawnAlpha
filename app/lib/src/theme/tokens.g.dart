@@ -330,6 +330,10 @@ abstract final class SaDurations {
   static const Duration beat = Duration(milliseconds: 1000);
   /// Refresh click-through around the recording HUD's interactive controls.
   static const Duration hudHitPoll = Duration(milliseconds: 16);
+  /// Sample transient pointer position for the companion spring. Never stored.
+  static const Duration companionPoll = Duration(milliseconds: 16);
+  /// Pointer stillness before the companion returns under the lens.
+  static const Duration companionRest = Duration(milliseconds: 2000);
   /// Delay between cues when a markup pass draws in; cap the whole pass at 800ms.
   static const Duration stagger = Duration(milliseconds: 18);
   /// Check live-preview size and source availability; this does not drive capture frames.
@@ -397,6 +401,18 @@ abstract final class SaPrompter {
   static const double hudWidth = 720.0;
   /// Excluded recording HUD height.
   static const double hudHeight = 96.0;
+  /// Protected HUD height while choosing camera companion behaviour.
+  static const double hudQuestionHeight = 240.0;
+  /// Logical width of the compact cursor reader.
+  static const double companionWidth = 440.0;
+  /// Logical height of the compact cursor reader.
+  static const double companionHeight = 256.0;
+  /// Clear space between the cursor and the trailing reader.
+  static const double companionGap = 24.0;
+  /// Native glass-card opacity; regular reader retains its chosen opacity.
+  static const double companionOpacity = 0.9;
+  /// Pointer movement needed to change trailing side or reset stillness.
+  static const double companionJitter = 4.0;
   /// Excluded countdown size before the HUD docks at the bottom.
   static const double countdownWindowSize = 320.0;
   /// Live microphone meter in the recording HUD.

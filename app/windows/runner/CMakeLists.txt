@@ -90,6 +90,10 @@ add_executable(recording_clock_check EXCLUDE_FROM_ALL "tests/recording_clock_che
 target_compile_features(recording_clock_check PRIVATE cxx_std_17)
 target_compile_options(recording_clock_check PRIVATE /W4 /WX /EHsc)
 
+add_executable(companion_motion_check EXCLUDE_FROM_ALL "tests/companion_motion_check.cpp")
+target_compile_features(companion_motion_check PRIVATE cxx_std_17)
+target_compile_options(companion_motion_check PRIVATE /W4 /WX /EHsc)
+
 add_executable(recording_fixture_window WIN32 EXCLUDE_FROM_ALL "tests/recording_fixture_window.cpp")
 target_compile_features(recording_fixture_window PRIVATE cxx_std_17)
 target_compile_options(recording_fixture_window PRIVATE /W4 /WX /EHsc /wd"4100")
