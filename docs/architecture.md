@@ -441,7 +441,21 @@ recordings folder.
   display name/texture dimensions to the child. Live framing continues during Pause.
   Matching session IDs guard close; recorder finalizes before engine shutdown. Generated
   pause/retained-snapshot and native exclusion/lifetime checks pass; EN/FR/AR widget/layout
-  and screenshot cases pass. Normal Both setup/ownership integration remains next.
+  and screenshot cases pass. Its pixel holder is initialized in OnCreate because the
+  Win32Window base invokes OnDestroy before initial creation. Preview starts after the
+  recorder reaches recording/paused, and raw-pointer conversion keeps the UI copy bounded.
+- **Normal Both recording:** setup parses the vendored camera's friendly name and exact
+  opaque link separately, opens a preview without audio, and generation-guards late opens.
+  At Record it freezes the choice and disposes that preview before the recording owner
+  opens protected HUD/reader/bubble and captures. Bubble safety is checked each poll;
+  cancellation/disposal owns late replies and release failure retains all protection.
+  Missing/unreadable camera output preserves Screen with an explicit local-data warning.
+  Both setup is remembered, source/camera framing coexist, and Stop remains enabled after
+  setup camera release. EN/FR/AR setup/identity/ownership/snapshot tests pass. The explicit
+  `paired_ui_fixture` CMake target compiles fixture-only camera input and uses
+  `native_paired_take_check.dart` to test real native windows/channels/clock/store against
+  a generated MP4/window without accessing the owner's camera/mic/desktop. It is excluded
+  from all normal builds; normal runner has no file/URL camera input path.
 - **SettingsScreen**: the markup source, API key, model, default style, text
   size and mirror setting, plus **Privacy and licences**: what leaves the
   device, and the licence page (`showLicensePage`).

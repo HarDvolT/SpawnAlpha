@@ -149,8 +149,19 @@ and Resume continues at that word. Reader hide/show preserves its position. Reac
 the last word never stops a Screen take. Stop saves it, then removes capture protection.
 Partial source/mic stops keep readable video and explain why. Saved take cards show
 Screen and, after crash recovery, Recovered. A missing mic requires Record without sound
-and uses Timed pace. System audio remains off until loopback is implemented. Both is
-disabled until separate camera files share this clock and recovery flow.
+and uses Timed pace. System audio remains off until loopback is implemented.
+
+### Normal Windows Both mode
+
+Both is enabled in Home and setup and remembered. Choose the screen, camera and microphone;
+the camera has a circular framing preview beside the source preview. At Record the setup
+camera is released, all required windows are protected, and the native recorder opens the
+exact chosen camera after countdown. Its excluded bubble uses this same feed, beginning
+only when both savers are ready. Files share one pause clock; the camera is saved separately
+without duplicate microphone audio. Stop finalizes and verifies both, then removes capture
+protection. If camera output cannot be read, the useful screen take is saved with a clear
+warning and the camera data stays local. Device IDs are held in memory; manifests keep the
+chosen display name and safe local file names. Director's Cut layout choices remain later.
 
 ### The cursor companion
 - **What it is:** a third placement for the Prompter window, set with **Companion** in the HUD. The prompter becomes a small glass card that rides beside the cursor, so a demo can be read without looking away from the work.

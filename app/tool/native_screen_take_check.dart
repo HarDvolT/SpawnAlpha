@@ -2,6 +2,7 @@
 // script/library, and ignored test files. No private desktop, camera or mic.
 import 'dart:async';
 import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:spawnalpha/src/model/script_document.dart';
@@ -16,39 +17,80 @@ import 'package:spawnalpha/src/storage/script_store.dart';
 import 'package:spawnalpha/src/theme/theme.dart';
 import 'package:spawnalpha/src/ui/floating_prompter_screen.dart';
 import 'package:spawnalpha/src/ui/recording_hud_screen.dart';
+import 'package:spawnalpha/src/recording/camera_bubble.dart';
+import 'package:spawnalpha/src/ui/camera_bubble_screen.dart';
 
 @pragma('vm:entry-point')
 Future<void> floatingPrompterMain() => runFloatingPrompter();
 @pragma('vm:entry-point')
 Future<void> recordingHudMain() => runRecordingHud();
-Future<void> main() async {
+@pragma('vm:entry-point')
+Future<void> cameraBubbleMain() => runCameraBubble();
+Future<void> main() => runGeneratedTake();
+Future<void> runGeneratedTake({String? cameraFixture}) async {
   WidgetsFlutterBinding.ensureInitialized();
-  runApp(MaterialApp(theme: buildTheme(Brightness.dark), home: const Scaffold(body: Center(child: Text('Checking screen take…')))));
+  runApp(
+    MaterialApp(
+      theme: buildTheme(Brightness.dark),
+      home: const Scaffold(body: Center(child: Text('Checking screen take…'))),
+    ),
+  );
   Process? fixture;
   ScreenTakeController? owner;
   Timer? action;
   try {
     final root = Directory.current.path;
-    fixture = await Process.start('$root/build/windows/x64/runner/Debug/recording_fixture_window.exe', []);
+    fixture = await Process.start(
+      '$root/build/windows/x64/runner/Debug/recording_fixture_window.exe',
+      [],
+    );
     ScreenSource? source;
     for (var i = 0; i < 20 && source == null; ++i) {
       await Future<void>.delayed(SaDurations.previewPoll);
       final sources = await ScreenSources.platform().list();
-      source = sources.where((s) => s.kind == ScreenSourceKind.window && s.name == 'SpawnAlpha generated recording fixture').firstOrNull;
+      source = sources
+          .where(
+            (s) =>
+                s.kind == ScreenSourceKind.window &&
+                s.name == 'SpawnAlpha generated recording fixture',
+          )
+          .firstOrNull;
     }
     if (source == null) throw StateError('Fixture unavailable');
-    final script = ScriptDocument.create(text: 'A generated fixture. Read one line. Keep recording after the last word.');
+    final script = ScriptDocument.create(
+      text: 'A generated fixture. Read one line. Keep recording after the last word.',
+    );
     final library = ScriptLibrary(MemoryScriptStore());
     await library.save(script);
-    final directory = Directory('$root/build/screen-ui-fixtures/${DateTime.now().microsecondsSinceEpoch}');
-    final store = ScreenTakeStore(directory, library, const WindowsRecordingInspector());
-    owner = ScreenTakeController(recorder: const WindowsScreenRecordings(), huds: WindowsRecordingHuds(), floating: const WindowsFloatingPrompters(), store: store);
+    final directory = Directory(
+      '$root/build/screen-ui-fixtures/${DateTime.now().microsecondsSinceEpoch}',
+    );
+    final store = ScreenTakeStore(
+      directory,
+      library,
+      const WindowsRecordingInspector(),
+    );
+    owner = ScreenTakeController(
+      recorder: const WindowsScreenRecordings(),
+      huds: WindowsRecordingHuds(),
+      floating: const WindowsFloatingPrompters(),
+      store: store,
+      bubbles: const WindowsCameraBubbles(),
+    );
     final controller = owner;
     var step = 0;
+    ScreenTakePhase? previousPhase;
     controller.addListener(() {
+      if (cameraFixture != null && controller.phase != previousPhase) {
+        previousPhase = controller.phase;
+        debugPrint('Generated paired check: ${controller.phase.name}');
+      }
       if (controller.phase == ScreenTakePhase.recording && step == 0) {
         step = 1;
-        action = Timer(SaDurations.beat, () => unawaited(controller.togglePause()));
+        action = Timer(
+          SaDurations.beat,
+          () => unawaited(controller.togglePause()),
+        );
       } else if (controller.phase == ScreenTakePhase.paused && step == 1) {
         step = 2;
         action = Timer(SaDurations.beat, () async {
@@ -56,7 +98,8 @@ Future<void> main() async {
           if (controller.readerVisible) throw StateError('Hide failed');
           await controller.togglePrompter();
           if (!controller.readerVisible) throw StateError('Show failed');
-          await controller.lockPrompter(); await controller.lockPrompter();
+          await controller.lockPrompter();
+          await controller.lockPrompter();
           await controller.togglePause();
         });
       } else if (controller.phase == ScreenTakePhase.recording && step == 2) {
@@ -64,23 +107,71 @@ Future<void> main() async {
         action = Timer(SaDurations.beat, controller.stop);
       }
     });
-    await controller.start(presentation: FloatingPresentation(script: script), source: source, recordAudio: false);
+    await controller.start(
+      presentation: FloatingPresentation(script: script),
+      source: source,
+      recordAudio: false,
+      cameraId: cameraFixture,
+      cameraName: cameraFixture == null ? null : 'Generated camera',
+    );
     action?.cancel();
     final take = controller.take;
-    if (take == null || controller.problem != null || controller.busy || step != 3 ||
-      take.duration < SaDurations.beat * 1.5 || take.duration > SaDurations.beat * 3.5 || library.scripts.single.takes.length != 1) {
+    if (take == null ||
+        controller.problem != null ||
+        controller.busy ||
+        step != 3 ||
+        take.duration < SaDurations.beat * 1.5 ||
+        take.duration > SaDurations.beat * 3.5 ||
+        library.scripts.single.takes.length != 1) {
       throw StateError('Take failed');
     }
-    final hud = await WindowsRecordingHuds.channel.invokeMapMethod<String, Object?>('status', {'sessionId': 1});
-    final reader = await WindowsFloatingPrompters.channel.invokeMapMethod<String, Object?>('status', {'sessionId': 1});
-    if (hud?['ownerExcluded'] != false || reader?['visible'] != false) throw StateError('Cleanup failed');
-    if (await store.recover() != 0 || library.scripts.single.takes.length != 1) throw StateError('Save retry failed');
-    debugPrint('Native screen take check passed: protected countdown/reader/HUD, silent video, pause/resume, hide/show, one durable take, clean shutdown.');
+    final hud = await WindowsRecordingHuds.channel
+        .invokeMapMethod<String, Object?>('status', {'sessionId': 1});
+    final reader = await WindowsFloatingPrompters.channel
+        .invokeMapMethod<String, Object?>('status', {'sessionId': 1});
+    if (hud?['ownerExcluded'] != false || reader?['visible'] != false) {
+      throw StateError('Cleanup failed');
+    }
+    if (await store.recover() != 0 || library.scripts.single.takes.length != 1) {
+      throw StateError('Save retry failed');
+    }
+    if (cameraFixture != null) {
+      if (take.mode != TakeMode.both || take.cameraPath == null) {
+        throw StateError('Pair missing');
+      }
+      final cameraInfo = await const WindowsRecordingInspector().inspect(
+        take.cameraPath!,
+      );
+      if (!cameraInfo.readable ||
+          cameraInfo.hasAudio ||
+          (cameraInfo.duration - take.duration).abs() >
+              SaDurations.recordingPoll) {
+        throw StateError('Pair clock mismatch');
+      }
+      final bubble = await WindowsCameraBubbles.channel
+          .invokeMapMethod<String, Object?>('status', {'sessionId': 1});
+      if (bubble?['excluded'] != false || bubble?['ready'] != false) {
+        throw StateError('Bubble cleanup failed');
+      }
+      debugPrint(
+        'Native paired take check passed: protected countdown/reader/HUD/camera bubble, separate generated videos, shared pause clock, one durable pair, clean shutdown.',
+      );
+    } else {
+      debugPrint(
+        'Native screen take check passed: protected countdown/reader/HUD, silent video, pause/resume, hide/show, one durable take, clean shutdown.',
+      );
+    }
     library.dispose();
   } on Object {
-    debugPrint('Native screen take check failed.');
+    debugPrint(
+      cameraFixture == null
+          ? 'Native screen take check failed.'
+          : 'Native paired take check failed.',
+    );
   } finally {
-    action?.cancel(); owner?.dispose(); fixture?.kill();
+    action?.cancel();
+    owner?.dispose();
+    fixture?.kill();
   }
   await SystemNavigator.pop();
 }

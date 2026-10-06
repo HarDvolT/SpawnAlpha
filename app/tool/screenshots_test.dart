@@ -52,6 +52,7 @@ import 'package:spawnalpha/src/recording/camera_bubble.dart';
 import 'package:spawnalpha/src/ui/camera_bubble_screen.dart';
 
 import 'fixtures/cue_check_scripts.dart';
+import 'fixtures/preview_camera.dart';
 
 class _ScreenCandidates implements ScreenSources {
   const _ScreenCandidates(this.name);
@@ -475,6 +476,35 @@ void main() {
     testWidgets('screen source picker $language', (tester) async {
       await shoot(tester, 'screen-sources-$language', desktop,
         (_) => ScreenSourcePicker(sources: _ScreenCandidates(name)), []);
+    });
+  }
+
+  for (final (index, language, name) in [(0, 'en', 'Chosen camera'), (1, 'fr', 'Caméra choisie'), (2, 'ar', 'الكاميرا المختارة')]) {
+    testWidgets('Both recording setup $language', (tester) async {
+      final original = CameraPlatform.instance;
+      // ignore: invalid_use_of_visible_for_testing_member
+      CameraPlatform.instance = PreviewCamera(name);
+      addTearDown(() {
+        // ignore: invalid_use_of_visible_for_testing_member
+        CameraPlatform.instance = original;
+      });
+      final script = await _markedUp(sampleScripts()[index]);
+      await shoot(tester, 'record-both-setup-$language', desktop, (services) {
+        services.settings.recordMode = TakeMode.both;
+        return AppScope(services: AppServices(library: services.library, settings: services.settings,
+          recordingsDir: Directory.systemTemp, audio: _TalkingMic(), recorder: const WindowsScreenRecordings(),
+          bubbles: const WindowsCameraBubbles(), previews: const _ClosedScreenPreview(),
+          screens: _ScreenCandidates(script.displayTitle)), child: RecordScreen(script: script));
+      }, [script], settle: false, before: (tester) async {
+        await tester.pump(const Duration(milliseconds: 300));
+        await tester.pump(const Duration(milliseconds: 300));
+        await tester.tap(find.text('Choose screen').last);
+        await tester.pumpAndSettle();
+        await tester.tap(find.text(script.displayTitle));
+        await tester.pump();
+        await tester.tap(find.text('Use this source'));
+        await tester.pumpAndSettle();
+      });
     });
   }
 

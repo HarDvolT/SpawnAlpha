@@ -66,6 +66,9 @@ class BubbleWindow : public Win32Window {
   bool Ready() { return child_ready_ && shown_ && Excluded(GetHandle()); }
  protected:
   bool OnCreate() override {
+    // Win32Window::Create first invokes Destroy/OnDestroy, even on a new object.
+    // Recreate the frame holder here rather than relying on the constructor.
+    pixels_ = std::make_shared<PixelState>();
     SetWindowLongPtr(GetHandle(), GWL_STYLE, WS_POPUP);
     SetWindowLongPtr(GetHandle(), GWL_EXSTYLE, WS_EX_TOOLWINDOW | WS_EX_LAYERED);
     if (!SetLayeredWindowAttributes(GetHandle(), 0, 255, LWA_ALPHA) || !Exclude(GetHandle())) return false;
@@ -145,11 +148,14 @@ class BubbleWindow : public Win32Window {
   void Tick() {
     const auto frame = frame_();
     if (!frame || frame->arrived_100ns == last_frame_) return;
+    const size_t count = frame->bgra.size();
+    if (count != static_cast<size_t>(frame->width) * frame->height * 4) return;
     auto pixels = std::make_shared<Pixels>(); pixels->width = frame->width; pixels->height = frame->height;
-    pixels->rgba.resize(frame->bgra.size());
-    for (size_t i = 0; i < frame->bgra.size(); i += 4) {
-      pixels->rgba[i] = frame->bgra[i + 2]; pixels->rgba[i + 1] = frame->bgra[i + 1];
-      pixels->rgba[i + 2] = frame->bgra[i]; pixels->rgba[i + 3] = 255;
+    pixels->rgba.resize(count);
+    const auto* source = frame->bgra.data(); auto* destination = pixels->rgba.data();
+    for (size_t i = 0; i < count; i += 4) {
+      destination[i] = source[i + 2]; destination[i + 1] = source[i + 1];
+      destination[i + 2] = source[i]; destination[i + 3] = 255;
     }
     { std::lock_guard<std::mutex> lock(pixels_->mutex); pixels_->latest = std::move(pixels); }
     last_frame_ = frame->arrived_100ns;

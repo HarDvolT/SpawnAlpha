@@ -174,6 +174,9 @@ struct ScreenRecorder::Impl {
 };
 ScreenRecorder::ScreenRecorder(flutter::BinaryMessenger* messenger) : impl_(std::make_unique<Impl>(messenger)) {}
 std::shared_ptr<const CameraFrame> ScreenRecorder::LatestCamera() const {
-  return impl_->active ? impl_->active->LatestCamera() : nullptr;
+  if (!impl_->active) return nullptr;
+  const auto phase = impl_->active->Status().state;
+  return phase == ScreenRecordingState::recording || phase == ScreenRecordingState::paused
+      ? impl_->active->LatestCamera() : nullptr;
 }
 ScreenRecorder::~ScreenRecorder() = default;

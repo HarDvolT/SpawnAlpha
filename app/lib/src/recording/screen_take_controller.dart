@@ -10,6 +10,7 @@ import 'floating_prompter.dart';
 import 'recording_hud.dart';
 import 'screen_recording.dart';
 import 'screen_source.dart';
+import 'camera_bubble.dart';
 
 enum ScreenTakePhase {
   idle,
@@ -31,6 +32,7 @@ class ScreenTakeController extends ChangeNotifier {
     required this.huds,
     required this.floating,
     required this.store,
+    this.bubbles = const UnsupportedCameraBubbles(),
     this.wait = Future<void>.delayed,
   }) {
     _commands = huds.commands.listen((event) {
@@ -51,6 +53,7 @@ class ScreenTakeController extends ChangeNotifier {
   final RecordingHuds huds;
   final FloatingPrompters floating;
   final ScreenTakeStore store;
+  final CameraBubbles bubbles;
   final Future<void> Function(Duration) wait;
   late final StreamSubscription<HudCommand> _commands;
   ScreenTakePhase phase = ScreenTakePhase.idle;
@@ -64,6 +67,8 @@ class ScreenTakeController extends ChangeNotifier {
   HudHandle? _hud;
   FloatingHandle? _reader;
   ScreenRecordingHandle? _capture;
+  CameraBubbleHandle? _bubble;
+  String? _cameraId, _cameraName;
   Future<void>? _run;
   bool _audio = true;
   String _microphone = 'Microphone';
@@ -95,15 +100,27 @@ class ScreenTakeController extends ChangeNotifier {
     required bool recordAudio,
     String? microphoneId,
     String microphoneName = 'Microphone',
+    String? cameraId,
+    String? cameraName,
     Future<void> Function()? prepare,
   }) {
     if (busy || _disposed) return _run ?? Future<void>.value();
+    if ((cameraId == null) != (cameraName == null) ||
+        cameraId == '' ||
+        cameraName == '' ||
+        (cameraId != null && !bubbles.supported)) {
+      problem = 'Choose a working camera before recording Both.';
+      _phase(ScreenTakePhase.failed);
+      return Future<void>.value();
+    }
     _stopWanted = false;
     _stopSent = false;
     _unsafe = false;
     readerVisible = true;
     _audio = recordAudio;
     _microphone = microphoneName;
+    _cameraId = cameraId;
+    _cameraName = cameraName;
     status = null;
     take = null;
     problem = null;
@@ -122,7 +139,10 @@ class ScreenTakeController extends ChangeNotifier {
     var cancelled = false;
     try {
       await prepare?.call();
-      if (_stopWanted) { cancelled = true; return; }
+      if (_stopWanted) {
+        cancelled = true;
+        return;
+      }
       // The setup window and both overlays are excluded before countdown or
       // capture. A late reply after cancellation still belongs to this owner.
       _hud = await huds.open(source);
@@ -134,6 +154,13 @@ class ScreenTakeController extends ChangeNotifier {
       if (_stopWanted) {
         cancelled = true;
         return;
+      }
+      if (_cameraName != null) {
+        _bubble = await bubbles.open(source, _cameraName!);
+        if (_stopWanted) {
+          cancelled = true;
+          return;
+        }
       }
       _phase(ScreenTakePhase.countdown);
       for (countdown = 3; countdown > 0; --countdown) {
@@ -150,6 +177,7 @@ class ScreenTakeController extends ChangeNotifier {
         source: source,
         recordAudio: _audio,
         microphoneName: _audio ? _microphone : null,
+        cameraName: _cameraName,
         pace: presentation.pace.name,
       );
       if (_stopWanted) {
@@ -162,6 +190,8 @@ class ScreenTakeController extends ChangeNotifier {
         path: pending.videoPath,
         recordAudio: _audio,
         microphoneId: microphoneId,
+        cameraId: _cameraId,
+        cameraPath: pending.cameraPath,
       );
       final startup = Stopwatch()..start();
       while (true) {
@@ -181,7 +211,7 @@ class ScreenTakeController extends ChangeNotifier {
           });
         }
         if (phase == ScreenTakePhase.starting &&
-            startup.elapsed > SaDurations.beat * 7) {
+            startup.elapsed > SaDurations.beat * (_cameraId == null ? 7 : 12)) {
           problem = 'No recording received. Restore the source and try again.';
           stop();
         }
@@ -199,12 +229,16 @@ class ScreenTakeController extends ChangeNotifier {
         if (!await huds.isOpen(_hud!)) {
           throw StateError('Protected controls unavailable');
         }
+        if (_bubble != null && !await bubbles.isSafe(_bubble!)) {
+          throw StateError('Protected camera preview unavailable');
+        }
         await _updateHud();
         await wait(SaDurations.recordingPoll);
       }
     } on Object {
-      problem =
-          'Recording stopped. Check the screen and microphone, then try again.';
+      problem = _cameraId == null
+          ? 'Recording stopped. Check the screen and microphone, then try again.'
+          : 'Recording stopped. Check the screen, camera and microphone, then try again.';
     } finally {
       _phase(ScreenTakePhase.saving);
       try {
@@ -240,6 +274,10 @@ class ScreenTakeController extends ChangeNotifier {
               problem ??= _stopMessage(
                 status?.reason ?? ScreenRecordingReason.encoder,
               );
+              if (pending.cameraPath != null && take!.cameraPath == null) {
+                problem =
+                    '${problem == null ? '' : '${problem!} '}The screen is saved. The camera file could not be read. Its data stays on this PC.';
+              }
               if (_audio && (status?.loudestRmsDb ?? -100) < -55) {
                 problem =
                     '${problem == null ? '' : '${problem!} '}$_microphone heard almost nothing. Check your sound before the next take.';
@@ -258,6 +296,15 @@ class ScreenTakeController extends ChangeNotifier {
         _reader = null;
         final hud = _hud;
         _hud = null;
+        final bubble = _bubble;
+        _bubble = null;
+        if (bubble != null) {
+          try {
+            await bubbles.close(bubble);
+          } on Object {
+            /* Already closed. */
+          }
+        }
         if (reader != null) {
           try {
             await floating.close(reader);
@@ -289,7 +336,7 @@ class ScreenTakeController extends ChangeNotifier {
     ScreenRecordingReason.microphone =>
       'The microphone disconnected. The captured part is saved.',
     ScreenRecordingReason.camera =>
-        'The camera disconnected. The captured part is saved.',
+      'The camera disconnected. The captured part is saved.',
     ScreenRecordingReason.encoder =>
       'Recording stopped early. The readable part is saved.',
     _ => null,

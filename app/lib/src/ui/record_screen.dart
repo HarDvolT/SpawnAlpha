@@ -17,6 +17,7 @@ import '../recording/screen_source.dart';
 import '../recording/floating_prompter.dart';
 import '../recording/screen_preview_controller.dart';
 import '../recording/screen_take_controller.dart';
+import '../recording/camera_identity.dart';
 import '../theme/theme.dart';
 import 'format.dart';
 import 'prompter_controls.dart';
@@ -69,6 +70,9 @@ class _RecordScreenState extends State<RecordScreen>
   ScreenTakeController? _screenTake;
   ScreenPreviewController? _screenPreview;
   bool _changingMode = false;
+  bool get _screenMode => _mode != TakeMode.camera;
+  bool get _needsCamera => _mode != TakeMode.screen;
+  int _cameraGeneration = 0;
 
   void _onScreenTake() {
     if (mounted) setState(() {});
@@ -80,10 +84,25 @@ class _RecordScreenState extends State<RecordScreen>
   bool get _savingTake =>
       _saving || _screenTake?.phase == ScreenTakePhase.saving;
   bool get _canRecord =>
-      _mode == TakeMode.camera ? _camera != null : _screenSource != null;
+      (_screenTake?.busy ?? false) ||
+      switch (_mode) {
+        TakeMode.camera => _camera != null,
+        TakeMode.screen => _screenSource != null,
+        TakeMode.both =>
+          _screenSource != null &&
+              _camera != null &&
+              WindowsCameraIdentity.parse(_cameras[_cameraIndex].name)
+                      .deviceId !=
+                  null,
+      };
 
   Future<void> _setMode(TakeMode mode) async {
-    if (_busy || mode == _mode || mode == TakeMode.both) return;
+    if (_busy || mode == _mode) return;
+    final services = AppScope.of(context);
+    if (mode == TakeMode.both &&
+        (!services.recorder.supported || !services.bubbles.supported)) {
+      return;
+    }
     setState(() {
       _mode = mode;
       _changingMode = true;
@@ -91,6 +110,7 @@ class _RecordScreenState extends State<RecordScreen>
     try {
       await AppScope.of(context).settings.update((s) => s.recordMode = mode);
       if (mode == TakeMode.screen) {
+        ++_cameraGeneration;
         final camera = _camera;
         _camera = null;
         await camera?.dispose();
@@ -103,6 +123,9 @@ class _RecordScreenState extends State<RecordScreen>
           await _setUpCameras();
         } else {
           await _openCamera(_cameraIndex);
+        }
+        if (_screenMode && _screenSource != null) {
+          await _screenPreview?.show(_screenSource!);
         }
       }
     } finally {
@@ -120,7 +143,7 @@ class _RecordScreenState extends State<RecordScreen>
     );
     if (mounted && selected != null) {
       setState(() => _screenSource = selected);
-      if (_mode == TakeMode.screen) await _screenPreview?.show(selected);
+      if (_screenMode) await _screenPreview?.show(selected);
     }
   }
 
@@ -141,7 +164,7 @@ class _RecordScreenState extends State<RecordScreen>
     });
     try {
       await camera?.dispose();
-      if (_mode == TakeMode.screen) await _screenPreview?.stop();
+      if (_screenMode) await _screenPreview?.stop();
       if (!mounted) return;
       await Navigator.of(context).push<void>(
         MaterialPageRoute(
@@ -153,10 +176,10 @@ class _RecordScreenState extends State<RecordScreen>
           ),
         ),
       );
-      if (mounted && _mode == TakeMode.camera && _cameras.isNotEmpty) {
+      if (mounted && _needsCamera && _cameras.isNotEmpty) {
         await _openCamera(_cameraIndex);
       }
-      if (mounted && _mode == TakeMode.screen) await _screenPreview?.show(source);
+      if (mounted && _screenMode) await _screenPreview?.show(source);
     } finally {
       if (mounted) setState(() => _openingScreenPreview = false);
     }
@@ -184,16 +207,19 @@ class _RecordScreenState extends State<RecordScreen>
     super.didChangeDependencies();
     if (_mic != null) return;
     final services = AppScope.of(context);
-    _mode =
-        services.settings.recordMode == TakeMode.screen &&
-            services.recorder.supported
-        ? TakeMode.screen
-        : TakeMode.camera;
+    _mode = switch (services.settings.recordMode) {
+      TakeMode.screen when services.recorder.supported => TakeMode.screen,
+      TakeMode.both
+          when services.recorder.supported && services.bubbles.supported =>
+        TakeMode.both,
+      _ => TakeMode.camera,
+    };
     _screenTake = ScreenTakeController(
       recorder: services.recorder,
       huds: services.huds,
       floating: services.floating,
       store: services.screenTakes,
+      bubbles: services.bubbles,
     )..addListener(_onScreenTake);
     _screenPreview = ScreenPreviewController(services.previews);
     _mic = MicMonitor(services.audio)..addListener(_onMic);
@@ -213,7 +239,7 @@ class _RecordScreenState extends State<RecordScreen>
     } on Object {
       debugPrint('Microphone monitor unavailable.');
     }
-    if (mounted && _mode == TakeMode.camera) await _setUpCameras();
+    if (mounted && _needsCamera) await _setUpCameras();
   }
 
   void _onMic() => _prompter.speaking = _mic!.speaking;
@@ -264,7 +290,7 @@ class _RecordScreenState extends State<RecordScreen>
   String? get _noSound {
     final mic = _mic;
     if (_allowSilent) return null;
-    if (_mode == TakeMode.screen &&
+    if (_screenMode &&
         (mic == null || !mic.supported || mic.available.isEmpty)) {
       return 'No microphone found';
     }
@@ -285,6 +311,7 @@ class _RecordScreenState extends State<RecordScreen>
     _prompter.removeListener(_onPrompter);
     _prompter.dispose();
     _camera?.dispose();
+    ++_cameraGeneration;
     _mic?.removeListener(_onMic);
     _mic?.dispose();
     _screenTake?.removeListener(_onScreenTake);
@@ -316,9 +343,10 @@ class _RecordScreenState extends State<RecordScreen>
     try {
       _cameras = await availableCameras();
     } on CameraException catch (e) {
-      setState(() => _error = _describe(e));
+      if (mounted) setState(() => _error = _describe(e));
       return;
     }
+    if (!mounted || !_needsCamera) return;
     if (_cameras.isEmpty) {
       setState(() => _error = 'No camera found.');
       return;
@@ -331,23 +359,27 @@ class _RecordScreenState extends State<RecordScreen>
   }
 
   Future<void> _openCamera(int index) async {
+    final generation = ++_cameraGeneration;
     final old = _camera;
     _camera = null;
     await old?.dispose();
+    if (!mounted || !_needsCamera || generation != _cameraGeneration) return;
     final camera = CameraController(
       _cameras[index],
       ResolutionPreset.high,
-      enableAudio: true,
+      enableAudio: _mode == TakeMode.camera,
     );
     try {
       await camera.initialize();
-      await camera.prepareForVideoRecording();
+      if (_mode == TakeMode.camera) await camera.prepareForVideoRecording();
     } on CameraException catch (e) {
       await camera.dispose();
-      if (mounted) setState(() => _error = _describe(e));
+      if (mounted && generation == _cameraGeneration) {
+        setState(() => _error = _describe(e));
+      }
       return;
     }
-    if (!mounted || _mode != TakeMode.camera) {
+    if (!mounted || !_needsCamera || generation != _cameraGeneration) {
       await camera.dispose();
       return;
     }
@@ -382,7 +414,7 @@ class _RecordScreenState extends State<RecordScreen>
 
   void _toggleRecording() {
     if (_savingTake || _changingMode) return;
-    if (_mode == TakeMode.screen && (_screenTake?.busy ?? false)) {
+    if (_screenMode && (_screenTake?.busy ?? false)) {
       _screenTake!.stop();
       return;
     }
@@ -412,7 +444,7 @@ class _RecordScreenState extends State<RecordScreen>
   }
 
   void _startCountdown() {
-    if (_mode == TakeMode.screen) {
+    if (_screenMode) {
       unawaited(_startScreen());
       return;
     }
@@ -432,8 +464,12 @@ class _RecordScreenState extends State<RecordScreen>
 
   Future<void> _startScreen() async {
     final source = _screenSource, owner = _screenTake;
-    if (source == null || owner == null || owner.busy) return;
+    if (source == null || owner == null || owner.busy || !_canRecord) return;
     final services = AppScope.of(context);
+    final cameraChoice = _mode == TakeMode.both
+        ? WindowsCameraIdentity.parse(_cameras[_cameraIndex].name)
+        : null;
+    if (cameraChoice != null && cameraChoice.deviceId == null) return;
     final presentation = FloatingPresentation.fromSettings(
       _script,
       services.settings,
@@ -447,7 +483,16 @@ class _RecordScreenState extends State<RecordScreen>
       recordAudio: !_allowSilent,
       microphoneId: _mic?.input?.id,
       microphoneName: _mic?.input?.name ?? 'Microphone',
-      prepare: () async { await _screenPreview?.stop(); await _mic?.stopWatchingAll(); },
+      cameraId: cameraChoice?.deviceId,
+      cameraName: cameraChoice?.name,
+      prepare: () async {
+        ++_cameraGeneration;
+        final camera = _camera;
+        _camera = null;
+        await camera?.dispose();
+        await _screenPreview?.stop();
+        await _mic?.stopWatchingAll();
+      },
     );
     if (!mounted) return;
     _script = services.library.byId(_script.id) ?? _script;
@@ -457,8 +502,11 @@ class _RecordScreenState extends State<RecordScreen>
     } else if (owner.problem != null) {
       showMessage(context, owner.problem!);
     }
-    await _mic?.watchEveryMic();
-    if (mounted && !owner.busy) await _screenPreview?.show(source);
+    if (mounted && !owner.busy) {
+      await _mic?.watchEveryMic();
+      if (_needsCamera && _cameras.isNotEmpty) await _openCamera(_cameraIndex);
+      if (mounted) await _screenPreview?.show(source);
+    }
   }
 
   Future<void> _start() async {
@@ -626,71 +674,82 @@ class _RecordScreenState extends State<RecordScreen>
     void setGuide(PrompterGuide g) => settings.update((s) => s.guide = g);
     final stage = SaPalette.dark;
 
-    return Theme(data: Theme.of(context).copyWith(
-      outlinedButtonTheme: OutlinedButtonThemeData(style: OutlinedButton.styleFrom(
-        foregroundColor: stage.stageText, disabledForegroundColor: stage.stageLine,
-        side: BorderSide(color: stage.stageGlassEdge))),
-      textButtonTheme: TextButtonThemeData(style: TextButton.styleFrom(foregroundColor: stage.stageChromeText)),
-      iconButtonTheme: IconButtonThemeData(style: IconButton.styleFrom(foregroundColor: stage.stageChromeText)),
-    ), child: PopScope(
-      canPop: !_busy,
-      onPopInvokedWithResult: (didPop, _) {
-        if (!didPop) showMessage(context, 'Stop the recording first.');
-      },
-      child: Scaffold(
-        backgroundColor: stage.stage,
-        body: ListenableBuilder(
-          listenable: settings,
-          builder: (context, _) => PrompterShortcuts(
-            controller: _prompter,
-            view: _view,
-            onMirror: toggleMirror,
-            onFontSize: changeFont,
-            onPlayPause: _toggleRecording,
-            onKinetic: reduceMotion
-                ? null
-                : () => setKinetic(!settings.kinetic),
-            onNextGuide: () => setGuide(settings.guide.next),
-            voiceAvailable: _voiceAvailable,
-            child: SafeArea(
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  if (constraints.maxWidth >= _wideLayout) {
-                    // Desktop: the preview, and the set-up in a rail beside it.
-                    return Row(
+    return Theme(
+      data: Theme.of(context).copyWith(
+        outlinedButtonTheme: OutlinedButtonThemeData(
+          style: OutlinedButton.styleFrom(
+            foregroundColor: stage.stageText,
+            disabledForegroundColor: stage.stageLine,
+            side: BorderSide(color: stage.stageGlassEdge),
+          ),
+        ),
+        textButtonTheme: TextButtonThemeData(
+          style: TextButton.styleFrom(foregroundColor: stage.stageChromeText),
+        ),
+        iconButtonTheme: IconButtonThemeData(
+          style: IconButton.styleFrom(foregroundColor: stage.stageChromeText),
+        ),
+      ),
+      child: PopScope(
+        canPop: !_busy,
+        onPopInvokedWithResult: (didPop, _) {
+          if (!didPop) showMessage(context, 'Stop the recording first.');
+        },
+        child: Scaffold(
+          backgroundColor: stage.stage,
+          body: ListenableBuilder(
+            listenable: settings,
+            builder: (context, _) => PrompterShortcuts(
+              controller: _prompter,
+              view: _view,
+              onMirror: toggleMirror,
+              onFontSize: changeFont,
+              onPlayPause: _toggleRecording,
+              onKinetic: reduceMotion
+                  ? null
+                  : () => setKinetic(!settings.kinetic),
+              onNextGuide: () => setGuide(settings.guide.next),
+              voiceAvailable: _voiceAvailable,
+              child: SafeArea(
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    if (constraints.maxWidth >= _wideLayout) {
+                      // Desktop: the preview, and the set-up in a rail beside it.
+                      return Row(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Expanded(
+                            child: _preview(
+                              context,
+                              constraints.maxHeight,
+                              wide: true,
+                            ),
+                          ),
+                          SizedBox(width: 400, child: _rail(context)),
+                        ],
+                      );
+                    }
+                    return Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         Expanded(
                           child: _preview(
                             context,
                             constraints.maxHeight,
-                            wide: true,
+                            wide: false,
                           ),
                         ),
-                        SizedBox(width: 400, child: _rail(context)),
+                        _bottomBar(context),
                       ],
                     );
-                  }
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Expanded(
-                        child: _preview(
-                          context,
-                          constraints.maxHeight,
-                          wide: false,
-                        ),
-                      ),
-                      _bottomBar(context),
-                    ],
-                  );
-                },
+                  },
+                ),
               ),
             ),
           ),
         ),
       ),
-    ));
+    );
   }
 
   bool get _busy =>
@@ -711,7 +770,7 @@ class _RecordScreenState extends State<RecordScreen>
     return Stack(
       fit: StackFit.expand,
       children: [
-        if (_mode == TakeMode.screen)
+        if (_screenMode)
           _screenPixels()
         else if (camera != null && camera.value.isInitialized)
           Center(child: CameraPreview(camera))
@@ -728,6 +787,25 @@ class _RecordScreenState extends State<RecordScreen>
                       textAlign: TextAlign.center,
                       style: SaType.body.copyWith(color: stage.stageText),
                     ),
+            ),
+          ),
+        if (_mode == TakeMode.both &&
+            camera != null &&
+            camera.value.isInitialized)
+          Positioned(
+            bottom: SaSpace.s6,
+            left: SaSpace.s6,
+            width: SaPrompter.cameraBubbleSize,
+            height: SaPrompter.cameraBubbleSize,
+            child: ClipOval(
+              child: FittedBox(
+                fit: BoxFit.cover,
+                child: SizedBox(
+                  width: SaPrompter.cameraBubbleSize * camera.value.aspectRatio,
+                  height: SaPrompter.cameraBubbleSize,
+                  child: CameraPreview(camera),
+                ),
+              ),
             ),
           ),
         // The prompter: a glass panel right under the lens, top centre. On
@@ -1025,10 +1103,12 @@ class _RecordScreenState extends State<RecordScreen>
             RecordModeTiles(
               mode: _mode,
               screenReady: AppScope.of(context).recorder.supported,
+              bothReady:
+                  AppScope.of(context).recorder.supported &&
+                  AppScope.of(context).bubbles.supported,
               onChanged: busy ? null : _setMode,
             ),
-            if (_mode == TakeMode.screen &&
-                AppScope.of(context).screens.supported) ...[
+            if (_screenMode && AppScope.of(context).screens.supported) ...[
               const SizedBox(height: SaSpace.s2),
               OutlinedButton.icon(
                 onPressed: busy ? null : _chooseScreen,
@@ -1053,7 +1133,7 @@ class _RecordScreenState extends State<RecordScreen>
           ],
         ),
       ),
-      if (_mode == TakeMode.camera)
+      if (_needsCamera)
         SetupStep(
           number: 2,
           title: 'Camera',
@@ -1092,6 +1172,11 @@ class _RecordScreenState extends State<RecordScreen>
                               : _openCamera(i),
                   ),
                 ),
+        ),
+      if (_mode == TakeMode.both)
+        Text(
+          'The camera is saved separately. Sound stays with the screen video.',
+          style: SaType.caption.copyWith(color: stage.stageChromeText),
         ),
       if (_mode == TakeMode.screen)
         SetupStep(
@@ -1243,7 +1328,7 @@ class _RecordScreenState extends State<RecordScreen>
     Widget footer(BuildContext context) {
       final problem = _noSound;
       final Widget line;
-      if (_screenTake?.busy == true && _mode == TakeMode.screen) {
+      if (_screenTake?.busy == true && _screenMode) {
         line = Text(
           _screenTake!.phase == ScreenTakePhase.saving
               ? 'Saving take…'
@@ -1255,8 +1340,13 @@ class _RecordScreenState extends State<RecordScreen>
           'Recording ${formatDuration(_elapsed)}. Space or the button stops.',
           style: SaType.caption.copyWith(color: stage.stageChromeText),
         );
-      } else if (!_canRecord && _mode == TakeMode.screen) {
-        line = Text('Choose a display or window above to record.', style: SaType.caption.copyWith(color: stage.stageWarn));
+      } else if (!_canRecord && _screenMode) {
+        line = Text(
+          _screenSource == null
+              ? 'Choose a display or window above to record.'
+              : 'Choose a working camera above to record Both.',
+          style: SaType.caption.copyWith(color: stage.stageWarn),
+        );
       } else if (problem != null) {
         line = Wrap(
           crossAxisAlignment: WrapCrossAlignment.center,
@@ -1358,16 +1448,26 @@ class _RecordScreenState extends State<RecordScreen>
                     color: stage.stageChromeText,
                   ),
                 ),
-                const SizedBox(height: SaSpace.s1),
-                Text(
-                  _script.displayTitle,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: SaType.titleLg.copyWith(
-                    color: stage.stageText,
-                    fontWeight: FontWeight.w800,
+                const SizedBox(height: SaSpace.s3),
+                Directionality(
+                  textDirection: _script.language.isRtl
+                      ? TextDirection.rtl
+                      : TextDirection.ltr,
+                  child: Text(
+                    _script.displayTitle,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textHeightBehavior: const TextHeightBehavior(
+                      applyHeightToFirstAscent: false,
+                      applyHeightToLastDescent: false,
+                    ),
+                    style: SaType.titleLg.copyWith(
+                      color: stage.stageText,
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
                 ),
+                const SizedBox(height: SaSpace.s2),
                 Text(
                   '\u2068${_script.language.label}\u2069 · ${_script.wordCount} words · ~${formatDuration(estimatedDuration(_script))}',
                   style: SaType.caption.copyWith(color: stage.stageChromeText),
@@ -1406,7 +1506,6 @@ class _RecordScreenState extends State<RecordScreen>
 
   /// A camera's name without the device path Windows appends to it.
   static String _cameraName(CameraDescription c) {
-    final name = c.name.split(' <').first.trim();
-    return name.isEmpty ? 'Camera' : name;
+    return WindowsCameraIdentity.parse(c.name).name;
   }
 }

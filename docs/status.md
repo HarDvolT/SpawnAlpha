@@ -8,10 +8,11 @@ Last updated: 2026-10-06
 retest is owner-confirmed. Dot, One phrase, Center, Kinetic and Voice pace are the approved
 starting choices. Build step 2 has a Windows display/window source picker, confirmed by
 the owner and pushed, plus a live capture preview confirmed by the owner. An excluded
-floating prompter and protected countdown/HUD are built and tested. Screen mode is now
-enabled in normal Windows setup: chosen-source GPU video, chosen-microphone AAC, Voice
+floating prompter, camera bubble and protected countdown/HUD are built and tested. Screen
+and Both are enabled in normal Windows setup: chosen-source GPU video, chosen camera in
+a separate fragmented file, chosen-microphone AAC, Voice
 pace, pause/resume, reader hide/show/Lock and durable local saving/recovery are connected.
-The full silent generated-window take passes on this PC. Screen + camera, system audio,
+The full silent generated Screen and Both takes pass on this PC. System audio,
 cursor companion and telemetry remain next; owner hardware trials are deferred until
 they return.** The build order is in
 [product-brief.md](product-brief.md#build-order); it was revised on 2026-09-30.
@@ -36,8 +37,8 @@ build step 2 (screen recording).
   `flutter_secure_storage_windows`). `flutter doctor -v` passes Windows, Visual Studio,
   desktop device and network checks. Android is intentionally not installed yet.
 - **Local checks and launch:** `flutter pub get` succeeds; `flutter analyze` prints
-  **No issues found!**; all **256 tests pass** (226 before Screen integration).
-  All **90 screenshot cases pass**, including the source picker, unavailable-preview
+  **No issues found!**; all **270 tests pass** (226 before Screen integration).
+  All **93 screenshot cases pass**, including the source picker, unavailable-preview
   and default/minimum floating prompter in EN/FR/AR. The Windows debug build succeeds.
   Windows Git checkout converted generated
   tokens to CRLF, causing the exact-generation test to fail: `.gitattributes` now keeps
@@ -259,6 +260,33 @@ build step 2 (screen recording).
   90 screenshot cases pass; Windows builds. Slice 12 was pushed in `fdeef2b`.
   **Next:** connect bubble ownership/partial warnings and selected-camera handoff to
   normal Both setup, then owner camera/microphone trials. Both remains disabled so far.
+- **Resume here (screen recorder slice 14, normal Both mode):** Both is enabled in
+  Home/setup and remembered. Setup shows the chosen friendly camera name, a circular
+  framing preview, source preview and the existing microphone/reader choices. It uses
+  preview-only camera access, then disposes that device before protected countdown/native
+  capture so the exact chosen link can be reopened once by the recorder. Late preview
+  opens are generation-guarded. Missing camera/source prevents Record; a missing mic
+  still requires an explicit silent choice. Stop/Cancel stays available after releasing
+  setup camera. HUD/reader/bubble exclusion is required before capture and checked while
+  recording. Native release joins finalization before closing overlays/unprotecting setup.
+  Paired output is saved durably; unreadable camera output keeps Screen and warns plainly.
+  EN/FR/AR choice/snapshot/layout/cleanup tests and screenshots pass. Fixed natural Arabic
+  title height after PNG inspection so it no longer covers the Stage label.
+  `tool/native_paired_take_check.dart` plus the explicit **non-shipping** CMake target
+  `paired_ui_fixture` uses only a generated camera MP4 and synthetic source window,
+  memory script/library and ignored files. The full protected countdown, live bubble,
+  pause/resume, reader visibility/Lock, two verified files on one clock, durable pair
+  and restored main affinity all pass. This caught and fixed a live-frame startup bug:
+  Win32Window::Create first calls OnDestroy, so the bubble recreates its pixel holder
+  in OnCreate. Preview begins only once the recorder is ready. Temporary native tracing
+  was removed; no owner camera/mic/private desktop was captured. Analysis is clean,
+  270 tests and 93 screenshots pass; native full-pair check passes twice after the fix.
+  Normal Windows debug and release builds succeed; the fixture binary is excluded from
+  normal builds. Restore a normal launch from `app/` after using the explicit test target.
+  **Half done:** owner hardware/placement/exclusion/partial trials are still deferred;
+  system audio, cursor companion, privacy-limited telemetry and render-core spike remain.
+  Slice 13 was pushed in `a77fcff`. Next: try Both with the owner's real chosen camera
+  and microphone when they return; continue the remaining step-2 features in small pieces.
 - **Cue retest history (superseded by normal-app launch above):** `app/tool/cue_check.dart` is a development-only launch target.
   It uses the real Home/practice screens with memory-only scripts, settings and keys;
   optional recordings go under `app/build/cue-check/recordings`, on E: on this PC.
@@ -341,11 +369,11 @@ build step 2 (screen recording).
 | CI (`.github/workflows/build.yml`): analyze, test, then Windows and Android test builds as downloadable artifacts | Working. Run #9 (2026-09-30, <https://github.com/HarDvolT/SpawnAlpha/actions/runs/36788754590>) is green with everything above, including the new native microphone code |
 | Compliance groundwork ([compliance.md](compliance.md)) | Rules and checklist written, licence page in the app, no secrets in the repo. Legal documents and filings are still to do |
 | Windows display/window selection and live preview | Built/tested locally and owner-confirmed; pushed in `d85687e` / `18170a6` |
-| Excluded floating prompter trial | Built/tested locally, native exclusion smoke check passed; owner trial and recording integration pending |
-| Screen and Screen + camera recording, cursor companion, telemetry | Screen mode enabled and native-tested with protected HUD/reader, chosen audio, pause, save/recovery. Both, system audio, companion and telemetry remain to build; owner trials deferred. |
+| Excluded floating prompter | Built/tested and connected to Screen/Both recording, native exclusion and protected take checks pass; owner placement/shortcut trials deferred |
+| Screen and Screen + camera recording, cursor companion, telemetry | Screen and Both enabled; complete generated protected takes pass, chosen audio/camera, shared pause, separate files and save/recovery built/tested. System audio, companion and telemetry remain to build; owner hardware trials deferred. |
 | Director's Cut (auto-edit, captions, auto-zoom, finish screen) | Designed (`docs/design/autoedit.md`). Not built; needs a native render core. |
 
-220 tests pass (`cd app && flutter test`), 72 screenshot cases pass, and `flutter analyze` is clean.
+270 tests pass (`cd app && flutter test`), 93 screenshot cases pass, and `flutter analyze` is clean.
 
 ## Next steps
 
@@ -361,8 +389,8 @@ build step 2 (screen recording).
    Privacy-switch and explicit-silence paths still need hardware trials. The owner also
    confirmed the browser-window live preview updates. Continue build step 2 while they
    sleep; they will try the later pieces together when they return.
-3. **Remaining design v3 in the app:** the floating prompter window and cursor companion come
-   with build step 2 (screen recording).
+3. **Remaining design v3 in the app:** the floating prompter, HUD and camera bubble are built;
+   cursor companion follows in build step 2 (screen recording).
 4. **Finish design v2 in the app.** Done so far: the fonts, tokens, theme, script page,
    kinetic prompter, hold badge and record screen. Still to do:
    - glyph signature motions in the Studio: arrive on the director's pass, play once when
@@ -503,8 +531,9 @@ build step 2 (screen recording).
   which word you are on. Voice-following (speech recognition) is build step 3.
 - On Windows, the level meter opens its own shared-mode stream on the microphone next to the
   recording, and during the set-up one more per microphone. Screen capture preview works;
-  the native screen/audio save pipeline passes tests. Screen is enabled; Both is disabled
-  until separate camera capture and common pause timing are integrated.
+  the native screen/audio save pipeline passes tests. Screen and Both are enabled with
+  separate camera capture and common pause timing; actual chosen-camera hardware trials
+  are deferred. System audio remains off until loopback is implemented.
 - Live preview uses an 8-bit SDR, 15 fps CPU readback path. Full-display preview can show
   recursion because the setup/preview window is not excluded yet. The recording GPU/
   platform-encoder pipeline and protected main/HUD/reader pass native tests and are
@@ -513,6 +542,20 @@ build step 2 (screen recording).
   word lists, not prosody.
 
 ## Session log
+
+- 2026-10-06, Windows recorder slice 14 (normal Both recording):
+  - Connected exact chosen-camera identity, setup device handoff, protected live bubble,
+    paired capture/store and partial-camera warnings. Both is enabled and remembered.
+    Capture protects every required window, stops safely on lost protection and releases
+    native finalization before destroying overlays/restoring setup. No extra audio stream.
+  - Added EN/FR/AR setup/identity/snapshot/ownership/late-close/error tests and Both PNGs.
+    Natural Arabic title height prevents label overlap. Full generated native take passes
+    pause/resume, live bubble, reader hide/show/Lock, separate files with matching duration,
+    one durable pair and cleanup. It caught the bubble's initial OnDestroy/pixel-holder bug;
+    fixed and repeated the complete take successfully. No owner's camera/mic was used.
+  - Analysis is clean, 270 tests and 93 screenshot cases pass; Windows release builds.
+    Owner real camera/microphone
+    trials deferred by request; system audio, companion and telemetry remain next.
 
 - 2026-10-06, Windows recorder slice 13 (excluded camera bubble):
   - Added the design-sized circular self-view, exclusion before visibility, recorder-owned

@@ -496,11 +496,12 @@ class _RecordNext extends StatelessWidget {
     ]);
     final right = Column(crossAxisAlignment: CrossAxisAlignment.stretch, mainAxisSize: MainAxisSize.min, children: [
       RecordModeTiles(mode: settings.recordMode, screenReady: AppScope.of(context).recorder.supported,
+        bothReady: AppScope.of(context).recorder.supported && AppScope.of(context).bubbles.supported,
         onChanged: (mode) => settings.update((s) => s.recordMode = mode)),
       const SizedBox(height: SaSpace.s3),
       Wrap(spacing: SaSpace.s2, runSpacing: SaSpace.s2, children: [
         _Check(icon: settings.recordMode == TakeMode.screen ? Icons.screen_share_rounded : Icons.videocam_outlined,
-          text: settings.recordMode == TakeMode.screen ? 'Screen' : 'Camera'),
+          text: switch (settings.recordMode) { TakeMode.screen => 'Screen', TakeMode.both => 'Screen + camera', TakeMode.camera => 'Camera' }),
         _Check(icon: Icons.mic_none_rounded, text: settings.audioInputId == null ? 'System microphone' : 'Your microphone'),
         _Check(icon: Icons.record_voice_over_outlined, text: 'Guide: ${settings.guide.label}'),
       ]),

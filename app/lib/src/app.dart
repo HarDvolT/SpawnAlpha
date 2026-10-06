@@ -9,6 +9,7 @@ import 'recording/floating_prompter.dart';
 import 'recording/screen_recording.dart';
 import 'recording/recording_inspector.dart';
 import 'recording/recording_hud.dart';
+import 'recording/camera_bubble.dart';
 import 'storage/screen_take_store.dart';
 import 'storage/script_store.dart';
 import 'theme/theme.dart';
@@ -29,13 +30,15 @@ class AppServices {
     ScreenRecordings? recorder,
     RecordingInspector? inspector,
     RecordingHuds? huds,
+    CameraBubbles? bubbles,
   }) : audio = audio ?? AudioInputs.platform(),
        screens = screens ?? ScreenSources.platform(),
        previews = previews ?? ScreenPreviews.platform(),
        floating = floating ?? FloatingPrompters.platform(),
        recorder = recorder ?? ScreenRecordings.platform(),
        inspector = inspector ?? RecordingInspector.platform(),
-       huds = huds ?? RecordingHuds.platform();
+       huds = huds ?? RecordingHuds.platform(),
+       bubbles = bubbles ?? CameraBubbles.platform();
 
   final ScriptLibrary library;
   final Settings settings;
@@ -49,6 +52,7 @@ class AppServices {
   final ScreenRecordings recorder;
   final RecordingInspector inspector;
   final RecordingHuds huds;
+  final CameraBubbles bubbles;
   late final ScreenTakeStore screenTakes = ScreenTakeStore(
     recordingsDir,
     library,

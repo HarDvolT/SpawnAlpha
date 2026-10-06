@@ -106,3 +106,15 @@ target_compile_features(paired_recording_check PRIVATE cxx_std_17)
 target_compile_options(paired_recording_check PRIVATE /W4 /WX /EHsc /wd"4100")
 target_compile_definitions(paired_recording_check PRIVATE "NOMINMAX" "SPAWNALPHA_CAMERA_FIXTURE")
 target_link_libraries(paired_recording_check PRIVATE "d3d11.lib" "dxgi.lib" "mf.lib" "mfplat.lib" "mfreadwrite.lib" "mfuuid.lib" "ole32.lib" "oleaut32.lib" "windowsapp.lib" "user32.lib" "gdi32.lib")
+
+# Explicit UI check binary only. It reads generated video as the camera while
+# exercising the real protected windows, channels, common clock and local store.
+# Neither this target nor the fixture-only camera API is part of normal builds.
+get_target_property(PAIRED_UI_SOURCES ${BINARY_NAME} SOURCES)
+get_target_property(PAIRED_UI_DEFINITIONS ${BINARY_NAME} COMPILE_DEFINITIONS)
+add_executable(paired_ui_fixture WIN32 EXCLUDE_FROM_ALL ${PAIRED_UI_SOURCES})
+apply_standard_settings(paired_ui_fixture)
+set_property(TARGET paired_ui_fixture PROPERTY COMPILE_DEFINITIONS ${PAIRED_UI_DEFINITIONS} "SPAWNALPHA_CAMERA_FIXTURE")
+target_include_directories(paired_ui_fixture PRIVATE "${CMAKE_SOURCE_DIR}")
+target_link_libraries(paired_ui_fixture PRIVATE $<TARGET_PROPERTY:${BINARY_NAME},LINK_LIBRARIES>)
+add_dependencies(paired_ui_fixture flutter_assemble)
