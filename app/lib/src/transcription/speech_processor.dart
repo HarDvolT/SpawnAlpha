@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 
 import '../model/mark.dart';
+import '../model/cut_plan.dart';
 import '../model/script_document.dart';
 import '../model/script_language.dart';
 import '../storage/script_store.dart';
@@ -20,12 +21,22 @@ class SavedTranscript {
     this.snapshot,
     this.alignment,
     this.notice,
-  });
+    List<SourceRange> quiet = const [],
+  }) : quiet = List.unmodifiable(quiet) {
+    var end = Duration.zero;
+    for (final range in quiet) {
+      if (range.start < end || range.end > transcript.duration) {
+        throw const FormatException('Invalid quiet interval');
+      }
+      end = range.end;
+    }
+  }
   final String sourcePath;
   final WordTranscript transcript;
   final ScriptDocument? snapshot;
   final Map<String, Object?>? alignment;
   final String? notice;
+  final List<SourceRange> quiet;
   Map<String, Object?> toJson() => {
     'version': 1,
     'sourcePath': sourcePath,
@@ -33,6 +44,7 @@ class SavedTranscript {
     'snapshot': ?snapshot?.toJson(),
     'alignment': ?alignment,
     'notice': ?notice,
+    'quiet': quiet.map((r) => r.toJson()).toList(),
   };
   factory SavedTranscript.fromJson(Map<String, Object?> json) {
     if (json['version'] != 1 ||
@@ -53,6 +65,21 @@ class SavedTranscript {
           ? null
           : json['alignment'] as Map<String, Object?>?,
       notice: json['notice'] as String?,
+      quiet: quietFromWindows(
+        Duration(
+          microseconds:
+              (json['transcript']! as Map<String, Object?>)['durationUs']!
+                  as int,
+        ),
+        [
+          {
+            'keepStartUs': 0,
+            'keepEndUs':
+                (json['transcript']! as Map<String, Object?>)['durationUs'],
+            'quiet': json['quiet'] ?? [],
+          },
+        ],
+      ),
     );
   }
 }
@@ -104,6 +131,10 @@ SavedTranscript _assemble(Map<String, Object?> args) {
     snapshot: snapshot,
     alignment: alignment,
     notice: notice,
+    quiet: quietFromWindows(
+      transcript.duration,
+      args['windows']! as List<Object?>,
+    ),
   );
 }
 

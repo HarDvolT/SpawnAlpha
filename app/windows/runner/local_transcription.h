@@ -4,6 +4,7 @@
 #include <string>
 #include <vector>
 #include <functional>
+#include <utility>
 
 // UTF-8 tokenizer pieces may end inside an Arabic character. Concatenate their
 // bytes before decoding text. Nothing here is suitable for diagnostic logging.
@@ -30,6 +31,7 @@ LocalTranscript TranscribeLocal(const std::wstring& model,
 struct LocalSpeechWindow {
   int64_t offset_us = 0, keep_start_us = 0, keep_end_us = 0;
   LocalTranscript transcript;
+  std::vector<std::pair<int64_t, int64_t>> quiet;
 };
 // Bounded overlapping windows, one model context, on a caller-owned worker.
 std::vector<LocalSpeechWindow> TranscribeLocalWindows(const std::wstring& model,

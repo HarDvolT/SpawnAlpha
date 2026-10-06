@@ -54,7 +54,10 @@ import 'package:spawnalpha/src/ui/camera_bubble_screen.dart';
 import 'package:spawnalpha/src/ui/notes_editor_screen.dart';
 import 'package:spawnalpha/src/ui/notes_practice_screen.dart';
 import 'package:spawnalpha/src/ui/take_review_screen.dart';
+import 'package:spawnalpha/src/ui/clean_cut_panel.dart';
+import 'package:spawnalpha/src/cut/clean_plan.dart';
 import 'package:spawnalpha/src/transcription/speech_models.dart';
+import '../test/cut/clean_plan_test.dart' show cleanFixture, gap;
 import '../test/model/note_deck_test.dart' show fixtureNotes;
 import '../test/ui/take_review_test.dart' show reviewFixture;
 
@@ -227,6 +230,16 @@ void main() {
   const desktop = Size(1280, 800);
 
   for (final language in ScriptLanguage.values) {
+    for (final brightness in [Brightness.light, Brightness.dark]) {
+      testWidgets('cut changes $language $brightness', (tester) async {
+        final spoken = cleanFixture(language);
+        final notes = ScriptDocument.create(language: language).copyWith(recordingAid: RecordingAid.notes);
+        final clean = planQuietCut(takeId: 'generated', transcript: spoken, quiet: [gap()], snapshot: notes);
+        await shoot(tester, 'cut-changes-${language.name}-${brightness.name}', desktop, (_) => Scaffold(
+          appBar: AppBar(title: const Text('Your take')), body: Padding(padding: const EdgeInsets.all(SaSpace.s5),
+            child: CleanCutPanel(plan: clean, busy: false, onChanged: (_, _) {}, onRestore: () {}))), [notes], brightness: brightness);
+      });
+    }
     for (final (name, size, brightness) in [('desktop', desktop, Brightness.light), ('dark', desktop, Brightness.dark), ('phone', phone, Brightness.light)]) {
       testWidgets('take review $language $name', (tester) async {
         final take = Take(path: 'generated.mp4', recordedAt: DateTime(2026), duration: const Duration(seconds: 3));

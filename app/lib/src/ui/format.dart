@@ -13,6 +13,12 @@ String formatDuration(Duration d) {
   return h > 0 ? '$h:${m.toString().padLeft(2, '0')}:$s' : '$m:$s';
 }
 
+/// Review boundaries need tenths so a short removal is not shown as zero.
+String formatCutTime(Duration value) {
+  final tenths = (value.inMicroseconds + 50000) ~/ 100000;
+  return '${formatDuration(Duration(milliseconds: tenths * 100))}.${tenths % 10}';
+}
+
 /// How long a read-through takes at the style's pace, with the accepted
 /// marks.
 Duration estimatedDuration(ScriptDocument script) => DeliveryTimeline.build(

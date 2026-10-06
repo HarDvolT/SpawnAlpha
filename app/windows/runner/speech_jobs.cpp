@@ -38,6 +38,9 @@ Value Wire(const std::vector<LocalSpeechWindow>& windows) {
   List output;
   for (const auto& window : windows) {
     List pieces;
+    List quiet;
+    for (const auto& range : window.quiet) quiet.emplace_back(Map{
+      {Value("startUs"), Value(range.first)}, {Value("endUs"), Value(range.second)}});
     for (const auto& piece : window.transcript.pieces) {
       pieces.emplace_back(Map{
         {Value("bytes"), Value(std::vector<uint8_t>(piece.bytes.begin(), piece.bytes.end()))},
@@ -46,7 +49,7 @@ Value Wire(const std::vector<LocalSpeechWindow>& windows) {
     }
     output.emplace_back(Map{{Value("offsetUs"), Value(window.offset_us)},
       {Value("keepStartUs"), Value(window.keep_start_us)}, {Value("keepEndUs"), Value(window.keep_end_us)},
-      {Value("durationUs"), Value(window.transcript.duration_us)}, {Value("pieces"), Value(pieces)}});
+      {Value("durationUs"), Value(window.transcript.duration_us)}, {Value("pieces"), Value(pieces)}, {Value("quiet"), Value(quiet)}});
   }
   return Value(output);
 }

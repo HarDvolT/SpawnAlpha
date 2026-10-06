@@ -573,3 +573,22 @@ no snapshot still receive speech captions, with a notice. The original is never
 modified. Failed/interrupted jobs can be retried; orphan sidecars remain local.
 `Take.wordsPath` is optional for legacy compatibility. Take review shows actual
 speech, progress/cancel/retry and local SRT/VTT export; full Cut is still next.
+
+## Reversible cleaning foundation (build step 4)
+
+Native recognition also returns conservative 20ms measured quiet intervals,
+clipped to the same core clocks. `quietFromWindows` rejects malformed/unordered
+evidence and merges touching seams. Saved transcripts keep that evidence;
+older sidecars without it remain supported, with no automatic removals.
+Pure `cut/clean_plan.dart` protects recognized word neighbourhoods and accepted
+marked pauses/breaths. A frozen alignment is required for Script; Notes use
+actual speech. Screen takes keep visual context until activity review is wired.
+Each quiet removal is immutable and individually reversible. Complementary
+kept ranges produce the portable `CutPlan`; `speechOnCut` moves actual captions
+onto that clock and rejects any cut that would lose or split a spoken word.
+`CleanCutStore` computes off the UI thread, writes new atomic sidecars, and
+attaches only to the same transcript revision, preserving current script edits.
+`Take.cutPath` is optional; new speech clears stale cuts. `durationUs` now
+preserves the exact clock across disk, with `durationMs` retained for compatibility.
+Take review renders the switches and exports captions from the selected plan.
+Native video rendering/preview and remaining Cut tracks are still next.

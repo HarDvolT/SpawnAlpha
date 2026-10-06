@@ -104,6 +104,25 @@ The ship action is amber: **Export 2 videos**. **Open in editor** shows the EDL 
 
 ## Guarantees
 
+### First Windows cleaning slice
+
+Automatic silence changes require measured quiet audio, not just a gap between
+estimated word times. The first detector uses conservative 20ms frames with
+RMS at most -60 dBFS and peak at most -60 dBFS. It leaves ordinary room tone and
+quiet speech alone if they do not pass that gate. These are evidence thresholds,
+not a loudness-normalization claim. Keep 250ms of each long quiet interval.
+
+Keep every recognized word with a safety margin, all accepted marked gaps and
+breaths, and any interval near low-confidence words. Script takes with no usable
+frozen alignment keep the original. Notes never use script adherence. Screen
+takes need separate activity/context handling before automatic tightening.
+
+Every removal is listed with its source time and an individual switch. Turning
+it off restores that original interval; saving the plan never modifies media.
+Caption times follow the kept source ranges and actual speech. Filler/retake
+selection, screen zoom/cursor polish and complete video export are subsequent
+slices; never label this conservative first pass a finished Director's Cut.
+
 - Never cut inside a word, and never remove a marked pause.
 - Never change what was said. Captions follow speech, and mismatches with the script are flagged.
 - Every automatic change is listed, can be undone on its own, and survives into "Open in editor".

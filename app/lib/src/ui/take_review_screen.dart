@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../app.dart';
+import '../cut/clean_plan.dart';
 import '../model/mark.dart';
 import '../model/script_document.dart';
 import '../theme/theme.dart';
@@ -12,6 +13,7 @@ import '../transcription/speech_processor.dart';
 import '../transcription/speech_models.dart';
 import 'format.dart';
 import 'home_screen.dart';
+import 'clean_cut_panel.dart';
 
 class TakeReviewScreen extends StatefulWidget {
   const TakeReviewScreen({super.key, required this.script, required this.take});
@@ -26,12 +28,25 @@ class _TakeReviewScreenState extends State<TakeReviewScreen> {
   bool _loaded = false, _exporting = false;
   String? _exportMessage;
   File? _exportFile;
+  CleanPlan? _clean;
+  bool _planning = false;
+  String? _cutProblem;
+  Take _latestTake(AppServices app) =>
+      app.library
+          .byId(widget.script.id)
+          ?.takes
+          .where((t) => t.path == widget.take.path)
+          .firstOrNull ??
+      widget.take;
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     if (_loaded) return;
     _loaded = true;
-    final processor = AppScope.of(context).speech;
+    final app = AppScope.of(context), processor = app.speech;
+    app.cuts.load(_latestTake(app)).then((value) {
+      if (mounted) setState(() => _clean = value);
+    });
     if (processor.result?.sourcePath == widget.take.path) {
       _spoken = processor.result;
       return;
@@ -45,7 +60,63 @@ class _TakeReviewScreenState extends State<TakeReviewScreen> {
     final app = AppScope.of(context);
     await app.speech.process(widget.script, widget.take);
     if (mounted && app.speech.result?.sourcePath == widget.take.path) {
-      setState(() => _spoken = app.speech.result);
+      setState(() {
+        _spoken = app.speech.result;
+        _clean = null;
+      });
+      await _makeCut();
+    }
+  }
+
+  Future<void> _makeCut() async {
+    if (_planning || _spoken == null) return;
+    final app = AppScope.of(context);
+    setState(() {
+      _planning = true;
+      _cutProblem = null;
+    });
+    try {
+      final plan = await app.cuts.create(
+        widget.script,
+        _latestTake(app),
+        _spoken!,
+      );
+      if (mounted) setState(() => _clean = plan);
+    } on Object {
+      if (mounted) {
+        setState(
+          () => _cutProblem = 'The cut could not be saved. Your original and words are safe. Try again.',
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _planning = false);
+    }
+  }
+
+  Future<void> _saveCut(CleanPlan plan) async {
+    if (_planning) return;
+    final app = AppScope.of(context);
+    setState(() {
+      _planning = true;
+      _cutProblem = null;
+    });
+    try {
+      await app.cuts.save(widget.script.id, _latestTake(app), plan);
+      if (mounted) {
+        setState(() {
+          _clean = plan;
+          _exportFile = null;
+          _exportMessage = null;
+        });
+      }
+    } on Object {
+      if (mounted) {
+        setState(
+          () => _cutProblem = 'This change could not be saved. The previous cut and original are safe.',
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _planning = false);
     }
   }
 
@@ -58,7 +129,12 @@ class _TakeReviewScreenState extends State<TakeReviewScreen> {
     setState(() => _exporting = true);
     try {
       await directory.create(recursive: true);
-      final id = newId(), captions = captionsFromSpeech(spoken.transcript);
+      final id = newId(),
+          captions = captionsFromSpeech(
+            _clean == null
+                ? spoken.transcript
+                : speechOnCut(spoken.transcript, _clean!.asCutPlan()),
+          );
       final srt = File(
         '${directory.path}${Platform.pathSeparator}$id-captions.srt',
       );
@@ -93,7 +169,7 @@ class _TakeReviewScreenState extends State<TakeReviewScreen> {
       builder: (context, _) {
         final job = app.speech,
             model = app.speechModels,
-            busy = job.busy || model.busy;
+            busy = job.busy || model.busy || _planning;
         final spoken = _spoken;
         final words = spoken?.transcript.words ?? const [];
         final alignment = spoken?.alignment;
@@ -223,6 +299,27 @@ class _TakeReviewScreenState extends State<TakeReviewScreen> {
                   ),
                 if (spoken != null) ...[
                   const SizedBox(height: SaSpace.s5),
+                  if (_clean != null)
+                    CleanCutPanel(
+                      plan: _clean!,
+                      busy: busy,
+                      onChanged: (id, value) =>
+                          _saveCut(_clean!.withEnabled(id, value)),
+                      onRestore: () => _saveCut(_clean!.restoreAll()),
+                    )
+                  else
+                    OutlinedButton.icon(
+                      onPressed: busy ? null : _makeCut,
+                      icon: const Icon(Icons.auto_fix_high_outlined),
+                      label: const Text('Make a cut'),
+                    ),
+                  if (_planning) const LinearProgressIndicator(),
+                  if (_cutProblem != null)
+                    Text(
+                      _cutProblem!,
+                      style: SaType.bodySm.copyWith(color: p.danger),
+                    ),
+                  const SizedBox(height: SaSpace.s5),
                   Text(
                     'Spoken words',
                     style: SaType.title.copyWith(color: p.ink),
@@ -275,9 +372,15 @@ class _TakeReviewScreenState extends State<TakeReviewScreen> {
                         label: const Text('Copy transcript'),
                       ),
                       FilledButton.icon(
-                        onPressed: words.isEmpty || _exporting ? null : _export,
+                        onPressed: words.isEmpty || _exporting || busy
+                            ? null
+                            : _export,
                         icon: const Icon(Icons.download_outlined),
-                        label: const Text('Save SRT + VTT captions'),
+                        label: Text(
+                          _clean == null
+                              ? 'Save SRT + VTT captions'
+                              : 'Save cut captions (SRT + VTT)',
+                        ),
                       ),
                     ],
                   ),

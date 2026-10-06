@@ -22,6 +22,9 @@ No speech is an explicit empty result. **Copy transcript** is an explicit local
 clipboard action. **Save SRT + VTT captions** writes both local subtitle files;
 it does not publish or overwrite the original video.
 
-This surface precedes the complete Director's Cut finish screen. Video preview,
-automatic edit decisions, individual corrections, render/export and coaching
-will extend it, using the same frozen take and actual speech.
+This surface now includes the first **Your cut** panel: original/cut duration,
+the measured quiet-gap changes, an individual switch and **Restore all gaps**.
+Saved plans and cut-caption clocks preserve all actual words. Screen context
+and missing/uncertain script alignment keep the original. Video preview,
+individual word corrections, full render/export and coaching will extend it,
+using the same frozen take and actual speech.

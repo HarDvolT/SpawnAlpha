@@ -15,6 +15,7 @@ import 'package:spawnalpha/src/transcription/speech_models.dart';
 import 'package:spawnalpha/src/transcription/speech_processor.dart';
 import 'package:spawnalpha/src/transcription/speech_windows.dart';
 import 'package:spawnalpha/src/transcription/captions.dart';
+import 'package:spawnalpha/src/cut/clean_plan.dart';
 
 void require(bool condition) {
   if (!condition) throw StateError('Generated speech check failed');
@@ -132,8 +133,23 @@ Future<void> main() async {
     );
     require(windows.length == 3 && words.words.length >= 30);
     require(words.words.any((w) => w.start >= const Duration(seconds: 57)));
+    final quiet = quietFromWindows(words.duration, windows);
+    final cut = planQuietCut(
+      takeId: 'generated',
+      transcript: words,
+      quiet: quiet,
+      snapshot: ScriptDocument.create().copyWith(
+        recordingAid: RecordingAid.notes,
+      ),
+    );
+    require(
+      cut.changes.length >= 2 && cut.asCutPlan().duration < words.duration,
+    );
+    require(
+      speechOnCut(words, cut.asCutPlan()).words.length == words.words.length,
+    );
     debugPrint(
-      'Native speech app check passed: verified model, cancellation, frozen Script/Notes, durable words, captions, and three bounded windows on the original clock.',
+      'Native speech app check passed: verified model, cancellation, frozen Script/Notes, durable words, captions, three bounded windows, measured quiet gaps and reversible cuts that keep every spoken word.',
     );
     library.dispose();
     ownedModels.dispose();

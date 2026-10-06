@@ -12,6 +12,7 @@ import 'recording/recording_hud.dart';
 import 'recording/camera_bubble.dart';
 import 'storage/screen_take_store.dart';
 import 'storage/script_store.dart';
+import 'storage/clean_cut_store.dart';
 import 'theme/theme.dart';
 import 'storage/settings.dart';
 import 'ui/home_screen.dart';
@@ -61,6 +62,7 @@ class AppServices {
   final SpeechBackend speechBackend;
   late final SpeechModels speechModels = SpeechModels(Directory('${recordingsDir.parent.path}${Platform.pathSeparator}models'), speechBackend);
   late final SpeechProcessor speech = SpeechProcessor(speechBackend, speechModels, library, recordingsDir);
+  late final CleanCutStore cuts = CleanCutStore(Directory('${recordingsDir.path}${Platform.pathSeparator}cuts'), library);
   late final ScreenTakeStore screenTakes = ScreenTakeStore(
     recordingsDir,
     library,

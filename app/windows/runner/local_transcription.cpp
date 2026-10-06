@@ -196,6 +196,27 @@ std::vector<LocalSpeechWindow> TranscribeLocalWindows(const std::wstring& model,
     LocalSpeechWindow window;
     window.offset_us = start; window.keep_start_us = cursor; window.keep_end_us = std::min(cursor + core, duration_us);
     window.transcript.duration_us = static_cast<int64_t>(pcm.size()) * 1000000 / kRate;
+    // Conservative measured quiet intervals on the source clock. Do not infer
+    // silence from recognition gaps; low-level speech/room tone stays intact.
+    constexpr size_t frame_samples = kRate / 50;
+    int64_t quiet_start = -1, quiet_end = -1;
+    auto flush_quiet = [&] {
+      if (quiet_start >= 0 && quiet_end - quiet_start >= 80000) window.quiet.emplace_back(quiet_start, quiet_end);
+      quiet_start = quiet_end = -1;
+    };
+    for (size_t sample = 0; sample + frame_samples <= pcm.size(); sample += frame_samples) {
+      double power = 0; float peak = 0;
+      for (size_t i = sample; i < sample + frame_samples; ++i) {
+        power += static_cast<double>(pcm[i]) * pcm[i]; peak = std::max(peak, std::abs(pcm[i]));
+      }
+      const auto begin = std::max(window.keep_start_us, start + static_cast<int64_t>(sample) * 1000000 / kRate);
+      const auto finish = std::min(window.keep_end_us, start + static_cast<int64_t>(sample + frame_samples) * 1000000 / kRate);
+      if (finish > begin && power / frame_samples <= 1e-6 && peak <= .001f) {
+        if (quiet_start < 0) quiet_start = begin;
+        quiet_end = finish;
+      } else flush_quiet();
+    }
+    flush_quiet();
     // An overlap is unnecessary when the seam lies in digital silence. Keep
     // the neighbouring utterance in its own core instead of feeding a partial
     // sentence to this window. Never gate ordinary room tone or quiet speech.

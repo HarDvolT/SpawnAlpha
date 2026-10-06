@@ -94,6 +94,7 @@ class Take {
     this.metadataPath,
     this.activityPath,
     this.wordsPath,
+    this.cutPath,
     this.recovered = false,
   });
 
@@ -101,21 +102,26 @@ class Take {
   final DateTime recordedAt;
   final Duration duration;
   final TakeMode mode;
-  final String? cameraPath, metadataPath, activityPath, wordsPath;
+  final String? cameraPath, metadataPath, activityPath, wordsPath, cutPath;
   Take withWords(String path) => Take(path: this.path, recordedAt: recordedAt, duration: duration,
     mode: mode, cameraPath: cameraPath, metadataPath: metadataPath, activityPath: activityPath,
     recovered: recovered, wordsPath: path);
+  Take withCut(String path) => Take(path: this.path, recordedAt: recordedAt, duration: duration,
+    mode: mode, cameraPath: cameraPath, metadataPath: metadataPath, activityPath: activityPath,
+    recovered: recovered, wordsPath: wordsPath, cutPath: path);
   final bool recovered;
 
   Map<String, Object?> toJson() => {
     'path': path,
     'recordedAt': recordedAt.toIso8601String(),
     'durationMs': duration.inMilliseconds,
+    'durationUs': duration.inMicroseconds,
     'mode': mode.name,
     'cameraPath': ?cameraPath,
     'metadataPath': ?metadataPath,
     'activityPath': ?activityPath,
     'wordsPath': ?wordsPath,
+    'cutPath': ?cutPath,
     if (recovered) 'recovered': true,
   };
 
@@ -123,15 +129,18 @@ class Take {
     final path = json['path'];
     final at = DateTime.tryParse(json['recordedAt'] as String? ?? '');
     if (path is! String || at == null) return null;
+    final precise = json['durationUs'];
+    if (precise != null && (precise is! int || precise < 0 || precise > 1 << 53)) return null;
     return Take(
       path: path,
       recordedAt: at,
-      duration: Duration(milliseconds: json['durationMs'] as int? ?? 0),
+      duration: precise is int ? Duration(microseconds: precise) : Duration(milliseconds: json['durationMs'] as int? ?? 0),
       mode: TakeMode.values.where((v) => v.name == json['mode']).firstOrNull ?? TakeMode.camera,
       cameraPath: json['cameraPath'] as String?,
       metadataPath: json['metadataPath'] as String?,
       activityPath: json['activityPath'] as String?,
       wordsPath: json['wordsPath'] as String?,
+      cutPath: json['cutPath'] as String?,
       recovered: json['recovered'] == true,
     );
   }

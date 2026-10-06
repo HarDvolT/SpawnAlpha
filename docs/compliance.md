@@ -80,6 +80,7 @@ paid release, a lawyer should review:
 |---|---|---|---|
 | Speaker-note decks and take snapshots | App documents folder | No automatic transmission | Private topic cards are excluded from screen capture. Any later cloud action must be explicitly selected and named; captions follow actual speech |
 | Spoken words, alignment and subtitle exports | Beside takes and in the local exports folder | No | Local recognition uses frozen aids. Notes and explicit computer-sound-only takes have no script adherence scoring. Copy/export are explicit local actions |
+| Reversible cut plans and measured quiet ranges | Local cuts/words folders | No | Original media never changes; source intervals and switches are personal data. No transcription gaps treated as proof of silence; all words, marked gaps/breaths and uncertainty margins are protected |
 | Public offline speech model | Local models folder | A public GET downloads model weights from Hugging Face; no owner media/text is sent | Exact pinned revision, size/SHA-256 verification and first-use UI disclosure. Download host receives ordinary connection metadata |
 | Scripts and marks | App documents folder | Only when the user runs markup with an online provider. Then the script text goes to that provider (Anthropic, OpenAI, Google, Mistral, or the user's own server) | The editor names the provider on the button. The privacy policy must list providers |
 | API keys | Platform secure storage | Only to the provider they belong to | Never logged |

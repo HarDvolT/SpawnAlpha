@@ -42,6 +42,22 @@ build step 2 (screen recording).
 
 ## Handover (2026-10-05): from here, Codex on the owner's Windows PC
 
+- **Latest checkpoint (2026-10-06, reversible quiet cuts):** 422 Flutter tests
+  and 145 screenshot cases pass, with clean analysis. Native generated speech
+  now also measures quiet audio on the original clock and verifies a reversible
+  cut over the 70-second fixture without losing any recognized word.
+  Camera Script/Notes takes can create a durable quiet-gap plan in take review;
+  each removal has an on/off switch and Restore all. Accepted marked gaps and
+  breaths are fully protected, as are words and low-confidence neighbourhoods.
+  Missing frozen Script alignment, no measured evidence, no speech and Screen
+  context keep the original. Captions move onto the kept output clock.
+  Take duration now preserves microseconds across disk, with old millisecond
+  records still supported. New transcripts invalidate old cut references;
+  saving cuts preserves later script edits and rejects changed word revisions.
+  **Half done:** this is a plan and subtitle timing, not video export. Native
+  streaming render, preview, automatic-on-stop, fillers/retakes, screen polish
+  and delivery review remain. Build those next; owner trials remain deferred.
+
 - **Latest checkpoint (2026-10-06, offline speech runtime):** 396 Flutter tests
   and 139 screenshot cases pass; analysis prints No issues found. Normal Windows
   Release speech-channel check passes verified model/pre-start cancel, frozen
@@ -628,6 +644,13 @@ build step 2 (screen recording).
    See OpenScreen in the brief for reusable parts.
 
 ## Decisions
+
+- 2026-10-06, initial Cut guardrails: automatic cleaning requires measured quiet
+  frames (20ms, RMS/peak at most -60 dBFS), never just an estimated word gap.
+  Keep marked pauses/breaths and uncertain word neighbourhoods. Screen context
+  stays intact until activity review is connected. Every removal is reversible;
+  the original media is never changed. No retake/emphasis/loudness claim is made
+  by the first quiet-gap pass.
 
 - 2026-10-06, speech implementation: use pinned multilingual base weights as
   the Windows offline starting model, pending real French/Arabic/Darija trials.

@@ -1,4 +1,5 @@
 import '../model/script_language.dart';
+import '../model/cut_plan.dart';
 import 'speech_pieces.dart';
 import 'word_timing.dart';
 
@@ -68,6 +69,56 @@ WordTranscript transcriptFromWindows(
   }
   // Conflicting estimates need review, rather than shifting or dropping words.
   return WordTranscript(language: language, duration: duration, words: words);
+}
+
+List<SourceRange> quietFromWindows(Duration duration, List<Object?> windows) {
+  final ranges = <SourceRange>[];
+  for (final value in windows) {
+    if (value is! Map) throw const FormatException('Invalid quiet window');
+    final quiet = value['quiet'];
+    if (quiet == null) {
+      continue; // Older/fake recognizers have no audio evidence.
+    }
+    if (quiet is! List || quiet.length > 100000) {
+      throw const FormatException('Invalid quiet intervals');
+    }
+    for (final item in quiet) {
+      if (item is! Map ||
+          item['startUs'] is! int ||
+          item['endUs'] is! int ||
+          value['keepStartUs'] is! int ||
+          value['keepEndUs'] is! int) {
+        throw const FormatException('Invalid quiet interval');
+      }
+      final start = item['startUs'] as int, end = item['endUs'] as int;
+      if (start < (value['keepStartUs'] as int) ||
+          end > (value['keepEndUs'] as int) ||
+          start < 0 ||
+          end <= start ||
+          end > duration.inMicroseconds ||
+          (ranges.isNotEmpty && start < ranges.last.end.inMicroseconds) ||
+          ranges.length >= 100000) {
+        throw const FormatException('Invalid quiet interval');
+      }
+      if (ranges.isNotEmpty && ranges.last.end.inMicroseconds == start) {
+        final previous = ranges.removeLast();
+        ranges.add(
+          SourceRange(
+            start: previous.start,
+            end: Duration(microseconds: end),
+          ),
+        );
+      } else {
+        ranges.add(
+          SourceRange(
+            start: Duration(microseconds: start),
+            end: Duration(microseconds: end),
+          ),
+        );
+      }
+    }
+  }
+  return List.unmodifiable(ranges);
 }
 
 SpeechPiece _piece(Object? value) {
