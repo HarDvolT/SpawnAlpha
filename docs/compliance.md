@@ -89,6 +89,11 @@ paid release, a lawyer should review:
   with exact reliable/corrected alignment and whole-phrase cut provenance.
   Notes and uncertain/unsaid speech supply no bonus; no transcript text is
   added to portable zoom metadata or diagnostics. No new collection or upload.
+  Optional click highlights read only retained visible click position/timing
+  from the same existing local sidecar. Their bounded immutable pulse track
+  contains no text/key identity/path. Installed Direct2D draws the fixed amber
+  spring ring/halo, excluding the camera and margins. The separate on/off
+  choice and saved count need no package, model, upload or copied code.
 - Optional captions on video use installed DirectWrite/Direct2D and the already
   bundled OFL Anybody/Reem Kufi fonts through a private local font collection.
   No font installation/download, new package, copied code or network service.
@@ -237,6 +242,8 @@ person using the app.
 | Optional Windows sound-join fades | Checked 2026-10-06 with generated mono/stereo packets, short ranges, packet boundaries, disabled/continuous joins, decoded AAC attenuation and unchanged distant tone levels/whole-versus-contiguous PCM. EN/FR/AR export controls, immutable history and cut/caption clocks pass. Only retained internal join edges are attenuated; no overlap, amplification, source modification or new DSP library. No owner media/input, dependency, copied code, upload, model or private logs. Room-tone crossfades, LUFS/noise/de-essing, hardware listening and launch legal work remain pending |
 | Optional Windows activity zooms | Checked 2026-10-06 with EN/FR/AR pure targets, cut/reorder/source-resize clocks, fresh cursor/focus, bounded clusters/typing, malformed/private payload rejection, missing files and crash-truncated traces. Generated native wide/portrait decoded pixels pass clamped spring crops, pan/reset and full-picture return; actual app-channel EN/FR/AR wide/feed/portrait on/off exports preserve captions/history and source/activity bytes. Completed-job recovery preserves exact frozen targets after activity removal. No owner media/input, new dependency, copied code, model, upload or private logs. Pointing-word zooms, cursor/frame polish, hardware trials and launch legal work remain pending |
 | In-app licence page (Settings, Privacy and licences) | Done |
+| Spoken pointing zooms | Checked 2026-10-06 with normalized EN/FR/AR phrases, full frozen Script alignment, exact reliable/corrected wording, Notes/uncertain/unsaid protection and whole-phrase source-cut provenance. Ordinary click evidence survives loss of its phrase bonus. Real app-channel one-click exports preserve subtitles/history/target clocks and source/activity bytes. No owner input, model, dependency, upload or private logs; real speech quality and launch legal work remain |
+| Optional Windows click highlights | Checked 2026-10-06 with pure EN/FR/AR retained/reordered/continuous ranges, hidden/key protection, clipped lifetimes, bounded malformed tracks, independent switches and frozen recovery after activity removal. Generated native wide/portrait decoded pixels pass onset/fade under zoom, and camera-covered pulses decode identically to the no-ring baseline. Actual app-channel independent zoom/click on/off exports preserve timing/history/original bytes. Uses installed Direct2D and existing palette/spring tokens; no owner media/input, package, model, copied code, upload or private logs. Cursor/frame/keycap polish and hardware/launch trials remain |
 | "What leaves your device" explained in Settings | Done |
 | iOS export-compliance flag | Done |
 | No secrets in the repository (scanned 2026-09-30) | Done |

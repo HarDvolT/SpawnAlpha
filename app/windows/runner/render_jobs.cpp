@@ -69,6 +69,23 @@ LocalRenderRequest Request(const Map& args) {
         Number(*step, "factor"), static_cast<UINT>(sw), static_cast<UINT>(sh)});
     }
   }
+  if (const auto found = args.find(Value("clickPulses")); found != args.end()) {
+    const auto* pulses = std::get_if<flutter::EncodableList>(&found->second);
+    const auto* layout = std::get_if<Map>(&Field(args, "clickLayout"));
+    if (!pulses || pulses->size() > 20000 || !layout) throw std::runtime_error("Invalid click highlights");
+    const auto color = Integer(*layout, "color");
+    if (color < 0 || color > 0xffffffffLL) throw std::runtime_error("Invalid click highlights");
+    request.click_layout = {Number(*layout, "radius"), Number(*layout, "grow"), Number(*layout, "stroke"),
+      Number(*layout, "halo"), Number(*layout, "mass"), Number(*layout, "stiffness"), Number(*layout, "damping"), static_cast<uint32_t>(color)};
+    for (const auto& value : *pulses) {
+      const auto* pulse = std::get_if<Map>(&value);
+      if (!pulse) throw std::runtime_error("Invalid click highlight");
+      const auto sw = Integer(*pulse, "width"), sh = Integer(*pulse, "height");
+      if (sw < 1 || sw > 100000 || sh < 1 || sh > 100000) throw std::runtime_error("Invalid click highlight");
+      request.click_pulses.push_back({Integer(*pulse, "startUs"), Integer(*pulse, "endUs"),
+        Number(*pulse, "x"), Number(*pulse, "y"), static_cast<UINT>(sw), static_cast<UINT>(sh)});
+    }
+  }
   if (const auto found = args.find(Value("captions")); found != args.end()) {
     const auto* captions = std::get_if<flutter::EncodableList>(&found->second);
     if (!captions || captions->size() > 100000) throw std::runtime_error("Invalid captions");

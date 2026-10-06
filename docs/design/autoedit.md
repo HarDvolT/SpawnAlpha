@@ -194,7 +194,7 @@ recorded image; no guessed face targets or hidden windows. Captions retain
 their output clock and safe zones. Save the local zoom decisions alongside
 the export without the private source/activity path. Missing or unreadable
 activity keeps the whole picture and explains that choice. Cursor cleanup,
-ripples, keycaps, backdrop and directional blur remain subsequent tracks.
+keycaps, backdrop and directional blur remain subsequent tracks.
 
 For a frozen Script, a nearby click can also use reliable actually spoken
 pointing phrases: English "here"/"this button", French "ici"/"ce bouton"/
@@ -207,6 +207,22 @@ Both the click and the whole phrase must survive the same kept source range;
 discarded attempts cannot supply evidence. A visible click still supplies the
 position. The ordinary Auto-zoom switch controls these targets too, and no
 transcript text is written into portable zoom metadata.
+
+### Windows click highlights
+
+Screen/Both with local activity also offer **Highlight clicks**, initially on
+and independent of Auto-zoom. Every retained visible click gets the fixed amber
+ring and soft halo from the motion language: `ripple-radius` grows to
+`ripple-grow` on `spring-smooth`, fading over `ripple-duration`. Geometry scales
+with the short output edge. Hidden clicks, plain keys and removed source
+activity draw nothing. Clamp the lifetime to the retained source range;
+continuous source splits preserve the same effect and cuts never carry it into
+another range. Map source dimensions through the current zoom crop, clipping
+to the visible screen picture and outside the camera inset. Captions draw above
+the highlight. Save immutable normalized pulse/timing decisions without paths,
+key identities or text. At most the latest 64 simultaneously active pulses
+draw, with bounded tracks and work; unusual oversized input keeps a plain video
+with the same generic activity notice. Legacy exports have no highlights.
 
 ### First Windows video export
 

@@ -78,6 +78,7 @@ class ExportProcessor extends ChangeNotifier {
     bool captionMotion = true,
     bool softAudioJoins = true,
     bool autoZoom = true,
+    bool clickHighlights = true,
   }) async {
     if (busy) return null;
     source = take.path;
@@ -135,7 +136,9 @@ class ExportProcessor extends ChangeNotifier {
           ? speechOnCut(spoken.transcript, plan)
           : speechOnCleanCut(spoken.transcript, clean);
       final zooms =
-          autoZoom && take.mode != TakeMode.camera && take.activityPath != null
+          (autoZoom || clickHighlights) &&
+              take.mode != TakeMode.camera &&
+              take.activityPath != null
           ? await compute(
               loadScreenZooms,
               ScreenZoomJob(
@@ -154,6 +157,10 @@ class ExportProcessor extends ChangeNotifier {
                   pointWindow: SaScreenFx.zoomPointWindow,
                 ),
                 spoken: spoken,
+                autoZoom: autoZoom,
+                clickDuration: clickHighlights
+                    ? SaScreenFx.rippleDuration
+                    : Duration.zero,
               ),
             )
           : LoadedScreenZooms(ScreenZooms(0, const []));
@@ -174,6 +181,7 @@ class ExportProcessor extends ChangeNotifier {
         captionMotion: captionMotion,
         softAudioJoins: softAudioJoins && plan.hasJoins,
         zoomCount: zooms.zooms.count,
+        clickCount: zooms.clicks?.count ?? 0,
       );
       final captionTracks = video.captions
           ? await compute(
@@ -190,6 +198,7 @@ class ExportProcessor extends ChangeNotifier {
         srt: captions == null ? null : subtitleText(captions),
         vtt: captions == null ? null : subtitleText(captions, vtt: true),
         screenZooms: zooms.zooms,
+        screenClicks: zooms.clicks,
       );
       reserved = reservation;
       if (_cancelled) throw const RenderCancelled();
@@ -206,6 +215,7 @@ class ExportProcessor extends ChangeNotifier {
           captionMotion: video.captionMotion,
           softAudioJoins: video.softAudioJoins,
           screenZooms: zooms.zooms,
+          screenClicks: zooms.clicks,
         ),
         (amount) {
           progress = amount;

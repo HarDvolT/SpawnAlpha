@@ -11,6 +11,7 @@ import '../model/video_export.dart';
 import '../theme/tokens.g.dart';
 import '../transcription/captions.dart';
 import 'screen_zooms.dart';
+import 'screen_clicks.dart';
 
 class VideoRenderRequest {
   VideoRenderRequest({
@@ -23,6 +24,7 @@ class VideoRenderRequest {
     this.captionMotion = true,
     this.softAudioJoins = false,
     this.screenZooms,
+    this.screenClicks,
     List<Caption> captions = const [],
   }) : captions = List.unmodifiable(
          captions.map(
@@ -34,6 +36,9 @@ class VideoRenderRequest {
            ),
          ),
        ) {
+    if (screenClicks?.pulses.any((p) => p.end > plan.duration) ?? false) {
+      throw const FormatException('Invalid click clock');
+    }
     if (screenZooms != null &&
         screenZooms!.steps.any((s) => s.time > plan.duration)) {
       throw const FormatException('Invalid zoom clock');
@@ -98,6 +103,7 @@ class VideoRenderRequest {
   final bool captionMotion;
   final bool softAudioJoins;
   final ScreenZooms? screenZooms;
+  final ScreenClicks? screenClicks;
   final List<Caption> captions;
   Map<String, Object?> toJson() => {
     'source': source,
@@ -112,6 +118,19 @@ class VideoRenderRequest {
         ? SaVideoExport.audioJoinFade.inMicroseconds
         : 0,
     'ranges': plan.ranges.map((r) => r.toJson()).toList(),
+    if (screenClicks != null && screenClicks!.count > 0) ...{
+      'clickPulses': screenClicks!.pulses.map((p) => p.toJson()).toList(),
+      'clickLayout': {
+        'radius': SaScreenFx.rippleRadius,
+        'grow': SaScreenFx.rippleGrow,
+        'stroke': SaScreenFx.rippleStroke,
+        'halo': SaScreenFx.rippleHalo,
+        'color': SaPalette.dark.ripple.toARGB32(),
+        'mass': SaSprings.smooth.mass,
+        'stiffness': SaSprings.smooth.stiffness,
+        'damping': SaSprings.smooth.damping,
+      },
+    },
     if (screenZooms != null && screenZooms!.count > 0) ...{
       'zoomSteps': screenZooms!.steps.map((s) => s.toJson()).toList(),
       'zoomSpring': {

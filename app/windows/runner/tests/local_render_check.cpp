@@ -121,6 +121,52 @@ void VerifyZoomPixels(const LocalRenderRequest& request) {
   Require(frames == 120);
 }
 
+std::vector<BYTE> FramePixels(const std::wstring& path, UINT width, UINT height, int wanted) {
+  com_ptr<IMFAttributes> attributes; check_hresult(MFCreateAttributes(attributes.put(), 1));
+  check_hresult(attributes->SetUINT32(MF_SOURCE_READER_ENABLE_VIDEO_PROCESSING, TRUE));
+  com_ptr<IMFSourceReader> reader; check_hresult(MFCreateSourceReaderFromURL(path.c_str(), attributes.get(), reader.put()));
+  com_ptr<IMFMediaType> type; check_hresult(MFCreateMediaType(type.put()));
+  check_hresult(type->SetGUID(MF_MT_MAJOR_TYPE, MFMediaType_Video)); check_hresult(type->SetGUID(MF_MT_SUBTYPE, MFVideoFormat_RGB32));
+  check_hresult(reader->SetCurrentMediaType(kVideoStream, nullptr, type.get()));
+  int frame = 0;
+  while (true) {
+    DWORD flags = 0; com_ptr<IMFSample> sample;
+    check_hresult(reader->ReadSample(kVideoStream, 0, nullptr, &flags, nullptr, sample.put()));
+    if (sample && frame++ == wanted) return CaptionPixels(reader.get(), sample.get(), width, height);
+    Require(!(flags & MF_SOURCE_READERF_ENDOFSTREAM));
+  }
+}
+
+void VerifyClickPixels(const LocalRenderRequest& request, bool visible, const std::wstring& baseline = {}) {
+  com_ptr<IMFAttributes> attributes; check_hresult(MFCreateAttributes(attributes.put(), 1));
+  check_hresult(attributes->SetUINT32(MF_SOURCE_READER_ENABLE_VIDEO_PROCESSING, TRUE));
+  com_ptr<IMFSourceReader> reader; check_hresult(MFCreateSourceReaderFromURL(request.output.c_str(), attributes.get(), reader.put()));
+  com_ptr<IMFMediaType> type; check_hresult(MFCreateMediaType(type.put()));
+  check_hresult(type->SetGUID(MF_MT_MAJOR_TYPE, MFMediaType_Video)); check_hresult(type->SetGUID(MF_MT_SUBTYPE, MFVideoFormat_RGB32));
+  check_hresult(reader->SetCurrentMediaType(kVideoStream, nullptr, type.get()));
+  int frames = 0;
+  while (true) {
+    DWORD flags = 0; int64_t time = 0; com_ptr<IMFSample> sample;
+    check_hresult(reader->ReadSample(kVideoStream, 0, nullptr, &flags, &time, sample.put()));
+    if (sample) {
+      if (frames == 18 || frames == 25 || frames == 35) {
+        const auto pixels = CaptionPixels(reader.get(), sample.get(), request.width, request.height);
+        size_t amber = 0;
+        for (size_t i = 0; i < pixels.size(); i += 4)
+          if (pixels[i + 2] > 170 && pixels[i + 1] > 100 && pixels[i + 1] < 210 && pixels[i] < 110) ++amber;
+        if (!visible) {
+          Require(!baseline.empty() && pixels == FramePixels(baseline, request.width, request.height, frames));
+        } else if (frames == 25) {
+          Require(amber > 30); SaveCaptionPng(request.output + L".png", request.width, request.height, pixels.data());
+        } else Require(amber == 0);
+      }
+      ++frames;
+    }
+    if (flags & MF_SOURCE_READERF_ENDOFSTREAM) break;
+  }
+  Require(frames == 120);
+}
+
 void SaveCaptionPng(const std::wstring& path, UINT width, UINT height, const BYTE* bytes) {
   Require(GetFileAttributesW(path.c_str()) == INVALID_FILE_ATTRIBUTES);
   com_ptr<IWICImagingFactory> factory;
@@ -487,6 +533,21 @@ int wmain(int count, wchar_t** args) {
         zoomed.zoom_spring = {1, 90, 19};
         stage = "render spatial screen zoom"; RenderLocalVideo(zoomed, cancel, [](double) {});
         stage = "verify zoom and restored whole-picture pixels"; VerifyZoomPixels(zoomed);
+        zoomed.output = prefix + (vertical ? L"-click-portrait.mp4" : L"-click-wide.mp4");
+        zoomed.click_pulses = {{700000, 1120000, .8, .5, kWidth, kHeight}};
+        zoomed.click_layout = {10, 4.4, 3, .12, 1, 260, 32, 0xfff2b84b};
+        stage = "render click under zoom"; RenderLocalVideo(zoomed, cancel, [](double) {});
+        stage = "verify decoded click onset and fade"; VerifyClickPixels(zoomed, true);
+        if (!vertical) {
+          zoomed.zoom_steps.clear(); zoomed.camera = zoom_source;
+          zoomed.camera_inset = .28; zoomed.camera_margin = .04;
+          zoomed.click_pulses = {{700000, 1120000, .9, .9, kWidth, kHeight}};
+          zoomed.output = prefix + L"-click-camera-protected.mp4";
+          stage = "render camera protected from click overlay"; RenderLocalVideo(zoomed, cancel, [](double) {});
+          auto baseline = zoomed; baseline.click_pulses.clear(); baseline.output = prefix + L"-click-camera-baseline.mp4";
+          stage = "render camera baseline without click"; RenderLocalVideo(baseline, cancel, [](double) {});
+          stage = "verify click cannot paint camera"; VerifyClickPixels(zoomed, false, baseline.output);
+        }
       }
       LocalRenderRequest request{source, source, prefix + L"-pair.mp4", 4000000, 640, 360, {{1000000, 2000000}, {3000000, 4000000}}};
       request.camera_inset = .28; request.camera_margin = .04;

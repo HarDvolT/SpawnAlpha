@@ -827,3 +827,24 @@ Microsoft API reference: [video processor source rectangle](https://learn.micros
 Room-tone crossfades, noise/loudness polish,
 face reframing and cursor tracks remain. Exported EDL metadata has no
 source media path; private revision references remain in local take history.
+
+`ScreenClickPlanner` collects only visible anonymous click positions, bounded
+to 20,000 input/output pulses. It retimes retained clicks through source ranges,
+clamps each lifetime at a discontinuity and merges contiguous source splits.
+The same strict activity worker creates zoom/click tracks independently. The
+Highlight clicks switch starts on for screen activity; Camera and unavailable
+traces have no track. Additive `clickCount` defaults zero for old videos.
+Journals, portable metadata and recovery freeze validated pulse times/geometry,
+without source/activity paths or key/text payloads. Caption clocks stay intact.
+
+Native `ClickOverlay` caches one Direct2D GPU target, draws fixed-token amber
+spring rings with radial-gradient halos and fades on each pulse's output clock.
+Source resize and current zoom crop map the center into the fixed destination.
+Clipping excludes black margins and the paired camera, and captions draw above
+the ring. At most the latest 64 active pulses draw. Generated decoded pixels
+verify onset/fade in wide/portrait zooms; camera-covered pulses decode identically
+to the no-highlight baseline. Actual app-channel EN/FR/AR independent on/off
+exports preserve pulse metadata, subtitles, history and original bytes.
+Microsoft API references: [ellipse outlines](https://learn.microsoft.com/en-us/windows/win32/direct2d/id2d1rendertarget-drawellipse),
+[clipping](https://learn.microsoft.com/en-us/windows/win32/direct2d/id2d1rendertarget-pushaxisalignedclip)
+and [radial gradients](https://learn.microsoft.com/en-us/windows/win32/direct2d/how-to-create-a-radial-gradient-brush).

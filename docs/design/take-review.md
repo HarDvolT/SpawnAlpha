@@ -111,6 +111,11 @@ Reliable actually spoken frozen Script pointing phrases also justify a nearby
 visible click. Notes/uncertain/unsaid words and discarded phrases supply no
 bonus; ordinary click clusters still work. English, French and Arabic use
 their normalized language lexicon. Switching off keeps the full picture.
+**Highlight clicks** starts on and has its own switch. Retained visible clicks
+get a fixed amber spring ring and soft halo on the output clock. The pulse ends
+at a source cut, follows zoom/resize geometry, stays inside the screen picture
+and leaves the camera/captions clear. History lists the click-highlight count.
+No keys, typed text or hidden cursor positions appear; old videos have none.
 Missing/unreadable activity explains
 the full-picture fallback. History lists the zoom count. Original media/input
 remains intact; no typed characters are used. Face reframing remains separate.

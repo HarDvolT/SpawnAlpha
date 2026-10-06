@@ -34,6 +34,8 @@ class VideoExportPanel extends StatelessWidget {
     this.hasScreenActivity = false,
     this.autoZoom = true,
     this.onAutoZoom,
+    this.clickHighlights = true,
+    this.onClickHighlights,
   });
   final VideoFormat format;
   final ValueChanged<VideoFormat> onFormat;
@@ -55,6 +57,8 @@ class VideoExportPanel extends StatelessWidget {
   final ValueChanged<bool>? onSoftAudioJoins;
   final bool hasScreenActivity, autoZoom;
   final ValueChanged<bool>? onAutoZoom;
+  final bool clickHighlights;
+  final ValueChanged<bool>? onClickHighlights;
   final List<VideoExport> videos;
   final ValueChanged<VideoExport> onView, onShow;
 
@@ -70,7 +74,8 @@ class VideoExportPanel extends StatelessWidget {
           '${video.format.label} · ${formatCutTime(video.duration)}'
           '${video.burnedCaptions ? ' · ${video.captionStyle.label} captions${video.captionMotion ? '' : ' · Still'}' : ''}'
           '${video.softAudioJoins ? ' · Soft sound joins' : ''}'
-          '${video.zoomCount > 0 ? ' · ${video.zoomCount} zooms' : ''}',
+          '${video.zoomCount > 0 ? ' · ${video.zoomCount} zooms' : ''}'
+          '${video.clickCount > 0 ? ' · ${video.clickCount} click highlights' : ''}',
           style: SaType.signalLabel.copyWith(color: p.ink2),
         ),
         TextButton.icon(
@@ -139,6 +144,16 @@ class VideoExportPanel extends StatelessWidget {
                 : (value) => onSoftAudioJoins?.call(value ?? false),
             title: const Text('Soften sound at cuts'),
             subtitle: const Text('Smooth the joins while keeping word timing.'),
+          ),
+        if (hasScreenActivity)
+          CheckboxListTile(
+            contentPadding: EdgeInsets.zero,
+            value: clickHighlights,
+            onChanged: busy
+                ? null
+                : (value) => onClickHighlights?.call(value ?? false),
+            title: const Text('Highlight clicks'),
+            subtitle: const Text('Show a fading ring where you click.'),
           ),
         if (hasScreenActivity)
           CheckboxListTile(

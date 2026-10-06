@@ -59,6 +59,7 @@ class _TakeReviewScreenState extends State<TakeReviewScreen> {
   bool? _captionMotion;
   bool _softAudioJoins = true;
   bool _autoZoom = true;
+  bool _clickHighlights = true;
   List<VideoExport> _videos = [];
   VideoExport? _viewing;
   final _reviewScroll = ScrollController();
@@ -192,6 +193,7 @@ class _TakeReviewScreenState extends State<TakeReviewScreen> {
       captionMotion: _captionMotion ?? !MediaQuery.disableAnimationsOf(context),
       softAudioJoins: _softAudioJoins,
       autoZoom: _autoZoom,
+      clickHighlights: _clickHighlights,
     );
     final saved = await app.videoExports.load(_latestTake(app));
     if (mounted) {
@@ -585,6 +587,9 @@ class _TakeReviewScreenState extends State<TakeReviewScreen> {
                       widget.take.activityPath != null,
                   autoZoom: _autoZoom,
                   onAutoZoom: (value) => setState(() => _autoZoom = value),
+                  clickHighlights: _clickHighlights,
+                  onClickHighlights: (value) =>
+                      setState(() => _clickHighlights = value),
                   hasAudioJoins: _clean?.asCutPlan().hasJoins ?? false,
                   softAudioJoins: _softAudioJoins,
                   onSoftAudioJoins: (value) =>

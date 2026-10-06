@@ -293,6 +293,8 @@ void RenderLocalVideo(const LocalRenderRequest& request, std::atomic<bool>& canc
     Compositor compositor; compositor.Open(device.get(), request.width, request.height, !request.camera.empty(),
       request.camera_inset, request.camera_margin);
     CaptionOverlay captions;
+    ClickOverlay clicks;
+    clicks.Open(device.get(), request.width, request.height, total_us, request.click_pulses, request.click_layout);
     captions.Open(device.get(), request.width, request.height, total_us, request.captions, request.caption_layout);
     GpuVideoWriter writer;
     check_hresult(writer.Start(device.get(), request.output, request.width, request.height, 30,
@@ -314,10 +316,18 @@ void RenderLocalVideo(const LocalRenderRequest& request, std::atomic<bool>& canc
           zoom.Reset(starts[video_range]);
       }
       const RECT main_box{main.x, main.y, main.x + static_cast<LONG>(main.width), main.y + static_cast<LONG>(main.height)};
+      const auto main_crop = zoom.Crop(main_box, output_ticks / 10);
+      const RECT full{0, 0, static_cast<LONG>(request.width), static_cast<LONG>(request.height)};
+      const LONG margin = static_cast<LONG>(std::min(request.width, request.height) * request.camera_margin);
+      const LONG inset_w = static_cast<LONG>(request.width * request.camera_inset);
+      const LONG inset_h = std::min(static_cast<LONG>(request.height * request.camera_inset), inset_w);
+      const RECT inset{full.right - margin - inset_w, full.bottom - margin - inset_h, full.right - margin, full.bottom - margin};
+      const auto camera_frame = request.camera.empty() ? Frame{} : camera.At(source_ticks, false, cancel);
+      const RECT camera_box{camera.x, camera.y, camera.x + static_cast<LONG>(camera.width), camera.y + static_cast<LONG>(camera.height)};
       const auto image = compositor.Compose(main.At(source_ticks, true, cancel),
-        request.camera.empty() ? Frame{} : camera.At(source_ticks, false, cancel),
-        main_box, {camera.x, camera.y, camera.x + static_cast<LONG>(camera.width), camera.y + static_cast<LONG>(camera.height)},
-        frame, zoom.Crop(main_box, output_ticks / 10));
+        camera_frame, main_box, camera_box, frame, main_crop);
+      clicks.Draw(image.get(), output_ticks / 10, main_box, main_crop,
+        Fit(main.width, main.height, full), camera_frame.image ? Fit(camera.width, camera.height, inset) : RECT{});
       captions.Draw(image.get(), output_ticks / 10);
       check_hresult(writer.WriteFrame(image.get(), request.width, request.height, output_ticks, end_ticks - output_ticks));
       if (has_audio) {

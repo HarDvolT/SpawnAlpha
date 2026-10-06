@@ -339,7 +339,7 @@ void main() {
                     job: app.exports, busy: working, supported: true, hasCamera: true, hasCaptions: true,
                     captionStyle: captionStyle, hasAudioJoins: true, hasScreenActivity: true,
                     videos: [VideoExport(id: 'generated', format: VideoFormat.portrait,
-                      captions: true, burnedCaptions: true, softAudioJoins: true, zoomCount: 3,
+                      captions: true, burnedCaptions: true, softAudioJoins: true, zoomCount: 3, clickCount: 8,
                       captionStyle: captionStyle,
                       duration: const Duration(seconds: 25), createdAt: DateTime(2026, 10, 6, 18, 30))],
                     onView: (_) {}, onShow: (_) {}),

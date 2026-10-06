@@ -22,7 +22,9 @@ Generated short and 70-second app checks pass. Reversible quiet cuts, local
 take playback and first Windows video exports now work. Automatic local speech
 and reversible cutting after Stop are connected. Optional local screen
 activity zooms follow clicks, shortcuts and typing on the cut clock, with
-an on/off export choice and frozen target history. Optional sound-join fades
+an on/off export choice and frozen target history. Independent optional amber
+click highlights follow retained visible clicks and leave the camera clear.
+Optional sound-join fades
 soften internal cut edges without shifting words. Optional Readable/Cue/Punch/Karaoke captions
 follow saved actual words/corrections and the cut clock. Reversible filler
 review offers safe optional removals, initially kept; remaining Director's Cut
@@ -52,6 +54,23 @@ dot to grow and act out each cue in the cue's colour, and for the next features.
 build step 2 (screen recording).
 
 ## Handover (2026-10-05): from here, Codex on the owner's Windows PC
+
+- **Latest checkpoint (2026-10-06, click highlights):** 735 Flutter tests,
+  254 screenshots, clean analysis and normal Windows Release build. Highlight
+  clicks starts on for local Screen/Both activity, independently of Auto-zoom.
+  Fixed amber spring rings/soft halos follow retained visible clicks on the
+  output clock; hidden clicks/plain keys/removed activity draw nothing.
+  Lifetimes clamp at source cuts; continuous source splits stay identical.
+  Resize/current zoom map the target; clips leave margins/camera clear and
+  captions draw above it. Immutable pulse history/recovery excludes private
+  paths and survives activity removal. Native decoded wide/portrait onset/
+  fade passes; camera-covered pulses decode identically to the no-ring baseline.
+  Actual Windows app-channel EN/FR/AR wide/feed/portrait independent on/off
+  exports pass exact subtitle clocks, tracks/history and original bytes.
+  EN/AR phone and native PNGs inspected. No owner media/input or dependency.
+  **Half done:** smooth cursor, shortcut badges, frame/backdrop/blur and further
+  sound/coaching remain. Continue those Cut tracks before voice-follow/mobile;
+  owner hardware trials stay deferred.
 
 - **Latest checkpoint (2026-10-06, spoken pointing zooms):** 726 Flutter tests,
   clean analysis and normal Windows Release build. A reliable actually spoken
@@ -888,6 +907,12 @@ build step 2 (screen recording).
 
 ## Decisions
 
+- 2026-10-06, click highlights: offer a separate default-on export choice for
+  retained visible Screen/Both clicks. Use fixed amber/spring design tokens,
+  source-aware timing/crop geometry and camera/caption protection. Store the
+  normalized pulse track/count per immutable video; no text/key identities or
+  private paths. Switching off restores the plain video for this export.
+
 - 2026-10-06, pointing-word zooms: use the normalized EN/FR/AR lexicon and
   reliable/corrected actually spoken frozen Script phrases near a visible
   click. Require whole retained source evidence, never Notes/unsaid text.
@@ -1101,6 +1126,24 @@ build step 2 (screen recording).
   word lists, not prosody.
 
 ## Session log
+
+- 2026-10-06, click highlights:
+  - Added the bounded visible-click collector and source-range pulse retiming,
+    with clipped lifetime, contiguous-split invariance and strict immutable
+    JSON/native request guards. The existing sidecar worker supplies zoom and
+    click tracks independently. Added Highlight clicks controls/count history,
+    portable pulse metadata and exact frozen completion recovery.
+  - Native Direct2D draws amber spring rings and radial halos onto the owned
+    GPU frame, mapping source resize/current crop and clipping outside the
+    camera and visible picture. Captions stay above it; active pulses are bounded.
+  - Clean analysis, 735 tests, 254 screenshots and normal Release pass.
+    Native generated wide/portrait decoded onset/fade passes; a camera-covered
+    pulse decodes identically to the no-ring baseline. Actual app-channel
+    EN/FR/AR wide/feed/portrait zoom+ring/plain/ring-only exports preserve exact
+    clocks, track/history reload and original source/activity bytes. EN/AR UI
+    and native PNGs inspected; no owner media/input, dependency, model or upload.
+    Smooth cursor, shortcut badges, frame/blur and further sound/coaching follow;
+    mobile/launch work and owner trials remain.
 
 - 2026-10-06, spoken pointing zooms:
   - Added natural EN/FR/AR lexicon phrases, bounded frozen-source alignment

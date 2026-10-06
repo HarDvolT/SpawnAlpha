@@ -30,6 +30,7 @@ void main() {
       job.notice =
           'Screen activity is unavailable. This video keeps the whole picture.';
       var zoom = true;
+      var highlights = true;
       await tester.pumpWidget(
         MaterialApp(
           theme: buildTheme(Brightness.light),
@@ -44,6 +45,8 @@ void main() {
                 supported: true,
                 hasScreenActivity: mode != 'missing',
                 autoZoom: zoom,
+                clickHighlights: highlights,
+                onClickHighlights: (value) => update(() => highlights = value),
                 onAutoZoom: (value) => update(() => zoom = value),
                 videos: [
                   VideoExport(
@@ -65,11 +68,21 @@ void main() {
         CheckboxListTile,
         'Auto-zoom screen activity',
       );
+      final clickChoice = find.widgetWithText(
+        CheckboxListTile,
+        'Highlight clicks',
+      );
       if (mode == 'missing') {
         expect(choice, findsNothing);
+        expect(clickChoice, findsNothing);
       } else if (mode == 'busy') {
         expect(tester.widget<CheckboxListTile>(choice).onChanged, isNull);
+        expect(tester.widget<CheckboxListTile>(clickChoice).onChanged, isNull);
       } else {
+        await tester.tap(clickChoice);
+        await tester.pumpAndSettle();
+        expect(highlights, isFalse);
+        expect(zoom, isTrue);
         expect(tester.widget<CheckboxListTile>(choice).value, isTrue);
         expect(find.text('Saves a new MP4 on this device.'), findsOneWidget);
         await tester.tap(choice);

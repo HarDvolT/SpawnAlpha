@@ -5,6 +5,7 @@ import '../recording/activity_trace.dart';
 import '../transcription/pointing_phrases.dart';
 import '../transcription/speech_processor.dart';
 import 'screen_zooms.dart';
+import 'screen_clicks.dart';
 
 class ScreenZoomJob {
   const ScreenZoomJob(
@@ -13,17 +14,22 @@ class ScreenZoomJob {
     this.plan,
     this.policy, {
     this.spoken,
+    this.autoZoom = true,
+    this.clickDuration = Duration.zero,
   });
   final String source, activity;
   final CutPlan plan;
   final ZoomPolicy policy;
   final SavedTranscript? spoken;
+  final bool autoZoom;
+  final Duration clickDuration;
 }
 
 class LoadedScreenZooms {
-  const LoadedScreenZooms(this.zooms, {this.unavailable = false});
+  const LoadedScreenZooms(this.zooms, {this.unavailable = false, this.clicks});
   final ScreenZooms zooms;
   final bool unavailable;
+  final ScreenClicks? clicks;
 }
 
 Future<LoadedScreenZooms> loadScreenZooms(ScreenZoomJob job) async {
@@ -43,7 +49,8 @@ Future<LoadedScreenZooms> loadScreenZooms(ScreenZoomJob job) async {
     await inspectActivity(file, limit: job.plan.sourceDuration);
     var pointing = <SourceRange>[];
     final spoken = job.spoken;
-    if (spoken != null &&
+    if (job.autoZoom &&
+        spoken != null &&
         spoken.sourcePath == job.source &&
         spoken.transcript.duration == job.plan.sourceDuration &&
         spoken.transcript.language == job.plan.language) {
@@ -59,14 +66,21 @@ Future<LoadedScreenZooms> loadScreenZooms(ScreenZoomJob job) async {
       }
     }
     final planner = ScreenZoomPlanner(job.policy, pointing: pointing);
+    final clicks = job.clickDuration > Duration.zero
+        ? ScreenClickPlanner(job.clickDuration)
+        : null;
     await for (final row in activityRows(file)) {
       if (row['type'] == 'header' || row['type'] == 'end') continue;
       final event = ActivityEvent.fromJson(row);
       if (event.timeUs < job.plan.sourceDuration.inMicroseconds) {
-        planner.add(event);
+        if (job.autoZoom) planner.add(event);
+        clicks?.add(event);
       }
     }
-    return LoadedScreenZooms(planner.finish(job.plan));
+    return LoadedScreenZooms(
+      planner.finish(job.plan),
+      clicks: clicks?.finish(job.plan),
+    );
   } on Object {
     // Generic information only, never private paths, activity or exceptions.
     return LoadedScreenZooms(ScreenZooms(0, const []), unavailable: true);

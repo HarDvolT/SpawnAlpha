@@ -438,6 +438,16 @@ abstract final class SaScreenFx {
   static const Duration zoomClusterWindow = Duration(milliseconds: 1300);
   /// Maximum distance from a reliable spoken pointing phrase to a visible click.
   static const Duration zoomPointWindow = Duration(milliseconds: 650);
+  /// Lifetime/fade of a click highlight in the edit.
+  static const Duration rippleDuration = Duration(milliseconds: 420);
+  /// Initial click ring radius at a 1080px short output edge.
+  static const double rippleRadius = 10.0;
+  /// Maximum click ring growth relative to its starting radius.
+  static const double rippleGrow = 4.4;
+  /// Click ring stroke at a 1080px short output edge.
+  static const double rippleStroke = 3.0;
+  /// Soft click halo opacity under the amber ring.
+  static const double rippleHalo = 0.12;
   /// Maximum normalized source-axis distance inside one activity cluster.
   static const double zoomClusterDistance = 0.3;
   /// Anonymous key timings needed to count one typing burst.

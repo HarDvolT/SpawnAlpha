@@ -8,6 +8,7 @@ import '../model/mark.dart';
 import '../recording/recording_inspector.dart';
 import 'script_store.dart';
 import '../render/screen_zooms.dart';
+import '../render/screen_clicks.dart';
 
 class ExportReservation {
   const ExportReservation(
@@ -18,12 +19,14 @@ class ExportReservation {
     this.srt,
     this.vtt,
     this.screenZooms,
+    this.screenClicks,
   });
   final String scriptId, source;
   final VideoExport video;
   final CutPlan plan;
   final String? srt, vtt;
   final ScreenZooms? screenZooms;
+  final ScreenClicks? screenClicks;
   Map<String, Object?> toJson({bool complete = false}) => {
     'version': 1,
     'scriptId': scriptId,
@@ -34,6 +37,7 @@ class ExportReservation {
     'srt': srt,
     'vtt': vtt,
     if (screenZooms != null) 'screenZooms': screenZooms!.toJson(),
+    if (screenClicks != null) 'screenClicks': screenClicks!.toJson(),
   };
 }
 
@@ -71,8 +75,11 @@ class VideoExportStore {
     String? srt,
     String? vtt,
     ScreenZooms? screenZooms,
+    ScreenClicks? screenClicks,
   }) async {
-    if ((screenZooms?.count ?? 0) != video.zoomCount ||
+    if ((screenClicks?.count ?? 0) != video.clickCount ||
+        (screenClicks?.pulses.any((p) => p.end > plan.duration) ?? false) ||
+        (screenZooms?.count ?? 0) != video.zoomCount ||
         (screenZooms?.steps.any((s) => s.time > plan.duration) ?? false) ||
         plan.sourceDuration != take.duration ||
         plan.duration != video.duration ||
@@ -95,6 +102,7 @@ class VideoExportStore {
       srt: srt,
       vtt: vtt,
       screenZooms: screenZooms,
+      screenClicks: screenClicks,
     );
     await _write(_journal(video), reservation.toJson());
     return reservation;
@@ -168,6 +176,8 @@ class VideoExportStore {
       'plan': reservation.plan.toJson(),
       if (reservation.screenZooms != null)
         'screenZooms': reservation.screenZooms!.toJson(),
+      if (reservation.screenClicks != null)
+        'screenClicks': reservation.screenClicks!.toJson(),
     });
     await _attach(reservation);
   }
@@ -267,7 +277,14 @@ class VideoExportStore {
             : ScreenZooms.fromJson(
                 json['screenZooms']! as Map<String, Object?>,
               );
-        if ((zooms?.count ?? 0) != video.zoomCount ||
+        final clicks = json['screenClicks'] == null
+            ? null
+            : ScreenClicks.fromJson(
+                json['screenClicks']! as Map<String, Object?>,
+              );
+        if ((clicks?.count ?? 0) != video.clickCount ||
+            (clicks?.pulses.any((p) => p.end > plan.duration) ?? false) ||
+            (zooms?.count ?? 0) != video.zoomCount ||
             (zooms?.steps.any((s) => s.time > plan.duration) ?? false)) {
           continue;
         }
@@ -289,6 +306,7 @@ class VideoExportStore {
             srt: srt as String?,
             vtt: vtt as String?,
             screenZooms: zooms,
+            screenClicks: clicks,
           ),
         );
         ++recovered;

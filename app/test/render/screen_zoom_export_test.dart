@@ -141,6 +141,7 @@ void main() {
             autoZoom: mode != 'off',
           ))!;
           expect(result.zoomCount, mode == 'on' ? 1 : 0);
+          expect(result.clickCount, 1);
           expect(renderer.request!.screenZooms!.count, result.zoomCount);
           expect(renderer.request!.captions.first.text, frozen.text);
           expect(
@@ -209,6 +210,7 @@ void main() {
             autoZoom: mode != 'off',
           ))!;
           expect(video.zoomCount, mode == 'on' ? 1 : 0);
+          expect(video.clickCount, mode == 'unavailable' ? 0 : 2);
           expect(renderer.request!.screenZooms!.count, video.zoomCount);
           expect(
             renderer.request!.captions.single.words.single.start,
@@ -286,6 +288,7 @@ void main() {
     final result = job.export(script, take, VideoFormat.feed);
     await renderer.started.future;
     final expected = renderer.request!.screenZooms!.toJson();
+    final expectedClicks = renderer.request!.screenClicks!.toJson();
     disk.fail = true;
     renderer.deferred!.complete();
     expect(await result, isNull);
@@ -299,6 +302,10 @@ void main() {
     await journal.writeAsString(jsonEncode(bad));
     disk.fail = false;
     expect(await store.recover(), 0);
+    final badClicks = Map<String, Object?>.from(encoded);
+    badClicks['screenClicks'] = {'version': 1, 'pulses': []};
+    await journal.writeAsString(jsonEncode(badClicks));
+    expect(await store.recover(), 0);
     await journal.writeAsString(jsonEncode(encoded));
     // Recovery reads the frozen export track, never the mutable activity file.
     await activity.delete();
@@ -307,9 +314,11 @@ void main() {
     final video = (await store.load(library.byId(script.id)!.takes.single))
         .single;
     expect(video.zoomCount, 1);
+    expect(video.clickCount, 2);
     final portable =
         jsonDecode(await store.file(video, 'json').readAsString()) as Map;
     expect(portable['screenZooms'], expected);
+    expect(portable['screenClicks'], expectedClicks);
     job.dispose();
   });
 }

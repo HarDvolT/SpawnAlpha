@@ -9,6 +9,7 @@ import 'package:spawnalpha/src/model/video_export.dart';
 import 'package:spawnalpha/src/recording/recording_inspector.dart';
 import 'package:spawnalpha/src/render/export_processor.dart';
 import 'package:spawnalpha/src/render/screen_zooms.dart';
+import 'package:spawnalpha/src/render/screen_clicks.dart';
 import 'package:spawnalpha/src/render/video_renderer.dart';
 import 'package:spawnalpha/src/storage/clean_cut_store.dart';
 import 'package:spawnalpha/src/storage/script_store.dart';
@@ -141,7 +142,8 @@ Future<void> main() async {
       );
       await library.save(document);
       String? subtitles;
-      for (final enabled in [true, false]) {
+      for (final choice in ['all', 'plain', 'clicks']) {
+        final enabled = choice == 'all', highlight = choice != 'plain';
         stage = 'render enabled and full-picture choices';
         final latest = library.byId(document.id)!.takes.single;
         final video = await job.export(
@@ -153,11 +155,13 @@ Future<void> main() async {
               ? VideoFormat.feed
               : VideoFormat.landscape,
           autoZoom: enabled,
+          clickHighlights: highlight,
         );
         require(
           video != null &&
               job.phase == ExportPhase.done &&
               video.zoomCount == (enabled ? 1 : 0) &&
+              video.clickCount == (highlight ? 1 : 0) &&
               video.duration == take.duration,
         );
         final metadata =
@@ -166,6 +170,18 @@ Future<void> main() async {
           Map<String, Object?>.from(metadata['screenZooms'] as Map),
         );
         require(track.count == video.zoomCount);
+        final clicks = metadata['screenClicks'] == null
+            ? null
+            : ScreenClicks.fromJson(
+                Map<String, Object?>.from(metadata['screenClicks'] as Map),
+              );
+        require((clicks?.count ?? 0) == video.clickCount);
+        if (highlight) {
+          require(
+            clicks!.pulses.single.start == const Duration(milliseconds: 700) &&
+                clicks.pulses.single.end == const Duration(milliseconds: 1120),
+          );
+        }
         if (enabled) {
           require(
             track.steps.first.time == const Duration(milliseconds: 400) &&
@@ -184,9 +200,10 @@ Future<void> main() async {
       await library.load();
       final history = await store.load(library.byId(document.id)!.takes.single);
       require(
-        history.length == 2 &&
+        history.length == 3 &&
             history.where((v) => v.zoomCount == 1).length == 1,
       );
+      require(history.where((v) => v.clickCount == 1).length == 2);
       final after = await source.readAsBytes();
       require(
         before.length == after.length &&
@@ -196,7 +213,7 @@ Future<void> main() async {
     }
     // ignore: avoid_print
     print(
-      'Local screen zoom check passed: EN/FR/AR spoken pointing phrases, one click, wide/feed/portrait, zoom on/off, caption clocks, immutable targets/history and unchanged source/activity bytes.',
+      'Local screen zoom check passed: EN/FR/AR spoken pointing phrases, one click, wide/feed/portrait, independent zoom/click on/off, caption clocks, immutable targets/history and unchanged source/activity bytes.',
     );
   } on Object {
     // ignore: avoid_print
