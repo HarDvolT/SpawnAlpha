@@ -1,6 +1,7 @@
 #include "recording_activity.h"
 #include <dwmapi.h>
 #include <algorithm>
+#include <array>
 #include <atomic>
 #include <condition_variable>
 #include <mutex>
@@ -20,10 +21,7 @@ bool Own(HWND window) {
   return !window || process == GetCurrentProcessId();
 }
 bool Down(int key) { return (GetAsyncKeyState(key) & 0x8000) != 0; }
-bool Modifier(UINT key) {
-  return key == VK_CONTROL || key == VK_LCONTROL || key == VK_RCONTROL || key == VK_SHIFT ||
-      key == VK_LSHIFT || key == VK_RSHIFT || key == VK_MENU || key == VK_LMENU || key == VK_RMENU || key == VK_LWIN || key == VK_RWIN;
-}
+constexpr UINT kModifiers[] = {VK_LCONTROL, VK_RCONTROL, VK_LSHIFT, VK_RSHIFT, VK_LMENU, VK_RMENU, VK_LWIN, VK_RWIN};
 }  // namespace
 
 struct RecordingActivity::Impl {
@@ -38,6 +36,7 @@ struct RecordingActivity::Impl {
   std::vector<ActivityEvent> events;
   RECT previous_focus{};
   bool had_focus = false;
+  std::array<bool, 8> modifiers{};
   HWND sink = nullptr;
   bool registered = false;
   HANDLE timer = nullptr;
@@ -57,11 +56,12 @@ struct RecordingActivity::Impl {
     if (!GetMonitorInfo(monitor, &info)) return false;
     rect = info.rcMonitor; return true;
   }
-  bool Focus(const RECT& rect, RECT& clipped) const {
+  bool Focus(const RECT& rect, RECT& clipped, bool keyboard = false) const {
     const auto window = GetForegroundWindow();
     if (Own(window) || (source && GetAncestor(window, GA_ROOT) != GetAncestor(source, GA_ROOT))) return false;
     RECT foreground{};
-    return Bounds(window, foreground) && IntersectRect(&clipped, &rect, &foreground);
+    return Bounds(window, foreground) && IntersectRect(&clipped, &rect, &foreground) &&
+        (!keyboard || source || ActivityKeyboardWithin(rect, foreground));
   }
   bool Point(const RECT& rect, POINT point) const {
     const auto window = WindowFromPoint(point);
@@ -110,10 +110,21 @@ struct RecordingActivity::Impl {
     RECT rect{}; if (!Scope(rect)) return;
     if (input.header.dwType == RIM_TYPEKEYBOARD) {
       const auto& key = input.data.keyboard;
+      UINT modifier = key.VKey;
+      if (modifier == VK_CONTROL) modifier = key.Flags & RI_KEY_E0 ? VK_RCONTROL : VK_LCONTROL;
+      if (modifier == VK_MENU) modifier = key.Flags & RI_KEY_E0 ? VK_RMENU : VK_LMENU;
+      if (modifier == VK_SHIFT) modifier = MapVirtualKey(key.MakeCode, MAPVK_VSC_TO_VK_EX);
+      for (size_t slot = 0; slot < modifiers.size(); ++slot) {
+        if (modifier != kModifiers[slot]) continue;
+        modifiers[slot] = !(key.Flags & RI_KEY_BREAK); return;
+      }
       RECT focus{};
-      if ((key.Flags & RI_KEY_BREAK) || key.VKey == 255 || Modifier(key.VKey) || !Focus(rect, focus)) return;
+      if ((key.Flags & RI_KEY_BREAK) || key.VKey == 255 || !Focus(rect, focus, true)) return;
+      const bool ctrl = modifiers[0] || modifiers[1], shift = modifiers[2] || modifiers[3];
+      const bool alt = modifiers[4] || modifiers[5], win = modifiers[6] || modifiers[7];
+      if (IsPrompterShortcut(key.VKey, ctrl, alt, shift, win)) return;
       auto event = Event(ActivityKind::key, rect);
-      event.detail = SanitizeShortcut(key.VKey, Down(VK_CONTROL), Down(VK_MENU), Down(VK_SHIFT), Down(VK_LWIN) || Down(VK_RWIN));
+      event.detail = SanitizeShortcut(key.VKey, ctrl, alt, shift, win);
       if (event.detail != ActivityDetail::none) event.kind = ActivityKind::shortcut;
       Queue(event);
     } else if (input.header.dwType == RIM_TYPEMOUSE) {
@@ -165,6 +176,7 @@ struct RecordingActivity::Impl {
       timer = CreateWaitableTimerEx(nullptr, nullptr, CREATE_WAITABLE_TIMER_HIGH_RESOLUTION, TIMER_ALL_ACCESS);
       if (!timer) start_result = HRESULT_FROM_WIN32(GetLastError());
     }
+    for (size_t slot = 0; slot < modifiers.size(); ++slot) modifiers[slot] = Down(kModifiers[slot]);
     { std::lock_guard<std::mutex> lock(mutex); result = start_result; started = true; }
     ready.notify_one();
     auto next = Now();

@@ -255,6 +255,8 @@ Set-up offers **Activity for automatic edits**, initially off on each visit. Its
 The choice freezes during countdown and recording. Camera-only takes do not collect activity.
 For a window take, input is limited to that window; for a display take, it is limited to the
 chosen display. SpawnAlpha's protected controls and reader never contribute input or focus.
+Prompter global shortcuts are excluded too. For display takes, typing is collected only
+when the foreground window fits entirely on that display; spanning windows are skipped.
 Unknown shortcuts are anonymous key presses; only Ctrl+A/C/S/V/X/Y/Z (optionally Shift)
 get named badges. Alt/AltGr/Windows combinations stay anonymous. No text translation,
 scan codes, key identities, device identities, window titles or native handles are saved.

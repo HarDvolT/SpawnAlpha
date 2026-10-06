@@ -178,7 +178,9 @@ Future<ActivitySummary> inspectActivity(File file, {Duration? limit}) async {
   if (!header) throw const FormatException('Missing activity header');
   return ActivitySummary(
     usable,
-    complete && (limit == null || duration <= limit.inMicroseconds),
+    complete &&
+        usable == count &&
+        (limit == null || duration <= limit.inMicroseconds + 1000),
     limit == null ? duration : duration.clamp(0, limit.inMicroseconds),
   );
 }

@@ -21,6 +21,8 @@ struct ActivityEvent {
   bool visible = true;
 };
 ActivityDetail SanitizeShortcut(UINT key, bool ctrl, bool alt, bool shift, bool win);
+bool IsPrompterShortcut(UINT key, bool ctrl, bool alt, bool shift, bool win);
+bool ActivityKeyboardWithin(const RECT& capture, const RECT& focus);
 std::string ActivityJson(const ActivityEvent& event, int64_t time_100ns);
 
 // Active only during an opted-in Screen/Both take. A dedicated message thread

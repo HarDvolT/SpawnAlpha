@@ -1,5 +1,14 @@
 #include "recording_activity.h"
 #include <sstream>
+bool ActivityKeyboardWithin(const RECT& capture, const RECT& focus) {
+  return focus.right > focus.left && focus.bottom > focus.top &&
+      focus.left >= capture.left && focus.top >= capture.top &&
+      focus.right <= capture.right && focus.bottom <= capture.bottom;
+}
+bool IsPrompterShortcut(UINT key, bool ctrl, bool alt, bool shift, bool win) {
+  return ctrl && shift && !alt && !win &&
+      (key == VK_SPACE || key == VK_UP || key == VK_DOWN || key == VK_LEFT || key == VK_RIGHT || key == 'L');
+}
 
 ActivityDetail SanitizeShortcut(UINT key, bool ctrl, bool alt, bool shift, bool win) {
   if (!ctrl || alt || win) return ActivityDetail::none;

@@ -272,6 +272,34 @@ void main() {
     );
   }
 
+  test('unavailable activity explains how to record without it', () async {
+    final inspector = FakeInspector();
+    inspector.info = const RecordingInfo(
+      readable: false,
+      hasAudio: false,
+      width: 0,
+      height: 0,
+      duration: Duration.zero,
+    );
+    owner.dispose();
+    owner = ScreenTakeController(
+      recorder: recorder,
+      huds: huds,
+      floating: reader,
+      store: ScreenTakeStore(dir, library, inspector),
+      wait: (_) async {},
+      bubbles: bubbles,
+    );
+    recorder.writeActivity = false;
+    recorder.reason = ScreenRecordingReason.activity;
+    recorder.onStatus = (poll) async {
+      if (poll == 3) owner.stop();
+    };
+    await start(ScriptLanguage.en, activity: true);
+    expect(owner.take, isNull);
+    expect(owner.problem, contains('Switch Activity off'));
+    expect(events.indexOf('release'), lessThan(events.indexOf('unprotect')));
+  });
   for (final language in ScriptLanguage.values) {
     test(
       'activity opt-in reaches the saved $language take after protected cleanup',

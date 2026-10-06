@@ -342,9 +342,11 @@ class ScreenTakeController extends ChangeNotifier {
             } on Object {
               /* Preserve recovery. */
             }
-            problem = status?.reason == ScreenRecordingReason.systemAudio
-                ? 'Computer sound is unavailable. Check the Windows playback device. No take saved yet; any captured video stays on this PC for recovery.'
-                : 'No take saved yet. Any captured video stays on this PC for recovery when you reopen the app.';
+            problem = switch (status?.reason) {
+              ScreenRecordingReason.systemAudio => 'Computer sound is unavailable. Check the Windows playback device. No take saved yet; any captured video stays on this PC for recovery.',
+              ScreenRecordingReason.activity => 'Activity is unavailable. Switch Activity off, then try again. Any captured video stays on this PC for recovery.',
+              _ => 'No take saved yet. Any captured video stays on this PC for recovery when you reopen the app.',
+            };
           }
         }
         final reader = _reader;

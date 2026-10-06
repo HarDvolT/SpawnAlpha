@@ -50,6 +50,20 @@ void main() {
     file = File('${dir.path}/activity.jsonl');
   });
   tearDown(() async => dir.delete(recursive: true));
+  test('container rounding keeps complete activity; a shorter sparse take does not', () async {
+    await file.writeAsString(generatedActivity());
+    final rounded = await inspectActivity(
+      file,
+      limit: const Duration(microseconds: 2999999),
+    );
+    expect(rounded.complete, isTrue);
+    expect(rounded.durationUs, 2999999);
+    final truncated = await inspectActivity(
+      file,
+      limit: const Duration(seconds: 1),
+    );
+    expect(truncated.complete, isFalse);
+  });
   test('streaming valid anonymous records and complete footer', () async {
     await file.writeAsString(generatedActivity());
     final result = await inspectActivity(file);

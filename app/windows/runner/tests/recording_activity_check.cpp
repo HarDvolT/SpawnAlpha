@@ -14,6 +14,19 @@ int main() {
     }
     Require(SanitizeShortcut('S', true, false, false, false) == ActivityDetail::ctrlS);
     Require(SanitizeShortcut('Z', true, false, true, false) == ActivityDetail::ctrlShiftZ);
+    const UINT protected_keys[] = {VK_SPACE, VK_UP, VK_DOWN, VK_LEFT, VK_RIGHT, 'L'};
+    for (const UINT key : protected_keys) {
+      Require(IsPrompterShortcut(key, true, false, true, false));
+      Require(!IsPrompterShortcut(key, true, true, true, false));
+      Require(!IsPrompterShortcut(key, true, false, false, false));
+    }
+    Require(!IsPrompterShortcut('S', true, false, true, false));
+    const RECT monitor{-1920, -1080, 0, 0};
+    Require(ActivityKeyboardWithin(monitor, monitor));
+    Require(ActivityKeyboardWithin(monitor, {-1000, -500, -100, -100}));
+    Require(!ActivityKeyboardWithin(monitor, {-10, -500, 100, -100}));
+    Require(!ActivityKeyboardWithin(monitor, {0, 0, 640, 360}));
+    Require(!ActivityKeyboardWithin(monitor, {-100, -100, -100, -100}));
     ActivityEvent key; key.width = 640; key.height = 360;
     Require(ActivityJson(key, 12340) == "{\"type\":\"key\",\"timeUs\":1234,\"width\":640,\"height\":360,\"count\":1}");
     key.kind = ActivityKind::shortcut; key.detail = ActivityDetail::ctrlS;
