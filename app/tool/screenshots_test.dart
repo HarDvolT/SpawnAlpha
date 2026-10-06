@@ -53,7 +53,10 @@ import 'package:spawnalpha/src/recording/camera_bubble.dart';
 import 'package:spawnalpha/src/ui/camera_bubble_screen.dart';
 import 'package:spawnalpha/src/ui/notes_editor_screen.dart';
 import 'package:spawnalpha/src/ui/notes_practice_screen.dart';
+import 'package:spawnalpha/src/ui/take_review_screen.dart';
+import 'package:spawnalpha/src/transcription/speech_models.dart';
 import '../test/model/note_deck_test.dart' show fixtureNotes;
+import '../test/ui/take_review_test.dart' show reviewFixture;
 
 import 'fixtures/cue_check_scripts.dart';
 import 'fixtures/preview_camera.dart';
@@ -222,6 +225,19 @@ void main() {
 
   const phone = Size(430, 900);
   const desktop = Size(1280, 800);
+
+  for (final language in ScriptLanguage.values) {
+    for (final (name, size, brightness) in [('desktop', desktop, Brightness.light), ('dark', desktop, Brightness.dark), ('phone', phone, Brightness.light)]) {
+      testWidgets('take review $language $name', (tester) async {
+        final take = Take(path: 'generated.mp4', recordedAt: DateTime(2026), duration: const Duration(seconds: 3));
+        final spoken = reviewFixture(language, take);
+        await shoot(tester, 'take-review-${language.name}-$name', size, (app) {
+          app.speech.result = spoken; app.speechModels.phase = SpeechModelPhase.ready;
+          return TakeReviewScreen(script: spoken.snapshot!, take: take);
+        }, [spoken.snapshot!], brightness: brightness);
+      });
+    }
+  }
 
   for (final language in ScriptLanguage.values) {
     final notes = ScriptDocument.create(language: language, title: language == ScriptLanguage.ar ? 'حديثي القادم' : 'My next talk')

@@ -93,6 +93,7 @@ class Take {
     this.cameraPath,
     this.metadataPath,
     this.activityPath,
+    this.wordsPath,
     this.recovered = false,
   });
 
@@ -100,7 +101,10 @@ class Take {
   final DateTime recordedAt;
   final Duration duration;
   final TakeMode mode;
-  final String? cameraPath, metadataPath, activityPath;
+  final String? cameraPath, metadataPath, activityPath, wordsPath;
+  Take withWords(String path) => Take(path: this.path, recordedAt: recordedAt, duration: duration,
+    mode: mode, cameraPath: cameraPath, metadataPath: metadataPath, activityPath: activityPath,
+    recovered: recovered, wordsPath: path);
   final bool recovered;
 
   Map<String, Object?> toJson() => {
@@ -111,6 +115,7 @@ class Take {
     'cameraPath': ?cameraPath,
     'metadataPath': ?metadataPath,
     'activityPath': ?activityPath,
+    'wordsPath': ?wordsPath,
     if (recovered) 'recovered': true,
   };
 
@@ -126,6 +131,7 @@ class Take {
       cameraPath: json['cameraPath'] as String?,
       metadataPath: json['metadataPath'] as String?,
       activityPath: json['activityPath'] as String?,
+      wordsPath: json['wordsPath'] as String?,
       recovered: json['recovered'] == true,
     );
   }

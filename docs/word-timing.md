@@ -1,8 +1,23 @@
-# Word timing: first Windows core slice (2026-10-06)
+# Word timing: Windows runtime (2026-10-06)
 
-Build step 3 has a tested offline core and pure Dart alignment foundation. It is
-not yet an app feature: no normal recording is automatically transcribed, and
-the normal Windows app does not download/link the prototype speech runtime.
+Build step 3 is now available from a take's **Find spoken words** button on
+Windows. The app verifies/downloads the offline model, processes the original
+locally, saves actual words and frozen-script alignment, and exports SRT/VTT.
+Automatic processing on stop and the full Director's Cut are the next slice.
+
+The runtime uses DTW audio-attention boundaries, not equal distribution of a
+segment across script words. The generated normal-app check passes verified
+model handling, cancellation before the session reply, frozen Script/Notes,
+durable results, captions and three bounded windows over a 70-second fixture
+with long gaps. Speech is generated locally; no owner media/device/network is
+used by the check. Source offsets survive quiet-edge trimming and seeks.
+
+Jobs support takes up to 24 hours, with an explicit UI limit, 100,000 token
+fragments and at most 30 seconds of decoded PCM per window. A CPU model context
+is reused within a job. Alignment runs in an isolate; exceeding four million
+cells keeps words but flags script review. Invalid/conflicting estimates need
+retry/review. This is not a claim of transcription accuracy or automatic
+word-boundary precision. Real language/long-recording quality trials remain.
 
 ## What passes
 
@@ -58,13 +73,14 @@ weights, 147,951,465 bytes, from
 [this pinned model revision](https://huggingface.co/ggerganov/whisper.cpp/tree/5359861c739e955e79d9a303bcbc70fb988958b1).
 Its SHA-256, verified after download, is
 `60ed5bc3dd14eea856493d334349b405782ddcaf0028d4b5df4088345fba2efe`.
-This is a test model, not a final accuracy/default decision.
+This is now the implementation default, pending real language quality trials;
+it is not a final accuracy decision.
 
 The runtime/source is MIT; OpenAI states that both its Whisper code and weights
 are [MIT licensed](https://github.com/openai/whisper#license). The converted model
 repository also identifies MIT. Notices are retained under
-`app/tool/native_word_timing/licenses/`; include and register them in the app
-before shipping the runtime or downloading models in normal setup. No fine-tuned
+`app/tool/native_word_timing/licenses/` and `app/assets/licenses/`; they are
+registered in the app's licence page. No fine-tuned
 or Darija-specific model is approved by this check.
 
 ## Reproduction for the next agent
@@ -83,18 +99,22 @@ absolute `build/asr/check-<guid>` prefix. It refuses existing MP4/JSON outputs.
 Then `dart run tool/native_word_timing/align_check.dart check-<guid>` validates
 the generated sidecar without printing text. All fixture files stay ignored.
 
-## What remains before step 3 works in the app
+## Runtime and remaining validation
 
-Add a serialized, cancellable background native channel, a verified model
-download/store with size/progress/retry and licence UI, bounded overlapping audio
-windows for long takes, model reuse, progress and safe shutdown. Save transcript
-and alignment atomically beside the original take, using its immutable recording
-snapshot rather than a later script edit; interrupted processing must be retryable.
-Handle no-microphone/computer-sound-only takes explicitly instead of claiming
-their mixed audio is the speaker. Add honest timing/confidence retry flags.
+These pieces are implemented: one cancellable native background job, verified
+model store/download with size/progress/retry and licences, bounded overlapping
+windows, model reuse, progress/shutdown and durable snapshot-based results.
+Notes have no verbatim alignment; explicit no-microphone Screen takes are
+labelled computer sound and receive no delivery scoring. Silence has no words.
+Malformed timings fail with generic retry text, without private diagnostics.
+`flutter run -d windows --release -t tool/native_speech_check.dart` runs the
+generated full app-channel check using the verified files described above.
+Use Release for native speech checks: Debug CPU recognition is much slower.
 
 The current decoder intentionally caps PCM at 15 minutes (about 58 MB) and model
 vocabulary at 8 KiB; these prototype bounds must never become a silent app limit.
 Word timing remains approximate. Verify French, Arabic, Darija and French–Darija
-switching with real consenting speakers before choosing the default model.
-Only after this step works in the app should Director's Cut v1 (step 4) use it.
+switching with real consenting speakers before finalizing the default model.
+Automatic processing on stop, confidence decisions/corrections, full Cut,
+video export and delivery review remain. The prototype 15-minute decoder limit
+does not apply to the normal bounded runtime.

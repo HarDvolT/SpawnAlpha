@@ -30,4 +30,4 @@ add_executable(word_timing_check ../../windows/runner/local_transcription.cpp
 target_compile_features(word_timing_check PRIVATE cxx_std_17)
 target_compile_options(word_timing_check PRIVATE /W4 /WX /EHsc /wd"4100")
 target_compile_definitions(word_timing_check PRIVATE NOMINMAX)
-target_link_libraries(word_timing_check PRIVATE whisper d3d11 dxgi mf mfplat mfreadwrite mfuuid ole32 oleaut32 windowsapp)
+target_link_libraries(word_timing_check PRIVATE whisper d3d11 dxgi mf mfplat mfreadwrite mfuuid ole32 oleaut32 windowsapp bcrypt)

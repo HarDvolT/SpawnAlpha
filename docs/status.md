@@ -16,8 +16,9 @@ The full generated Screen, Both and computer-sound takes pass on this PC. Comput
 is available with an explicit switch, initially off. The cursor companion is connected
 and protected; optional local activity is connected and tested. Longer recording and
 abrupt-exit recovery checks pass; the native render-core spike also passes. Build step 3
-now has a generated offline speech-to-word-to-script check and an EN/FR/AR alignment
-foundation; normal app word processing/model setup is next. Owner hardware trials are
+now has verified offline model setup, bounded local speech jobs, frozen Script/Notes
+processing, durable actual words, script alignment and SRT/VTT export in take review.
+Generated short and 70-second app checks pass; Director's Cut is next. Owner hardware trials are
 deferred until they return.** The build order is in
 [product-brief.md](product-brief.md#build-order); it was revised on 2026-09-30.
 
@@ -40,6 +41,22 @@ dot to grow and act out each cue in the cue's colour, and for the next features.
 build step 2 (screen recording).
 
 ## Handover (2026-10-05): from here, Codex on the owner's Windows PC
+
+- **Latest checkpoint (2026-10-06, offline speech runtime):** 396 Flutter tests
+  and 139 screenshot cases pass; analysis prints No issues found. Normal Windows
+  Release speech-channel check passes verified model/pre-start cancel, frozen
+  Script versus Notes, durable results/captions and three bounded windows over a
+  generated 70-second WAV with long gaps. Windows Debug/Release builds pass.
+  DTW audio-attention boundaries replaced unstable regular token estimates;
+  no equally-spaced words or script text was invented. Native model/context and
+  bounded PCM stay off the UI thread, Dart assembly/alignment runs in an isolate.
+  Runtime/model MIT notices are bundled/registered, first use explains the
+  148 MB public download, takes up to 24 hours and keeping originals locally.
+  Original media stays untouched; rejected timings require retry/review.
+  Actual French/Arabic/Darija quality and long real takes are still unverified.
+  **Half done:** processing is an explicit take-review action; automatic-on-stop,
+  correction/confidence decisions, full Cut/render/export and coaching are next.
+  Owner trials remain deferred. The private design artifact is behind source docs.
 
 - **Latest checkpoint (2026-10-06, Notes implementation):** 371 Flutter tests and
   130 screenshot cases pass; Windows Debug and Release builds pass. Generated
@@ -604,13 +621,21 @@ build step 2 (screen recording).
    Owner trials of cards and actual capture exclusion remain deferred;
    see `design/speaker-notes.md`.
 
-   **Build step 3 is started:** the generated offline core and EN/FR/AR alignment
-   pass. Next wire verified model setup, bounded cancellable background processing
-   and durable word results to actual take snapshots; see `word-timing.md`.
-   Then step 4's Cut. Step 3 is not yet a feature in the normal app.
+   **Build step 3 is available on Windows:** verified model setup, bounded
+   cancellable background recognition and durable frozen-aid word results pass;
+   take review exports SRT/VTT. See `word-timing.md` for estimated timings and
+   remaining real-language quality trials. Next step 4's Cut and processing on stop.
    See OpenScreen in the brief for reusable parts.
 
 ## Decisions
+
+- 2026-10-06, speech implementation: use pinned multilingual base weights as
+  the Windows offline starting model, pending real French/Arabic/Darija trials.
+  Use CPU audio-attention alignment with bounded windows and exact take offsets;
+  never repair conflicts by shifting/dropping/inventing words. Keep recognition
+  offline; only public model weights download explicitly at first use. Originals,
+  frozen aids and words stay local. Explicit no-microphone Screen takes can have
+  computer-sound captions, but never speaker delivery/script-adherence scores.
 
 - 2026-10-06, implementation: Notes share a library document with an explicit
   recording-aid enum and an immutable deck; switching back preserves the script.

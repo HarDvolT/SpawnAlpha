@@ -15,6 +15,9 @@ import 'storage/script_store.dart';
 import 'theme/theme.dart';
 import 'storage/settings.dart';
 import 'ui/home_screen.dart';
+import 'transcription/speech_backend.dart';
+import 'transcription/speech_models.dart';
+import 'transcription/speech_processor.dart';
 
 /// The app's shared services, available to every screen through
 /// [AppScope.of].
@@ -31,6 +34,7 @@ class AppServices {
     RecordingInspector? inspector,
     RecordingHuds? huds,
     CameraBubbles? bubbles,
+    SpeechBackend? speechBackend,
   }) : audio = audio ?? AudioInputs.platform(),
        screens = screens ?? ScreenSources.platform(),
        previews = previews ?? ScreenPreviews.platform(),
@@ -38,7 +42,8 @@ class AppServices {
        recorder = recorder ?? ScreenRecordings.platform(),
        inspector = inspector ?? RecordingInspector.platform(),
        huds = huds ?? RecordingHuds.platform(),
-       bubbles = bubbles ?? CameraBubbles.platform();
+       bubbles = bubbles ?? CameraBubbles.platform(),
+       speechBackend = speechBackend ?? WindowsSpeechBackend();
 
   final ScriptLibrary library;
   final Settings settings;
@@ -53,6 +58,9 @@ class AppServices {
   final RecordingInspector inspector;
   final RecordingHuds huds;
   final CameraBubbles bubbles;
+  final SpeechBackend speechBackend;
+  late final SpeechModels speechModels = SpeechModels(Directory('${recordingsDir.parent.path}${Platform.pathSeparator}models'), speechBackend);
+  late final SpeechProcessor speech = SpeechProcessor(speechBackend, speechModels, library, recordingsDir);
   late final ScreenTakeStore screenTakes = ScreenTakeStore(
     recordingsDir,
     library,

@@ -55,7 +55,7 @@ paid release, a lawyer should review:
 | Anybody, Readex Pro, Martian Mono, Caveat, Aref Ruqaa, Reem Kufi | SIL Open Font License 1.1 | Bundled in `app/assets/fonts` | Ship the licence with the fonts. Don't sell the fonts on their own. Rename any modified font | Done: OFL texts bundled and registered |
 | Material Icons and Symbols | Apache-2.0 | Icons and cue glyphs | Notice | Done: comes with Flutter |
 | OpenScreen (reference and parts source) | MIT | Ideas so far; any copied code later | Keep its copyright notice in copied files and in NOTICES | No code copied yet |
-| whisper.cpp and Whisper models (step 3) | MIT (code and OpenAI's Whisper weights) | Explicit offline prototype only so far | Notices retained in tool/native_word_timing/licenses. Register in app before shipping runtime/model. Check every fine-tuned model separately | Checked 2026-10-06: pinned upstream v1.9.4 source and converted base weights, SHA-256 verified. No normal app linkage/download yet; see word-timing.md |
+| whisper.cpp and Whisper models (step 3) | MIT (code and OpenAI's Whisper weights) | Windows CPU speech runtime and explicit public-model first-use download | Notices bundled in assets/licenses and registered on the app licence page; check every fine-tuned model separately | Checked 2026-10-06: pinned upstream v1.9.4 source and converted base weights, exact size/SHA-256 verification. No recording/script upload; see word-timing.md |
 | Video encoding (step 4, render core) | see "Video codecs" below | Export | see below | Open decision |
 
 ### Video codecs and the render core
@@ -78,7 +78,9 @@ paid release, a lawyer should review:
 
 | Data | Where it lives | Leaves the device? | Notes |
 |---|---|---|---|
-| Speaker-note decks and take snapshots (planned) | App documents folder | No automatic transmission | Private topic cards must be excluded from screen capture. Any later cloud action must be explicitly selected and named; captions follow actual speech |
+| Speaker-note decks and take snapshots | App documents folder | No automatic transmission | Private topic cards are excluded from screen capture. Any later cloud action must be explicitly selected and named; captions follow actual speech |
+| Spoken words, alignment and subtitle exports | Beside takes and in the local exports folder | No | Local recognition uses frozen aids. Notes and explicit computer-sound-only takes have no script adherence scoring. Copy/export are explicit local actions |
+| Public offline speech model | Local models folder | A public GET downloads model weights from Hugging Face; no owner media/text is sent | Exact pinned revision, size/SHA-256 verification and first-use UI disclosure. Download host receives ordinary connection metadata |
 | Scripts and marks | App documents folder | Only when the user runs markup with an online provider. Then the script text goes to that provider (Anthropic, OpenAI, Google, Mistral, or the user's own server) | The editor names the provider on the button. The privacy policy must list providers |
 | API keys | Platform secure storage | Only to the provider they belong to | Never logged |
 | Recordings (video, audio: face and voice) | App documents folder | No, for now. Future online transcription must be opt-in | Personal data. Face reframing runs on the device and must never identify people, so it doesn't become biometric processing under GDPR Art. 9 |

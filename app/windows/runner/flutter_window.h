@@ -13,6 +13,7 @@
 #include "screen_recorder.h"
 #include "recording_hud.h"
 #include "camera_bubble.h"
+#include "speech_jobs.h"
 
 // A window that does nothing but host a Flutter view.
 class FlutterWindow : public Win32Window {
@@ -40,6 +41,7 @@ class FlutterWindow : public Win32Window {
   std::unique_ptr<ScreenRecorder> screen_recorder_;
   std::unique_ptr<RecordingHud> recording_hud_;
   std::unique_ptr<CameraBubbleHost> camera_bubble_;
+  std::unique_ptr<SpeechJobs> speech_jobs_;
 };
 
 #endif  // RUNNER_FLUTTER_WINDOW_H_

@@ -20,6 +20,7 @@ import 'script_page.dart';
 import 'settings_screen.dart';
 import 'stage_launch.dart';
 import 'takes_screen.dart';
+import 'take_review_screen.dart';
 
 /// The first screen: a director's desk (docs/design/components/Home). One
 /// hero, "Record next", on the stage; the scripts as marked pages; the
@@ -1029,7 +1030,7 @@ class TakeThumb extends StatelessWidget {
     final stage = SaPalette.dark;
     return InkWell(
       borderRadius: BorderRadius.circular(SaRadius.sm),
-      onTap: () => showTakeFile(context, take),
+        onTap: () => Navigator.of(context).push<void>(MaterialPageRoute(builder: (_) => TakeReviewScreen(script: script, take: take))),
       child: SizedBox(
         width: width,
         child: Column(

@@ -543,15 +543,33 @@ recordings folder.
 
 ## Word timing foundation (build step 3)
 
-See [word-timing.md](word-timing.md) for the explicit Windows core check, pinned
-prototype inputs and shipping work still required. Pure `transcription/` types
+See [word-timing.md](word-timing.md) for the Windows runtime, pinned
+inputs and quality trials still required. Pure `transcription/` types
 hold immutable word estimates and assemble tokenizer UTF-8 fragments before
 decoding Arabic text. Alignment compares existing normalized script words,
 preserves each spoken word/attempt and flags additions/substitutions/misses.
 Both restart anchors need exact word runs; punctuation is unspoken. Computation
-is bounded to four million cells; long take sectioning/isolate integration is
-still required. No widgets, paths or platform imports enter the alignment logic.
+is bounded to four million cells and runs in a Dart isolate. Larger alignment
+preserves the transcript with a review notice. No widgets, paths or platform imports enter the alignment logic.
 The separate native test project decodes local media through Media Foundation
 and runs a pinned CPU recognizer with suppressed logs and cancellation. Its
 15-minute PCM bound is a prototype limit, not a silent product restriction.
-No normal app channel, model download or automatic processing is wired yet.
+The normal Windows runner owns one cancellable `spawnalpha/speech` worker.
+It verifies the pinned model with CNG SHA-256, reuses one CPU context across
+26-second cores with two-second overlap, and decodes at most 30 seconds of mono
+16 kHz PCM at once. DTW audio-attention boundaries estimate actual token times.
+Effectively-zero leading/trailing samples may be trimmed for recognition only;
+their exact offset is restored, and ordinary room tone/quiet speech is not gated.
+Whole UTF-8 words are assembled before overlap selection. Conflicting or zero
+word intervals fail explicitly instead of shifting/dropping/inventing words.
+
+`SpeechModels` downloads only public weights with explicit first-use disclosure,
+size/hash checks, bounded streaming, cancellation and atomic replacement.
+`SpeechProcessor` reads the frozen take aid, recognizes on the native worker,
+assembles/aligns in an isolate and atomically saves a versioned local sidecar.
+Library attachment preserves later document edits. Notes and explicit
+computer-sound-only takes have no script adherence alignment. Older takes with
+no snapshot still receive speech captions, with a notice. The original is never
+modified. Failed/interrupted jobs can be retried; orphan sidecars remain local.
+`Take.wordsPath` is optional for legacy compatibility. Take review shows actual
+speech, progress/cancel/retry and local SRT/VTT export; full Cut is still next.

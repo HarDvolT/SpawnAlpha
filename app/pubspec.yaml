@@ -71,6 +71,8 @@ flutter:
 
   # Font licences, registered with the LicenseRegistry at start-up.
   assets:
+    - assets/licenses/whisper-cpp.txt
+    - assets/licenses/whisper-model.txt
     - assets/fonts/OFL-anybody.txt
     - assets/fonts/OFL-arefruqaa.txt
     - assets/fonts/OFL-caveat.txt

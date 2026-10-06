@@ -58,6 +58,9 @@ void _registerFontLicenses() {
     'Reem Kufi': 'reemkufi',
   };
   LicenseRegistry.addLicense(() async* {
+    for (final name in ['whisper-cpp', 'whisper-model']) {
+      yield LicenseEntryWithLineBreaks([name], await rootBundle.loadString('assets/licenses/$name.txt'));
+    }
     for (final MapEntry(key: family, value: file) in fonts.entries) {
       yield LicenseEntryWithLineBreaks([family], await rootBundle.loadString('assets/fonts/OFL-$file.txt'));
     }

@@ -1,5 +1,6 @@
 cmake_minimum_required(VERSION 3.14)
 project(runner LANGUAGES CXX)
+include("${CMAKE_CURRENT_SOURCE_DIR}/../speech_runtime.cmake")
 
 # Define the application target. To change its name, change BINARY_NAME in the
 # top-level CMakeLists.txt, not the value here, or `flutter run` will no longer
@@ -8,6 +9,8 @@ project(runner LANGUAGES CXX)
 # Any new source files that you add to the application should be added here.
 add_executable(${BINARY_NAME} WIN32
   "flutter_window.cpp"
+  "local_transcription.cpp"
+  "speech_jobs.cpp"
   "screen_sources.cpp"
   "screen_preview.cpp"
   "floating_prompter.cpp"
@@ -52,6 +55,7 @@ target_compile_definitions(${BINARY_NAME} PRIVATE "NOMINMAX")
 # Add dependency libraries and include directories. Add any application-specific
 # dependencies here.
 target_link_libraries(${BINARY_NAME} PRIVATE flutter flutter_wrapper_app flutter_wrapper_plugin)
+target_link_libraries(${BINARY_NAME} PRIVATE whisper bcrypt)
 target_link_libraries(${BINARY_NAME} PRIVATE "dwmapi.lib")
 target_link_libraries(${BINARY_NAME} PRIVATE "d3d11.lib" "dxgi.lib" "windowsapp.lib")
 target_link_libraries(${BINARY_NAME} PRIVATE "mf.lib" "mfplat.lib" "mfreadwrite.lib" "mfuuid.lib" "oleaut32.lib")

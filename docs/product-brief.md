@@ -11,7 +11,7 @@ This is a teleprompter that coaches your delivery. Most teleprompters only show 
 The owner also requested **Notes mode** on 2026-10-06: a private deck of talking
 points for a video spoken freely. It is an additional recording aid, alongside
 the scripted prompter; its design is in [design/speaker-notes.md](design/speaker-notes.md).
-It is planned, not implemented yet.
+It is implemented on Windows, including capture exclusion and frozen take cards.
 
 ## Who it's for
 
@@ -79,6 +79,9 @@ Center alignment, Kinetic word effects and Voice pace when a microphone works
   - Arabic needs right-to-left layout in the prompter and the editor.
 - **AI runs both locally and online.**
   - Transcription can run on the device with whisper.cpp, for offline use and privacy.
+  - Windows starts with a verified multilingual base model, downloaded explicitly
+    on first speech use. This is an implementation default, pending real French,
+    Arabic, Darija and code-switching quality trials. Word times remain estimates.
   - Script markup and review can also use a cloud model, for higher quality.
 - **Business model:** a free tier plus a subscription. The subscription is the natural home for the online AI, because it costs money per use.
 - **Name:** to be decided later. The repo is called SpawnAlpha for now.
