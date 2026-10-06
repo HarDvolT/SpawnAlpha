@@ -95,7 +95,9 @@ class ExportProcessor extends ChangeNotifier {
           );
       final timed = spoken == null
           ? null
-          : speechOnCut(spoken.transcript, plan);
+          : clean == null
+          ? speechOnCut(spoken.transcript, plan)
+          : speechOnCleanCut(spoken.transcript, clean);
       final video = VideoExport(
         id: newId(),
         format: format,

@@ -21,7 +21,8 @@ processing, durable actual words, script alignment and SRT/VTT export in take re
 Generated short and 70-second app checks pass. Reversible quiet cuts, local
 take playback and first Windows video exports now work. Automatic local speech
 and reversible cutting after Stop are connected. Optional Readable captions
-follow saved actual words/corrections and the cut clock; remaining Director's Cut
+follow saved actual words/corrections and the cut clock. Reversible filler
+review offers safe optional removals, initially kept; remaining Director's Cut
 tracks are next. Owner hardware trials are
 deferred until they return.** The build order is in
 [product-brief.md](product-brief.md#build-order); it was revised on 2026-09-30.
@@ -45,6 +46,22 @@ dot to grow and act out each cue in the cue's colour, and for the next features.
 build step 2 (screen recording).
 
 ## Handover (2026-10-05): from here, Codex on the owner's Windows PC
+
+- **Latest checkpoint (2026-10-06, reversible filler review):** 525 Flutter
+  tests, 188 screenshot cases, clean analysis and normal Windows Release build.
+  Filler phrases use the EN/FR/AR lexicon and start kept. Script requires
+  added speech absent from the frozen script; Notes stays unscored. Screen,
+  accepted pauses/breaths, uncertain words and unsafe boundaries stay intact.
+  Measured quiet on both sides is required; no timestamp-only silence guesses.
+  Old quiet choices survive review, switch saves reject stale cut revisions,
+  and Restore all changes restores gaps and fillers. Only chosen complete
+  filler words leave cut captions/video; original transcripts and earlier
+  exports remain available. Generated native tone/pixel checks and app-channel
+  EN/FR/AR keep/remove/restore/export/history/reload pass; owner media was not
+  used. EN/AR phone PNGs were inspected. **Half done:** full retake decisions,
+  caption motion, screen/sound polish and delivery coaching remain; actual
+  French/Arabic/Darija recognition quality and hardware trials stay deferred.
+  Continue those tracks before mobile/paid launch; the app is not finished.
 
 - **Latest checkpoint (2026-10-06, captions on video):** 485 Flutter tests,
   176 screenshot cases, clean analysis and normal Windows Release build.
@@ -724,11 +741,18 @@ build step 2 (screen recording).
    cancellable background recognition and durable frozen-aid word results pass;
    take review exports SRT/VTT. See `word-timing.md` for estimated timings and
    remaining real-language quality trials. Step 4 now has reversible quiet cuts
-   and local video export with Readable captions and automatic processing after Stop. Next filler/retake review,
+   and local video export with Readable captions, reversible filler review and
+   automatic processing after Stop. Next retake decisions,
    caption/screen/sound polish and delivery coaching; keep originals intact.
    See OpenScreen in the brief for reusable parts.
 
 ## Decisions
+
+- 2026-10-06, first filler implementation: vocabulary alone does not establish
+  an unwanted hesitation, particularly "like", "du coup" or "يعني". Proposals
+  are kept until individually chosen. Require confidence and measured quiet
+  boundaries; preserve Script words/accepted cues and Screen context. Notes
+  stays free speech. This conservative first policy awaits real-language trials.
 
 - 2026-10-06, implementation of the approved after-Stop workflow: **Make a cut
   after recording** starts enabled and can be switched off. It verifies existing
@@ -892,6 +916,20 @@ build step 2 (screen recording).
   word lists, not prosody.
 
 ## Session log
+
+- 2026-10-06, reversible filler review:
+  - Added shared normalized vocabulary, evidence-gated optional proposals,
+    immutable indices/phrase provenance and strict caption retiming for chosen
+    complete words. Existing quiet choices survive enrichment; stale cut saves
+    fail without replacing newer decisions. Originals/full words/older exports
+    remain available. Notes has no adherence; Screen and cue gaps remain intact.
+  - All 525 tests and 188 screenshot cases pass; analysis is clean and the normal
+    Windows Release build succeeds. Inspected EN/AR phone kept/removed layouts.
+    Generated native tone/pixel checks verify the middle island disappears with
+    surrounding picture/audio clocks preserved. Generated app-channel EN/FR/AR
+    keep/remove/restore/video-caption/history/reload and original-byte checks pass.
+    No owner speech, network or new dependency. Trials remain deferred.
+    Full retake choices, caption motion, screen/sound polish and coaching are next.
 
 - 2026-10-06, Readable captions on video:
   - Added bounded worker-owned DirectWrite/Direct2D caption compositing with

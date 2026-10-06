@@ -1,24 +1,61 @@
 import '../model/cut_plan.dart';
+import '../markup/lexicon.dart';
 import '../model/script_document.dart';
 import '../model/script_language.dart';
 import '../transcription/script_alignment.dart';
 import '../transcription/word_timing.dart';
 
+enum CutChangeKind { quiet, filler }
+
 class CutChange {
-  CutChange({required this.id, required this.range, this.enabled = true}) {
-    if (!RegExp(r'^quiet-[0-9]+$').hasMatch(id)) {
+  CutChange({
+    required this.id,
+    required this.range,
+    this.enabled = true,
+    this.kind = CutChangeKind.quiet,
+    List<int> spokenIndices = const [],
+    this.text,
+  }) : spokenIndices = List.unmodifiable(spokenIndices) {
+    if (!RegExp('^${kind.name}-[0-9]+\$').hasMatch(id) ||
+        (kind == CutChangeKind.quiet &&
+            (spokenIndices.isNotEmpty || text != null)) ||
+        (kind == CutChangeKind.filler &&
+            (spokenIndices.isEmpty ||
+                spokenIndices.length > 16 ||
+                text == null ||
+                text!.isEmpty ||
+                text!.length > 4096))) {
       throw const FormatException('Invalid cut change');
+    }
+    for (var i = 0; i < spokenIndices.length; i++) {
+      if (spokenIndices[i] < 0 ||
+          spokenIndices[i] >= 100000 ||
+          (i > 0 && spokenIndices[i] != spokenIndices[i - 1] + 1)) {
+        throw const FormatException('Invalid filler words');
+      }
     }
   }
   final String id;
   final SourceRange range;
   final bool enabled;
-  CutChange withEnabled(bool value) =>
-      CutChange(id: id, range: range, enabled: value);
+  final CutChangeKind kind;
+  final List<int> spokenIndices;
+  final String? text;
+  CutChange withEnabled(bool value) => CutChange(
+    id: id,
+    range: range,
+    enabled: value,
+    kind: kind,
+    spokenIndices: spokenIndices,
+    text: text,
+  );
   Map<String, Object?> toJson() => {
     'id': id,
     'range': range.toJson(),
     'enabled': enabled,
+    if (kind != CutChangeKind.quiet) 'kind': kind.name,
+    if (spokenIndices.isNotEmpty) 'spokenIndices': spokenIndices,
+    'text': ?text,
   };
 }
 
@@ -30,6 +67,7 @@ class CleanPlan {
     required this.sourceDuration,
     required List<CutChange> changes,
     this.notice,
+    this.fillersReviewed = false,
   }) : changes = List.unmodifiable(changes) {
     if (changes.length > 10000) {
       throw const FormatException('Too many cut changes');
@@ -51,6 +89,7 @@ class CleanPlan {
   final Duration sourceDuration;
   final List<CutChange> changes;
   final String? notice;
+  final bool fillersReviewed;
   CleanPlan withEnabled(String id, bool enabled) {
     if (!changes.any((c) => c.id == id)) {
       throw const FormatException('Unknown cut change');
@@ -63,6 +102,7 @@ class CleanPlan {
         for (final c in changes) c.id == id ? c.withEnabled(enabled) : c,
       ],
       notice: notice,
+      fillersReviewed: fillersReviewed,
     );
   }
 
@@ -72,6 +112,7 @@ class CleanPlan {
     sourceDuration: sourceDuration,
     changes: [for (final c in changes) c.withEnabled(false)],
     notice: notice,
+    fillersReviewed: fillersReviewed,
   );
   CutPlan asCutPlan() {
     final ranges = <SourceRange>[];
@@ -100,6 +141,7 @@ class CleanPlan {
     'sourceDurationUs': sourceDuration.inMicroseconds,
     'changes': changes.map((c) => c.toJson()).toList(),
     'notice': ?notice,
+    if (fillersReviewed) 'fillersReviewed': true,
   };
   factory CleanPlan.fromJson(Map<String, Object?> value) {
     final items = value['changes'],
@@ -112,6 +154,8 @@ class CleanPlan {
         language == null ||
         items is! List ||
         items.length > 10000 ||
+        (value['fillersReviewed'] != null &&
+            value['fillersReviewed'] is! bool) ||
         (value['notice'] != null && value['notice'] is! String)) {
       throw const FormatException('Invalid clean plan');
     }
@@ -123,17 +167,33 @@ class CleanPlan {
           microseconds: value['sourceDurationUs']! as int,
         ),
         notice: value['notice'] as String?,
+        fillersReviewed: value['fillersReviewed'] == true,
         changes: [
           for (final item in items)
             if (item is Map &&
                 item['id'] is String &&
                 item['enabled'] is bool &&
+                (item['kind'] == null ||
+                    item['kind'] == 'quiet' ||
+                    item['kind'] == 'filler') &&
+                (item['text'] == null || item['text'] is String) &&
+                (item['spokenIndices'] == null ||
+                    (item['spokenIndices'] is List &&
+                        (item['spokenIndices'] as List).every(
+                          (v) => v is int,
+                        ))) &&
                 item['range'] is Map &&
                 (item['range'] as Map)['startUs'] is int &&
                 (item['range'] as Map)['endUs'] is int)
               CutChange(
                 id: item['id'] as String,
                 enabled: item['enabled'] as bool,
+                kind: item['kind'] == 'filler'
+                    ? CutChangeKind.filler
+                    : CutChangeKind.quiet,
+                text: item['text'] as String?,
+                spokenIndices:
+                    (item['spokenIndices'] as List?)?.cast<int>() ?? const [],
                 range: SourceRange(
                   start: Duration(
                     microseconds: (item['range'] as Map)['startUs'] as int,
@@ -198,30 +258,7 @@ CleanPlan planQuietCut({
     protect(word.start - padding, word.end + padding);
   }
   if (alignment != null && !snapshot.usesNotes) {
-    final after = <int>{};
-    for (final mark in snapshot.marks.where(
-      (m) => m.accepted && m.kind.isGap,
-    )) {
-      final token = snapshot.tokens
-          .where((t) => t.isWord && t.index <= mark.end)
-          .lastOrNull;
-      if (token != null) after.add(token.index);
-    }
-    for (var i = 0; i < alignment.words.length; i++) {
-      final word = alignment.words[i];
-      if (!after.contains(word.tokenIndex)) continue;
-      var end = transcript.duration;
-      for (var next = i + 1; next < alignment.words.length; next++) {
-        final following = alignment.words[next];
-        if (following.attempt != word.attempt ||
-            (following.tokenIndex != null &&
-                following.tokenIndex! > word.tokenIndex!)) {
-          end = transcript.words[following.spokenIndex].start;
-          break;
-        }
-      }
-      protect(transcript.words[word.spokenIndex].end, end);
-    }
+    protected.addAll(protectedCueGaps(snapshot, alignment, transcript));
   }
   protected.sort((a, b) => a.start.compareTo(b.start));
   final merged = <SourceRange>[];
@@ -289,19 +326,104 @@ CleanPlan planQuietCut({
   );
 }
 
+/// Entire accepted gap/breath intervals, including added speech inside them.
+List<SourceRange> protectedCueGaps(
+  ScriptDocument snapshot,
+  ScriptAlignment alignment,
+  WordTranscript transcript,
+) {
+  final protected = <SourceRange>[];
+  final after = <int>{};
+  for (final mark in snapshot.marks.where((m) => m.accepted && m.kind.isGap)) {
+    final token = snapshot.tokens
+        .where((t) => t.isWord && t.index <= mark.end)
+        .lastOrNull;
+    if (token != null) after.add(token.index);
+  }
+  for (var i = 0; i < alignment.words.length; i++) {
+    final word = alignment.words[i];
+    if (!after.contains(word.tokenIndex)) continue;
+    var end = transcript.duration;
+    for (var next = i + 1; next < alignment.words.length; next++) {
+      final following = alignment.words[next];
+      if (following.attempt != word.attempt ||
+          (following.tokenIndex != null &&
+              following.tokenIndex! > word.tokenIndex!)) {
+        end = transcript.words[following.spokenIndex].start;
+        break;
+      }
+    }
+    final start = transcript.words[word.spokenIndex].end;
+    if (end > start) protected.add(SourceRange(start: start, end: end));
+  }
+  return protected;
+}
+
 /// Every spoken word must fit wholly in one kept interval. Never trim a word
 /// to fit a plan or substitute script spelling when moving caption times.
 WordTranscript speechOnCut(WordTranscript source, CutPlan plan) {
+  return _speechOnRanges(source, plan, const {});
+}
+
+/// Only explicitly enabled, complete and verified filler words can disappear.
+/// The full recognition is unchanged; all other cut caption words stay strict.
+WordTranscript speechOnCleanCut(WordTranscript source, CleanPlan clean) {
+  final removed = <int>{};
+  for (final change in clean.changes.where(
+    (c) => c.kind == CutChangeKind.filler,
+  )) {
+    if (change.spokenIndices.last >= source.words.length) {
+      throw const FormatException('Invalid filler words');
+    }
+    final words = [
+      for (final index in change.spokenIndices) source.words[index],
+    ];
+    final bare = words.map((w) => w.bare).toList();
+    final phrases = Lexicon.of(source.language).fillers
+        .startingWith(bare.first);
+    if (words.map((w) => w.text).join(' ') != change.text ||
+        !phrases.any(
+          (p) =>
+              p.length == bare.length &&
+              List.generate(p.length, (i) => p[i] == bare[i]).every((v) => v),
+        ) ||
+        words.any(
+          (w) =>
+              w.start < change.range.start ||
+              w.end > change.range.end ||
+              w.confidence == null ||
+              w.confidence! < .6,
+        )) {
+      throw const FormatException('Filler words changed');
+    }
+    if (change.enabled) removed.addAll(change.spokenIndices);
+  }
+  return _speechOnRanges(source, clean.asCutPlan(), removed);
+}
+
+WordTranscript _speechOnRanges(
+  WordTranscript source,
+  CutPlan plan,
+  Set<int> removed,
+) {
   if (source.duration != plan.sourceDuration ||
       source.language != plan.language) {
     throw const FormatException('Cut transcript mismatch');
   }
   final words = <SpokenWord>[];
   var rangeIndex = 0, output = Duration.zero;
-  for (final word in source.words) {
+  for (var i = 0; i < source.words.length; i++) {
+    final word = source.words[i];
     while (rangeIndex < plan.ranges.length &&
         plan.ranges[rangeIndex].end <= word.start) {
       output += plan.ranges[rangeIndex++].duration;
+    }
+    if (removed.contains(i)) {
+      if (rangeIndex < plan.ranges.length &&
+          plan.ranges[rangeIndex].start < word.end) {
+        throw const FormatException('Filler overlaps kept speech');
+      }
+      continue;
     }
     if (rangeIndex >= plan.ranges.length ||
         word.start < plan.ranges[rangeIndex].start ||

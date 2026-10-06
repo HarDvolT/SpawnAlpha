@@ -58,6 +58,7 @@ import 'package:spawnalpha/src/ui/clean_cut_panel.dart';
 import 'package:spawnalpha/src/cut/clean_plan.dart';
 import 'package:spawnalpha/src/transcription/speech_models.dart';
 import '../test/cut/clean_plan_test.dart' show cleanFixture, gap;
+import '../test/cut/filler_review_test.dart' show fillerFixture, fillerPlan, fillerScript;
 import '../test/model/note_deck_test.dart' show fixtureNotes;
 import '../test/ui/take_review_test.dart' show reviewFixture;
 import '../test/playback/playback_controller_test.dart' show FakePlayback;
@@ -311,6 +312,17 @@ void main() {
       }
     }
     for (final brightness in [Brightness.light, Brightness.dark]) {
+      for (final chosen in [false, true]) {
+        testWidgets('filler review $language $brightness chosen=$chosen', (tester) async {
+          final words = fillerFixture(language);
+          final base = fillerPlan(words);
+          final plan = chosen ? base.withEnabled(base.changes.single.id, true) : base;
+          await shoot(tester, 'filler-review-${language.name}-${brightness.name}-${chosen ? 'removed' : 'kept'}', phone,
+            (_) => Scaffold(appBar: AppBar(title: const Text('Your take')), body: ListView(padding: const EdgeInsets.all(SaSpace.s5), children: [
+              CleanCutPanel(plan: plan, busy: false, onChanged: (_, _) {}, onRestore: () {}),
+            ])), [fillerScript(words)], brightness: brightness);
+        });
+      }
       testWidgets('cut changes $language $brightness', (tester) async {
         final spoken = cleanFixture(language);
         final notes = ScriptDocument.create(language: language).copyWith(recordingAid: RecordingAid.notes);

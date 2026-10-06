@@ -137,7 +137,7 @@ class _TakeReviewScreenState extends State<TakeReviewScreen> {
     }
   }
 
-  Future<void> _makeCut() async {
+  Future<void> _makeCut({bool reviewFillers = false}) async {
     if (_planning || _spoken == null) return;
     final app = AppScope.of(context);
     setState(() {
@@ -149,6 +149,7 @@ class _TakeReviewScreenState extends State<TakeReviewScreen> {
         widget.script,
         _latestTake(app),
         _spoken!,
+        base: reviewFillers ? _clean : null,
       );
       if (mounted) setState(() => _clean = plan);
     } on Object {
@@ -218,7 +219,7 @@ class _TakeReviewScreenState extends State<TakeReviewScreen> {
           captions = captionsFromSpeech(
             _clean == null
                 ? spoken.transcript
-                : speechOnCut(spoken.transcript, _clean!.asCutPlan()),
+                : speechOnCleanCut(spoken.transcript, _clean!),
           );
       final srt = File(
         '${directory.path}${Platform.pathSeparator}$id-captions.srt',
@@ -514,6 +515,14 @@ class _TakeReviewScreenState extends State<TakeReviewScreen> {
                       onPressed: busy ? null : _makeCut,
                       icon: const Icon(Icons.auto_fix_high_outlined),
                       label: const Text('Make a cut'),
+                    ),
+                  if (_clean != null && !_clean!.fillersReviewed)
+                    OutlinedButton.icon(
+                      onPressed: busy
+                          ? null
+                          : () => _makeCut(reviewFillers: true),
+                      icon: const Icon(Icons.manage_search_rounded),
+                      label: const Text('Review fillers'),
                     ),
                   if (_planning) const LinearProgressIndicator(),
                   if (_cutProblem != null)

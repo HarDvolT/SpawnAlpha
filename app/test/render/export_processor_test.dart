@@ -17,6 +17,8 @@ import 'package:spawnalpha/src/transcription/captions.dart';
 import 'package:spawnalpha/src/cut/clean_plan.dart';
 
 import '../cut/clean_plan_test.dart' show cleanFixture, gap;
+import '../cut/filler_review_test.dart'
+    show fillerFixture, fillerQuiet, fillerScript;
 import '../storage/screen_take_store_test.dart'
     show FakeInspector, FailingStore;
 
@@ -82,6 +84,75 @@ void main() {
     await root.delete(recursive: true);
   });
   for (final language in ScriptLanguage.values) {
+    test(
+      'chosen filler leaves both video captions and subtitles; original and restore stay complete $language',
+      () async {
+        final transcript = fillerFixture(language),
+            frozen = fillerScript(fillerFixture(language), notes: true);
+        final original = File('${root.path}/original.mp4');
+        await original.writeAsString('unchanged original');
+        final take = Take(
+          path: original.path,
+          recordedAt: DateTime(2026),
+          duration: transcript.duration,
+          wordsPath: '${root.path}/words.json',
+        );
+        final script = frozen.copyWith(takes: [take]);
+        await library.save(script);
+        final spoken = SavedTranscript(
+          sourcePath: take.path,
+          transcript: transcript,
+          snapshot: frozen,
+          quiet: fillerQuiet(transcript),
+        );
+        final plan = await cuts.create(script, take, spoken);
+        final chosen = plan.withEnabled(plan.changes.single.id, true);
+        await cuts.save(
+          script.id,
+          library.byId(script.id)!.takes.single,
+          chosen,
+        );
+        final job = ExportProcessor(renderer, store, cuts, (_) async => spoken);
+        final video = (await job.export(
+          script,
+          library.byId(script.id)!.takes.single,
+          VideoFormat.landscape,
+          clean: chosen,
+        ))!;
+        final text = renderer.request!.captions.map((c) => c.text).join(' ');
+        expect(
+          text,
+          '${transcript.words.first.text} ${transcript.words.last.text}',
+        );
+        expect(
+          await store.file(video, 'srt').readAsString(),
+          isNot(contains(transcript.words[1].text)),
+        );
+        expect(video.duration, chosen.asCutPlan().duration);
+        await cuts.save(
+          script.id,
+          library.byId(script.id)!.takes.single,
+          chosen.restoreAll(),
+        );
+        final restored = (await job.export(
+          script,
+          library.byId(script.id)!.takes.single,
+          VideoFormat.landscape,
+          clean: chosen.restoreAll(),
+        ))!;
+        expect(
+          await store.file(restored, 'srt').readAsString(),
+          contains(transcript.words[1].text),
+        );
+        expect(
+          (await store.load(library.byId(script.id)!.takes.single)),
+          hasLength(2),
+        );
+        expect(await original.readAsString(), 'unchanged original');
+        expect(transcript.words, hasLength(3));
+        job.dispose();
+      },
+    );
     test(
       'captions off keeps subtitle files and saved history $language',
       () async {

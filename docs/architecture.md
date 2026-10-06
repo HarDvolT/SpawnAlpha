@@ -608,8 +608,23 @@ actual speech. Screen takes keep visual context until activity review is wired.
 Each quiet removal is immutable and individually reversible. Complementary
 kept ranges produce the portable `CutPlan`; `speechOnCut` moves actual captions
 onto that clock and rejects any cut that would lose or split a spoken word.
+`cut/filler_review.dart` adds disabled proposals from the normalized shared
+EN/FR/AR lexicon. Camera Script requires added speech absent from its frozen
+script; Notes has no adherence, and Screen remains protected. Candidate and
+neighbour confidence margins, complete phrase timing, accepted cue gaps and
+80ms measured silence on both sides gate proposals. Binary searches find quiet
+boundaries without scanning an entire recording for each word. Proposal ranges
+cannot overlap existing quiet changes or each other. An old quiet plan can be
+extended while retaining its switch choices.
+`CutChangeKind.filler` records consecutive spoken indices and actual phrase,
+with additive JSON fields; legacy quiet plans still load. `speechOnCleanCut`
+checks that these match complete recognized filler words before excluding
+explicitly enabled words from output captions. It retains every other word and
+its recognition provenance. Full transcripts and earlier exports are untouched.
+New wording revisions rebuild proposals with fillers kept again.
 `CleanCutStore` computes off the UI thread, writes new atomic sidecars, and
-attaches only to the same transcript revision, preserving current script edits.
+attaches only to the same transcript and cut revision before and after I/O,
+preserving current script edits and rejecting stale switches.
 `Take.cutPath` is optional; new speech clears stale cuts. `durationUs` now
 preserves the exact clock across disk, with `durationMs` retained for compatibility.
 Take review renders the switches and exports captions from the selected plan.

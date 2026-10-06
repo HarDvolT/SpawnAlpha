@@ -31,12 +31,12 @@ class _CleanCutPanelState extends State<CleanCutPanel> {
         Text('Your cut', style: SaType.title.copyWith(color: p.ink)),
         const SizedBox(height: SaSpace.s2),
         Text(
-        '${formatCutTime(plan.sourceDuration)} → ${formatCutTime(cut.duration)}',
+          '${formatCutTime(plan.sourceDuration)} → ${formatCutTime(cut.duration)}',
           style: SaType.signalLabel.copyWith(color: p.ink),
         ),
         const SizedBox(height: SaSpace.s2),
         Text(
-          'Words, marked pauses and breaths are kept. Turn off a change to restore that part of the original.',
+          'Words, marked pauses and breaths are kept unless you choose a filler removal. Turn off a change to restore that part of the original.',
           style: SaType.bodySm.copyWith(color: p.ink2),
         ),
         if (plan.notice != null)
@@ -45,7 +45,7 @@ class _CleanCutPanelState extends State<CleanCutPanel> {
           Padding(
             padding: const EdgeInsets.symmetric(vertical: SaSpace.s3),
             child: Text(
-              'No safe silent gaps to remove.',
+              'No safe gaps or filler removals found.',
               style: SaType.body.copyWith(color: p.ink),
             ),
           ),
@@ -57,12 +57,38 @@ class _CleanCutPanelState extends State<CleanCutPanel> {
                 ? null
                 : (value) => widget.onChanged(change.id, value),
             title: Text(
-              'Shorten a silent gap',
+              change.kind == CutChangeKind.filler
+                  ? 'Possible filler'
+                  : 'Shorten a silent gap',
               style: SaType.body.copyWith(color: p.ink),
             ),
-            subtitle: Text(
-            '${formatCutTime(change.range.start)}–${formatCutTime(change.range.end)} · ${change.enabled ? 'Removed' : 'Original restored'}',
-              style: SaType.bodySm.copyWith(color: p.ink2),
+            subtitle: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (change.text != null)
+                  Directionality(
+                    textDirection: plan.language.isRtl
+                        ? TextDirection.rtl
+                        : TextDirection.ltr,
+                    child: Align(
+                      alignment: plan.language.isRtl
+                          ? Alignment.centerRight
+                          : Alignment.centerLeft,
+                      child: Text(
+                        change.text!,
+                        style: SaType.body.copyWith(color: p.ink),
+                      ),
+                    ),
+                  ),
+                Text(
+                  '${formatCutTime(change.range.start)}–${formatCutTime(change.range.end)} · ${change.enabled
+                      ? 'Removed'
+                      : change.kind == CutChangeKind.filler
+                      ? 'Kept · check meaning'
+                      : 'Original restored'}',
+                  style: SaType.bodySm.copyWith(color: p.ink2),
+                ),
+              ],
             ),
           ),
         if (plan.changes.length > _shown)
@@ -74,7 +100,11 @@ class _CleanCutPanelState extends State<CleanCutPanel> {
           OutlinedButton.icon(
             onPressed: widget.busy ? null : widget.onRestore,
             icon: const Icon(Icons.restore_rounded),
-            label: const Text('Restore all gaps'),
+            label: Text(
+              plan.changes.any((c) => c.kind == CutChangeKind.filler)
+                  ? 'Restore all changes'
+                  : 'Restore all gaps',
+            ),
           ),
       ],
     );

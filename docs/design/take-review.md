@@ -67,6 +67,14 @@ and missing/uncertain script alignment keep the original. Video preview,
 individual word corrections and coaching will extend it, using the same frozen
 take and actual speech.
 
+**Possible filler** choices extend this list using the conservative evidence
+rules in [autoedit.md](autoedit.md#first-windows-filler-review). The phrase uses
+reading type and its language's direction. Its switch starts off and the label
+says **Kept · check meaning**; it only removes the phrase after the person
+chooses it. Other words, accepted pauses and breaths remain protected. Restore
+all changes brings back every gap and filler. An older quiet plan has **Review
+fillers**, which preserves its existing switches. No new style tokens are needed.
+
 **Save your video** makes a separate local MP4 from the saved cut (or the whole
 take when no cut exists). The first Windows renderer fits the complete picture
 inside 16:9 1080p/4K, 9:16 or 4:5; unused space stays black. It does not yet

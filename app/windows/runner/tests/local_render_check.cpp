@@ -130,6 +130,32 @@ void GenerateExtra(ID3D11Device* device, const std::wstring& path, UINT channels
   check_hresult(writer.Finish());
 }
 
+void GenerateFillerSource(ID3D11Device* device, const std::wstring& path) {
+  // Three labelled tone islands, separated by actual zero PCM. The middle
+  // island/red picture represents a reviewed filler, never a real speaker.
+  GpuVideoWriter writer; check_hresult(writer.Start(device, path, kWidth, kHeight, 30, {kRate, 1}));
+  for (UINT frame = 0; frame < 120; ++frame) {
+    const auto time_us = static_cast<int64_t>(frame) * 1000000 / 30;
+    const uint32_t color = time_us >= 1100000 && time_us < 1250000 ? 0xffe03030 : 0xff30c050;
+    std::vector<uint32_t> pixels(kWidth * kHeight, color);
+    D3D11_TEXTURE2D_DESC desc{}; desc.Width = kWidth; desc.Height = kHeight;
+    desc.MipLevels = 1; desc.ArraySize = 1; desc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
+    desc.SampleDesc.Count = 1; desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+    D3D11_SUBRESOURCE_DATA data{pixels.data(), kWidth * 4, 0}; com_ptr<ID3D11Texture2D> texture;
+    check_hresult(device->CreateTexture2D(&desc, &data, texture.put()));
+    check_hresult(writer.WriteFrame(texture.get(), kWidth, kHeight, frame * kSecond / 30));
+    std::vector<int16_t> pcm(kRate / 30);
+    for (UINT index = 0; index < pcm.size(); ++index) {
+      const auto position = frame * (kRate / 30) + index;
+      const double seconds = static_cast<double>(position) / kRate;
+      const double hz = seconds >= .2 && seconds < .5 ? 330 : seconds >= 1.1 && seconds < 1.25 ? 770 : seconds >= 2 && seconds < 2.3 ? 990 : 0;
+      pcm[index] = static_cast<int16_t>(std::sin(seconds * hz * 6.283185307179586) * 12000);
+    }
+    check_hresult(writer.WriteAudio(pcm.data(), static_cast<UINT>(pcm.size()), frame * kSecond / 30));
+  }
+  check_hresult(writer.Finish());
+}
+
 void VerifyStereo(const std::wstring& path) {
   com_ptr<IMFSourceReader> reader; check_hresult(MFCreateSourceReaderFromURL(path.c_str(), nullptr, reader.put()));
   com_ptr<IMFMediaType> type; check_hresult(reader->GetNativeMediaType(kAudioStream, 0, type.put()));
@@ -160,7 +186,7 @@ void VerifyStereo(const std::wstring& path) {
   Require(ToneAt(right, 12000, 990) > 9000 && ToneAt(right, 12000, 330) < 1500);
 }
 
-void VerifyLocalCut(const LocalRenderRequest& request, int expected_frames, int64_t expected_us, bool early_camera = false) {
+void VerifyLocalCut(const LocalRenderRequest& request, int expected_frames, int64_t expected_us, bool early_camera = false, bool filler_removed = false) {
   std::atomic<bool> cancel{false}; const auto probe = ProbeRecording(request.output, cancel);
   Require(probe.readable && probe.width == static_cast<int>(request.width) && probe.height == static_cast<int>(request.height));
   Require(std::abs(probe.duration_100ns - expected_us * 10) < 100000);
@@ -188,6 +214,7 @@ void VerifyLocalCut(const LocalRenderRequest& request, int expected_frames, int6
         offset_us -= length_us;
       }
       bool valid = true;
+      if (filler_removed) valid = bytes[center + 1] > bytes[center] + 80 && bytes[center + 1] > bytes[center + 2] + 80;
       if (valid && expected_us == 2000000) valid = source / 1000000 == 1 ? bytes[center] > bytes[center + 2] + 80 : bytes[center + 2] > bytes[center] + 80;
       if (valid && request.height > request.width) {
         // Full-picture fit keeps all screen content; the unused margin stays black.
@@ -230,6 +257,16 @@ int wmain(int count, wchar_t** args) {
       stage = "verify reordered ranges"; VerifyLocalCut(request, 60, 2000000);
       const auto reversed = Audio(request.output);
       Require(ToneAt(reversed, 12000, 880) > 9000 && ToneAt(reversed, 60000, 440) > 9000);
+      const auto filler_source = prefix + L"-filler-source.mp4";
+      stage = "generate filler tone islands"; GenerateFillerSource(device.get(), filler_source);
+      const auto uncut_filler = Audio(filler_source); Require(ToneAt(uncut_filler, 52800, 770) > 5000);
+      request.source = filler_source; request.output = prefix + L"-filler-cut.mp4";
+      request.ranges = {{0, 800000}, {1625000, 4000000}};
+      stage = "render reviewed filler range"; RenderLocalVideo(request, cancel, [](double) {});
+      stage = "verify filler picture and source clock"; VerifyLocalCut(request, 96, 3175000, false, true);
+      const auto filler_audio = Audio(request.output);
+      Require(ToneAt(filler_audio, 10800, 330) > 9000 && ToneAt(filler_audio, 57600, 990) > 9000);
+      for (size_t first = 0; first + 12000 < filler_audio.size(); first += 4000) Require(ToneAt(filler_audio, first, 770) < 1500);
       const auto silent = prefix + L"-silent-source.mp4", stereo = prefix + L"-stereo-source.mp4";
       stage = "generate silent and 44.1 kHz stereo";
       GenerateExtra(device.get(), silent, 0, 0, 0xff30c050);
@@ -292,7 +329,7 @@ int wmain(int count, wchar_t** args) {
       try { RenderLocalVideo(request, cancel, [](double) {}); } catch (...) { rejected = true; }
       Require(rejected && GetFileAttributesW(request.output.c_str()) == INVALID_FILE_ATTRIBUTES);
     }
-    std::cout << "Local render check passed: streaming PCM/GPU pair, source selection/reordering, silent input, stereo resampling, EN/FR/AR caption timing/safe pixels, vertical Arabic, no clipped words, camera inset/end, exact portrait duration, cancel cleanup, damaged input and overwrite protection.\n";
+    std::cout << "Local render check passed: streaming PCM/GPU pair, source selection/reordering, reviewed filler tone/picture removal, silent input, stereo resampling, EN/FR/AR caption timing/safe pixels, vertical Arabic, no clipped words, camera inset/end, exact portrait duration, cancel cleanup, damaged input and overwrite protection.\n";
     MFShutdown(); CoUninitialize(); return 0;
   } catch (...) {
     std::cerr << "Local render check failed at " << stage << ": 0x" << std::hex << static_cast<unsigned long>(winrt::to_hresult()) << "\n";

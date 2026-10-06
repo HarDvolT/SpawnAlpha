@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 
 import '../cut/clean_plan.dart';
+import '../cut/filler_review.dart';
 import '../model/mark.dart';
 import '../model/script_document.dart';
 import '../transcription/script_alignment.dart';
@@ -19,15 +20,25 @@ CleanPlan _build(Map<String, Object?> args) {
       spoken.alignment != null && snapshot != null && !snapshot.usesNotes
       ? alignTranscript(snapshot, spoken.transcript)
       : null;
-  final plan = planQuietCut(
-    takeId: args['id']! as String,
+  final base = args['base'] is Map<String, Object?>
+      ? CleanPlan.fromJson(args['base']! as Map<String, Object?>)
+      : planQuietCut(
+          takeId: args['id']! as String,
+          transcript: spoken.transcript,
+          quiet: spoken.quiet,
+          snapshot: snapshot,
+          alignment: alignment,
+          screenContext: args['screen'] == true,
+        );
+  final plan = withFillerReview(
+    base: base,
     transcript: spoken.transcript,
     quiet: spoken.quiet,
     snapshot: snapshot,
     alignment: alignment,
     screenContext: args['screen'] == true,
   );
-  speechOnCut(spoken.transcript, plan.asCutPlan());
+  speechOnCleanCut(spoken.transcript, plan);
   return plan;
 }
 
@@ -41,16 +52,25 @@ class CleanCutStore {
   Future<CleanPlan> create(
     ScriptDocument document,
     Take take,
-    SavedTranscript spoken,
-  ) async {
+    SavedTranscript spoken, {
+    CleanPlan? base,
+  }) async {
     if (spoken.sourcePath != take.path ||
         spoken.transcript.duration != take.duration) {
       throw const FormatException('Take words mismatch');
+    }
+    if (base != null) {
+      final saved = await load(take);
+      if (saved == null ||
+          jsonEncode(saved.toJson()) != jsonEncode(base.toJson())) {
+        throw const FormatException('Cut changed');
+      }
     }
     final plan = await compute(_build, {
       'spoken': spoken.toJson(),
       'id': newId(),
       'screen': take.mode != TakeMode.camera,
+      'base': base?.toJson(),
     });
     await save(document.id, take, plan);
     return plan;
@@ -66,6 +86,7 @@ class CleanCutStore {
           current == null ||
           current.wordsPath == null ||
           current.wordsPath != take.wordsPath ||
+          current.cutPath != take.cutPath ||
           plan.sourceDuration != take.duration) {
         throw const FormatException('Take changed. Rebuild the cut');
       }
@@ -88,7 +109,9 @@ class CleanCutStore {
       final latestTake = latest?.takes
           .where((t) => t.path == take.path)
           .firstOrNull;
-      if (latest == null || latestTake?.wordsPath != take.wordsPath) {
+      if (latest == null ||
+          latestTake?.wordsPath != take.wordsPath ||
+          latestTake?.cutPath != take.cutPath) {
         throw const FormatException('Take changed. Rebuild the cut');
       }
       await library.save(

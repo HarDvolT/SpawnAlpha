@@ -123,6 +123,28 @@ Caption times follow the kept source ranges and actual speech. Filler/retake
 selection and screen zoom/cursor polish are subsequent slices; never label this
 conservative first pass a finished Director's Cut.
 
+### First Windows filler review
+
+Possible fillers are review choices, initially kept. Vocabulary alone cannot
+tell a hesitation from meaningful "like", "du coup" or "يعني"; do not remove
+these automatically before real-language evidence exists. Use the language's
+normalized filler phrases from the shared lexicon. Script candidates must be
+added speech outside the frozen script and outside accepted pauses/breaths;
+Notes use actual speech without adherence. Screen context remains protected.
+Require recognized confidence of at least 0.6, safe neighbouring words and
+measured quiet intervals of at least 80ms on both sides. Reject uncertain or
+overlapping boundaries, never split words or infer silence from timestamps.
+Existing quiet choices survive reviewing fillers.
+
+The edit list says **Possible filler** and shows the actual phrase in its
+language direction, source times and a removal switch. **Kept · check meaning**
+is the initial state; choosing removal excludes only those complete words from
+cut captions and video, retaining all other words. **Restore all changes**
+restores fillers and quiet gaps together. Originals, full transcripts and
+earlier exports remain available. **Review fillers** extends an older quiet
+plan without changing its switches. New wording revisions rebuild the plan
+with fillers kept again. Full retake scoring and sound crossfades remain later.
+
 ### First Windows video export
 
 The saved plan now renders to a separate finalized H.264/AAC MP4 in 16:9

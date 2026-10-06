@@ -15,6 +15,7 @@ class Lexicon {
         conjunctions = PhraseSet(lists['conjunctions']!),
         numberWords = PhraseSet(lists['numbers']!),
         units = PhraseSet(lists['units']!),
+        fillers = PhraseSet(lists['fillers']!),
         tightenings = {
           for (final e in tightenings.entries) PhraseSet.split(e.key).join(' '): e.value,
         };
@@ -42,6 +43,9 @@ class Lexicon {
 
   /// Words that belong with a number: "percent", "million", "٪".
   final PhraseSet units;
+
+  /// Possible hesitations, never proof that a meaningful word can be removed.
+  final PhraseSet fillers;
 
   /// Wordy phrases and a shorter way to say them. An empty replacement
   /// means the phrase can go.
@@ -131,6 +135,7 @@ class PhraseSet {
 }
 
 const _english = {
+  'fillers': ['um', 'uh', 'like', 'you know'],
   'steps': [
     'first', 'firstly', 'second', 'secondly', 'third', 'thirdly', 'then', 'next', 'after that',
     'afterwards', 'finally', 'lastly', 'step', 'now', 'once', 'to start', 'to finish',
@@ -191,6 +196,7 @@ const _englishTightenings = {
 };
 
 const _french = {
+  'fillers': ['euh', 'ben', 'du coup', 'genre'],
   'steps': [
     "d'abord", 'premièrement', 'deuxièmement', 'troisièmement', 'ensuite', 'puis', 'après',
     'après ça', 'enfin', 'finalement', 'étape', 'maintenant', 'pour commencer', 'pour finir',
@@ -253,6 +259,7 @@ const _frenchTightenings = {
 };
 
 const _arabic = {
+  'fillers': ['امم', 'يعني', 'واش', 'إيه'],
   'steps': [
     'أولاً', 'أولا', 'ثانياً', 'ثانيا', 'ثالثاً', 'ثالثا', 'ثم', 'بعد ذلك', 'بعدها', 'بعدين',
     'أخيراً', 'أخيرا', 'وأخيراً', 'الخطوة', 'خطوة', 'الآن', 'في البداية', 'في النهاية',
