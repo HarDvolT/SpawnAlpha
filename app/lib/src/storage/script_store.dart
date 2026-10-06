@@ -20,7 +20,8 @@ class FileScriptStore implements ScriptStore {
 
   final Directory directory;
 
-  File _file(String id) => File('${directory.path}${Platform.pathSeparator}$id.json');
+  File _file(String id) =>
+      File('${directory.path}${Platform.pathSeparator}$id.json');
 
   @override
   Future<List<ScriptDocument>> loadAll() async {
@@ -30,7 +31,9 @@ class FileScriptStore implements ScriptStore {
       if (entry is! File || !entry.path.endsWith('.json')) continue;
       try {
         final json = jsonDecode(await entry.readAsString());
-        if (json is Map<String, Object?>) scripts.add(ScriptDocument.fromJson(json));
+        if (json is Map<String, Object?>) {
+          scripts.add(ScriptDocument.fromJson(json));
+        }
       } on FormatException {
         // Preserve unreadable files. Parser errors can contain private text.
       } on TypeError {
@@ -66,7 +69,8 @@ class MemoryScriptStore implements ScriptStore {
 
   @override
   Future<List<ScriptDocument>> loadAll() async =>
-      scripts.values.toList()..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+      scripts.values.toList()
+        ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
 
   @override
   Future<void> save(ScriptDocument script) async => scripts[script.id] = script;
@@ -86,7 +90,10 @@ class ScriptLibrary extends ChangeNotifier {
 
   Future<void> _persist(Future<void> Function() action) {
     final next = _writes.then((_) => action());
-    _writes = next.then<void>((_) {}, onError: (Object error, StackTrace stack) {});
+    _writes = next.then<void>(
+      (_) {},
+      onError: (Object error, StackTrace stack) {},
+    );
     return next;
   }
 
@@ -108,13 +115,33 @@ class ScriptLibrary extends ChangeNotifier {
   }
 
   Future<void> save(ScriptDocument script) async {
-    _scripts = [script, for (final s in _scripts) if (s.id != script.id) s];
+    final previous = byId(script.id);
+    _scripts = [
+      script,
+      for (final s in _scripts)
+        if (s.id != script.id) s,
+    ];
     notifyListeners();
-    await _persist(() => _store.save(script));
+    try {
+      await _persist(() => _store.save(script));
+    } on Object {
+      // Roll back this optimistic attachment, but never overwrite a later edit.
+      if (identical(byId(script.id), script)) {
+        _scripts = [
+          for (final s in _scripts)
+            if (s.id != script.id) s else ?previous,
+        ];
+        notifyListeners();
+      }
+      rethrow;
+    }
   }
 
   Future<void> delete(String id) async {
-    _scripts = [for (final s in _scripts) if (s.id != id) s];
+    _scripts = [
+      for (final s in _scripts)
+        if (s.id != id) s,
+    ];
     notifyListeners();
     await _persist(() => _store.delete(id));
   }

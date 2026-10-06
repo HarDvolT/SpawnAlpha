@@ -67,6 +67,8 @@ import 'package:spawnalpha/src/model/video_export.dart';
 import 'package:spawnalpha/src/render/export_processor.dart';
 import 'package:spawnalpha/src/transcription/take_processing.dart';
 import 'package:spawnalpha/src/playback/local_playback.dart';
+import 'package:spawnalpha/src/ui/word_review_panel.dart';
+import 'package:spawnalpha/src/transcription/word_timing.dart';
 
 import 'fixtures/cue_check_scripts.dart';
 import 'fixtures/preview_camera.dart';
@@ -252,6 +254,26 @@ void main() {
   }
 
   for (final language in ScriptLanguage.values) {
+    final correctedText = switch (language) { ScriptLanguage.en => 'Today', ScriptLanguage.fr => 'Demain', ScriptLanguage.ar => 'غدا' };
+    final wordTake = Take(path: 'generated.mp4', recordedAt: DateTime(2026), duration: const Duration(seconds: 3));
+    final reviewWords = reviewFixture(language, wordTake).transcript;
+    final originalWord = reviewWords.words.first;
+    final correctedWords = WordTranscript(language: language, duration: reviewWords.duration, words: [
+      SpokenWord(text: correctedText, start: originalWord.start, end: originalWord.end,
+        confidence: .3, recognizedText: originalWord.text), ...reviewWords.words.skip(1)]);
+    for (final brightness in [Brightness.light, Brightness.dark]) {
+      testWidgets('word review $language $brightness', (tester) async {
+        await shoot(tester, 'word-review-${language.name}-${brightness.name}', phone,
+          (_) => Scaffold(appBar: AppBar(title: const Text('Spoken words')), body: SingleChildScrollView(
+            padding: const EdgeInsets.all(SaSpace.s5), child: WordReviewPanel(transcript: correctedWords,
+              busy: false, onCorrect: (_, _) async {}))), [], brightness: brightness,
+          before: (tester) async { await tester.tap(find.text('Review wording')); await tester.pumpAndSettle(); });
+      });
+    }
+    testWidgets('word correction dialog $language', (tester) async {
+      await shoot(tester, 'word-correction-${language.name}', phone, (_) => Scaffold(body:
+        CorrectWordDialog(word: correctedWords.words.first, rtl: language.isRtl)), []);
+    });
     for (final processing in [false, true]) {
       testWidgets('after stop $language processing=$processing', (tester) async {
         final take = Take(path: 'generated.mp4', recordedAt: DateTime(2026), duration: const Duration(seconds: 3));

@@ -87,6 +87,51 @@ class SavedTranscript {
 SavedTranscript _parseResult(String text) =>
     SavedTranscript.fromJson(jsonDecode(text) as Map<String, Object?>);
 
+Map<String, Object?> _alignmentJson(ScriptAlignment matched) => {
+  'missedTokens': matched.missedTokens,
+  'attemptCount': matched.attemptCount,
+  'words': [
+    for (final word in matched.words)
+      {
+        'spokenIndex': word.spokenIndex,
+        'tokenIndex': word.tokenIndex,
+        'match': word.match.name,
+        'attempt': word.attempt,
+      },
+  ],
+};
+
+SavedTranscript _correctResult(Map<String, Object?> args) {
+  final saved = SavedTranscript.fromJson(
+    args['saved']! as Map<String, Object?>,
+  );
+  final words = saved.transcript.withWord(
+    args['index']! as int,
+    args['text']! as String,
+  );
+  Map<String, Object?>? alignment;
+  var notice = saved.notice;
+  // Null alignment may mean no microphone, Notes or an unusable frozen script.
+  // A wording correction must never silently turn any of those into scoring.
+  if (saved.alignment != null &&
+      saved.snapshot != null &&
+      !saved.snapshot!.usesNotes) {
+    try {
+      alignment = _alignmentJson(alignTranscript(saved.snapshot!, words));
+    } on FormatException {
+      notice = 'Spoken words are saved. This script needs review in smaller sections.';
+    }
+  }
+  return SavedTranscript(
+    sourcePath: saved.sourcePath,
+    transcript: words,
+    snapshot: saved.snapshot,
+    alignment: alignment,
+    notice: notice,
+    quiet: saved.quiet,
+  );
+}
+
 SavedTranscript _assemble(Map<String, Object?> args) {
   final transcript = transcriptFromWindows(
     ScriptLanguage.fromName(args['language']! as String),
@@ -105,19 +150,7 @@ SavedTranscript _assemble(Map<String, Object?> args) {
   } else if (!snapshot.usesNotes && transcript.words.isNotEmpty) {
     try {
       final matched = alignTranscript(snapshot, transcript);
-      alignment = {
-        'missedTokens': matched.missedTokens,
-        'attemptCount': matched.attemptCount,
-        'words': [
-          for (final word in matched.words)
-            {
-              'spokenIndex': word.spokenIndex,
-              'tokenIndex': word.tokenIndex,
-              'match': word.match.name,
-              'attempt': word.attempt,
-            },
-        ],
-      };
+      alignment = _alignmentJson(matched);
     } on FormatException {
       notice = 'Spoken words are saved. This script needs review in smaller sections.';
     }
@@ -138,7 +171,16 @@ SavedTranscript _assemble(Map<String, Object?> args) {
   );
 }
 
-enum SpeechPhase { idle, preparing, running, saving, ready, cancelled, failed }
+enum SpeechPhase {
+  idle,
+  preparing,
+  running,
+  saving,
+  editing,
+  ready,
+  cancelled,
+  failed,
+}
 
 /// One local job. Native recognition and Dart alignment both stay off the UI
 /// thread; originals never change. Results refer to the exact take snapshot.
@@ -159,7 +201,8 @@ class SpeechProcessor extends ChangeNotifier {
   bool get busy =>
       phase == SpeechPhase.preparing ||
       phase == SpeechPhase.running ||
-      phase == SpeechPhase.saving;
+      phase == SpeechPhase.saving ||
+      phase == SpeechPhase.editing;
   void _phase(SpeechPhase value) {
     phase = value;
     notifyListeners();
@@ -219,6 +262,76 @@ class SpeechProcessor extends ChangeNotifier {
     }
   }
 
+  Future<void> _saveResult(
+    String documentId,
+    Take take,
+    SavedTranscript spoken,
+  ) async {
+    void checkRevision() {
+      final current = library
+          .byId(documentId)
+          ?.takes
+          .where((t) => t.path == take.path)
+          .firstOrNull;
+      if (current == null || current.wordsPath != take.wordsPath) {
+        throw const FormatException('Words changed. Try again');
+      }
+    }
+
+    checkRevision();
+    await results.create(recursive: true);
+    final file = File(
+      '${results.path}${Platform.pathSeparator}${newId()}.json',
+    );
+    final temp = File('${file.path}.tmp');
+    await temp.writeAsString(jsonEncode(spoken.toJson()), flush: true);
+    await temp.rename(file.path);
+    checkRevision();
+    final current = library.byId(documentId)!;
+    await library.save(
+      current.copyWith(
+        takes: [
+          for (final t in current.takes)
+            t.path == take.path ? t.withWords(file.path) : t,
+        ],
+      ),
+    );
+  }
+
+  /// Edits one timed word without calling recognition or changing its evidence.
+  /// Originals and earlier immutable word/export files stay on the device.
+  Future<SavedTranscript?> correctWord(
+    String documentId,
+    Take take,
+    int index,
+    String text,
+  ) async {
+    if (busy) return null;
+    problem = null;
+    failure = null;
+    _phase(SpeechPhase.editing);
+    try {
+      final saved = await load(take);
+      if (saved == null || saved.transcript.duration != take.duration) {
+        throw const FormatException('Words unavailable');
+      }
+      final corrected = await compute(_correctResult, {
+        'saved': saved.toJson(),
+        'index': index,
+        'text': text,
+      });
+      await _saveResult(documentId, take, corrected);
+      result = corrected;
+      _phase(SpeechPhase.ready);
+      return corrected;
+    } on Object {
+      failure = 'correction';
+      problem = 'That word could not be saved. Your original and earlier words are safe. Try again.';
+      _phase(SpeechPhase.failed);
+      return null;
+    }
+  }
+
   Future<void> process(ScriptDocument document, Take take) async {
     if (busy) return;
     _cancelled = false;
@@ -273,25 +386,7 @@ class SpeechProcessor extends ChangeNotifier {
       if (_cancelled) throw const SpeechCancelled();
       _phase(SpeechPhase.saving);
       operation = 'saving';
-      await results.create(recursive: true);
-      final file = File(
-        '${results.path}${Platform.pathSeparator}${newId()}.json',
-      );
-      final temp = File('${file.path}.tmp');
-      await temp.writeAsString(jsonEncode(spoken.toJson()), flush: true);
-      await temp.rename(file.path);
-      final current = library.byId(document.id);
-      if (current == null || !current.takes.any((t) => t.path == take.path)) {
-        throw StateError('Take unavailable');
-      }
-      await library.save(
-        current.copyWith(
-          takes: [
-            for (final t in current.takes)
-              t.path == take.path ? t.withWords(file.path) : t,
-          ],
-        ),
-      );
+      await _saveResult(document.id, take, spoken);
       result = spoken;
       _phase(SpeechPhase.ready);
     } on SpeechCancelled {
@@ -308,6 +403,9 @@ class SpeechProcessor extends ChangeNotifier {
   }
 
   Future<void> cancel() async {
+    if (phase == SpeechPhase.editing) {
+      return; // Finish the atomic local revision.
+    }
     _cancelled = true;
     if (phase == SpeechPhase.preparing) {
       await models.cancel();

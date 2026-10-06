@@ -315,6 +315,7 @@ WordTranscript speechOnCut(WordTranscript source, CutPlan plan) {
         start: output + word.start - range.start,
         end: output + word.end - range.start,
         confidence: word.confidence,
+        recognizedText: word.recognizedText,
       ),
     );
   }

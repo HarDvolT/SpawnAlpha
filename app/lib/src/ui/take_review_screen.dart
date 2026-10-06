@@ -19,6 +19,7 @@ import 'home_screen.dart';
 import 'clean_cut_panel.dart';
 import 'take_player.dart';
 import 'video_export_panel.dart';
+import 'word_review_panel.dart';
 
 class TakeReviewScreen extends StatefulWidget {
   const TakeReviewScreen({
@@ -157,6 +158,22 @@ class _TakeReviewScreenState extends State<TakeReviewScreen> {
     } finally {
       if (mounted) setState(() => _planning = false);
     }
+  }
+
+  Future<void> _correctWord(int index, String text) async {
+    final app = AppScope.of(context);
+    final corrected = await app.speech.correctWord(
+      widget.script.id,
+      _latestTake(app),
+      index,
+      text,
+    );
+    if (!mounted || corrected == null) return;
+    setState(() {
+      _spoken = corrected;
+      _clean = null;
+    });
+    await _makeCut();
   }
 
   Future<void> _saveCut(CleanPlan plan) async {
@@ -346,7 +363,9 @@ class _TakeReviewScreenState extends State<TakeReviewScreen> {
                     crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
                       Text(
-                        app.processing.phase == TakeProcessPhase.cut
+                        job.phase == SpeechPhase.editing
+                            ? 'Saving corrected words…'
+                            : app.processing.phase == TakeProcessPhase.cut
                             ? 'Making your cut…'
                             : model.phase == SpeechModelPhase.downloading
                             ? 'Downloading offline speech…'
@@ -359,13 +378,14 @@ class _TakeReviewScreenState extends State<TakeReviewScreen> {
                             : 'Finding spoken words…',
                         style: SaType.signalLabel.copyWith(color: p.ink2),
                       ),
-                      OutlinedButton.icon(
-                        onPressed: app.processing.busy
-                            ? app.processing.cancel
-                            : job.cancel,
-                        icon: const Icon(Icons.close_rounded),
-                        label: const Text('Cancel processing'),
-                      ),
+                      if (job.phase != SpeechPhase.editing)
+                        OutlinedButton.icon(
+                          onPressed: app.processing.busy
+                              ? app.processing.cancel
+                              : job.cancel,
+                          icon: const Icon(Icons.close_rounded),
+                          label: const Text('Cancel processing'),
+                        ),
                     ],
                   ),
                   const SizedBox(height: SaSpace.s4),
@@ -531,6 +551,12 @@ class _TakeReviewScreenState extends State<TakeReviewScreen> {
                       words.map((w) => w.text).join(' '),
                       style: SaType.body.copyWith(color: p.ink),
                     ),
+                  ),
+                  const SizedBox(height: SaSpace.s4),
+                  WordReviewPanel(
+                    transcript: spoken.transcript,
+                    busy: busy,
+                    onCorrect: _correctWord,
                   ),
                   const SizedBox(height: SaSpace.s4),
                   Wrap(

@@ -11,16 +11,13 @@ class SpokenWord {
     required this.start,
     required this.end,
     this.confidence,
+    this.recognizedText,
   }) {
-    if (text.trim() != text ||
-        text.isEmpty ||
-        text.length > 1024 ||
-        RegExp(r'\s').hasMatch(text) ||
-        normalizeWord(text).isEmpty ||
+    if (!_validWordText(text) ||
         start.isNegative ||
         end.inMicroseconds > 9007199254740991 ||
-        utf8.decode(utf8.encode(text)) != text ||
         end <= start ||
+        (recognizedText != null && !_validWordText(recognizedText!)) ||
         (confidence != null &&
             (!confidence!.isFinite || confidence! < 0 || confidence! > 1))) {
       throw const FormatException('Invalid spoken word');
@@ -30,13 +27,28 @@ class SpokenWord {
   final String text;
   final Duration start, end;
   final double? confidence;
+
+  /// Original spelling retained only when the owner corrects recognition.
+  final String? recognizedText;
+  bool get corrected => recognizedText != null;
   String get bare => normalizeWord(text);
+  SpokenWord withText(String value) {
+    final original = recognizedText ?? text;
+    return SpokenWord(
+      text: value,
+      start: start,
+      end: end,
+      confidence: confidence,
+      recognizedText: value == original ? null : original,
+    );
+  }
 
   Map<String, Object?> toJson() => {
     'text': text,
     'startUs': start.inMicroseconds,
     'endUs': end.inMicroseconds,
     'confidence': ?confidence,
+    'recognizedText': ?recognizedText,
   };
 
   factory SpokenWord.fromJson(Map<String, Object?> json) {
@@ -45,7 +57,8 @@ class SpokenWord {
     if (text is! String ||
         start is! int ||
         end is! int ||
-        (confidence != null && confidence is! num)) {
+        (confidence != null && confidence is! num) ||
+        (json['recognizedText'] != null && json['recognizedText'] is! String)) {
       throw const FormatException('Invalid spoken word');
     }
     return SpokenWord(
@@ -53,6 +66,7 @@ class SpokenWord {
       start: Duration(microseconds: start),
       end: Duration(microseconds: end),
       confidence: (confidence as num?)?.toDouble(),
+      recognizedText: json['recognizedText'] as String?,
     );
   }
 }
@@ -82,6 +96,19 @@ class WordTranscript {
   final ScriptLanguage language;
   final Duration duration;
   final List<SpokenWord> words;
+  WordTranscript withWord(int index, String text) {
+    if (index < 0 || index >= words.length) {
+      throw const FormatException('Unknown spoken word');
+    }
+    return WordTranscript(
+      language: language,
+      duration: duration,
+      words: [
+        for (var i = 0; i < words.length; i++)
+          i == index ? words[i].withText(text) : words[i],
+      ],
+    );
+  }
 
   Map<String, Object?> toJson() => {
     'version': 1,
@@ -115,3 +142,11 @@ class WordTranscript {
     );
   }
 }
+
+bool _validWordText(String text) =>
+    text.trim() == text &&
+    text.isNotEmpty &&
+    text.length <= 1024 &&
+    !RegExp(r'\s').hasMatch(text) &&
+    normalizeWord(text).isNotEmpty &&
+    utf8.decode(utf8.encode(text)) == text;

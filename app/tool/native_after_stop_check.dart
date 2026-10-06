@@ -82,6 +82,37 @@ Future<void> main() async {
       require(await processing.run(edited, saved, automatic: true) != null);
       require(library.byId(doc.id)!.takes.single.wordsPath == saved.wordsPath);
       require(library.byId(doc.id)!.takes.single.cutPath == saved.cutPath);
+      stage = 'save and restore corrected wording';
+      final first = spoken.transcript.words.first;
+      final fixed = await speech.correctWord(
+        doc.id,
+        saved,
+        0,
+        '${first.text}x',
+      );
+      require(
+        fixed != null &&
+            fixed.transcript.words.first.recognizedText == first.text,
+      );
+      require(
+        fixed!.transcript.words.first.start == first.start &&
+            fixed.transcript.words.first.end == first.end &&
+            fixed.transcript.words.first.confidence == first.confidence,
+      );
+      var latest = library.byId(doc.id)!.takes.single;
+      require(latest.cutPath == null && latest.wordsPath != saved.wordsPath);
+      require(
+        (await cuts.create(edited, latest, fixed)).sourceDuration ==
+            take.duration,
+      );
+      latest = library.byId(doc.id)!.takes.single;
+      final restored = await speech.correctWord(doc.id, latest, 0, first.text);
+      require(restored != null && !restored.transcript.words.first.corrected);
+      latest = library.byId(doc.id)!.takes.single;
+      await cuts.create(edited, latest, restored!);
+      require(
+        (await speech.load(saved))!.transcript.words.first.text == first.text,
+      );
       require(await source.length() == await file.length());
       processing.dispose();
       speech.dispose();
@@ -92,7 +123,7 @@ Future<void> main() async {
     models.dispose();
     // ignore: avoid_print
     print(
-      'After-stop check passed: verified installed model, real offline Script/Notes speech, frozen aid, preserved later edits, saved reversible cuts, idempotent reopening and library reload.',
+      'After-stop check passed: verified installed model, real offline Script/Notes speech, frozen aid, preserved later edits, saved reversible cuts, idempotent reopening, corrected/restored word revisions and library reload.',
     );
   } on Object {
     // Fixed stage only; no private media text, paths or platform errors.

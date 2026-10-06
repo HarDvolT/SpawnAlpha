@@ -584,6 +584,18 @@ and microphone meters before opening review, carry persistent capture warnings,
 and restore setup on return. The saved setting can disable this sequence.
 Initial review reads compare word/cut/export revisions before applying results.
 
+`SpokenWord.recognizedText` optionally retains the first recognized spelling;
+`withText`/`WordTranscript.withWord` change one word without changing its interval
+or probability. Restoring the original clears the correction marker. Legacy JSON
+remains valid. `SpeechProcessor.correctWord` loads the requested saved revision,
+computes existing frozen Script alignment off the UI thread and atomically saves
+a fresh word file. Null alignment never becomes scoring (Notes, computer-only,
+older or unsupported scripts). The attachment checks word revisions before/after
+disk work and clears stale cuts while preserving export history. Review rebuilds
+the quiet plan; caption retiming retains correction provenance. One-word editing
+never invents timings for splits/merges/deletions. `ScriptLibrary.save` rolls back
+a failed optimistic attachment only while that same document is still current.
+
 ## Reversible cleaning foundation (build step 4)
 
 Native recognition also returns conservative 20ms measured quiet intervals,

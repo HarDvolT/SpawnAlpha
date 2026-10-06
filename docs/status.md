@@ -45,6 +45,20 @@ build step 2 (screen recording).
 
 ## Handover (2026-10-05): from here, Codex on the owner's Windows PC
 
+- **Latest checkpoint (2026-10-06, transcript wording corrections):** 478 Flutter
+  tests, 176 screenshot cases, clean analysis and normal Windows Release build.
+  Review wording has bounded pages, low/unknown-confidence flags, one-word editing
+  and Restore. EN/FR/AR field direction, validation and restoration pass; Arabic
+  wording aligns right and source times show tenths. Corrections preserve the first
+  recognized spelling, native confidence and original time interval. New atomic
+  word revisions recompute existing frozen Script alignment and rebuild quiet cuts;
+  Notes/computer-sound-only stay unscored. Originals and earlier exports stay intact.
+  Failed library writes now roll back their own optimistic attachment without
+  replacing later edits. Generated Release speech/correction/restore/reload checks
+  pass for Script/Notes. **Half done:** no word splitting/merging or time adjustment;
+  filler/retake decisions, burned captions, screen/sound polish and coaching remain.
+  Owner trials are still deferred; continue the remaining Director's Cut tracks.
+
 - **Playback follow-up (2026-10-06):** background pause now waits for an active
   Play/Seek/Mute command rather than dropping the request. Session generations
   prevent late commands affecting a replacement player; disposal closes safely.
@@ -862,6 +876,18 @@ build step 2 (screen recording).
   word lists, not prosody.
 
 ## Session log
+
+- 2026-10-06, transcript wording corrections:
+  - Added immutable original spelling, one-word changes/restoration, revision-checked
+    saving and frozen alignment recomputation. Existing ASR confidence/times and
+    measured quiet evidence are preserved. Notes/computer-only policy survives.
+    Cuts rebuild and older exports remain available. Failed library attachment
+    rolls back unless a later edit already replaced it; retry stays usable.
+  - Added paged Studio review, estimated wording flags and a validated RTL field.
+    Inspected EN/AR and Arabic dialog screenshots; improved short-word times to
+    tenths and right alignment. Analysis is clean, all 478 tests and 176 screenshots
+    pass, normal Windows Release builds, and generated native Script/Notes correction,
+    restore, recut and reload pass. No owner speech or new dependency; trials deferred.
 
 - 2026-10-06, playback background-pause fix:
   - Kept a lifecycle pause while a platform command is pending, bound it to the

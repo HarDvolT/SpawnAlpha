@@ -40,6 +40,22 @@ without a snapshot use actual speech, with an explanation.
 
 Word times are estimates. Invalid or conflicting times stop processing with a
 plain retry message; never shift, drop or invent words to make a cut possible.
+**Review wording** expands a paged word list with original-clock times in tenths
+of a second. Arabic wording aligns to the right. Words
+without confidence or below the existing 0.6 confidence guard say **Check wording**; this is an estimate,
+not a speech-quality score. Corrected words say **Corrected**. Each word has an
+**Edit word** action. Its Studio dialog uses reading type and the transcript's
+direction for the field, with **Cancel** and **Save word**. Keep one timed word
+per entry: splitting, merging or deleting words needs separate timing work.
+Invalid input says **Enter one word, with its punctuation if needed**.
+**Restore word** returns the original recognized spelling. Changes retain the
+recognizer's original text, confidence and time range. They never claim a new
+recognition or better timing. A new immutable local word revision recomputes
+existing frozen Script alignment; Notes/computer-sound-only remain unscored.
+Rebuild the quiet cut from that revision, preserving originals and earlier
+exports. Saving is atomic and cannot be cancelled midway. File/save failures
+keep the earlier words and show a generic retry message. Captions follow the
+latest saved words. The list uses existing Studio spacing, type and size tokens.
 No speech is an explicit empty result. **Copy transcript** is an explicit local
 clipboard action. **Save SRT + VTT captions** writes both local subtitle files;
 it does not publish or overwrite the original video.
