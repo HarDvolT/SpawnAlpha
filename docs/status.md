@@ -47,6 +47,19 @@ build step 2 (screen recording).
 
 ## Handover (2026-10-05): from here, Codex on the owner's Windows PC
 
+- **Latest checkpoint (2026-10-06, hear original filler phrases):** 537 Flutter
+  tests, 188 screenshot cases and clean analysis. Each Possible filler now has
+  **Hear this phrase**: it returns to/reveals the original player, includes
+  600ms of context per side, turns preview sound on explicitly and pauses at
+  the excerpt's end on the existing 250ms poll. This is a listening aid, not
+  a sample-accurate rendered cut preview. Choices/files stay unchanged.
+  Scrolling cannot replay old requests; late commands/status, backgrounding,
+  replacing and leaving the player are generation guarded. Generated real
+  Windows playback and EN/FR/AR screen checks pass; EN/AR phone PNGs inspected.
+  No owner media used. Normal Windows Release build restored after native
+  fixtures. **Half done:** full retake decisions, caption motion, screen/sound
+  polish, coaching and mobile/paid launch remain. Owner trials stay deferred.
+
 - **Latest checkpoint (2026-10-06, reversible filler review):** 525 Flutter
   tests, 188 screenshot cases, clean analysis and normal Windows Release build.
   Filler phrases use the EN/FR/AR lexicon and start kept. Script requires
@@ -916,6 +929,17 @@ build step 2 (screen recording).
   word lists, not prosody.
 
 ## Session log
+
+- 2026-10-06, original phrase listening:
+  - Added explicit bounded playback with original-source context, automatic
+    pause, manual/background cancellation and generation ownership across
+    late commands/status. The player survives scrolling and old requests
+    cannot replay. Hearing a filler does not choose removal or edit files.
+  - All 537 Flutter tests, 188 screenshot cases and clean analysis pass.
+    Generated Windows player checks cover bounded playback and stable pause;
+    EN/FR/AR integration checks cover original playback and unchanged cuts.
+    Inspected EN/AR phone controls. Normal Release build restored. No owner
+    media, network or new dependency. Retakes and remaining polish are next.
 
 - 2026-10-06, reversible filler review:
   - Added shared normalized vocabulary, evidence-gated optional proposals,

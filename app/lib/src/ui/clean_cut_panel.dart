@@ -11,11 +11,13 @@ class CleanCutPanel extends StatefulWidget {
     required this.busy,
     required this.onChanged,
     required this.onRestore,
+    this.onListen,
   });
   final CleanPlan plan;
   final bool busy;
   final void Function(String, bool) onChanged;
   final VoidCallback onRestore;
+  final ValueChanged<CutChange>? onListen;
   @override
   State<CleanCutPanel> createState() => _CleanCutPanelState();
 }
@@ -88,6 +90,15 @@ class _CleanCutPanelState extends State<CleanCutPanel> {
                       : 'Original restored'}',
                   style: SaType.bodySm.copyWith(color: p.ink2),
                 ),
+                if (change.kind == CutChangeKind.filler &&
+                    widget.onListen != null)
+                  TextButton.icon(
+                    onPressed: widget.busy
+                        ? null
+                        : () => widget.onListen!(change),
+                    icon: const Icon(Icons.hearing_rounded),
+                    label: const Text('Hear this phrase'),
+                  ),
               ],
             ),
           ),

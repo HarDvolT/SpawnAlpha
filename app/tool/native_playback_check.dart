@@ -3,6 +3,33 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:spawnalpha/src/playback/local_playback.dart';
+import 'package:spawnalpha/src/playback/playback_controller.dart';
+import 'package:spawnalpha/src/model/cut_plan.dart';
+
+// Exercise the real platform, keeping only generated fixture tones muted.
+class MutedFixturePlayback implements LocalPlayback {
+  const MutedFixturePlayback(this.backend);
+  final WindowsLocalPlayback backend;
+  @override
+  bool get supported => true;
+  @override
+  Future<PlaybackHandle> open(String path) => backend.open(path);
+  @override
+  Future<PlaybackStatus> status(PlaybackHandle handle) =>
+      backend.status(handle);
+  @override
+  Future<void> play(PlaybackHandle handle) => backend.play(handle);
+  @override
+  Future<void> pause(PlaybackHandle handle) => backend.pause(handle);
+  @override
+  Future<void> seek(PlaybackHandle handle, Duration position) =>
+      backend.seek(handle, position);
+  @override
+  Future<void> mute(PlaybackHandle handle, bool muted) =>
+      backend.mute(handle, true);
+  @override
+  Future<void> close(PlaybackHandle handle) => backend.close(handle);
+}
 
 void require(bool value) {
   if (!value) throw StateError('Generated playback check failed');
@@ -42,6 +69,7 @@ Future<void> main() async {
   );
   var stage = 'find generated fixture';
   PlaybackHandle? handle;
+  TakePlaybackController? excerptPlayer;
   const backend = WindowsLocalPlayback();
   try {
     final fixture = File(
@@ -102,6 +130,39 @@ Future<void> main() async {
       require((await backend.status(handle)).closed);
       handle = null;
     }
+    stage = 'bounded controller phrase preview';
+    excerptPlayer = TakePlaybackController(const MutedFixturePlayback(backend));
+    await excerptPlayer.open(unicode.path);
+    handle = excerptPlayer.handle;
+    require(handle != null);
+    await waitFor(backend, handle!, (s) => s.ready && s.frames > 0);
+    await excerptPlayer.poll();
+    require(excerptPlayer.ready && !excerptPlayer.status.playing);
+    await excerptPlayer.preview(
+      SourceRange(
+        start: const Duration(milliseconds: 500),
+        end: const Duration(milliseconds: 1200),
+      ),
+    );
+    var pausedExcerpt = await waitFor(
+      backend,
+      handle,
+      (s) => !s.playing && s.position >= const Duration(milliseconds: 1200),
+    );
+    require(
+      pausedExcerpt.position < const Duration(milliseconds: 1900) &&
+          !excerptPlayer.previewing,
+    );
+    await Future<void>.delayed(const Duration(milliseconds: 250));
+    require(
+      ((await backend.status(handle)).position - pausedExcerpt.position).abs() <
+          const Duration(milliseconds: 100),
+    );
+    excerptPlayer.dispose();
+    excerptPlayer = null;
+    await Future<void>.delayed(const Duration(milliseconds: 100));
+    require((await backend.status(handle)).closed);
+    handle = null;
     stage = 'reject unavailable and remote inputs';
     for (final path in [
       'https://example.com/video.mp4',
@@ -118,13 +179,14 @@ Future<void> main() async {
     }
     // ignore: avoid_print
     print(
-      'Local playback check passed: Unicode file, paused start, decoded frames, pause, seek, end, repeated close and remote rejection.',
+      'Local playback check passed: Unicode file, paused start, decoded frames, pause, seek, end, bounded phrase preview/auto-pause, repeated close and remote rejection.',
     );
   } on Object {
     // Static stage only; do not print private paths or OS exception messages.
     // ignore: avoid_print
     print('Local playback check failed at $stage.');
   } finally {
+    excerptPlayer?.dispose();
     if (handle != null) await backend.close(handle);
   }
 }

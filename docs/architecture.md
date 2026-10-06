@@ -646,6 +646,15 @@ This preview bound does not limit full-resolution exports. Stop revokes playback
 closes the OS source, waits for active frame work and releases texture ownership.
 OS exceptions and media paths never enter logs or user-facing error text.
 
+Filler review sends an explicit excerpt/request number to `TakePlayer`, returns
+to the original file and reveals the player even beyond the list's cache.
+The player retains its state while scrolling so old requests cannot replay.
+`preview` pauses, seeks, unmutes and plays only the current media/request
+generation; manual controls and background pause cancel the excerpt. The
+existing 250ms status poll pauses at its end (a listening aid, not a sample-
+accurate cut preview). Late status, mute and replay-seek completions also check
+the media generation, including backends that reuse a handle value.
+
 ## Local video export
 
 `VideoRenderer` sends a portable plan plus explicitly resolved local files to

@@ -15,6 +15,10 @@ import 'package:spawnalpha/src/transcription/word_timing.dart';
 import 'package:spawnalpha/src/transcription/take_processing.dart';
 import 'package:spawnalpha/src/ui/take_review_screen.dart';
 
+import '../cut/filler_review_test.dart'
+    show fillerFixture, fillerPlan, fillerScript;
+import '../playback/playback_controller_test.dart' show FakePlayback;
+
 import '../transcription/speech_processor_test.dart' show FakeSpeech;
 
 SavedTranscript reviewFixture(
@@ -60,6 +64,115 @@ SavedTranscript reviewFixture(
 
 void main() {
   for (final language in ScriptLanguage.values) {
+    testWidgets(
+      'hearing a filler reveals original player without changing the cut $language',
+      (tester) async {
+        tester.view.physicalSize = const Size(1280, 900);
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.reset);
+        final words = fillerFixture(language),
+            plan = fillerPlan(fillerFixture(language));
+        final backend = FakePlayback();
+        late ScriptLibrary library;
+        late Directory root;
+        late Take take;
+        late ScriptDocument script;
+        late AppServices services;
+        await tester.runAsync(() async {
+          library = ScriptLibrary(MemoryScriptStore());
+          root = await Directory.systemTemp.createTemp('spawnalpha-listen-');
+          take = Take(
+            path: '${root.path}/generated.mp4',
+            recordedAt: DateTime(2026),
+            duration: words.duration,
+            wordsPath: '${root.path}/words.json',
+          );
+          script = fillerScript(words).copyWith(takes: [take]);
+          await library.save(script);
+          services = AppServices(
+            library: library,
+            settings: Settings(secrets: MemorySecretStore()),
+            recordingsDir: root,
+            playback: backend,
+            speechBackend: FakeSpeech('unused'),
+          );
+          services.speech.result = SavedTranscript(
+            sourcePath: take.path,
+            transcript: words,
+            snapshot: script,
+          );
+          await services.cuts.save(script.id, take, plan);
+          take = library.byId(script.id)!.takes.single;
+          expect(await services.cuts.load(take), isNotNull);
+        });
+        await tester.runAsync(() async {
+          await tester.pumpWidget(
+            AppScope(
+              services: services,
+              child: MaterialApp(
+                theme: buildTheme(Brightness.light),
+                home: TakeReviewScreen(script: script, take: take),
+              ),
+            ),
+          );
+          await Future<void>.delayed(const Duration(milliseconds: 100));
+        });
+        await tester.pumpAndSettle();
+        await tester.scrollUntilVisible(
+          find.text('Hear this phrase'),
+          300,
+          scrollable: find.byType(Scrollable).first,
+        );
+        await tester.pumpAndSettle();
+        await tester.ensureVisible(find.text('Hear this phrase'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Hear this phrase'));
+        await tester.pumpAndSettle();
+        expect(backend.commands, [
+          'pause',
+          'seek:200000',
+          'mute:false',
+          'play',
+        ]);
+        expect(find.text('Original take · Phrase preview'), findsOneWidget);
+        expect(
+          tester.getCenter(find.text('Original take · Phrase preview')).dy,
+          inInclusiveRange(0, 900),
+        );
+        await tester.scrollUntilVisible(
+          find.text('Hear this phrase'),
+          300,
+          scrollable: find.byType(Scrollable).first,
+        );
+        await tester.pumpAndSettle();
+        expect(
+          backend.closed,
+          isEmpty,
+          reason: 'The player survives scrolling',
+        );
+        tester
+            .state<ScrollableState>(find.byType(Scrollable).first)
+            .position
+            .jumpTo(0);
+        await tester.pumpAndSettle();
+        expect(find.text('Original take · Phrase preview'), findsOneWidget);
+        expect(
+          backend.commands,
+          hasLength(4),
+          reason: 'Scrolling must not repeat a previous request',
+        );
+        expect(library.byId(script.id)!.takes.single.cutPath, take.cutPath);
+        expect(plan.changes.single.enabled, isFalse);
+        expect(tester.takeException(), isNull);
+        await tester.pumpWidget(const SizedBox());
+        await tester.pump();
+        services.processing.dispose();
+        services.speech.dispose();
+        services.speechModels.dispose();
+        library.dispose();
+        await tester.runAsync(() => root.delete(recursive: true));
+      },
+    );
     testWidgets('new take starts processing and keeps warning $language', (
       tester,
     ) async {

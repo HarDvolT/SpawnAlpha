@@ -319,7 +319,7 @@ void main() {
           final plan = chosen ? base.withEnabled(base.changes.single.id, true) : base;
           await shoot(tester, 'filler-review-${language.name}-${brightness.name}-${chosen ? 'removed' : 'kept'}', phone,
             (_) => Scaffold(appBar: AppBar(title: const Text('Your take')), body: ListView(padding: const EdgeInsets.all(SaSpace.s5), children: [
-              CleanCutPanel(plan: plan, busy: false, onChanged: (_, _) {}, onRestore: () {}),
+              CleanCutPanel(plan: plan, busy: false, onChanged: (_, _) {}, onRestore: () {}, onListen: (_) {}),
             ])), [fillerScript(words)], brightness: brightness);
         });
       }

@@ -74,6 +74,14 @@ says **Kept · check meaning**; it only removes the phrase after the person
 chooses it. Other words, accepted pauses and breaths remain protected. Restore
 all changes brings back every gap and filler. An older quiet plan has **Review
 fillers**, which preserves its existing switches. No new style tokens are needed.
+Each filler has **Hear this phrase**. It returns the player to the original,
+reveals it and plays the phrase with 600ms of context on both sides, clamped
+to the file. This explicit action turns preview sound on and pauses after
+the excerpt on the existing playback poll. This is listening, not a rendered
+sample-accurate cut preview. Manual Play/Seek/Pause ends excerpt mode;
+backgrounding, replacing the file and leaving the screen cancel it. Initial
+review/reopening never starts sound. Scrolling retains the player and cannot
+repeat the previous request. Player ownership must reject late commands.
 
 **Save your video** makes a separate local MP4 from the saved cut (or the whole
 take when no cut exists). The first Windows renderer fits the complete picture

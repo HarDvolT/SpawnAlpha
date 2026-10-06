@@ -8,6 +8,7 @@ import '../cut/clean_plan.dart';
 import '../model/mark.dart';
 import '../model/script_document.dart';
 import '../model/video_export.dart';
+import '../model/cut_plan.dart';
 import '../render/export_processor.dart';
 import '../theme/theme.dart';
 import '../transcription/captions.dart';
@@ -51,6 +52,37 @@ class _TakeReviewScreenState extends State<TakeReviewScreen> {
   bool _burnedCaptions = true;
   List<VideoExport> _videos = [];
   VideoExport? _viewing;
+  final _reviewScroll = ScrollController();
+  final _playerViewKey = GlobalKey();
+  SourceRange? _listenRange;
+  int _listenRequest = 0;
+  void _hearChange(CutChange change) {
+    final start = change.range.start - SaDurations.reviewContext;
+    final end = change.range.end + SaDurations.reviewContext;
+    setState(() {
+      _viewing = null;
+      _listenRange = SourceRange(
+        start: start < Duration.zero ? Duration.zero : start,
+        end: end > widget.take.duration ? widget.take.duration : end,
+      );
+      ++_listenRequest;
+    });
+    // The player can be outside the list's cache after reviewing many changes.
+    if (_reviewScroll.hasClients) _reviewScroll.jumpTo(0);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final playerContext = _playerViewKey.currentContext;
+      if (mounted && playerContext != null) {
+        Scrollable.ensureVisible(playerContext);
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _reviewScroll.dispose();
+    super.dispose();
+  }
+
   Take _latestTake(AppServices app) =>
       app.library
           .byId(widget.script.id)
@@ -297,6 +329,7 @@ class _TakeReviewScreenState extends State<TakeReviewScreen> {
           child: Scaffold(
             appBar: AppBar(title: const Text('Your take')),
             body: ListView(
+              controller: _reviewScroll,
               padding: const EdgeInsets.all(SaSpace.s5),
               children: [
                 Directionality(
@@ -400,7 +433,10 @@ class _TakeReviewScreenState extends State<TakeReviewScreen> {
                     label: const Text('Watch original take'),
                   ),
                 TakePlayer(
+                  key: _playerViewKey,
                   backend: app.playback,
+                  excerpt: _listenRange,
+                  playRequest: _listenRequest,
                   path: _viewing == null
                       ? widget.take.path
                       : app.videoExports.file(_viewing!).path,
@@ -509,6 +545,7 @@ class _TakeReviewScreenState extends State<TakeReviewScreen> {
                       onChanged: (id, value) =>
                           _saveCut(_clean!.withEnabled(id, value)),
                       onRestore: () => _saveCut(_clean!.restoreAll()),
+                      onListen: app.playback.supported ? _hearChange : null,
                     )
                   else
                     OutlinedButton.icon(

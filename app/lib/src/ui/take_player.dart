@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../playback/local_playback.dart';
 import '../playback/playback_controller.dart';
+import '../model/cut_plan.dart';
 import '../theme/theme.dart';
 import 'format.dart';
 
@@ -13,41 +14,82 @@ class TakePlayer extends StatefulWidget {
     required this.backend,
     required this.path,
     this.label = 'Original take',
+    this.excerpt,
+    this.playRequest = 0,
   });
   final LocalPlayback backend;
   final String path, label;
+  final SourceRange? excerpt;
+  final int playRequest;
   @override
   State<TakePlayer> createState() => _TakePlayerState();
 }
 
-class _TakePlayerState extends State<TakePlayer> with WidgetsBindingObserver {
+class _TakePlayerState extends State<TakePlayer>
+    with WidgetsBindingObserver, AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
   late TakePlaybackController _player;
   double? _scrub;
+  bool _pendingExcerpt = false, _active = true;
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _pendingExcerpt = widget.excerpt != null && widget.playRequest > 0;
     _create();
   }
 
   void _create() {
     _player = TakePlaybackController(widget.backend);
+    _player.addListener(_tryExcerpt);
     if (widget.backend.supported) unawaited(_player.open(widget.path));
+  }
+
+  void _tryExcerpt() {
+    if (!_pendingExcerpt || !_active || !_player.ready || _player.commanding) {
+      return;
+    }
+    final player = _player, request = widget.playRequest;
+    unawaited(
+      Future<void>.microtask(() async {
+        if (!mounted ||
+            !_active ||
+            !_pendingExcerpt ||
+            player != _player ||
+            request != widget.playRequest ||
+            widget.excerpt == null) {
+          return;
+        }
+        _pendingExcerpt = false;
+        await player.preview(widget.excerpt!);
+      }),
+    );
   }
 
   @override
   void didUpdateWidget(TakePlayer oldWidget) {
     super.didUpdateWidget(oldWidget);
+    final requested = oldWidget.playRequest != widget.playRequest;
     if (oldWidget.path != widget.path || oldWidget.backend != widget.backend) {
       _player.dispose();
       _scrub = null;
+      _pendingExcerpt = requested && widget.excerpt != null;
       _create();
+    } else if (requested) {
+      _pendingExcerpt = widget.excerpt != null;
+      _scrub = null;
+      _tryExcerpt();
     }
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state != AppLifecycleState.resumed) unawaited(_player.pause());
+    _active = state == AppLifecycleState.resumed;
+    if (!_active) {
+      _pendingExcerpt = false;
+      unawaited(_player.pause());
+    }
   }
 
   @override
@@ -59,6 +101,7 @@ class _TakePlayerState extends State<TakePlayer> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     final p = SaTheme.of(context);
     return ListenableBuilder(
       listenable: _player,
@@ -79,7 +122,7 @@ class _TakePlayerState extends State<TakePlayer> with WidgetsBindingObserver {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  widget.label,
+                  '${widget.label}${_player.previewing ? ' · Phrase preview' : ''}',
                   style: SaType.signalLabel.copyWith(color: p.ink2),
                 ),
                 const SizedBox(height: SaSpace.s2),

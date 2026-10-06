@@ -19,6 +19,7 @@ void main() {
         addTearDown(tester.view.reset);
         final words = fillerFixture(language);
         var plan = fillerPlan(words);
+        CutChange? heard;
         await tester.pumpWidget(
           MaterialApp(
             theme: buildTheme(Brightness.light),
@@ -30,12 +31,17 @@ void main() {
                   onChanged: (id, value) =>
                       update(() => plan = plan.withEnabled(id, value)),
                   onRestore: () => update(() => plan = plan.restoreAll()),
+                  onListen: (change) => heard = change,
                 ),
               ),
             ),
           ),
         );
         expect(find.text('Possible filler'), findsOneWidget);
+        await tester.tap(find.text('Hear this phrase'));
+        await tester.pumpAndSettle();
+        expect(heard?.id, plan.changes.single.id);
+        expect(plan.changes.single.enabled, isFalse);
         expect(find.textContaining('Kept · check meaning'), findsOneWidget);
         final textContext = tester.element(find.text(words.words[1].text));
         expect(
