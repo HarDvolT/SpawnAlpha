@@ -21,13 +21,21 @@ class VideoExportPanel extends StatelessWidget {
     this.includeCamera = true,
     this.onCamera,
     this.hasCaptions = false,
+    this.burnedCaptions = true,
+    this.onBurnedCaptions,
   });
   final VideoFormat format;
   final ValueChanged<VideoFormat> onFormat;
   final VoidCallback onExport;
   final ExportProcessor job;
-  final bool busy, supported, hasCamera, includeCamera, hasCaptions;
+  final bool busy,
+      supported,
+      hasCamera,
+      includeCamera,
+      hasCaptions,
+      burnedCaptions;
   final ValueChanged<bool>? onCamera;
+  final ValueChanged<bool>? onBurnedCaptions;
   final List<VideoExport> videos;
   final ValueChanged<VideoExport> onView, onShow;
 
@@ -40,7 +48,8 @@ class VideoExportPanel extends StatelessWidget {
       children: [
         Text(
           '${video.createdAt.toLocal().toString().substring(0, 16)} · '
-          '${video.format.label} · ${formatCutTime(video.duration)}',
+          '${video.format.label} · ${formatCutTime(video.duration)}'
+          '${video.burnedCaptions ? ' · Captions on video' : ''}',
           style: SaType.signalLabel.copyWith(color: p.ink2),
         ),
         TextButton.icon(
@@ -102,6 +111,18 @@ class VideoExportPanel extends StatelessWidget {
           Text(
             'SRT and VTT caption files are saved beside the video.',
             style: SaType.bodySm.copyWith(color: p.ink2),
+          ),
+        if (hasCaptions)
+          CheckboxListTile(
+            contentPadding: EdgeInsets.zero,
+            value: burnedCaptions,
+            onChanged: busy
+                ? null
+                : (value) => onBurnedCaptions?.call(value ?? false),
+            title: const Text('Put captions on video'),
+            subtitle: const Text(
+              'Readable phrases. Your corrected words and cut timing.',
+            ),
           ),
         if (hasCamera)
           CheckboxListTile(

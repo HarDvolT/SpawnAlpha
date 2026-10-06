@@ -34,7 +34,11 @@ void main() {
       duration: const Duration(seconds: 3),
       createdAt: DateTime(2026),
     );
-    var viewed = false, shown = false, saved = false, camera = true;
+    var viewed = false,
+        shown = false,
+        saved = false,
+        camera = true,
+        captions = true;
     await tester.pumpWidget(
       MaterialApp(
         theme: buildTheme(Brightness.light),
@@ -51,6 +55,8 @@ void main() {
             onShow: (_) => shown = true,
             hasCamera: true,
             onCamera: (value) => camera = value,
+            hasCaptions: true,
+            onBurnedCaptions: (value) => captions = value,
           ),
         ),
       ),
@@ -58,8 +64,10 @@ void main() {
     await tester.tap(find.text('Save video'));
     await tester.tap(find.text('Watch saved video'));
     await tester.tap(find.text('Show saved files'));
-    await tester.tap(find.byType(Checkbox));
+    await tester.tap(find.text('Include the camera in the corner'));
+    await tester.tap(find.text('Put captions on video'));
     expect(camera, isFalse);
+    expect(captions, isFalse);
     expect([saved, viewed, shown], everyElement(isTrue));
     expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox());

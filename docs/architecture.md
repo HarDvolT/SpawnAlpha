@@ -662,6 +662,19 @@ and bounded. Shared native recording probes are queued across callers.
 or cut changes preserve earlier exports. Review watches the selected saved video
 or original, with local file discovery and access to earlier history.
 
-This first exporter has no burned captions, crossfades, noise/loudness polish,
-face reframing or automatic zoom/cursor tracks. Exported EDL metadata has no
+`CaptionOverlay` shapes complete phrases from saved actual speech (including
+word corrections) on the kept output clock. The optional first Readable style
+uses worker-owned DirectWrite/Direct2D and a private collection of the existing
+bundled Anybody/Reem Kufi fonts. Fonts are not installed or downloaded. The
+owned BGRA compositor frame gets caption ink before NV12 encoding; one layout
+and one target bitmap are cached, with bounded text and at most two lines.
+Type, geometry and safe margins come from design tokens. Glyph overhang includes
+Arabic diacritics/descenders; failed fitting never clips, drops or fabricates words.
+`VideoExport.burnedCaptions` is additive, defaults false for old history and
+requires actual caption metadata. Disabling it still writes SRT/VTT. Generated
+decoded-pixel checks use the negotiated RGB stride/aperture, including padded
+portrait rows, rather than assuming export width equals storage width.
+
+Cue/Punch/Karaoke motion, crossfades, noise/loudness polish,
+face reframing and automatic zoom/cursor tracks remain. Exported EDL metadata has no
 source media path; private revision references remain in local take history.

@@ -20,7 +20,8 @@ now has verified offline model setup, bounded local speech jobs, frozen Script/N
 processing, durable actual words, script alignment and SRT/VTT export in take review.
 Generated short and 70-second app checks pass. Reversible quiet cuts, local
 take playback and first Windows video exports now work. Automatic local speech
-and reversible cutting after Stop are connected; remaining Director's Cut
+and reversible cutting after Stop are connected. Optional Readable captions
+follow saved actual words/corrections and the cut clock; remaining Director's Cut
 tracks are next. Owner hardware trials are
 deferred until they return.** The build order is in
 [product-brief.md](product-brief.md#build-order); it was revised on 2026-09-30.
@@ -33,7 +34,7 @@ Screen/Both and the protected companion render cards. New takes reset to card
 one; the last card never stops capture, and paused browsing coalesces on resume.
 Take metadata freezes the deck and saves card indices on the take clock.
 The generated native Arabic Notes recording passes. Owner trials remain
-deferred; next finish step-3 processing with the Script/Notes distinction.
+deferred; frozen Script/Notes speech processing is built and Cut work continues.
 
 The owner's first test on Windows (build #1) found: no microphone permission prompt and no
 sound in takes; a prompter that scrolled away from the word being read; effects that were too
@@ -44,6 +45,21 @@ dot to grow and act out each cue in the cue's colour, and for the next features.
 build step 2 (screen recording).
 
 ## Handover (2026-10-05): from here, Codex on the owner's Windows PC
+
+- **Latest checkpoint (2026-10-06, captions on video):** 485 Flutter tests,
+  176 screenshot cases, clean analysis and normal Windows Release build.
+  The default-enabled **Put captions on video** switch uses complete saved
+  actual phrases, including corrections, with bundled display fonts and fixed
+  caption tokens. Disabling it preserves SRT/VTT. History records the choice
+  and old records remain compatible. Native EN/FR/AR pixel checks pass timing,
+  safe margins, two lines, Arabic diacritics/mixed text and padded portrait rows;
+  unreadable/control text fails without clipping or retaining an output.
+  The real app-channel check passes all four sizes, local history/reload,
+  saved playback and cancel cleanup. Phone export EN/AR and generated caption
+  PNGs were inspected. No new dependency or owner speech used.
+  **Half done:** this is the Readable style; Cue/Punch/Karaoke motion,
+  filler/retake decisions, screen/sound polish and coaching remain.
+  Owner trials stay deferred; continue those tracks before mobile/paid launch.
 
 - **Latest checkpoint (2026-10-06, transcript wording corrections):** 478 Flutter
   tests, 176 screenshot cases, clean analysis and normal Windows Release build.
@@ -708,7 +724,7 @@ build step 2 (screen recording).
    cancellable background recognition and durable frozen-aid word results pass;
    take review exports SRT/VTT. See `word-timing.md` for estimated timings and
    remaining real-language quality trials. Step 4 now has reversible quiet cuts
-   and first local video export with automatic processing after Stop. Next filler/retake review,
+   and local video export with Readable captions and automatic processing after Stop. Next filler/retake review,
    caption/screen/sound polish and delivery coaching; keep originals intact.
    See OpenScreen in the brief for reusable parts.
 
@@ -876,6 +892,20 @@ build step 2 (screen recording).
   word lists, not prosody.
 
 ## Session log
+
+- 2026-10-06, Readable captions on video:
+  - Added bounded worker-owned DirectWrite/Direct2D caption compositing with
+    private bundled display fonts, shaped Arabic and token-driven safe margins.
+    Fit includes glyph overhang, preserves complete phrases and refuses unreadable
+    text. Caption choices are revision-bound in immutable local export history;
+    optional burning preserves subtitle files and existing exports.
+  - All 485 Flutter tests, 176 screenshot cases, clean analysis and normal Windows
+    Release build pass. Generated native timing/pixels/two-line/diacritics and
+    all-format app-channel/history/player/cancel checks pass. Corrected the
+    test decoder to respect negotiated RGB stride and visible aperture.
+    Inspected EN/AR phone controls and generated French/Arabic video frames.
+    No owner speech, network service or new dependency. Trials deferred;
+    filler/retake review, motion, screen/sound polish and coaching remain next.
 
 - 2026-10-06, transcript wording corrections:
   - Added immutable original spelling, one-word changes/restoration, revision-checked

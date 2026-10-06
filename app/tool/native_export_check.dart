@@ -7,6 +7,8 @@ import 'package:spawnalpha/src/model/cut_plan.dart';
 import 'package:spawnalpha/src/model/mark.dart';
 import 'package:spawnalpha/src/model/script_document.dart';
 import 'package:spawnalpha/src/model/video_export.dart';
+import 'package:spawnalpha/src/model/script_language.dart';
+import 'package:spawnalpha/src/transcription/captions.dart';
 import 'package:spawnalpha/src/playback/local_playback.dart';
 import 'package:spawnalpha/src/recording/recording_inspector.dart';
 import 'package:spawnalpha/src/render/export_processor.dart';
@@ -74,6 +76,28 @@ Future<void> main() async {
       ],
     );
     for (final format in VideoFormat.values) {
+      final language = format == VideoFormat.portrait
+          ? ScriptLanguage.ar
+          : format == VideoFormat.feed
+          ? ScriptLanguage.fr
+          : ScriptLanguage.en;
+      final captionPlan = CutPlan(
+        takeId: plan.takeId,
+        language: language,
+        sourceDuration: plan.sourceDuration,
+        ranges: plan.ranges,
+      );
+      final captions = [
+        Caption(
+          switch (language) {
+            ScriptLanguage.en => 'Hello everyone.',
+            ScriptLanguage.fr => 'Bonjour à tous.',
+            ScriptLanguage.ar => 'مرحبا بكم اليوم.',
+          },
+          const Duration(milliseconds: 250),
+          const Duration(milliseconds: 1750),
+        ),
+      ];
       stage = 'render ${format.name}';
       final video = VideoExport(
         id: newId(),
@@ -81,16 +105,26 @@ Future<void> main() async {
         duration: plan.duration,
         createdAt: DateTime(2026),
         camera: format == VideoFormat.portrait,
+        captions: true,
+        burnedCaptions: true,
       );
-      final reservation = await store.reserve(script.id, take, video, plan);
+      final reservation = await store.reserve(
+        script.id,
+        take,
+        video,
+        captionPlan,
+        srt: subtitleText(captions),
+        vtt: subtitleText(captions, vtt: true),
+      );
       double progress = 0;
       await renderer.render(
         VideoRenderRequest(
           source: source.path,
           output: store.file(video).path,
           camera: video.camera ? source.path : null,
-          plan: plan,
+          plan: captionPlan,
           format: format,
+          captions: captions,
         ),
         (value) {
           require(value >= progress);
@@ -119,6 +153,11 @@ Future<void> main() async {
       await store.finish(reservation);
       take = library.byId(script.id)!.takes.single;
       require((await store.load(take)).first.id == video.id);
+      require((await store.load(take)).first.burnedCaptions);
+      require(
+        await store.file(video, 'srt').exists() &&
+            await store.file(video, 'vtt').exists(),
+      );
       stage = 'open saved ${format.name}';
       handle = await playback.open(store.file(video).path);
       var ready = false;
@@ -184,7 +223,7 @@ Future<void> main() async {
     require((await inspector.inspect(source.path)).readable);
     // ignore: avoid_print
     print(
-      'Local export check passed: all four formats, Unicode paths, exact cut/audio clock, optional camera, verified history/reload, saved playback, full processor and cancel cleanup.',
+      'Local export check passed: all four formats, Unicode paths, EN/FR/AR captions, exact cut/audio clock, optional camera, caption files and verified history/reload, saved playback, full processor and cancel cleanup.',
     );
   } on Object {
     // Fixed stage only. Never print media paths, text or OS exception messages.

@@ -459,6 +459,20 @@ abstract final class SaVideoExport {
   static const double cameraInset = 0.28;
   /// Camera corner margin as a fraction of the shorter output edge.
   static const double cameraMargin = 0.04;
+  /// Readable captions' left and wide-format side margins.
+  static const double captionEdge = 0.06;
+  /// Readable captions' lower-third bottom margin in wide output.
+  static const double captionBottom = 0.12;
+  /// Vertical caption safe zone above platform UI.
+  static const double captionSafeTop = 0.13;
+  /// Vertical caption safe zone below platform UI.
+  static const double captionSafeBottom = 0.21;
+  /// Vertical caption safe zone left of platform UI.
+  static const double captionSafeRight = 0.14;
+  /// Minimum readable caption size at a 1080px short output edge.
+  static const double captionMinSize = 28.0;
+  /// Readable captions' tight vertical shadow, scaled with output.
+  static const double captionShadowOffset = 2.0;
 }
 
 /// The four type voices: display, reading, signal and pencil.

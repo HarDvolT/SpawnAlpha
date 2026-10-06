@@ -127,8 +127,11 @@ conservative first pass a finished Director's Cut.
 
 The saved plan now renders to a separate finalized H.264/AAC MP4 in 16:9
 1080p/4K, 9:16 or 4:5. This slice fits the complete source on black space;
-face/target reframing, burned captions, sound polish and crossfades are still
-pending. Both can include its separate camera in a token-sized corner inset.
+face/target reframing, sound polish and crossfades are still pending.
+Optional Readable captions now put complete phrases from saved actual speech
+on the video, using bundled display fonts, the fixed caption plate and safe
+margins. Corrected words and subtitle files share the kept clock; full
+Cue/Punch/Karaoke motion remains later. Both can include its separate camera in a token-sized corner inset.
 Source ranges drive video, bounded audio and actual SRT/VTT captions together.
 Progress/cancel, decoded verification, recoverable completed jobs and immutable
 saved-video history are part of take review; see [take-review.md](take-review.md).

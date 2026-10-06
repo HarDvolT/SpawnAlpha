@@ -302,6 +302,7 @@ void main() {
                   VideoExportPanel(format: VideoFormat.portrait, onFormat: (_) {}, onExport: () {},
                     job: app.exports, busy: working, supported: true, hasCamera: true, hasCaptions: true,
                     videos: [VideoExport(id: 'generated', format: VideoFormat.portrait,
+                      captions: true, burnedCaptions: true,
                       duration: const Duration(seconds: 25), createdAt: DateTime(2026, 10, 6, 18, 30))],
                     onView: (_) {}, onShow: (_) {}),
                 ]));

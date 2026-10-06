@@ -288,6 +288,8 @@ void RenderLocalVideo(const LocalRenderRequest& request, std::atomic<bool>& canc
     AudioReader audio; const bool has_audio = audio.Open(request.source);
     Compositor compositor; compositor.Open(device.get(), request.width, request.height, !request.camera.empty(),
       request.camera_inset, request.camera_margin);
+    CaptionOverlay captions;
+    captions.Open(device.get(), request.width, request.height, total_us, request.captions, request.caption_layout);
     GpuVideoWriter writer;
     check_hresult(writer.Start(device.get(), request.output, request.width, request.height, 30,
       has_audio ? GpuAudioFormat{static_cast<UINT>(kRate), audio.channels} : GpuAudioFormat{}, &owned, false));
@@ -309,6 +311,7 @@ void RenderLocalVideo(const LocalRenderRequest& request, std::atomic<bool>& canc
         request.camera.empty() ? Frame{} : camera.At(source_ticks, false, cancel),
         {main.x, main.y, main.x + static_cast<LONG>(main.width), main.y + static_cast<LONG>(main.height)},
         {camera.x, camera.y, camera.x + static_cast<LONG>(camera.width), camera.y + static_cast<LONG>(camera.height)}, frame);
+      captions.Draw(image.get(), output_ticks / 10);
       check_hresult(writer.WriteFrame(image.get(), request.width, request.height, output_ticks, end_ticks - output_ticks));
       if (has_audio) {
         const auto end_sample = std::min(total_samples, (end_ticks * kRate + kSecond / 2) / kSecond);

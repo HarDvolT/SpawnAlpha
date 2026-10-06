@@ -13,6 +13,7 @@ add_executable(${BINARY_NAME} WIN32
   "speech_jobs.cpp"
   "local_player.cpp"
   "local_render.cpp"
+  "caption_overlay.cpp"
   "render_jobs.cpp"
   "screen_sources.cpp"
   "screen_preview.cpp"
@@ -61,6 +62,7 @@ target_link_libraries(${BINARY_NAME} PRIVATE flutter flutter_wrapper_app flutter
 target_link_libraries(${BINARY_NAME} PRIVATE whisper bcrypt)
 target_link_libraries(${BINARY_NAME} PRIVATE "dwmapi.lib")
 target_link_libraries(${BINARY_NAME} PRIVATE "d3d11.lib" "dxgi.lib" "windowsapp.lib")
+target_link_libraries(${BINARY_NAME} PRIVATE "d2d1.lib" "dwrite.lib")
 target_link_libraries(${BINARY_NAME} PRIVATE "mf.lib" "mfplat.lib" "mfreadwrite.lib" "mfuuid.lib" "oleaut32.lib")
 target_include_directories(${BINARY_NAME} PRIVATE "${CMAKE_SOURCE_DIR}")
 
@@ -190,8 +192,8 @@ target_compile_options(render_core_check PRIVATE /W4 /WX /EHsc /wd"4100")
 target_compile_definitions(render_core_check PRIVATE "NOMINMAX")
 target_link_libraries(render_core_check PRIVATE "d3d11.lib" "dxgi.lib" "mf.lib" "mfplat.lib" "mfreadwrite.lib" "mfuuid.lib" "ole32.lib" "oleaut32.lib" "windowsapp.lib")
 
-add_executable(local_render_check EXCLUDE_FROM_ALL "local_render.cpp" "gpu_video_writer.cpp" "recording_probe.cpp" "tests/local_render_check.cpp")
+add_executable(local_render_check EXCLUDE_FROM_ALL "local_render.cpp" "caption_overlay.cpp" "gpu_video_writer.cpp" "recording_probe.cpp" "tests/local_render_check.cpp")
 target_compile_features(local_render_check PRIVATE cxx_std_17)
 target_compile_options(local_render_check PRIVATE /W4 /WX /EHsc /wd"4100")
 target_compile_definitions(local_render_check PRIVATE "NOMINMAX")
-target_link_libraries(local_render_check PRIVATE "d3d11.lib" "dxgi.lib" "mf.lib" "mfplat.lib" "mfreadwrite.lib" "mfuuid.lib" "ole32.lib" "oleaut32.lib" "windowsapp.lib")
+target_link_libraries(local_render_check PRIVATE "windowscodecs.lib" "d2d1.lib" "dwrite.lib" "d3d11.lib" "dxgi.lib" "mf.lib" "mfplat.lib" "mfreadwrite.lib" "mfuuid.lib" "ole32.lib" "oleaut32.lib" "windowsapp.lib")

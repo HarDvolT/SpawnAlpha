@@ -5,6 +5,7 @@
 #include <functional>
 #include <string>
 #include <vector>
+#include "caption_overlay.h"
 struct RenderRange { int64_t start_us, end_us; };
 struct LocalRenderRequest {
   std::wstring source, camera, output;
@@ -12,6 +13,8 @@ struct LocalRenderRequest {
   UINT width = 1920, height = 1080;
   std::vector<RenderRange> ranges;
   double camera_inset = 0, camera_margin = 0;
+  std::vector<RenderCaption> captions;
+  CaptionLayout caption_layout;
 };
 // COM/MF initialized worker only. Original media is read-only, packets are bounded,
 // output is created exclusively, and failure/cancellation removes only that output.

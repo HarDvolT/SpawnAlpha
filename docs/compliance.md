@@ -74,6 +74,10 @@ paid release, a lawyer should review:
   Foundation. Complete-picture compositing, cuts and AAC resampling stay on the
   device. Fresh output files, recovery journals and captions never overwrite
   originals; failures never log scripts, media paths or OS exception messages.
+- Optional captions on video use installed DirectWrite/Direct2D and the already
+  bundled OFL Anybody/Reem Kufi fonts through a private local font collection.
+  No font installation/download, new package, copied code or network service.
+  Caption wording follows saved actual speech/corrections and stays local.
 - **If FFmpeg is used at all:**
   - use an **LGPL build** without `--enable-gpl` or `--enable-nonfree`, which means no
     x264 or x265;
@@ -201,6 +205,7 @@ person using the app.
 | Automatic after-stop processing and live-input release | Checked 2026-10-06 with generated speech only. EN/FR/AR Script/Notes, missing setup without HTTP, pre-start cancellation, reuse/reload and recorder input lifetime pass. Cached public model copied after size/SHA-256 verification. No owner recordings processed, dependency added or private errors logged. Hardware/language trials remain deferred |
 | Local transcript wording corrections | Checked 2026-10-06 with pure EN/FR/AR fixtures and generated native Script/Notes speech. Original recognized text, confidence and times are retained locally; correction/restore creates immutable revisions, rebuilds cuts and preserves earlier exports. No model/network/owner input required. Failed attachment rollback, stale/concurrent rejection and retry pass. Notes/computer-only stay unscored; time editing, filler/retake policy and real-language quality trials remain pending |
 | Windows first video exporter and local history | Checked 2026-10-06 with generated colors/tones only: all four formats, exact video clock, selected/reordered audio, mono/stereo resampling, silent source, camera inset/end, Unicode paths, paused playback, cancellation, damaged input, overwrite rejection and caption/library failure recovery. No owner media/input, new dependency, copied code, network or bundled codec. Full Cut polish/mobile implementation and launch counsel review remain pending |
+| Readable captions on Windows exports | Checked 2026-10-06 with generated EN/FR/AR phrases, two lines, Arabic diacritics/mixed text, safe portrait pixels, all four formats, caption on/off, corrected-word/cut clocks, old history and cancellation. Uses installed DirectWrite/Direct2D and existing OFL bundled fonts privately, without installation, download or new dependency. Original media and earlier exports stay intact. Caption motion, real-language speech quality, mobile and launch legal review remain pending |
 | In-app licence page (Settings, Privacy and licences) | Done |
 | "What leaves your device" explained in Settings | Done |
 | iOS export-compliance flag | Done |

@@ -81,4 +81,15 @@ date, format and duration, with **Watch saved video** and **Show saved files**.
 Earlier exports remain available after restoring a gap or processing speech
 again. The player labels saved videos and provides **Watch original take**.
 Actual SRT/VTT captions and the portable cut plan save beside each video.
-Burned-in captions, sound polish and smooth cut transitions are later slices.
+**Put captions on video** starts enabled when actual words exist. Its first
+Windows style is **Readable**: complete phrases in the display face (Anybody,
+Reem Kufi for Arabic), centered in the lower third on the fixed caption plate
+and shadow. Words come from the saved transcript, including corrections, on
+the selected cut clock. Safe margins keep vertical captions above the bottom
+21%, below the top 13% and left of the rightmost 14%; other edges use 6%.
+The short output edge scales the 1080px caption type and geometry tokens.
+Fit at most two lines, shrinking to the caption minimum if necessary; fail
+explicitly rather than clip or omit words. The switch can keep just subtitle
+files, and history records whether captions are on the video. Original media
+is never changed. Cue/Punch/Karaoke animations, sound polish and smooth cut
+transitions extend this first readable style later.

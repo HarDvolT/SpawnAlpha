@@ -42,6 +42,7 @@ class ExportProcessor extends ChangeNotifier {
     VideoFormat format, {
     CleanPlan? clean,
     bool camera = true,
+    bool burnedCaptions = true,
   }) async {
     if (busy) return null;
     source = take.path;
@@ -104,6 +105,8 @@ class ExportProcessor extends ChangeNotifier {
         cutPath: take.cutPath,
         captions: timed != null && timed.words.isNotEmpty,
         camera: camera && take.mode == TakeMode.both && take.cameraPath != null,
+        burnedCaptions:
+            burnedCaptions && timed != null && timed.words.isNotEmpty,
       );
       final captions = video.captions ? captionsFromSpeech(timed!) : null;
       final reservation = await store.reserve(
@@ -124,6 +127,7 @@ class ExportProcessor extends ChangeNotifier {
           camera: video.camera ? take.cameraPath : null,
           plan: plan,
           format: format,
+          captions: video.burnedCaptions ? captions! : const [],
         ),
         (amount) {
           progress = amount;

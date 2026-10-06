@@ -6,6 +6,7 @@ import 'package:spawnalpha/src/model/cut_plan.dart';
 import 'package:spawnalpha/src/model/script_language.dart';
 import 'package:spawnalpha/src/model/video_export.dart';
 import 'package:spawnalpha/src/render/video_renderer.dart';
+import 'package:spawnalpha/src/transcription/captions.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -32,6 +33,94 @@ void main() {
   tearDown(
     () => TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(WindowsVideoRenderer.channel, null),
+  );
+  for (final language in ScriptLanguage.values) {
+    test(
+      'caption channel uses complete actual wording and output clock $language',
+      () {
+        final text = switch (language) {
+          ScriptLanguage.en => 'Hello everyone.',
+          ScriptLanguage.fr => 'Bonjour à tous.',
+          ScriptLanguage.ar => 'مرحبا بكم.',
+        };
+        final rendered = VideoRenderRequest(
+          source: request.source,
+          output: request.output,
+          format: VideoFormat.portrait,
+          plan: CutPlan(
+            takeId: 'generated',
+            language: language,
+            sourceDuration: request.plan.sourceDuration,
+            ranges: request.plan.ranges,
+          ),
+          captions: [
+            Caption(
+              text,
+              const Duration(milliseconds: 100),
+              const Duration(milliseconds: 900),
+            ),
+          ],
+        );
+        final json = rendered.toJson();
+        expect(json['captions'], [
+          {'text': text, 'startUs': 100000, 'endUs': 900000},
+        ]);
+        expect((json['captionLayout']! as Map)['rtl'], language.isRtl);
+        expect(
+          () => rendered.captions.add(
+            Caption(text, Duration.zero, const Duration(seconds: 1)),
+          ),
+          throwsUnsupportedError,
+        );
+      },
+    );
+  }
+  test(
+    'caption input rejects overlaps, missing words and invalid output clock',
+    () {
+      VideoRenderRequest build(List<Caption> captions) => VideoRenderRequest(
+        source: request.source,
+        output: request.output,
+        format: request.format,
+        plan: request.plan,
+        captions: captions,
+      );
+      for (final invalid in [
+        [const Caption('Hello', Duration(seconds: -1), Duration(seconds: 1))],
+        [const Caption('', Duration.zero, Duration(seconds: 1))],
+        [const Caption('Hello\u0000', Duration.zero, Duration(seconds: 1))],
+        [const Caption('Hello', Duration.zero, Duration(seconds: 3))],
+        [
+          const Caption('Hello', Duration.zero, Duration(seconds: 1)),
+          const Caption(
+            'World',
+            Duration(milliseconds: 500),
+            Duration(seconds: 2),
+          ),
+        ],
+      ]) {
+        expect(() => build(invalid), throwsFormatException);
+      }
+      expect(build([]).toJson().containsKey('captionLayout'), isFalse);
+      final old = VideoExport(
+        id: 'generated',
+        format: request.format,
+        duration: const Duration(seconds: 2),
+        createdAt: DateTime(2026),
+      );
+      final json = old.toJson()..remove('burnedCaptions');
+      expect(VideoExport.fromJson(json).burnedCaptions, isFalse);
+      expect(
+        () => VideoExport(
+          id: 'generated',
+          format: request.format,
+          duration: const Duration(seconds: 2),
+          createdAt: DateTime(2026),
+          burnedCaptions: true,
+        ),
+        throwsArgumentError,
+      );
+    },
   );
   test('serializes kept order and checks complete progress', () async {
     final calls = <MethodCall>[];

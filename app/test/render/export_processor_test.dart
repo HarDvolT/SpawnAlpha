@@ -13,6 +13,8 @@ import 'package:spawnalpha/src/storage/clean_cut_store.dart';
 import 'package:spawnalpha/src/storage/script_store.dart';
 import 'package:spawnalpha/src/storage/video_export_store.dart';
 import 'package:spawnalpha/src/transcription/speech_processor.dart';
+import 'package:spawnalpha/src/transcription/captions.dart';
+import 'package:spawnalpha/src/cut/clean_plan.dart';
 
 import '../cut/clean_plan_test.dart' show cleanFixture, gap;
 import '../storage/screen_take_store_test.dart'
@@ -81,6 +83,45 @@ void main() {
   });
   for (final language in ScriptLanguage.values) {
     test(
+      'captions off keeps subtitle files and saved history $language',
+      () async {
+        final transcript = cleanFixture(language);
+        final take = Take(
+          path: '${root.path}/original.mp4',
+          recordedAt: DateTime(2026),
+          duration: transcript.duration,
+          wordsPath: '${root.path}/words.json',
+        );
+        final script = ScriptDocument.create(language: language)
+            .copyWith(takes: [take]);
+        await library.save(script);
+        final spoken = SavedTranscript(
+          sourcePath: take.path,
+          transcript: transcript,
+          snapshot: script,
+        );
+        final job = ExportProcessor(renderer, store, cuts, (_) async => spoken);
+        final video = (await job.export(
+          script,
+          take,
+          VideoFormat.landscape,
+          burnedCaptions: false,
+        ))!;
+        expect(video.captions, isTrue);
+        expect(video.burnedCaptions, isFalse);
+        expect(renderer.request!.captions, isEmpty);
+        expect(await store.file(video, 'srt').exists(), isTrue);
+        expect(await store.file(video, 'vtt').exists(), isTrue);
+        expect(
+          (await store.load(library.byId(script.id)!.takes.single))
+              .single
+              .burnedCaptions,
+          isFalse,
+        );
+        job.dispose();
+      },
+    );
+    test(
       'exports frozen actual words/cut and preserves later edits $language',
       () async {
         final transcript = cleanFixture(language);
@@ -120,6 +161,18 @@ void main() {
         expect(job.phase, ExportPhase.done);
         expect(video.duration, lessThan(take.duration));
         expect(renderer.request!.plan.ranges.length, greaterThan(1));
+        expect(video.burnedCaptions, isTrue);
+        final captionClock = captionsFromSpeech(
+          speechOnCut(transcript, clean.asCutPlan()),
+        );
+        expect(
+          renderer.request!.captions.map((c) => c.text),
+          captionClock.map((c) => c.text),
+        );
+        expect(
+          renderer.request!.captions.map((c) => c.start),
+          captionClock.map((c) => c.start),
+        );
         expect(await original.readAsString(), 'original unchanged');
         expect(library.byId(script.id)!.text, 'Later edit');
         final captions = await store.file(video, 'srt').readAsString();
@@ -134,6 +187,7 @@ void main() {
             jsonDecode(await store.file(video, 'json').readAsString()) as Map;
         expect((portable['video'] as Map).keys, isNot(contains('wordsPath')));
         expect((portable['video'] as Map).keys, isNot(contains('cutPath')));
+        expect((portable['video'] as Map)['burnedCaptions'], isTrue);
         expect(jsonEncode(portable), isNot(contains(root.path)));
         final reload = ScriptLibrary(disk);
         await reload.load();

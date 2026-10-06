@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/services.dart';
@@ -6,19 +7,41 @@ import 'package:flutter/services.dart';
 import '../model/cut_plan.dart';
 import '../model/video_export.dart';
 import '../theme/tokens.g.dart';
+import '../transcription/captions.dart';
 
 class VideoRenderRequest {
-  const VideoRenderRequest({
+  VideoRenderRequest({
     required this.source,
     required this.output,
     required this.plan,
     required this.format,
     this.camera,
-  });
+    List<Caption> captions = const [],
+  }) : captions = List.unmodifiable(captions) {
+    if (captions.length > 100000) {
+      throw const FormatException('Too many captions');
+    }
+    var previous = Duration.zero, total = 0;
+    for (final caption in captions) {
+      total += caption.text.length;
+      if (caption.start < previous ||
+          caption.end <= caption.start ||
+          caption.end > plan.duration ||
+          caption.text.isEmpty ||
+          caption.text.length > 4096 ||
+          total > 4 * 1024 * 1024 ||
+          RegExp(r'[\u0000-\u001f\u007f]').hasMatch(caption.text) ||
+          utf8.decode(utf8.encode(caption.text)) != caption.text) {
+        throw const FormatException('Invalid captions');
+      }
+      previous = caption.end;
+    }
+  }
   final String source, output;
   final String? camera;
   final CutPlan plan;
   final VideoFormat format;
+  final List<Caption> captions;
   Map<String, Object?> toJson() => {
     'source': source,
     'camera': camera ?? '',
@@ -29,6 +52,32 @@ class VideoRenderRequest {
     'cameraMargin': SaVideoExport.cameraMargin,
     'sourceDurationUs': plan.sourceDuration.inMicroseconds,
     'ranges': plan.ranges.map((r) => r.toJson()).toList(),
+    'captions': [
+      for (final caption in captions)
+        {
+          'text': caption.text,
+          'startUs': caption.start.inMicroseconds,
+          'endUs': caption.end.inMicroseconds,
+        },
+    ],
+    if (captions.isNotEmpty)
+      'captionLayout': {
+        'rtl': plan.language.isRtl,
+        'edge': SaVideoExport.captionEdge,
+        'bottom': SaVideoExport.captionBottom,
+        'safeTop': SaVideoExport.captionSafeTop,
+        'safeBottom': SaVideoExport.captionSafeBottom,
+        'safeRight': SaVideoExport.captionSafeRight,
+        'fontSize': SaType.captionCue.fontSize!,
+        'lineHeight': SaType.captionCue.fontSize! * SaType.captionCue.height!,
+        'weight': SaType.captionCue.fontWeight!.value,
+        'minSize': SaVideoExport.captionMinSize,
+        'padding': SaSpace.s3,
+        'radius': SaRadius.sm,
+        'shadowOffset': SaVideoExport.captionShadowOffset,
+        'textColor': SaPalette.dark.captionText.toARGB32(),
+        'plateColor': SaPalette.dark.captionPlate.toARGB32(),
+      },
   };
 }
 

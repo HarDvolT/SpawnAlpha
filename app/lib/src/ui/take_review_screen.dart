@@ -48,6 +48,7 @@ class _TakeReviewScreenState extends State<TakeReviewScreen> {
   String? _cutProblem;
   VideoFormat _format = VideoFormat.landscape;
   bool _cameraInExport = true, _reviewReady = false;
+  bool _burnedCaptions = true;
   List<VideoExport> _videos = [];
   VideoExport? _viewing;
   Take _latestTake(AppServices app) =>
@@ -107,6 +108,7 @@ class _TakeReviewScreenState extends State<TakeReviewScreen> {
       _format,
       clean: _clean,
       camera: _cameraInExport,
+      burnedCaptions: _burnedCaptions,
     );
     final saved = await app.videoExports.load(_latestTake(app));
     if (mounted) {
@@ -483,6 +485,9 @@ class _TakeReviewScreenState extends State<TakeReviewScreen> {
                   includeCamera: _cameraInExport,
                   onCamera: (value) => setState(() => _cameraInExport = value),
                   hasCaptions: words.isNotEmpty,
+                  burnedCaptions: _burnedCaptions,
+                  onBurnedCaptions: (value) =>
+                      setState(() => _burnedCaptions = value),
                   videos: _videos,
                   onView: (video) => setState(() => _viewing = video),
                   onShow: (video) {

@@ -21,8 +21,10 @@ class VideoExport {
     this.cutPath,
     this.captions = false,
     this.camera = false,
+    this.burnedCaptions = false,
   }) {
-    if (!RegExp(r'^[a-zA-Z0-9_-]{1,128}$').hasMatch(id) ||
+    if ((burnedCaptions && !captions) ||
+        !RegExp(r'^[a-zA-Z0-9_-]{1,128}$').hasMatch(id) ||
         duration <= Duration.zero ||
         duration > const Duration(hours: 24)) {
       throw ArgumentError('Invalid video export');
@@ -33,7 +35,7 @@ class VideoExport {
   final Duration duration;
   final DateTime createdAt;
   final String? wordsPath, cutPath;
-  final bool captions, camera;
+  final bool captions, camera, burnedCaptions;
   Map<String, Object?> toJson() => {
     'id': id,
     'format': format.name,
@@ -43,6 +45,7 @@ class VideoExport {
     'cutPath': cutPath,
     'captions': captions,
     'camera': camera,
+    'burnedCaptions': burnedCaptions,
   };
   factory VideoExport.fromJson(Map<String, Object?> json) {
     final format = VideoFormat.values
@@ -58,7 +61,8 @@ class VideoExport {
         (json['wordsPath'] != null && json['wordsPath'] is! String) ||
         (json['cutPath'] != null && json['cutPath'] is! String) ||
         json['captions'] is! bool ||
-        json['camera'] is! bool) {
+        json['camera'] is! bool ||
+        (json['burnedCaptions'] != null && json['burnedCaptions'] is! bool)) {
       throw const FormatException('Invalid video export');
     }
     try {
@@ -71,6 +75,7 @@ class VideoExport {
         cutPath: json['cutPath'] as String?,
         captions: json['captions'] == true,
         camera: json['camera'] == true,
+        burnedCaptions: json['burnedCaptions'] == true,
       );
     } on ArgumentError {
       throw const FormatException('Invalid video export');

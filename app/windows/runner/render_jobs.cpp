@@ -22,6 +22,11 @@ int64_t Integer(const Map& args, const char* key) {
   if (const auto number = std::get_if<int32_t>(&value)) return *number;
   throw std::runtime_error("Invalid render request");
 }
+double Number(const Map& args, const char* key) {
+  const auto* value = std::get_if<double>(&Field(args, key));
+  if (!value || !std::isfinite(*value)) throw std::runtime_error("Invalid render layout");
+  return *value;
+}
 std::wstring Path(const Map& args, const char* key) {
   const auto& value = Field(args, key);
   const auto text = std::get_if<std::string>(&value);
@@ -45,6 +50,31 @@ LocalRenderRequest Request(const Map& args) {
     const auto* range = std::get_if<Map>(&value);
     if (!range) throw std::runtime_error("Invalid render range");
     request.ranges.push_back({Integer(*range, "startUs"), Integer(*range, "endUs")});
+  }
+  if (const auto found = args.find(Value("captions")); found != args.end()) {
+    const auto* captions = std::get_if<flutter::EncodableList>(&found->second);
+    if (!captions || captions->size() > 100000) throw std::runtime_error("Invalid captions");
+    size_t text_total = 0;
+    for (const auto& value : *captions) {
+      const auto* caption = std::get_if<Map>(&value);
+      if (!caption) throw std::runtime_error("Invalid caption");
+      const auto text = Path(*caption, "text"); text_total += text.size();
+      if (text.empty() || text.size() > 4096 || text_total > 4 * 1024 * 1024) throw std::runtime_error("Invalid caption");
+      request.captions.push_back({Integer(*caption, "startUs"), Integer(*caption, "endUs"), text});
+    }
+    if (!captions->empty()) {
+      const auto* style = std::get_if<Map>(&Field(args, "captionLayout"));
+      if (!style) throw std::runtime_error("Invalid caption layout");
+      auto& layout = request.caption_layout;
+      const auto* rtl = std::get_if<bool>(&Field(*style, "rtl"));
+      const auto text_color = Integer(*style, "textColor"), plate_color = Integer(*style, "plateColor"), weight = Integer(*style, "weight");
+      if (!rtl || text_color < 0 || text_color > UINT32_MAX || plate_color < 0 || plate_color > UINT32_MAX || weight < 100 || weight > 900) throw std::runtime_error("Invalid caption layout");
+      layout.rtl = *rtl; layout.text_color = static_cast<uint32_t>(text_color); layout.plate_color = static_cast<uint32_t>(plate_color); layout.weight = static_cast<UINT>(weight);
+      layout.edge = Number(*style, "edge"); layout.bottom = Number(*style, "bottom");
+      layout.safe_top = Number(*style, "safeTop"); layout.safe_bottom = Number(*style, "safeBottom"); layout.safe_right = Number(*style, "safeRight");
+      layout.font_size = Number(*style, "fontSize"); layout.line_height = Number(*style, "lineHeight"); layout.min_size = Number(*style, "minSize");
+      layout.padding = Number(*style, "padding"); layout.radius = Number(*style, "radius"); layout.shadow_offset = Number(*style, "shadowOffset");
+    }
   }
   return request;
 }

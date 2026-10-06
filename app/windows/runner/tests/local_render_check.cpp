@@ -6,6 +6,107 @@
 #include "../recording_probe.h"
 #include <fstream>
 #include <filesystem>
+#include <wincodec.h>
+
+void SaveCaptionPng(const std::wstring& path, UINT width, UINT height, const BYTE* bytes) {
+  Require(GetFileAttributesW(path.c_str()) == INVALID_FILE_ATTRIBUTES);
+  com_ptr<IWICImagingFactory> factory;
+  check_hresult(CoCreateInstance(CLSID_WICImagingFactory, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(factory.put())));
+  com_ptr<IWICStream> stream; check_hresult(factory->CreateStream(stream.put()));
+  check_hresult(stream->InitializeFromFilename(path.c_str(), GENERIC_WRITE));
+  com_ptr<IWICBitmapEncoder> encoder; check_hresult(factory->CreateEncoder(GUID_ContainerFormatPng, nullptr, encoder.put()));
+  check_hresult(encoder->Initialize(stream.get(), WICBitmapEncoderNoCache));
+  com_ptr<IWICBitmapFrameEncode> image; check_hresult(encoder->CreateNewFrame(image.put(), nullptr));
+  check_hresult(image->Initialize(nullptr)); check_hresult(image->SetSize(width, height));
+  auto format = GUID_WICPixelFormat32bppBGRA; check_hresult(image->SetPixelFormat(&format));
+  Require(IsEqualGUID(format, GUID_WICPixelFormat32bppBGRA));
+  std::vector<BYTE> opaque(bytes, bytes + static_cast<size_t>(width) * height * 4);
+  for (size_t i = 3; i < opaque.size(); i += 4) opaque[i] = 255;
+  check_hresult(image->WritePixels(height, width * 4, static_cast<UINT>(opaque.size()), opaque.data()));
+  check_hresult(image->Commit()); check_hresult(encoder->Commit());
+}
+std::vector<BYTE> CaptionPixels(IMFSourceReader* reader, IMFSample* sample, UINT width, UINT height) {
+  // Decoder storage may be wider than the visible aperture (1088 for 1080).
+  // Read the negotiated format and optional 2D stride, never infer row width
+  // from the export dimensions or a total buffer length.
+  com_ptr<IMFMediaType> type; check_hresult(reader->GetCurrentMediaType(kVideoStream, type.put()));
+  UINT decoded_width = 0, decoded_height = 0;
+  check_hresult(MFGetAttributeSize(type.get(), MF_MT_FRAME_SIZE, &decoded_width, &decoded_height));
+  Require(decoded_width >= width && decoded_height >= height && decoded_width <= 16384 && decoded_height <= 16384);
+  UINT offset_x = 0, offset_y = 0;
+  MFVideoArea area{}; UINT area_size = 0;
+  if (SUCCEEDED(type->GetBlob(MF_MT_MINIMUM_DISPLAY_APERTURE, reinterpret_cast<BYTE*>(&area), sizeof(area), &area_size))) {
+    Require(area_size == sizeof(area) && area.OffsetX.value >= 0 && area.OffsetY.value >= 0 &&
+      area.OffsetX.fract == 0 && area.OffsetY.fract == 0 && area.Area.cx == static_cast<LONG>(width) && area.Area.cy == static_cast<LONG>(height));
+    offset_x = area.OffsetX.value; offset_y = area.OffsetY.value;
+  }
+  Require(offset_x + width <= decoded_width && offset_y + height <= decoded_height);
+  UINT stride_bits = 0; LONG stride = 0;
+  if (SUCCEEDED(type->GetUINT32(MF_MT_DEFAULT_STRIDE, &stride_bits))) stride = static_cast<LONG>(stride_bits);
+  else check_hresult(MFGetStrideForBitmapInfoHeader(MFVideoFormat_RGB32.Data1, decoded_width, &stride));
+  com_ptr<IMFMediaBuffer> buffer; check_hresult(sample->ConvertToContiguousBuffer(buffer.put()));
+  const auto plane = buffer.try_as<IMF2DBuffer>();
+  std::vector<BYTE> pixels(static_cast<size_t>(width) * height * 4);
+  BYTE* first = nullptr; DWORD length = 0;
+  if (plane) check_hresult(plane->Lock2D(&first, &stride));
+  else check_hresult(buffer->Lock(&first, nullptr, &length));
+  const auto row_size = std::abs(static_cast<int64_t>(stride));
+  const bool valid = row_size >= decoded_width * 4 && row_size <= 16384 * 4 &&
+    (plane || length >= row_size * decoded_height);
+  if (valid) {
+    if (!plane && stride < 0) first += row_size * (decoded_height - 1);
+    for (UINT y = 0; y < height; ++y) {
+      std::memcpy(pixels.data() + static_cast<size_t>(y) * width * 4,
+        first + static_cast<ptrdiff_t>(y + offset_y) * stride + offset_x * 4, width * 4);
+    }
+  }
+  if (plane) check_hresult(plane->Unlock2D()); else check_hresult(buffer->Unlock());
+  Require(valid); return pixels;
+}
+void VerifyCaptionPixels(const LocalRenderRequest& request) {
+  com_ptr<IMFAttributes> attributes; check_hresult(MFCreateAttributes(attributes.put(), 1));
+  check_hresult(attributes->SetUINT32(MF_SOURCE_READER_ENABLE_VIDEO_PROCESSING, TRUE));
+  com_ptr<IMFSourceReader> reader; check_hresult(MFCreateSourceReaderFromURL(request.output.c_str(), attributes.get(), reader.put()));
+  com_ptr<IMFMediaType> type; check_hresult(MFCreateMediaType(type.put()));
+  check_hresult(type->SetGUID(MF_MT_MAJOR_TYPE, MFMediaType_Video)); check_hresult(type->SetGUID(MF_MT_SUBTYPE, MFVideoFormat_RGB32));
+  check_hresult(reader->SetCurrentMediaType(kVideoStream, nullptr, type.get()));
+  int frames = 0;
+  while (true) {
+    DWORD flags = 0; int64_t time = 0; com_ptr<IMFSample> sample;
+    check_hresult(reader->ReadSample(kVideoStream, 0, nullptr, &flags, &time, sample.put()));
+    if (sample) {
+      const auto pixels = CaptionPixels(reader.get(), sample.get(), request.width, request.height);
+      const auto bytes = pixels.data(); bool valid = true;
+      UINT white = 0;
+      UINT min_y = request.height, max_y = 0, min_x = request.width, max_x = 0;
+      if (valid) for (UINT y = 0; y < request.height; ++y) for (UINT x = 0; x < request.width; ++x) {
+        const auto i = (static_cast<size_t>(y) * request.width + x) * 4;
+        if (bytes[i] > 180 && bytes[i + 1] > 180 && bytes[i + 2] > 180) {
+          ++white;
+          min_y = std::min(min_y, y); max_y = std::max(max_y, y); min_x = std::min(min_x, x); max_x = std::max(max_x, x);
+          const bool vertical = request.height > request.width;
+          valid = valid && x >= request.width * .06 - 2 && x <= request.width * (vertical ? .86 : .94) + 2 &&
+            y >= request.height * .13 - 2 && y <= request.height * (vertical ? .79 : .88) + 2;
+        }
+      }
+      const bool caption = time >= 2000000 && time < 8000000;
+      valid = valid && (caption ? white > 40 : white == 0);
+      if (!valid) std::cout << "Generated caption pixels: frame=" << frames << " time=" << time << " white=" << white << " box=" << min_x << "," << min_y << "," << max_x << "," << max_y << "\n";
+      if (frames == 10 && valid) SaveCaptionPng(request.output + L".png", request.width, request.height, bytes);
+      Require(valid); ++frames;
+    }
+    if (flags & MF_SOURCE_READERF_ENDOFSTREAM) break;
+  }
+  Require(frames == 30);
+}
+CaptionLayout CaptionFixture() {
+  CaptionLayout style;
+  style.edge = .06; style.bottom = .12; style.safe_top = .13; style.safe_bottom = .21; style.safe_right = .14;
+  style.font_size = 56; style.line_height = 64; style.min_size = 28; style.weight = 700;
+  style.padding = 12; style.radius = 8; style.shadow_offset = 2;
+  style.text_color = 0xffffffff; style.plate_color = 0xa6000000;
+  return style;
+}
 
 void GenerateExtra(ID3D11Device* device, const std::wstring& path, UINT channels, UINT rate, uint32_t color) {
   GpuVideoWriter writer;
@@ -77,8 +178,8 @@ void VerifyLocalCut(const LocalRenderRequest& request, int expected_frames, int6
       Require(time > previous && std::abs(time - static_cast<int64_t>(frames) * kSecond / 30) <= 10000);
       int64_t duration = 0; check_hresult(sample->GetSampleDuration(&duration)); end = time + duration;
       previous = time;
-      com_ptr<IMFMediaBuffer> buffer; check_hresult(sample->ConvertToContiguousBuffer(buffer.put()));
-      BYTE* bytes = nullptr; DWORD length = 0; check_hresult(buffer->Lock(&bytes, nullptr, &length));
+      const auto pixels = CaptionPixels(reader.get(), sample.get(), request.width, request.height);
+      const auto bytes = pixels.data();
       const size_t center = (request.height / 2 * request.width + request.width / 2) * 4;
       int64_t offset_us = static_cast<int64_t>(frames) * 1000000 / 30, source = 0;
       for (const auto& range : request.ranges) {
@@ -86,7 +187,7 @@ void VerifyLocalCut(const LocalRenderRequest& request, int expected_frames, int6
         if (offset_us < length_us) { source = range.start_us + offset_us; break; }
         offset_us -= length_us;
       }
-      bool valid = length >= static_cast<size_t>(request.width) * request.height * 4;
+      bool valid = true;
       if (valid && expected_us == 2000000) valid = source / 1000000 == 1 ? bytes[center] > bytes[center + 2] + 80 : bytes[center + 2] > bytes[center] + 80;
       if (valid && request.height > request.width) {
         // Full-picture fit keeps all screen content; the unused margin stays black.
@@ -97,7 +198,7 @@ void VerifyLocalCut(const LocalRenderRequest& request, int expected_frames, int6
         valid = frames < 30 ? bytes[inset + 1] > bytes[inset] + 80 && bytes[inset + 1] > bytes[inset + 2] + 80
                             : bytes[inset] > bytes[inset + 2] + 80;
       }
-      check_hresult(buffer->Unlock()); Require(valid); ++frames;
+      Require(valid); ++frames;
     }
     if (flags & MF_SOURCE_READERF_ENDOFSTREAM) break;
   }
@@ -140,6 +241,32 @@ int wmain(int count, wchar_t** args) {
       request.source = stereo; request.output = prefix + L"-stereo.mp4";
       stage = "render resampled stereo"; RenderLocalVideo(request, cancel, [](double) {});
       stage = "verify separate stereo channels"; VerifyLocalCut(request, 30, 1000000); VerifyStereo(request.output);
+      const wchar_t* text[] = {L"Hello everyone.", L"Bonjour \u00e0 tous.", L"\u0645\u0631\u062d\u0628\u0627 \u0628\u0643\u0645 \u0627\u0644\u064a\u0648\u0645.",
+        L"Bonjour \u00e0 tous. Cette phrase reste compl\u00e8te et lisible sur deux lignes, sans couper les mots.",
+        L"\u0645\u064e\u0631\u0652\u062d\u064e\u0628\u064b\u0627 \u0628\u0650\u0643\u064f\u0645\u0652 2026 Bonjour."};
+      request.source = silent; request.caption_layout = CaptionFixture();
+      for (UINT language = 0; language < 5; ++language) {
+        request.caption_layout.rtl = language == 2 || language == 4;
+        request.captions = {{200000, 800000, text[language]}};
+        request.output = prefix + L"-caption-" + std::to_wstring(language) + L".mp4";
+        stage = "render complete phrase captions"; RenderLocalVideo(request, cancel, [](double) {});
+        stage = "verify caption time and safe pixels"; VerifyCaptionPixels(request);
+      }
+      request.width = 1080; request.height = 1920;
+      request.captions = {{200000, 800000, text[4]}};
+      request.output = prefix + L"-caption-portrait.mp4";
+      stage = "render Arabic vertical captions"; RenderLocalVideo(request, cancel, [](double) {});
+      stage = "verify Arabic vertical safe pixels"; VerifyCaptionPixels(request);
+      request.output = prefix + L"-caption-invalid.mp4"; request.captions = {{200000, 800000, std::wstring(4096, L'W')}};
+      bool long_rejected = false;
+      stage = "reject unreadable caption without clipping";
+      try { RenderLocalVideo(request, cancel, [](double) {}); } catch (...) { long_rejected = true; }
+      Require(long_rejected && GetFileAttributesW(request.output.c_str()) == INVALID_FILE_ATTRIBUTES);
+      request.output = prefix + L"-caption-control.mp4"; request.captions = {{200000, 800000, L"Invalid\x0001" L"caption"}};
+      bool control_rejected = false; stage = "reject caption control characters";
+      try { RenderLocalVideo(request, cancel, [](double) {}); } catch (...) { control_rejected = true; }
+      Require(control_rejected && GetFileAttributesW(request.output.c_str()) == INVALID_FILE_ATTRIBUTES);
+      request.captions.clear(); request.width = 640; request.height = 360;
       request.source = source; request.source_duration_us = 4000000;
       request.camera = silent; request.output = prefix + L"-early-camera.mp4"; request.ranges = {{0, 2000000}};
       stage = "render partial camera"; RenderLocalVideo(request, cancel, [](double) {});
@@ -165,7 +292,7 @@ int wmain(int count, wchar_t** args) {
       try { RenderLocalVideo(request, cancel, [](double) {}); } catch (...) { rejected = true; }
       Require(rejected && GetFileAttributesW(request.output.c_str()) == INVALID_FILE_ATTRIBUTES);
     }
-    std::cout << "Local render check passed: streaming PCM/GPU pair, source selection/reordering, silent input, stereo resampling, camera inset/end, exact portrait duration, cancel cleanup, damaged input and overwrite protection.\n";
+    std::cout << "Local render check passed: streaming PCM/GPU pair, source selection/reordering, silent input, stereo resampling, EN/FR/AR caption timing/safe pixels, vertical Arabic, no clipped words, camera inset/end, exact portrait duration, cancel cleanup, damaged input and overwrite protection.\n";
     MFShutdown(); CoUninitialize(); return 0;
   } catch (...) {
     std::cerr << "Local render check failed at " << stage << ": 0x" << std::hex << static_cast<unsigned long>(winrt::to_hresult()) << "\n";

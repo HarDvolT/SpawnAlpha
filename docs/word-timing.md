@@ -116,7 +116,7 @@ vocabulary at 8 KiB; these prototype bounds must never become a silent app limit
 Word timing remains approximate. Verify French, Arabic, Darija and French–Darija
 switching with real consenting speakers before finalizing the default model.
 Automatic processing after Stop, wording flags/corrections, reversible quiet
-cuts and first Windows video export are now connected. Corrections retain the
+cuts and Windows video export with optional Readable captions are now connected. Corrections retain the
 first recognition and its estimated confidence/times; they do not re-run ASR
 or claim better timing. Filler/retake decisions, full Cut polish and delivery
 review remain. The prototype 15-minute decoder limit
