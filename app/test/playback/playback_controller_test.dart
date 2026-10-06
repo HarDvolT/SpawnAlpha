@@ -8,6 +8,7 @@ class FakePlayback implements LocalPlayback {
   @override
   bool get supported => true;
   Completer<PlaybackHandle>? delayed;
+  Completer<void>? pendingPlay;
   final closed = <PlaybackHandle>[];
   final commands = <String>[];
   PlaybackStatus value = const PlaybackStatus(
@@ -24,6 +25,7 @@ class FakePlayback implements LocalPlayback {
   @override
   Future<void> play(PlaybackHandle handle) async {
     commands.add('play');
+    await pendingPlay?.future;
   }
 
   @override
@@ -48,6 +50,44 @@ class FakePlayback implements LocalPlayback {
 }
 
 void main() {
+  test('background pause waits for a pending play', () async {
+    final fake = FakePlayback()..pendingPlay = Completer<void>();
+    final player = TakePlaybackController(fake);
+    await player.open('generated');
+    final playing = player.toggle();
+    final pausing = player.pause();
+    expect(fake.commands, ['play']);
+    fake.pendingPlay!.complete();
+    await Future.wait([playing, pausing]);
+    expect(fake.commands, ['play', 'pause']);
+    expect(player.commanding, isFalse);
+    player.dispose();
+  });
+  test('queued background pause cannot affect a replacement session', () async {
+    final fake = FakePlayback()..pendingPlay = Completer<void>();
+    final player = TakePlaybackController(fake);
+    await player.open('first generated');
+    final playing = player.toggle(), pausing = player.pause();
+    await player.open('second generated');
+    // The fake deliberately reuses the same native handle: generation matters.
+    fake.pendingPlay!.complete();
+    await Future.wait([playing, pausing]);
+    expect(fake.commands, ['play']);
+    expect(player.ready, isTrue);
+    expect(player.commanding, isFalse);
+    player.dispose();
+  });
+  test('disposing during queued pause closes without a late command', () async {
+    final fake = FakePlayback()..pendingPlay = Completer<void>();
+    final player = TakePlaybackController(fake);
+    await player.open('generated');
+    final playing = player.toggle(), pausing = player.pause();
+    player.dispose();
+    fake.pendingPlay!.complete();
+    await Future.wait([playing, pausing]);
+    expect(fake.commands, ['play']);
+    expect(fake.closed, [const PlaybackHandle(1, 1)]);
+  });
   test('paused start, bounded seek, mute, replay and close', () async {
     final fake = FakePlayback(),
         player = TakePlaybackController(FakePlayback());

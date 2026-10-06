@@ -45,6 +45,12 @@ build step 2 (screen recording).
 
 ## Handover (2026-10-05): from here, Codex on the owner's Windows PC
 
+- **Playback follow-up (2026-10-06):** background pause now waits for an active
+  Play/Seek/Mute command rather than dropping the request. Session generations
+  prevent late commands affecting a replacement player; disposal closes safely.
+  All 459 Flutter tests, clean analysis and the Windows Release build pass. Automatic-review checkpoint below
+  still applies; remaining Cut/coaching work is next and owner trials are deferred.
+
 - **Latest checkpoint (2026-10-06, automatic review after Stop):** 456 Flutter
   tests, 167 screenshot cases, clean analysis and a normal Windows Release build.
   Camera/Screen/Both now open take review directly,
@@ -856,6 +862,13 @@ build step 2 (screen recording).
   word lists, not prosody.
 
 ## Session log
+
+- 2026-10-06, playback background-pause fix:
+  - Kept a lifecycle pause while a platform command is pending, bound it to the
+    original session, and guarded late command completion with its generation.
+    Tests cover delayed Play, replacement handles and disposal. All 459 tests
+    pass, analysis is clean and the Windows Release build succeeds.
+    No new UI, dependency or data access.
 
 - 2026-10-06, automatic review after Stop:
   - Connected Camera/Screen/Both to review with persistent capture warnings and

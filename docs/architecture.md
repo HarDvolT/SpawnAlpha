@@ -609,8 +609,10 @@ are still next.
 `LocalPlayback` exposes guarded open/status/play/pause/seek/mute/close sessions.
 `TakePlaybackController` owns polling, late opens and disposal; a removed view
 never keeps its own player. `TakePlayer` renders a paused preview and accessible
-controls inside the Studio. Native `LocalPlayer` creates Windows MediaPlayer
-off the UI thread from a checked local StorageFile. No URI/network fallback,
+controls inside the Studio. Background pause waits for an in-flight playback command and
+is bound to its handle/generation; replacing or disposing a player cannot apply
+that delayed pause to another session. Native `LocalPlayer` creates Windows
+MediaPlayer off the UI thread from a checked local StorageFile. No URI/network fallback,
 alternate streams or reparse points. Frame-server previews are bounded to
 1280×720 and about 15 fps; immutable RGBA leases survive Flutter's render callback.
 This preview bound does not limit full-resolution exports. Stop revokes playback,

@@ -17,6 +17,7 @@ class TakePlaybackController extends ChangeNotifier {
   int _generation = 0;
   Timer? _timer;
   bool _polling = false;
+  Completer<void>? _commandCompletion;
   DateTime? _opened;
   bool get ready =>
       status.ready &&
@@ -43,6 +44,7 @@ class TakePlaybackController extends ChangeNotifier {
     problem = null;
     status = const PlaybackStatus();
     commanding = false;
+    _commandCompletion = null;
     muted = false;
     notifyListeners();
     await _close(previous);
@@ -106,22 +108,27 @@ class TakePlaybackController extends ChangeNotifier {
   }
 
   Future<void> _command(Future<void> Function(PlaybackHandle) action) async {
-    final current = handle;
+    final current = handle, generation = _generation;
     if (!ready || commanding || current == null || _disposed) return;
+    final completion = _commandCompletion = Completer<void>();
     commanding = true;
     notifyListeners();
     try {
       await action(current);
-      if (!_disposed && handle == current) await poll();
+      if (!_disposed && generation == _generation && handle == current) {
+        await poll();
+      }
     } on Object {
-      if (!_disposed && handle == current) {
+      if (!_disposed && generation == _generation && handle == current) {
         problem = 'That playback control did not work. Try again.';
       }
     } finally {
-      if (!_disposed && handle == current) {
+      if (!_disposed && generation == _generation && handle == current) {
         commanding = false;
         notifyListeners();
       }
+      completion.complete();
+      if (identical(_commandCompletion, completion)) _commandCompletion = null;
     }
   }
 
@@ -135,7 +142,22 @@ class TakePlaybackController extends ChangeNotifier {
       await backend.play(current);
     }
   });
-  Future<void> pause() => _command(backend.pause);
+  Future<void> pause() async {
+    final current = handle, generation = _generation;
+    if (!ready || current == null || _disposed) return;
+    // Backgrounding can arrive while Play, Seek or Mute is awaiting the platform.
+    // Preserve the pause until those commands finish, on this session only.
+    while (commanding) {
+      final completion = _commandCompletion;
+      if (completion == null) return;
+      await completion.future;
+      if (_disposed || generation != _generation || handle != current) return;
+    }
+    if (!_disposed && generation == _generation && handle == current) {
+      await _command(backend.pause);
+    }
+  }
+
   Future<void> seek(Duration position) => _command(
     (current) => backend.seek(
       current,
