@@ -62,6 +62,16 @@ build step 2 (screen recording).
 
 ## Handover (2026-10-05): from here, Codex on the owner's Windows PC
 
+- **PC reinstall recovery (2026-10-07):** live GitHub branch verification confirms
+  technical work through `92eb94a`; the working tree is clean and separate
+  planning/recovery notes remain local. The full project folder (including
+  hidden `.git` and ignored `local-data`), existing older Documents app data
+  and any outside exports need a checked backup outside the PC before formatting.
+  No external backup has been made. Toolchain/data environment and secure provider
+  connections need restoring after Windows reinstall. The agent handles setup;
+  see [restore-windows.md](restore-windows.md). The normal release build passes
+  and is open; owner trials remain deferred. Continue the technical checkpoint below.
+
 - **Latest checkpoint (2026-10-07, verified cursor source and track):** 1151
   Flutter tests and clean analysis. The local loader requires explicit saved
   exclusion/consent proof, owned sibling names, precise date/clocks/frame count,
@@ -1613,6 +1623,16 @@ build step 2 (screen recording).
     mobile/launch remain. Owner hardware/listening trials remain deferred.
     Separate design assessment/concept commits stay local while technical
     changes are published on the requested branch.
+
+- 2026-10-07, updated PC reinstall recovery:
+  - Verified the live requested GitHub branch at `92eb94a`. Technical work is
+    published; three separate local planning/recovery commits remain. The
+    working tree is clean. Current local app data and the older Documents
+    app folder exist, so GitHub alone cannot recover everything after a wipe.
+  - Added [restore-windows.md](restore-windows.md) with full-folder/hidden Git/
+    ignored data and outside-export backup requirements, secure-key limits,
+    same-path restoration and agent-run Windows setup. No external backup
+    created, personal data uploaded or app changes made for this question.
 
 - 2026-10-07, verified cursor source and track:
   - Added current saved-state/version/exclusion/consent/date/clock/frame proof,
