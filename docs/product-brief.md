@@ -135,7 +135,9 @@ Revised 2026-09-30 by the owner. Screen recording moves up, and the automatic ed
      cursor-free companion only with explicit local Activity consent, explaining
      the extra disk space. The original keeps its pointer and sound. Interrupted,
      partial and legacy takes cannot supply a replacement pointer; the later
-     verified export track and on/off choice are still pending.
+     verified source loader and immutable cut-clock cursor track now pass local
+     and actual Windows app checks. Native smoothing/drawing, frozen export
+     attachment and the later on/off choice are still pending.
      Optional room-tone joins use only retained measured
      quiet audio clear of recognized words, with an independent later choice
      and fixed word/video clocks. Optional classic background-noise

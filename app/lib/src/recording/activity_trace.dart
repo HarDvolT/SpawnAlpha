@@ -113,9 +113,22 @@ class ActivitySummary {
 
 // Writers always terminate rows with a newline. Ignore only an unfinished final
 // row after a crash, never a malformed full row. Bound each row before decoding.
-Stream<Map<String, Object?>> activityRows(File file) async* {
+Stream<Map<String, Object?>> activityRows(File file, {int? maximumBytes}) async* {
+  if (maximumBytes != null && (maximumBytes < 1 || maximumBytes > 1 << 53)) {
+    throw const FormatException('Invalid activity byte limit');
+  }
+  Stream<List<int>> boundedBytes() async* {
+    var bytes = 0;
+    await for (final chunk in file.openRead(0, maximumBytes == null ? null : maximumBytes + 1)) {
+      bytes += chunk.length;
+      if (maximumBytes != null && bytes > maximumBytes) {
+        throw const FormatException('Activity file grew beyond its limit');
+      }
+      yield chunk;
+    }
+  }
   var pending = '';
-  await for (final chunk in utf8.decoder.bind(file.openRead())) {
+  await for (final chunk in utf8.decoder.bind(boundedBytes())) {
     final parts = chunk.split('\n');
     for (var index = 0; index < parts.length; ++index) {
       pending += parts[index];
@@ -133,11 +146,11 @@ Stream<Map<String, Object?>> activityRows(File file) async* {
   }
 }
 
-Future<ActivitySummary> inspectActivity(File file, {Duration? limit}) async {
+Future<ActivitySummary> inspectActivity(File file, {Duration? limit, int? maximumBytes}) async {
   var header = false, ended = false, count = 0, previous = -1, duration = 0;
   var usable = 0;
   var complete = false;
-  await for (final row in activityRows(file)) {
+  await for (final row in activityRows(file, maximumBytes: maximumBytes)) {
     if (!header) {
       if (row.length != 4 ||
           row['type'] != 'header' ||

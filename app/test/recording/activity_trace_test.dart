@@ -71,6 +71,16 @@ void main() {
     expect(result.complete, isTrue);
     expect(result.durationUs, 3000000);
   });
+  test('byte bounds preserve valid traces and reject appended or oversized data', () async {
+    final bytes = utf8.encode(generatedActivity());
+    await file.writeAsBytes(bytes);
+    final result = await inspectActivity(file, maximumBytes: bytes.length);
+    expect(result.complete, isTrue);
+    await expectLater(inspectActivity(file, maximumBytes: bytes.length - 1), throwsFormatException);
+    await file.writeAsString('appended private payload', mode: FileMode.append);
+    await expectLater(inspectActivity(file, maximumBytes: bytes.length), throwsFormatException);
+    await expectLater(inspectActivity(file, maximumBytes: 0), throwsFormatException);
+  });
   test(
     'crash keeps full records and ignores only the truncated last row',
     () async {

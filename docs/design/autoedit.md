@@ -55,6 +55,23 @@ separate implementation; see [speaker-notes.md](speaker-notes.md).
   - It hides after `cursor-idle`.
   - Clicks get ripples.
   - Modifier chords show as keycap badges. Plain typing is never shown.
+
+For Windows cursor replacement, recheck the saved capture proof and both local
+pictures before using the silent cursor-free companion. Sound always comes from
+the original. Missing proof, partial/recovered capture, changed picture clocks,
+unknown visible cursor shapes or incomplete activity keep the recorded pointer.
+Only arrow, text beam and hand shapes are supported by the first replacement.
+Hidden/source-excluded positions carry no coordinates in the frozen track.
+
+The portable cursor track keeps observed positions and click anchors on the cut
+clock, with current source dimensions. It never interpolates across a hidden
+interval, source resize or discontinuous cut. The first retained observation
+starts each cut segment; removed observations cannot seed that segment. Continuous
+source splits preserve the track. At most 100,000 source/retained observations are
+accepted; exceeding that bound keeps the original pointer. Activity must cover
+the video with no cursor-sampling gap over 250ms, including start and end. This
+is a conservative reliability limit, not an idle timeout. Smoothing/rendering
+and the later switch remain disconnected until their separate checks pass.
 - **Frame:**
   - The screen is inset 6% on a backdrop, with `radius-md` corners and a soft shadow.
   - A window capture crops to the window.

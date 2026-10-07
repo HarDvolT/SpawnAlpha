@@ -415,6 +415,14 @@ recordings folder.
   substitution and accumulated rounding at AAC-driven boundaries. Finalized exports
   keep their existing policy; final held/short samples keep their true duration.
   Export cursor replacement is not connected; see [cursor-capture.md](cursor-capture.md).
+  `render/screen_cursor_loader.dart` now rechecks explicit saved capture provenance,
+  exact owned sibling names, regular local paths, dimensions/clocks and complete
+  bounded activity against current native probes. Its verified source keeps original
+  sound and silent picture paths separate, with file-stamp rechecks around worker work.
+  `ScreenCursorPlanner` builds an immutable bounded normalized shape/position/click
+  track on the output clock. Hidden positions and key/focus payloads are absent.
+  Continuous splits preserve it; cuts/reuse/reorder start from retained observations,
+  with strict resets and coverage validation. Rendering/history/UI remain disconnected.
 - **Recording pause clock (eighth slice):** `RecordingClock` removes QPC pause intervals
   from the shared video/audio timeline and splits microphone packets at pause/resume
   boundaries. The worker keeps monitoring source/microphone health and current pixels/

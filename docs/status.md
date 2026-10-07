@@ -62,6 +62,24 @@ build step 2 (screen recording).
 
 ## Handover (2026-10-05): from here, Codex on the owner's Windows PC
 
+- **Latest checkpoint (2026-10-07, verified cursor source and track):** 1151
+  Flutter tests and clean analysis. The local loader requires explicit saved
+  exclusion/consent proof, owned sibling names, precise date/clocks/frame count,
+  regular local paths and current native dimensions/sound checks. Complete
+  activity and file stamps gate use; reads stop at verified byte counts.
+  The immutable worker cursor track retains normalized shapes/positions/clicks,
+  strips hidden coordinates, ignores key/focus payloads and follows trim,
+  reorder/reuse with strict cut resets. Unknown visible shapes, missing coverage,
+  oversized tracks, partial/changed/substituted/link inputs refuse replacement.
+  EN/FR/AR and worker-transfer checks pass. The actual protected generated app
+  saves 63 matching frames at 658x392/2,099,999us, rechecks source proof and builds
+  98 retained observations on a 1.7-second cut in every language.
+  **Half done:** native smoothing/drawing, frozen export history and later
+  Smooth cursor on/off UI are next; replacement is not enabled yet. Broader
+  editor/coaching/voice follow and mobile/launch remain. Owner trials stay
+  deferred; local design and recovery notes stay local. No dependency, upload,
+  new input collection or private logs. See [cursor-capture.md](cursor-capture.md).
+
 - **Latest checkpoint (2026-10-07, cursor capture foundation):** explicit Activity
   consent now explains an extra silent video and disk use. Independent WGC
   sessions preserve the original Windows pointer/sound and exclude the
@@ -1222,14 +1240,23 @@ build step 2 (screen recording).
    and description text is connected from saved actual words/frozen sections,
    with explicit copy/fresh files and no online generation or posting.
    Cursor-free capture provenance is connected with explicit Activity consent
-   and a disk-space explanation. Next build its verified local export loader,
-   immutable cut-clock cursor track, renderer and later on/off choice;
+   and a disk-space explanation. Its verified local export source loader and
+   immutable cut-clock cursor track now pass pure/local and protected app
+   checks. Next build native smoothing/drawing, frozen export history and
+   the later on/off choice;
    partial/interrupted and legacy baked-pointer takes stay ineligible.
    See [cursor-capture.md](cursor-capture.md).
    Keep originals intact.
    See OpenScreen in the brief for reusable parts.
 
 ## Decisions
+
+- 2026-10-07, cursor export evidence: require saved consent/exclusion proof and
+  rechecked matching local pictures/activity; keep original sound separate.
+  Replace only observed arrow/text/hand shapes, with hidden positions removed,
+  bounded sampling/track sizes and resets at discontinuous cuts. Missing or
+  uncertain evidence keeps the recorded pointer. Renderer/history/UI stay
+  disconnected until the next slice is verified; no new activity collection.
 
 - 2026-10-07, cursor recording foundation: preserve the original pointer and
   sound, and save an optional silent clean picture only with explicit local
@@ -1586,6 +1613,23 @@ build step 2 (screen recording).
     mobile/launch remain. Owner hardware/listening trials remain deferred.
     Separate design assessment/concept commits stay local while technical
     changes are published on the requested branch.
+
+- 2026-10-07, verified cursor source and track:
+  - Added current saved-state/version/exclusion/consent/date/clock/frame proof,
+    exact owned sibling-name and regular local/ancestor/size/change guards.
+    Native probes keep the original sound input separate from a silent clean
+    picture. Complete terminated activity/counts and bounded reads gate use.
+  - Added immutable normalized cursor observation/shape/click intervals with
+    hidden coordinates discarded and no key/focus payloads. Cut/reorder/reuse
+    begins at retained observations; continuous splits stay identical. Strict
+    JSON/reset/coverage validation and hard source/output limits refuse unsafe
+    replacement. Worker transfer avoids platform calls or widget dependencies.
+  - 1151 Flutter tests and clean analysis. The protected generated real app
+    rechecks a 63-frame 658x392/2,099,999us take and builds 98 observations on a
+    1.7-second cut in EN/FR/AR. No normal UI/renderer change, new dependency,
+    owner input/media, upload or private logs. Native smoothing/drawing,
+    frozen export attachments and the later switch remain; owner trials are
+    deferred and separate local planning/recovery notes remain unpushed.
 
 - 2026-10-07, cursor capture foundation:
   - Added consent/disk disclosure, separate silent WGC picture, explicit

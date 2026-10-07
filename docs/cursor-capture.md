@@ -1,6 +1,6 @@
 # Cursor-free recording foundation
 
-This is the recording foundation for a later reversible **Smooth cursor**
+This is the recording/source/track foundation for a later reversible **Smooth cursor**
 export choice. Cursor replacement is not connected yet. Existing exports and
 original recordings continue to show the recorded Windows pointer.
 
@@ -45,10 +45,50 @@ it and retain their baked pointer.
 
 Pending-manifest recovery never promotes a companion: a crash cannot prove
 finalization, even when some fragments decode. It preserves the original and
-any companion bytes. A future export loader must recheck local manifest,
-source, file and clock provenance before selecting the clean picture, and
-must read sound from the original. That loader and the cursor track/renderer
-are the next slice.
+any companion bytes. The export source loader now rechecks the local manifest,
+source, file and clock provenance before exposing a clean picture. The native
+renderer and its later switch remain the next slice.
+
+## Verified source and portable cursor track
+
+`verifyCursorSource` requires the saved state, explicit consent and exclusion
+version/method, precise take date/duration, coherent 30fps frame count and exact
+owned sibling filenames. Camera, legacy and recovered takes are ineligible.
+Metadata is capped at 32MiB and activity at 256MiB. Paths must be absolute regular
+local files; network/alternate streams, links and linked ancestors are rejected.
+Native probes recheck both picture dimensions/endpoints and the original sound
+flag; the companion remains silent and matches within two microseconds.
+The activity footer must be complete, terminated and match its saved count/clock.
+Checks return generic failure without private exceptions or paths.
+
+`VerifiedCursorSource` separates `originalPath` (sound and ordinary picture) from
+`picturePath` (silent replacement picture). Source sizes/modification times and
+regular paths are checked before and after track work, and can be rechecked just
+before rendering. Activity reads are capped at the verified byte count, so a
+growing sidecar cannot turn a bounded check into an unbounded read. These are
+local consistency checks, not cryptographic authenticity signatures. They do
+not prove an unrelated replacement file with forged matching metadata genuine.
+Future render jobs must validate the resolved inputs again and always read sound
+from the original, never the silent picture.
+
+`ScreenCursorPlanner` retains at most 100,000 cursor/click observations, with a
+250ms sampling-gap/head/tail limit. Unknown visible cursor shapes refuse
+replacement; arrow, text beam and hand are supported. Click anchors require a
+fresh observed shape with matching source dimensions. An early click without one
+waits for a cursor sample. Equal-time sampling preserves an exact click position;
+hidden/resize changes clear stale anchors. Hidden states discard coordinates.
+Key/focus/shortcut payloads never enter the portable track.
+
+The immutable `ScreenCursor` holds normalized source geometry, shape, short
+observation intervals, click anchors and cut resets on the output clock. Source
+ranges can be trimmed, reordered or repeated. Continuous splits produce the
+same track; discontinuous cuts cannot inherit a removed position or click shape.
+The first retained sample starts a segment, which remains hidden until that
+sample. An empty or uncovered retained segment refuses replacement. Strict JSON
+and cut validation reject overlap, extra payloads, oversized tracks, missing
+resets and steps crossing a cut. A worker isolate builds the track without a
+platform channel or Flutter widgets. Native smoothing/drawing, export-journal
+attachment and the review switch are not connected yet.
 
 ## Continuous picture and sound clocks
 
@@ -103,10 +143,17 @@ stops just beyond fragment boundaries, every-frame clean points, mono 48kHz
 and stereo 44.1kHz four/eight-second fragment clocks. Golden captures explicitly repaint
 without advancing time, avoiding missing retained text in Windows PNGs.
 
+The protected real-app check also verifies the saved source through current
+native probes, then builds three retained/reordered/repeated segments in all
+three languages. Its generated paused take yields 98 retained observations on
+the 1.7-second output clock; original and silent-picture clocks remain exact.
+Pure and local-file tests cover source mismatch, partial/changed/oversized/link
+inputs, rounding, unknown shapes, hidden data, limits and worker transfer.
+
 No dependency, codec, model, network upload or new input collection is added.
 Real hardware and comfort trials remain deferred by the owner. Smooth cursor
-is still unfinished until its verified loader, frozen track, rendering and
-later on/off choice are implemented and tested.
+is still unfinished until rendering, frozen export attachments and the later
+on/off choice are implemented and tested.
 
 ## Primary API references
 

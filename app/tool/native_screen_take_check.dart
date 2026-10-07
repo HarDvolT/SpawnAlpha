@@ -7,6 +7,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:spawnalpha/src/model/script_document.dart';
+import 'package:spawnalpha/src/model/cut_plan.dart';
 import 'package:spawnalpha/src/model/note_deck.dart';
 import 'package:spawnalpha/src/model/script_language.dart';
 import 'package:spawnalpha/src/recording/floating_prompter.dart';
@@ -22,6 +23,7 @@ import 'package:spawnalpha/src/theme/theme.dart';
 import 'package:spawnalpha/src/ui/floating_prompter_screen.dart';
 import 'package:spawnalpha/src/ui/recording_hud_screen.dart';
 import 'package:spawnalpha/src/recording/camera_bubble.dart';
+import 'package:spawnalpha/src/render/screen_cursor_loader.dart';
 import 'package:spawnalpha/src/ui/camera_bubble_screen.dart';
 
 @pragma('vm:entry-point')
@@ -49,6 +51,7 @@ Future<void> runGeneratedTake({
   ScreenTakeController? owner;
   Timer? action;
   var passed = false;
+  var cursorLoaderPassed = false, cursorSteps = 0;
   try {
     if (crashAfterRecord && !generatedActivity) {
       throw StateError('Crash check requires generated activity');
@@ -305,6 +308,28 @@ Future<void> runGeneratedTake({
         throw StateError('Verified full cursor-free picture missing');
       }
       debugPrint('Native cursor-free companion passed: matching picture clocks/dimensions/counts, explicit finalized provenance and local save/reload.');
+      final verified = await verifyCursorSource(take, const WindowsRecordingInspector());
+      if (verified == null || verified.originalPath != take.path || verified.picturePath != take.cursorFreePath) {
+        throw StateError('Verified cursor export source missing');
+      }
+      for (final language in ScriptLanguage.values) {
+        final plan = CutPlan(takeId: 'generated', language: language, sourceDuration: take.duration,
+          ranges: [
+            SourceRange(start: const Duration(milliseconds: 900), end: const Duration(milliseconds: 1500)),
+            SourceRange(start: const Duration(milliseconds: 150), end: const Duration(milliseconds: 650)),
+            SourceRange(start: const Duration(milliseconds: 900), end: const Duration(milliseconds: 1500)),
+          ]);
+        final track = await loadScreenCursor(verified, plan);
+        if (track == null || track.steps.isEmpty || track.steps.where((s) => s.reset).length != 3 ||
+            track.duration != const Duration(milliseconds: 1700)) {
+          throw StateError('Retained cursor clock missing');
+        }
+        track.validateClock(plan);
+        cursorSteps = track.steps.length;
+      }
+      cursorLoaderPassed = await verified.unchanged();
+      if (!cursorLoaderPassed) throw StateError('Cursor sources changed during track work');
+      debugPrint('Native cursor export source and EN/FR/AR retained tracks passed. Original pictures and sound stay separate.');
       final activity = await inspectActivity(File(take.activityPath!));
       if (!activity.complete ||
           activity.events < 80 ||
@@ -364,6 +389,8 @@ Future<void> runGeneratedTake({
     final result = File('${Directory.current.path}/build/cursor-app-check-result.json');
     final metrics = await result.exists() ? jsonDecode(await result.readAsString()) as Map : <String, Object?>{};
     metrics['passed'] = passed;
+    metrics['cursorLoaderPassed'] = cursorLoaderPassed;
+    metrics['cursorSteps'] = cursorSteps;
     await result.writeAsString(jsonEncode(metrics), flush: true);
   }
   await SystemNavigator.pop();
