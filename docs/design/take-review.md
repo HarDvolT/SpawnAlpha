@@ -141,6 +141,18 @@ dimensions and duration before attaching history. Each saved video shows its
 date, format and duration, with **Watch saved video** and **Show saved files**.
 Earlier exports remain available after restoring a gap or processing speech
 again. The player labels saved videos and provides **Watch original take**.
+
+**Also save other formats** starts off. Enabling it reveals chips for formats
+besides the main dropdown choice. Keep at least the main format; extras are
+explicit, including 4K. The action says **Save 2 videos**, etc. Each video uses
+the same frozen take, cut, caption style and effects. Save them sequentially
+to limit memory and GPU use. Show the current format, video number and overall
+progress. Cancellation stops the active render and the remaining queue; while
+the current file is being attached, **Stop after this video** finishes that
+file and skips the rest. A failure stops the queue and explains how many videos
+were saved. Every completed version remains playable. Completed-job recovery
+still protects interrupted attachments; unfinished queue entries are not
+silently started after reopening the app. No extra dependency or upload.
 Actual SRT/VTT captions and the portable cut plan save beside each video.
 **Put captions on video** starts enabled when actual words exist. Its first
 Windows style is **Readable**: complete phrases in the display face (Anybody,

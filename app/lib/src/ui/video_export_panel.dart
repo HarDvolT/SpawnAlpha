@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../model/video_export.dart';
 import '../model/caption_style.dart';
 import '../render/export_processor.dart';
+import '../render/export_batch.dart';
 import '../theme/theme.dart';
 import 'format.dart';
 
@@ -58,6 +59,11 @@ class VideoExportPanel extends StatelessWidget {
     this.onSoftenSharpSound,
     this.reduceNoise = false,
     this.onReduceNoise,
+    this.batch,
+    this.moreFormats = false,
+    this.onMoreFormats,
+    this.extraFormats = const {},
+    this.onExtraFormat,
   });
   final VideoFormat format;
   final ValueChanged<VideoFormat> onFormat;
@@ -99,6 +105,11 @@ class VideoExportPanel extends StatelessWidget {
   final ValueChanged<bool>? onSoftenSharpSound;
   final bool reduceNoise;
   final ValueChanged<bool>? onReduceNoise;
+  final ExportBatch? batch;
+  final bool moreFormats;
+  final ValueChanged<bool>? onMoreFormats;
+  final Set<VideoFormat> extraFormats;
+  final void Function(VideoFormat, bool)? onExtraFormat;
   final List<VideoExport> videos;
   final ValueChanged<VideoExport> onView, onShow;
 
@@ -143,6 +154,18 @@ class VideoExportPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final p = SaTheme.of(context);
+    final queue = batch;
+    final count =
+        1 + (moreFormats ? extraFormats.where((f) => f != format).length : 0);
+    final exporting = (queue?.busy ?? false) || job.busy;
+    final attaching = job.phase == ExportPhase.saving;
+    final canStop =
+        exporting &&
+        (!attaching ||
+            (queue != null &&
+                queue.busy &&
+                queue.saved + 1 < queue.total &&
+                !queue.cancelled));
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -168,16 +191,49 @@ class VideoExportPanel extends StatelessWidget {
             FilledButton.icon(
               onPressed: busy || !supported ? null : onExport,
               icon: const Icon(Icons.movie_creation_outlined),
-              label: const Text('Save video'),
+              label: Text(count > 1 ? 'Save $count videos' : 'Save video'),
             ),
-            if (job.busy && job.phase != ExportPhase.saving)
+            if (canStop)
               OutlinedButton.icon(
-                onPressed: job.cancel,
+                onPressed: queue?.cancelled == true
+                    ? null
+                    : queue?.cancel ?? job.cancel,
                 icon: const Icon(Icons.close_rounded),
-                label: const Text('Cancel export'),
+                label: Text(
+                  attaching ? 'Stop after this video' : 'Cancel export',
+                ),
               ),
           ],
         ),
+        if (onMoreFormats != null)
+          CheckboxListTile(
+            contentPadding: EdgeInsets.zero,
+            value: moreFormats,
+            onChanged: busy ? null : (value) => onMoreFormats!(value ?? false),
+            title: const Text('Also save other formats'),
+            subtitle: const Text(
+              'Use the same cut, captions and effects for every version.',
+            ),
+          ),
+        if (moreFormats)
+          Wrap(
+            spacing: SaSpace.s2,
+            runSpacing: SaSpace.s2,
+            children: [
+              for (final extra in VideoFormat.values)
+                if (extra != format)
+                  FilterChip(
+                    label: Text(extra.label),
+                    labelStyle: SaType.label.copyWith(
+                      color: extraFormats.contains(extra) ? p.onPrimary : p.ink,
+                    ),
+                    selected: extraFormats.contains(extra),
+                    onSelected: busy || onExtraFormat == null
+                        ? null
+                        : (value) => onExtraFormat!(extra, value),
+                  ),
+            ],
+          ),
         Text(
           hasScreenActivity && autoZoom
               ? 'Saves a new MP4 on this device.'
@@ -387,19 +443,32 @@ class VideoExportPanel extends StatelessWidget {
             'Video export is available on Windows first.',
             style: SaType.bodySm.copyWith(color: p.ink2),
           ),
-        if (job.busy) ...[
+        if (exporting) ...[
           const SizedBox(height: SaSpace.s3),
           LinearProgressIndicator(
-            value: job.phase == ExportPhase.rendering ? job.progress : null,
+            value: queue?.busy == true
+                ? queue!.progress
+                : job.phase == ExportPhase.rendering
+                ? job.progress
+                : null,
           ),
           const SizedBox(height: SaSpace.s2),
           Text(
-            job.phase == ExportPhase.saving
+            queue?.busy == true && queue!.total > 1
+                ? '${attaching ? 'Saving' : 'Making'} video ${queue.saved + 1} of ${queue.total} · ${queue.current?.label ?? ''}'
+                : attaching
                 ? 'Checking and saving your video…'
                 : 'Making your video…',
             style: SaType.signalLabel.copyWith(color: p.ink2),
           ),
         ],
+        if (queue != null && !queue.busy && queue.total > 1)
+          Text(
+            '${queue.saved} of ${queue.total} videos saved.${queue.cancelled ? ' The remaining videos were cancelled.' : ''}',
+            style: SaType.bodySm.copyWith(color: p.ink2),
+          ),
+        if (queue?.problem != null && queue!.problem != job.problem)
+          Text(queue.problem!, style: SaType.bodySm.copyWith(color: p.danger)),
         if (job.problem != null)
           Text(job.problem!, style: SaType.bodySm.copyWith(color: p.danger)),
         if (job.notice != null)

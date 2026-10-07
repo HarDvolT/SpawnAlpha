@@ -12,6 +12,7 @@ import '../model/video_export.dart';
 import '../model/caption_style.dart';
 import '../model/cut_plan.dart';
 import '../render/export_processor.dart';
+import '../render/export_batch.dart';
 import '../render/room_tone.dart';
 import '../review/repeated_sections.dart';
 import '../theme/theme.dart';
@@ -53,6 +54,9 @@ class _TakeReviewScreenState extends State<TakeReviewScreen> {
   bool _planning = false;
   String? _cutProblem;
   VideoFormat _format = VideoFormat.landscape;
+  ExportBatch? _batch;
+  bool _moreFormats = false;
+  final Set<VideoFormat> _extraFormats = {};
   bool _cameraInExport = true, _reviewReady = false;
   bool _burnedCaptions = true;
   CaptionStyle _captionStyle = CaptionStyle.cue;
@@ -155,6 +159,7 @@ class _TakeReviewScreenState extends State<TakeReviewScreen> {
 
   @override
   void dispose() {
+    _batch?.dispose();
     _reviewScroll.dispose();
     super.dispose();
   }
@@ -172,6 +177,7 @@ class _TakeReviewScreenState extends State<TakeReviewScreen> {
     if (_loaded) return;
     _loaded = true;
     final app = AppScope.of(context), processor = app.speech;
+    _batch = ExportBatch(app.exports);
     if (widget.processAfterStop) {
       Future<void>(() async {
         if (mounted) await _process(automatic: true);
@@ -210,10 +216,7 @@ class _TakeReviewScreenState extends State<TakeReviewScreen> {
 
   Future<void> _saveVideo() async {
     final app = AppScope.of(context);
-    final video = await app.exports.export(
-      widget.script,
-      _latestTake(app),
-      _format,
+    final choices = ExportChoices(
       clean: _clean,
       camera: _cameraInExport,
       burnedCaptions: _burnedCaptions,
@@ -232,11 +235,17 @@ class _TakeReviewScreenState extends State<TakeReviewScreen> {
       softenSharpSound: _softenSharpSound,
       reduceNoise: _reduceNoise,
     );
+    final videos = await _batch!.run(widget.script, _latestTake(app), [
+      _format,
+      if (_moreFormats)
+        for (final format in VideoFormat.values)
+          if (format != _format && _extraFormats.contains(format)) format,
+    ], choices: choices);
     final saved = await app.videoExports.load(_latestTake(app));
     if (mounted) {
       setState(() {
         _videos = saved;
-        if (video != null) _viewing = video;
+        if (videos.isNotEmpty) _viewing = videos.last;
       });
     }
   }
@@ -377,6 +386,7 @@ class _TakeReviewScreenState extends State<TakeReviewScreen> {
         app.speech,
         app.speechModels,
         app.exports,
+        ?_batch,
         app.processing,
       ]),
       builder: (context, _) {
@@ -387,6 +397,7 @@ class _TakeReviewScreenState extends State<TakeReviewScreen> {
                 model.busy ||
                 _planning ||
                 app.exports.busy ||
+                (_batch?.busy ?? false) ||
                 app.processing.busy;
         final spoken = _spoken;
         final processingBusy = job.busy || model.busy || app.processing.busy;
@@ -605,6 +616,7 @@ class _TakeReviewScreenState extends State<TakeReviewScreen> {
                   format: _format,
                   onFormat: (value) => setState(() {
                     _format = value;
+                    _extraFormats.remove(value);
                     if (!_captionStyleChosen) {
                       _captionStyle = value == VideoFormat.portrait
                           ? CaptionStyle.punch
@@ -613,6 +625,18 @@ class _TakeReviewScreenState extends State<TakeReviewScreen> {
                   }),
                   onExport: _saveVideo,
                   job: app.exports,
+                  batch: _batch,
+                  moreFormats: _moreFormats,
+                  onMoreFormats: (value) =>
+                      setState(() => _moreFormats = value),
+                  extraFormats: _extraFormats,
+                  onExtraFormat: (format, value) => setState(() {
+                    if (value) {
+                      _extraFormats.add(format);
+                    } else {
+                      _extraFormats.remove(format);
+                    }
+                  }),
                   busy: busy || !_reviewReady || _exporting,
                   supported: app.renderer.supported,
                   hasCamera: widget.take.cameraPath != null,

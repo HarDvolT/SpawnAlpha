@@ -17,6 +17,98 @@ import '../render/export_processor_test.dart' show FakeRenderer;
 import '../storage/screen_take_store_test.dart' show FakeInspector;
 
 void main() {
+  for (final locked in [false, true]) {
+    testWidgets(
+      'batch chips are explicit, exclude the main format and respect busy=$locked',
+      (tester) async {
+        final library = ScriptLibrary(MemoryScriptStore()),
+            inspector = FakeInspector();
+        final job = ExportProcessor(
+          FakeRenderer(inspector),
+          VideoExportStore(Directory.systemTemp, library, inspector),
+          CleanCutStore(Directory.systemTemp, library),
+          (_) async => null,
+        );
+        var more = false;
+        var primary = VideoFormat.portrait;
+        final extras = <VideoFormat>{};
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: buildTheme(Brightness.light),
+            home: Scaffold(
+              body: StatefulBuilder(
+                builder: (context, update) => VideoExportPanel(
+                  format: primary,
+                  onFormat: (value) => update(() {
+                    primary = value;
+                    extras.remove(value);
+                  }),
+                  onExport: () {},
+                  job: job,
+                  supported: true,
+                  busy: locked,
+                  moreFormats: more,
+                  onMoreFormats: (value) => update(() => more = value),
+                  extraFormats: extras,
+                  onExtraFormat: (format, selected) => update(() {
+                    if (selected) {
+                      extras.add(format);
+                    } else {
+                      extras.remove(format);
+                    }
+                  }),
+                  videos: const [],
+                  onView: (_) {},
+                  onShow: (_) {},
+                ),
+              ),
+            ),
+          ),
+        );
+        final choice = find.widgetWithText(
+          CheckboxListTile,
+          'Also save other formats',
+        );
+        expect(find.byType(FilterChip), findsNothing);
+        expect(find.text('Save video'), findsOneWidget);
+        if (locked) {
+          expect(tester.widget<CheckboxListTile>(choice).onChanged, isNull);
+        } else {
+          await tester.tap(choice);
+          await tester.pumpAndSettle();
+          expect(find.byType(FilterChip), findsNWidgets(3));
+          expect(find.widgetWithText(FilterChip, primary.label), findsNothing);
+          final large = find.widgetWithText(
+            FilterChip,
+            VideoFormat.landscape4k.label,
+          );
+          expect(tester.widget<FilterChip>(large).selected, isFalse);
+          await tester.tap(
+            find.widgetWithText(FilterChip, VideoFormat.feed.label),
+          );
+          await tester.pumpAndSettle();
+          expect(find.text('Save 2 videos'), findsOneWidget);
+          final selected = find.widgetWithText(
+            FilterChip,
+            VideoFormat.feed.label,
+          );
+          expect(
+            tester.widget<FilterChip>(selected).labelStyle!.color,
+            Theme.of(tester.element(selected)).colorScheme.onPrimary,
+          );
+          await tester.tap(choice);
+          await tester.pumpAndSettle();
+          expect(find.text('Save video'), findsOneWidget);
+          expect(find.byType(FilterChip), findsNothing);
+          expect(extras, {VideoFormat.feed});
+        }
+        expect(tester.takeException(), isNull);
+        await tester.pumpWidget(const SizedBox());
+        job.dispose();
+        library.dispose();
+      },
+    );
+  }
   for (final mode in ['choose', 'busy', 'missing', 'off', 'continuous']) {
     testWidgets('room tone is a separate later choice: $mode', (tester) async {
       final library = ScriptLibrary(MemoryScriptStore()),

@@ -62,6 +62,25 @@ build step 2 (screen recording).
 
 ## Handover (2026-10-05): from here, Codex on the owner's Windows PC
 
+- **Latest checkpoint (2026-10-07, batch exports):** 961 Flutter tests,
+  302 screenshots and clean analysis. Also save other formats starts off;
+  explicit chips include 4K and exclude the main format. One queue freezes
+  the take, cut, captions and effects, runs one native job at a time and
+  shows overall progress/current format. Cancel stops the current render
+  and skips the remainder; Stop after this video finishes an attachment.
+  Failure keeps saved versions and completed-job recovery never starts an
+  unfinished queue. Changed words/cut revisions stop the next job. EN/FR/AR
+  review selection, busy locks, progress, cancellation, attachment stopping,
+  partial failure and saved history pass; selected-chip contrast is fixed
+  and EN/AR phone light/dark PNGs inspected. Thirteen actual app exports
+  cover all four formats in each language, French Notes and Camera/Screen/
+  Both, plus cancellation during a real second render. Exact subtitles,
+  history/reload and original/earlier bytes remain intact. No native change,
+  dependency, owner media/input, upload or private logging. **Half done:**
+  smooth cursor, complete coaching/editor and mobile/launch remain. Continue
+  editing tools and explicit cursor-free capture provenance; owner trials
+  stay deferred. The Claude design artifact trails docs/design.
+
 - **Latest checkpoint (2026-10-07, room-tone joins):** 934 Flutter tests,
   296 screenshots and clean analysis. Use room tone at cuts is an independent
   later choice, initially off, offered with soft joins and a retained measured
@@ -1124,12 +1143,17 @@ build step 2 (screen recording).
    sound-join fades, rounded local screen frames and gentle camera emphasis
    are connected, alongside paired-camera placement, screen motion blur and
    optional sound volume balance, light de-essing and classic background-noise
-   reduction. Room-tone joins are connected; smooth cursor, complete coaching and
-   editor tools remain.
+   reduction. Room-tone joins and batch format exports are connected; smooth
+   cursor, complete coaching and further editor tools remain.
    Keep originals intact.
    See OpenScreen in the brief for reusable parts.
 
 ## Decisions
+
+- 2026-10-07, batch formats: keep the main format mandatory and extras explicit,
+  including 4K. Freeze all choices and source revisions once, save serially,
+  preserve finished versions on failure/cancellation, and never restart an
+  unfinished queue silently. Stop after this video completes an attachment.
 
 - 2026-10-07, room tone: offer the separate later choice off initially. Borrow
   only a retained measured 100ms quiet sample, guarded from all actual words
@@ -1423,6 +1447,22 @@ build step 2 (screen recording).
   word lists, not prosody.
 
 ## Session log
+
+- 2026-10-07, batch exports:
+  - Added immutable shared export choices, a serial queue, explicit format
+    chips, count/current-format progress, partial completion and cancellation
+    with attachment-aware stopping. Reopened take history stays intact.
+  - 961 Flutter tests, 302 screenshots and clean analysis. Generated tests
+    cover frozen cut/words and sound choices, all formats/languages, failure,
+    cancellation, recovery, changed revisions and lifecycle/concurrency. Full
+    review tests cover all outcomes in EN/FR/AR, including French Notes.
+  - Thirteen actual Windows app exports include 4K in each language and a
+    cancelled second native render; exact subtitles, metadata/history/reload
+    and original/previous bytes pass. Fixed selected format label contrast;
+    53 UI checks and six batch screenshots rerun, EN/AR PNGs inspected.
+  - No native change, dependency, owner input/media, upload or private logs.
+    Smooth cursor, complete coaching/editor and mobile/launch remain; trials
+    are deferred. Continue the remaining Cut/editor tools.
 
 - 2026-10-07, room-tone joins:
   - Added pure bounded retained-quiet selection, all-word/uncertainty guards,

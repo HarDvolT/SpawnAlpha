@@ -418,6 +418,19 @@ void main() {
                 duration: const Duration(milliseconds: 2600), createdAt: DateTime(2026, 10, 7, 11, 30))], onView: (_) {}, onShow: (_) {}),
           ])), [script], brightness: brightness);
       });
+      testWidgets('batch export $language $brightness', (tester) async {
+        final script = sampleScripts().firstWhere((s) => s.language == language);
+        await shoot(tester, 'batch-export-${language.name}-${brightness.name}', phone, (app) => Scaffold(
+          appBar: AppBar(title: const Text('Your take')), body: ListView(padding: const EdgeInsets.all(SaSpace.s5), children: [
+            Directionality(textDirection: language.isRtl ? TextDirection.rtl : TextDirection.ltr,
+              child: Text(script.displayTitle, style: SaType.body)),
+            const SizedBox(height: SaSpace.s5),
+            VideoExportPanel(format: VideoFormat.portrait, onFormat: (_) {}, onExport: () {}, job: app.exports,
+              busy: false, supported: true, moreFormats: true, onMoreFormats: (_) {},
+              extraFormats: const {VideoFormat.landscape, VideoFormat.feed}, onExtraFormat: (_, _) {},
+              videos: const [], onView: (_) {}, onShow: (_) {}),
+          ])), [script], brightness: brightness);
+      });
       testWidgets('camera placement export $language $brightness', (tester) async {
         final script = sampleScripts().firstWhere((s) => s.language == language);
         await shoot(tester, 'camera-placement-${language.name}-${brightness.name}', phone, (app) => Scaffold(

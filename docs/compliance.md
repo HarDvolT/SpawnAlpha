@@ -142,6 +142,10 @@ paid release, a lawyer should review:
   existing spring/type tokens. Decorative Arabic stretching never changes
   recognized words or subtitle spelling. Still is local; no performance score
   is implied by the visual emphasis.
+- Optional batch formats reuse the local exporter and completed-job journals.
+  The bounded queue freezes existing source revisions and effects; it adds
+  no data collection, package, model, upload or private diagnostic. Finished
+  videos remain local and intact; unfinished formats never restart silently.
 - **If FFmpeg is used at all:**
   - use an **LGPL build** without `--enable-gpl` or `--enable-nonfree`, which means no
     x264 or x265;

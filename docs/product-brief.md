@@ -140,7 +140,8 @@ Revised 2026-09-30 by the owner. Screen recording moves up, and the automatic ed
      Optional light
      wideband S sound softening is connected, starts off, and limits gain
      reduction to 3dB without filtering the audible output or adding delay;
-   - 16:9 and 9:16 export;
+   - 16:9 1080p/4K, 9:16 and 4:5 exports, with optional serial batch saving
+     from one frozen cut/effect choice; finished versions survive cancellation;
    - the finish screen.
 5. **Delivery review and section retakes.** The best take is chosen by how well it matches the script.
 6. **Voice-following scroll.** This needs real-time speech recognition on the device.
