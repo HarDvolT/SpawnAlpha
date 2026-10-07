@@ -79,6 +79,7 @@ class ExportProcessor extends ChangeNotifier {
     bool softAudioJoins = true,
     bool autoZoom = true,
     bool clickHighlights = true,
+    bool showShortcuts = true,
   }) async {
     if (busy) return null;
     source = take.path;
@@ -136,7 +137,7 @@ class ExportProcessor extends ChangeNotifier {
           ? speechOnCut(spoken.transcript, plan)
           : speechOnCleanCut(spoken.transcript, clean);
       final zooms =
-          (autoZoom || clickHighlights) &&
+          (autoZoom || clickHighlights || showShortcuts) &&
               take.mode != TakeMode.camera &&
               take.activityPath != null
           ? await compute(
@@ -161,6 +162,9 @@ class ExportProcessor extends ChangeNotifier {
                 clickDuration: clickHighlights
                     ? SaScreenFx.rippleDuration
                     : Duration.zero,
+                shortcutDuration: showShortcuts
+                    ? SaScreenFx.keycapDuration
+                    : Duration.zero,
               ),
             )
           : LoadedScreenZooms(ScreenZooms(0, const []));
@@ -182,6 +186,7 @@ class ExportProcessor extends ChangeNotifier {
         softAudioJoins: softAudioJoins && plan.hasJoins,
         zoomCount: zooms.zooms.count,
         clickCount: zooms.clicks?.count ?? 0,
+        shortcutCount: zooms.shortcuts?.count ?? 0,
       );
       final captionTracks = video.captions
           ? await compute(
@@ -199,6 +204,7 @@ class ExportProcessor extends ChangeNotifier {
         vtt: captions == null ? null : subtitleText(captions, vtt: true),
         screenZooms: zooms.zooms,
         screenClicks: zooms.clicks,
+        screenShortcuts: zooms.shortcuts,
       );
       reserved = reservation;
       if (_cancelled) throw const RenderCancelled();
@@ -216,6 +222,7 @@ class ExportProcessor extends ChangeNotifier {
           softAudioJoins: video.softAudioJoins,
           screenZooms: zooms.zooms,
           screenClicks: zooms.clicks,
+          screenShortcuts: zooms.shortcuts,
         ),
         (amount) {
           progress = amount;

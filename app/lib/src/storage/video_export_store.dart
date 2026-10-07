@@ -9,6 +9,7 @@ import '../recording/recording_inspector.dart';
 import 'script_store.dart';
 import '../render/screen_zooms.dart';
 import '../render/screen_clicks.dart';
+import '../render/screen_shortcuts.dart';
 
 class ExportReservation {
   const ExportReservation(
@@ -20,6 +21,7 @@ class ExportReservation {
     this.vtt,
     this.screenZooms,
     this.screenClicks,
+    this.screenShortcuts,
   });
   final String scriptId, source;
   final VideoExport video;
@@ -27,6 +29,7 @@ class ExportReservation {
   final String? srt, vtt;
   final ScreenZooms? screenZooms;
   final ScreenClicks? screenClicks;
+  final ScreenShortcuts? screenShortcuts;
   Map<String, Object?> toJson({bool complete = false}) => {
     'version': 1,
     'scriptId': scriptId,
@@ -38,6 +41,7 @@ class ExportReservation {
     'vtt': vtt,
     if (screenZooms != null) 'screenZooms': screenZooms!.toJson(),
     if (screenClicks != null) 'screenClicks': screenClicks!.toJson(),
+    if (screenShortcuts != null) 'screenShortcuts': screenShortcuts!.toJson(),
   };
 }
 
@@ -76,8 +80,11 @@ class VideoExportStore {
     String? vtt,
     ScreenZooms? screenZooms,
     ScreenClicks? screenClicks,
+    ScreenShortcuts? screenShortcuts,
   }) async {
-    if ((screenClicks?.count ?? 0) != video.clickCount ||
+    if ((screenShortcuts?.count ?? 0) != video.shortcutCount ||
+        (screenShortcuts?.badges.any((b) => b.end > plan.duration) ?? false) ||
+        (screenClicks?.count ?? 0) != video.clickCount ||
         (screenClicks?.pulses.any((p) => p.end > plan.duration) ?? false) ||
         (screenZooms?.count ?? 0) != video.zoomCount ||
         (screenZooms?.steps.any((s) => s.time > plan.duration) ?? false) ||
@@ -103,6 +110,7 @@ class VideoExportStore {
       vtt: vtt,
       screenZooms: screenZooms,
       screenClicks: screenClicks,
+      screenShortcuts: screenShortcuts,
     );
     await _write(_journal(video), reservation.toJson());
     return reservation;
@@ -178,6 +186,8 @@ class VideoExportStore {
         'screenZooms': reservation.screenZooms!.toJson(),
       if (reservation.screenClicks != null)
         'screenClicks': reservation.screenClicks!.toJson(),
+      if (reservation.screenShortcuts != null)
+        'screenShortcuts': reservation.screenShortcuts!.toJson(),
     });
     await _attach(reservation);
   }
@@ -282,7 +292,14 @@ class VideoExportStore {
             : ScreenClicks.fromJson(
                 json['screenClicks']! as Map<String, Object?>,
               );
-        if ((clicks?.count ?? 0) != video.clickCount ||
+        final shortcuts = json['screenShortcuts'] == null
+            ? null
+            : ScreenShortcuts.fromJson(
+                json['screenShortcuts']! as Map<String, Object?>,
+              );
+        if ((shortcuts?.count ?? 0) != video.shortcutCount ||
+            (shortcuts?.badges.any((b) => b.end > plan.duration) ?? false) ||
+            (clicks?.count ?? 0) != video.clickCount ||
             (clicks?.pulses.any((p) => p.end > plan.duration) ?? false) ||
             (zooms?.count ?? 0) != video.zoomCount ||
             (zooms?.steps.any((s) => s.time > plan.duration) ?? false)) {
@@ -307,6 +324,7 @@ class VideoExportStore {
             vtt: vtt as String?,
             screenZooms: zooms,
             screenClicks: clicks,
+            screenShortcuts: shortcuts,
           ),
         );
         ++recovered;

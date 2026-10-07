@@ -112,7 +112,9 @@ Revised 2026-09-30 by the owner. Screen recording moves up, and the automatic ed
    - Windows screen activity auto-zoom is available with an on/off export
      choice and saved target/history track, including reliable spoken EN/FR/AR
      pointing phrases near a visible click; optional amber click highlights
-     are connected too. Smooth cursor/frame polish remains;
+     are connected too, along with optional glass shortcut badges for
+     allowlisted modifier chords. Ordinary typing stays hidden.
+     Smooth cursor/frame polish remains;
    - 16:9 and 9:16 export;
    - the finish screen.
 5. **Delivery review and section retakes.** The best take is chosen by how well it matches the script.

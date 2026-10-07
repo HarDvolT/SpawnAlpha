@@ -165,7 +165,11 @@ Kinetic can be switched to **Still**, which keeps only the motion, the guide and
   - zooms add only a little;
   - it is proportional to camera speed, capped at `blur-max`, and zero whenever the frame is still.
 - **Click ripples** are an amber ring growing to 4.4× and fading over 420ms, with a soft halo under the cursor.
-- **Keystroke badges** are glass keycaps that rise on a spring for shortcuts. Individual letters are never shown.
+- **Keystroke badges** are glass keycaps that rise `keycap-rise` on
+  `spring-smooth` for allowlisted modifier shortcuts. The whole fixed
+  Martian Mono plate rises at the top-left safe edge, lasts `keycap-duration`
+  and exits over `keycap-fade`. A new chord replaces the previous badge;
+  source cuts clamp it. Ordinary typed letters are never shown.
 
 ## Haptics (phones)
 

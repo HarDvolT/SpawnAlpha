@@ -54,6 +54,15 @@ struct CaptionOverlay::Impl {
       Fraction(style.padding, 0, 40) && Fraction(style.radius, 0, 40) &&
       Fraction(style.shadow_offset, 0, 8) && style.weight >= 100 && style.weight <= 900);
     Require(!style.karaoke || (Fraction(style.underline_size, 1, 8) && Fraction(style.underline_gap, 0, 12)));
+    if (style.keycap) {
+      Require(words.size() <= 20000 && !style.rtl && !style.karaoke && !style.cue && !style.punch &&
+        style.fade_us > 0 && style.fade_us <= 1000000 && Fraction(style.rise, 0, 40) &&
+        Fraction(style.smooth_mass, .1, 10) && Fraction(style.smooth_stiffness, 1, 1000) &&
+        Fraction(style.smooth_damping, 1, 200) &&
+        style.smooth_damping * style.smooth_damping < 4 * style.smooth_mass * style.smooth_stiffness);
+      for (const auto& badge : words) Require(IsShortcutLabel(badge.text) && badge.words.empty() &&
+        badge.end_us - badge.start_us <= 2000000);
+    }
     int64_t previous = 0; size_t total = 0;
     for (const auto& word : words) {
       total += word.text.size();
@@ -101,28 +110,31 @@ struct CaptionOverlay::Impl {
     const auto right = vertical ? style.safe_right : style.edge;
     const auto bottom = vertical ? style.safe_bottom : style.bottom;
     left = static_cast<float>(width * style.edge); right_edge = static_cast<float>(width * (1 - right));
-    safe_top = static_cast<float>(height * style.safe_top); bottom_edge = static_cast<float>(height * (1 - bottom));
+    safe_top = static_cast<float>(height * (style.keycap && !vertical ? style.edge : style.safe_top)); bottom_edge = static_cast<float>(height * (1 - bottom));
     padding = static_cast<float>(style.padding) * scale;
     max_width = right_edge - left - padding * 2;
     Require(max_width > 0 && bottom_edge > safe_top + padding * 2);
     check_hresult(DWriteCreateFactory(DWRITE_FACTORY_TYPE_ISOLATED, __uuidof(IDWriteFactory5), reinterpret_cast<IUnknown**>(factory.put())));
     com_ptr<IDWriteFontSetBuilder1> builder; check_hresult(factory->CreateFontSetBuilder(builder.put()));
-    for (const auto* name : {L"Anybody-Variable.ttf", L"ReemKufi-Variable.ttf"}) {
+    const auto files = style.keycap ? std::vector<const wchar_t*>{L"MartianMono-Variable.ttf"} :
+      std::vector<const wchar_t*>{L"Anybody-Variable.ttf", L"ReemKufi-Variable.ttf"};
+    for (const auto* name : files) {
       const auto path = (FontFolder() / name).wstring(); CheckLocalMediaPath(path);
       com_ptr<IDWriteFontFile> file; check_hresult(factory->CreateFontFileReference(path.c_str(), nullptr, file.put()));
       check_hresult(builder->AddFontFile(file.get()));
     }
     com_ptr<IDWriteFontSet> set; check_hresult(builder->CreateFontSet(set.put()));
     check_hresult(factory->CreateFontCollectionFromFontSet(set.get(), collection.put()));
-    for (const auto* family : {L"Anybody", L"Reem Kufi"}) {
+    auto families = style.keycap ? std::vector<const wchar_t*>{L"Martian Mono"} :
+      std::vector<const wchar_t*>{L"Reem Kufi", L"Anybody"};
+    for (const auto* family : families) {
       UINT32 family_index = 0; BOOL exists = FALSE;
       check_hresult(collection->FindFamilyName(family, &family_index, &exists)); Require(exists != FALSE);
     }
-    const wchar_t* families[] = {L"Reem Kufi", L"Anybody"};
     const DWRITE_UNICODE_RANGE all{0, 0x10ffff};
     com_ptr<IDWriteFontFallbackBuilder> fallback_builder;
     check_hresult(factory->CreateFontFallbackBuilder(fallback_builder.put()));
-    check_hresult(fallback_builder->AddMapping(&all, 1, families, 2, collection.get(), nullptr, nullptr, 1));
+    check_hresult(fallback_builder->AddMapping(&all, 1, families.data(), static_cast<UINT32>(families.size()), collection.get(), nullptr, nullptr, 1));
     check_hresult(fallback_builder->CreateFontFallback(fallback.put()));
     com_ptr<ID2D1Factory1> d2d; check_hresult(D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, d2d.put()));
     com_ptr<ID2D1Device> d2d_device;
@@ -156,12 +168,12 @@ struct CaptionOverlay::Impl {
     for (UINT step = 0; step <= 12; ++step) {
       const auto font = std::max(minimum, size - (size - minimum) * step / 12);
       com_ptr<IDWriteTextFormat> format;
-      check_hresult(factory->CreateTextFormat(options.rtl ? L"Reem Kufi" : L"Anybody", collection.get(),
+      check_hresult(factory->CreateTextFormat(options.keycap ? L"Martian Mono" : options.rtl ? L"Reem Kufi" : L"Anybody", collection.get(),
         static_cast<DWRITE_FONT_WEIGHT>(options.weight), DWRITE_FONT_STYLE_NORMAL, DWRITE_FONT_STRETCH_NORMAL,
         font, options.rtl ? L"ar" : L"en", format.put()));
-      check_hresult(format->SetTextAlignment(DWRITE_TEXT_ALIGNMENT_CENTER));
+      check_hresult(format->SetTextAlignment(options.keycap ? DWRITE_TEXT_ALIGNMENT_LEADING : DWRITE_TEXT_ALIGNMENT_CENTER));
       check_hresult(format->SetReadingDirection(options.rtl ? DWRITE_READING_DIRECTION_RIGHT_TO_LEFT : DWRITE_READING_DIRECTION_LEFT_TO_RIGHT));
-      check_hresult(format->SetWordWrapping(DWRITE_WORD_WRAPPING_WRAP));
+      check_hresult(format->SetWordWrapping(options.keycap ? DWRITE_WORD_WRAPPING_NO_WRAP : DWRITE_WORD_WRAPPING_WRAP));
       check_hresult(format.as<IDWriteTextFormat1>()->SetFontFallback(fallback.get()));
       const auto line = font * static_cast<float>(options.line_height / options.font_size);
       check_hresult(format->SetLineSpacing(DWRITE_LINE_SPACING_METHOD_UNIFORM, line, font));
@@ -210,7 +222,7 @@ struct CaptionOverlay::Impl {
         }
       }
       DWRITE_TEXT_METRICS metrics{}; check_hresult(attempt->GetMetrics(&metrics));
-      if (metrics.lineCount <= 2 && metrics.height <= bottom_edge - safe_top - padding * 2 &&
+      if (metrics.lineCount <= (options.keycap ? 1u : 2u) && metrics.height <= bottom_edge - safe_top - padding * 2 &&
           metrics.widthIncludingTrailingWhitespace <= layout_width + .1f) {
         // Glyph descenders/diacritics can extend beyond line metrics, especially
         // Arabic. Measure ink against the actual line box before placing it.
@@ -289,17 +301,23 @@ struct CaptionOverlay::Impl {
       check_hresult(context->CreateBitmapFromDxgiSurface(surface.get(), &properties, target.put()));
     }
     context->SetTarget(target.get());
-    const auto top = options.punch ? std::clamp(frame_height / 2 - text_height / 2 - padding, safe_top,
+    const auto& phrase = captions[index];
+    const auto since = static_cast<double>(output_us - phrase.start_us) / 1000000;
+    const auto shift = options.keycap ? static_cast<float>(std::max(0.0,
+      Residual(since, options.smooth_mass, options.smooth_stiffness, options.smooth_damping)) * options.rise) * scale : 0;
+    const auto opacity = options.keycap ? static_cast<float>(std::clamp(
+      static_cast<double>(phrase.end_us - output_us) / std::min(options.fade_us, phrase.end_us - phrase.start_us), 0.0, 1.0)) : 1.0f;
+    ink->SetOpacity(opacity); plate->SetOpacity(opacity); shadow->SetOpacity(opacity);
+    const auto top = options.keycap ? safe_top + shift : options.punch ? std::clamp(frame_height / 2 - text_height / 2 - padding, safe_top,
       bottom_edge - text_height - padding * 2) : bottom_edge - text_height - padding * 2;
     const auto radius = static_cast<float>(options.radius) * scale;
     context->BeginDraw();
-    const auto center = (left + right_edge) / 2;
+    const auto center = options.keycap ? left + padding + text_width / 2 : (left + right_edge) / 2;
     context->FillRoundedRectangle(D2D1::RoundedRect(D2D1::RectF(center - text_width / 2 - padding, top,
       center + text_width / 2 + padding, top + text_height + padding * 2), radius, radius), plate.get());
     const auto origin = D2D1::Point2F(left + padding + layout_inset, top + padding + text_top);
     // Drawing effects override the default brush. Clear them for the common
     // shadow before applying word colors; shaping and geometry stay fixed.
-    const auto& phrase = captions[index];
     if (advanced) {
       MotionWords(origin, output_us);
     } else {

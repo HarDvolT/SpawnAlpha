@@ -137,6 +137,28 @@ std::vector<BYTE> FramePixels(const std::wstring& path, UINT width, UINT height,
   }
 }
 
+void VerifyShortcutPixels(const LocalRenderRequest& request) {
+  UINT early_top = request.height, settled_top = request.height;
+  for (const auto frame : {18, 21, 30, 53, 55}) {
+    const auto pixels = FramePixels(request.output, request.width, request.height, frame);
+    size_t white = 0; UINT top = request.height;
+    for (UINT y = 0; y < request.height; ++y) for (UINT x = 0; x < request.width; ++x) {
+      const size_t p = (y * request.width + x) * 4;
+      if (pixels[p] > 220 && pixels[p + 1] > 220 && pixels[p + 2] > 220) {
+        ++white; top = std::min(top, y);
+        Require(x + 3 >= request.width * .06 && x < request.width * .86 + 3 &&
+          y + 3 >= request.height * (request.height > request.width ? .13 : .06) && y < request.height * .4);
+      }
+    }
+    if (frame == 21) { Require(white > 40); early_top = top; }
+    else if (frame == 30) {
+      Require(white > 40); settled_top = top;
+      SaveCaptionPng(request.output + L".png", request.width, request.height, pixels.data());
+    } else Require(white == 0);
+  }
+  Require(early_top > settled_top); // Whole plate rises; fixed signal glyphs do not reflow.
+}
+
 void VerifyClickPixels(const LocalRenderRequest& request, bool visible, const std::wstring& baseline = {}) {
   com_ptr<IMFAttributes> attributes; check_hresult(MFCreateAttributes(attributes.put(), 1));
   check_hresult(attributes->SetUINT32(MF_SOURCE_READER_ENABLE_VIDEO_PROCESSING, TRUE));
@@ -533,6 +555,23 @@ int wmain(int count, wchar_t** args) {
         zoomed.zoom_spring = {1, 90, 19};
         stage = "render spatial screen zoom"; RenderLocalVideo(zoomed, cancel, [](double) {});
         stage = "verify zoom and restored whole-picture pixels"; VerifyZoomPixels(zoomed);
+        auto shortcut = zoomed;
+        shortcut.output = prefix + (vertical ? L"-shortcut-portrait.mp4" : L"-shortcut-wide.mp4");
+        shortcut.shortcut_badges = {{700000, 1800000, L"Ctrl+Shift+Z"}};
+        auto& keycap = shortcut.shortcut_layout;
+        keycap.keycap = true; keycap.edge = keycap.bottom = keycap.safe_bottom = .06;
+        keycap.safe_top = .13; keycap.safe_right = .14;
+        keycap.font_size = keycap.min_size = 32; keycap.line_height = 42; keycap.weight = 700;
+        keycap.padding = 12; keycap.radius = 12; keycap.text_color = 0xfff2f2ee; keycap.plate_color = 0xb816171b;
+        keycap.rise = 10; keycap.fade_us = 160000;
+        keycap.smooth_mass = 1; keycap.smooth_stiffness = 260; keycap.smooth_damping = 32;
+        stage = "render shortcut with private signal font"; RenderLocalVideo(shortcut, cancel, [](double) {});
+        stage = "verify shortcut safe edges, entrance rise and fade"; VerifyShortcutPixels(shortcut);
+        shortcut.output = prefix + (vertical ? L"-shortcut-invalid-portrait.mp4" : L"-shortcut-invalid-wide.mp4");
+        shortcut.shortcut_badges.front().text = L"private typing";
+        bool rejected_shortcut = false;
+        try { RenderLocalVideo(shortcut, cancel, [](double) {}); } catch (...) { rejected_shortcut = true; }
+        Require(rejected_shortcut && !std::filesystem::exists(shortcut.output));
         zoomed.output = prefix + (vertical ? L"-click-portrait.mp4" : L"-click-wide.mp4");
         zoomed.click_pulses = {{700000, 1120000, .8, .5, kWidth, kHeight}};
         zoomed.click_layout = {10, 4.4, 3, .12, 1, 260, 32, 0xfff2b84b};

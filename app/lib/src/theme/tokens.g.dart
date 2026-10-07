@@ -448,6 +448,16 @@ abstract final class SaScreenFx {
   static const double rippleStroke = 3.0;
   /// Soft click halo opacity under the amber ring.
   static const double rippleHalo = 0.12;
+  /// Maximum shortcut badge lifetime, clamped at the next shortcut or source cut.
+  static const Duration keycapDuration = Duration(milliseconds: 1100);
+  /// Shortcut badge exit fade, shortened to its available lifetime.
+  static const Duration keycapFade = Duration(milliseconds: 160);
+  /// Martian Mono shortcut label size at a 1080px short output edge.
+  static const double keycapFontSize = 32.0;
+  /// Single-line shortcut badge line height at a 1080px short output edge.
+  static const double keycapLineHeight = 42.0;
+  /// Shortcut glass badge entrance rise on spring-smooth.
+  static const double keycapRise = 10.0;
   /// Maximum normalized source-axis distance inside one activity cluster.
   static const double zoomClusterDistance = 0.3;
   /// Anonymous key timings needed to count one typing burst.

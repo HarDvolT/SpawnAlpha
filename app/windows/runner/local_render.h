@@ -22,6 +22,8 @@ struct LocalRenderRequest {
   ZoomSpring zoom_spring;
   std::vector<RenderClick> click_pulses;
   ClickLayout click_layout;
+  std::vector<RenderCaption> shortcut_badges;
+  CaptionLayout shortcut_layout;
 };
 // COM/MF initialized worker only. Original media is read-only, packets are bounded,
 // output is created exclusively, and failure/cancellation removes only that output.

@@ -29,8 +29,11 @@ class VideoExport {
     this.softAudioJoins = false,
     this.zoomCount = 0,
     this.clickCount = 0,
+    this.shortcutCount = 0,
   }) {
-    if (clickCount < 0 ||
+    if (shortcutCount < 0 ||
+        shortcutCount > 20000 ||
+        clickCount < 0 ||
         clickCount > 20000 ||
         zoomCount < 0 ||
         zoomCount > 10000 ||
@@ -52,6 +55,7 @@ class VideoExport {
   final bool softAudioJoins;
   final int zoomCount;
   final int clickCount;
+  final int shortcutCount;
   Map<String, Object?> toJson() => {
     'id': id,
     'format': format.name,
@@ -67,6 +71,7 @@ class VideoExport {
     'softAudioJoins': softAudioJoins,
     'zoomCount': zoomCount,
     'clickCount': clickCount,
+    'shortcutCount': shortcutCount,
   };
   factory VideoExport.fromJson(Map<String, Object?> json) {
     final format = VideoFormat.values
@@ -93,7 +98,8 @@ class VideoExport {
         (json['captionMotion'] != null && json['captionMotion'] is! bool) ||
         (json['softAudioJoins'] != null && json['softAudioJoins'] is! bool) ||
         (json['zoomCount'] != null && json['zoomCount'] is! int) ||
-        (json['clickCount'] != null && json['clickCount'] is! int)) {
+        (json['clickCount'] != null && json['clickCount'] is! int) ||
+        (json['shortcutCount'] != null && json['shortcutCount'] is! int)) {
       throw const FormatException('Invalid video export');
     }
     try {
@@ -112,6 +118,7 @@ class VideoExport {
         softAudioJoins: json['softAudioJoins'] as bool? ?? false,
         zoomCount: json['zoomCount'] as int? ?? 0,
         clickCount: json['clickCount'] as int? ?? 0,
+        shortcutCount: json['shortcutCount'] as int? ?? 0,
       );
     } on ArgumentError {
       throw const FormatException('Invalid video export');

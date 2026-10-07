@@ -60,6 +60,7 @@ class _TakeReviewScreenState extends State<TakeReviewScreen> {
   bool _softAudioJoins = true;
   bool _autoZoom = true;
   bool _clickHighlights = true;
+  bool _showShortcuts = true;
   List<VideoExport> _videos = [];
   VideoExport? _viewing;
   final _reviewScroll = ScrollController();
@@ -194,6 +195,7 @@ class _TakeReviewScreenState extends State<TakeReviewScreen> {
       softAudioJoins: _softAudioJoins,
       autoZoom: _autoZoom,
       clickHighlights: _clickHighlights,
+      showShortcuts: _showShortcuts,
     );
     final saved = await app.videoExports.load(_latestTake(app));
     if (mounted) {
@@ -588,6 +590,9 @@ class _TakeReviewScreenState extends State<TakeReviewScreen> {
                   autoZoom: _autoZoom,
                   onAutoZoom: (value) => setState(() => _autoZoom = value),
                   clickHighlights: _clickHighlights,
+                  showShortcuts: _showShortcuts,
+                  onShowShortcuts: (value) =>
+                      setState(() => _showShortcuts = value),
                   onClickHighlights: (value) =>
                       setState(() => _clickHighlights = value),
                   hasAudioJoins: _clean?.asCutPlan().hasJoins ?? false,

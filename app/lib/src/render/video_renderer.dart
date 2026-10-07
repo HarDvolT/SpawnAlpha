@@ -12,6 +12,7 @@ import '../theme/tokens.g.dart';
 import '../transcription/captions.dart';
 import 'screen_zooms.dart';
 import 'screen_clicks.dart';
+import 'screen_shortcuts.dart';
 
 class VideoRenderRequest {
   VideoRenderRequest({
@@ -25,6 +26,7 @@ class VideoRenderRequest {
     this.softAudioJoins = false,
     this.screenZooms,
     this.screenClicks,
+    this.screenShortcuts,
     List<Caption> captions = const [],
   }) : captions = List.unmodifiable(
          captions.map(
@@ -36,6 +38,9 @@ class VideoRenderRequest {
            ),
          ),
        ) {
+    if (screenShortcuts?.badges.any((b) => b.end > plan.duration) ?? false) {
+      throw const FormatException('Invalid shortcut clock');
+    }
     if (screenClicks?.pulses.any((p) => p.end > plan.duration) ?? false) {
       throw const FormatException('Invalid click clock');
     }
@@ -104,6 +109,7 @@ class VideoRenderRequest {
   final bool softAudioJoins;
   final ScreenZooms? screenZooms;
   final ScreenClicks? screenClicks;
+  final ScreenShortcuts? screenShortcuts;
   final List<Caption> captions;
   Map<String, Object?> toJson() => {
     'source': source,
@@ -118,6 +124,26 @@ class VideoRenderRequest {
         ? SaVideoExport.audioJoinFade.inMicroseconds
         : 0,
     'ranges': plan.ranges.map((r) => r.toJson()).toList(),
+    if (screenShortcuts != null && screenShortcuts!.count > 0) ...{
+      'shortcutBadges': screenShortcuts!.badges.map((b) => b.toJson()).toList(),
+      'shortcutLayout': {
+        'edge': SaVideoExport.captionEdge,
+        'safeTop': SaVideoExport.captionSafeTop,
+        'safeRight': SaVideoExport.captionSafeRight,
+        'fontSize': SaScreenFx.keycapFontSize,
+        'lineHeight': SaScreenFx.keycapLineHeight,
+        'weight': SaType.signalLabel.fontWeight!.value,
+        'padding': SaSpace.s3,
+        'radius': SaRadius.md,
+        'textColor': SaPalette.dark.stageText.toARGB32(),
+        'plateColor': SaPalette.dark.stageGlass.toARGB32(),
+        'rise': SaScreenFx.keycapRise,
+        'fadeUs': SaScreenFx.keycapFade.inMicroseconds,
+        'mass': SaSprings.smooth.mass,
+        'stiffness': SaSprings.smooth.stiffness,
+        'damping': SaSprings.smooth.damping,
+      },
+    },
     if (screenClicks != null && screenClicks!.count > 0) ...{
       'clickPulses': screenClicks!.pulses.map((p) => p.toJson()).toList(),
       'clickLayout': {

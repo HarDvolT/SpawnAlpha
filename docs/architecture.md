@@ -848,3 +848,25 @@ exports preserve pulse metadata, subtitles, history and original bytes.
 Microsoft API references: [ellipse outlines](https://learn.microsoft.com/en-us/windows/win32/direct2d/id2d1rendertarget-drawellipse),
 [clipping](https://learn.microsoft.com/en-us/windows/win32/direct2d/id2d1rendertarget-pushaxisalignedclip)
 and [radial gradients](https://learn.microsoft.com/en-us/windows/win32/direct2d/how-to-create-a-radial-gradient-brush).
+
+`ScreenShortcutPlanner` consumes only the existing allowlisted shortcut enum,
+never plain key timings as text. Bounded source events retime through retained
+ranges, merging adjacent continuous spans and clipping at cuts. The latest
+badge replaces the previous one (including equal timestamps), giving an
+immutable nonoverlapping `ScreenShortcuts` track of labels/start/end, capped
+at 20,000. The shared strict worker creates zoom/click/shortcut tracks
+independently; Camera and unavailable traces have none. Show shortcuts starts
+on for existing Screen/Both activity. Additive `shortcutCount` defaults zero
+for old history. Journals, portable metadata and recovery validate exact count,
+allowlist and output clock without source/activity paths; recovery never needs
+the original sidecar. Subtitle words/times and original media stay intact.
+
+Native parsing and the worker validate the same 14 Ctrl / Ctrl+Shift chords.
+A separate `CaptionOverlay` instance uses a private Martian Mono font
+collection (already bundled OFL), fixed LTR single-line signal text and
+top-left safe-edge glass. Whole-plate smooth spring rise and bounded exit fade
+do not reflow text. Standard caption collections/styles stay separate. Generated
+decoded wide/portrait pixels verify onset, safe bounds, rise, fade and rejected
+private labels; app-channel EN/FR/AR exports exercise independent choices and
+exact caption/history/original-byte preservation. No new collection, font
+installation, package, model, copied code or upload.

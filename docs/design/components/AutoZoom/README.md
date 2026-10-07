@@ -17,7 +17,11 @@ Screen recordings, edited from telemetry: zooms that start before the click, a s
   - Blur is directional along the camera's movement and proportional to its speed, capped at `blur-max`.
   - A zoom adds only a little.
   - A still frame is never blurred.
-- **Keystrokes:** glass keycaps for modifier chords only (Ctrl+S). Letters are never shown or logged.
+- **Keystrokes:** top-left glass keycaps for allowlisted Ctrl / Ctrl+Shift
+  chords only (Ctrl+S), with an independent Show shortcuts choice. Use
+  Martian Mono, fixed signal weight, stage-glass/text and spring-smooth;
+  the newest chord replaces the badge and cuts clamp its lifetime. Ordinary
+  typing is never shown or logged. See autoedit.md for tokens and safe zones.
 - **Backdrop:** the screen is inset 6% on a wallpaper, with rounded corners and a deep shadow.
 - **Timeline:** zoom segments in `cue` amber, click dots in `ink`, and shortcuts in `cue-pause`.
 - **Don't** zoom on every click. **Don't** blur text that is being read (a zoom holding still is never blurred). **Don't** show typed text.

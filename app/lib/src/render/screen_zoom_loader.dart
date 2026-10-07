@@ -6,6 +6,7 @@ import '../transcription/pointing_phrases.dart';
 import '../transcription/speech_processor.dart';
 import 'screen_zooms.dart';
 import 'screen_clicks.dart';
+import 'screen_shortcuts.dart';
 
 class ScreenZoomJob {
   const ScreenZoomJob(
@@ -16,6 +17,7 @@ class ScreenZoomJob {
     this.spoken,
     this.autoZoom = true,
     this.clickDuration = Duration.zero,
+    this.shortcutDuration = Duration.zero,
   });
   final String source, activity;
   final CutPlan plan;
@@ -23,13 +25,20 @@ class ScreenZoomJob {
   final SavedTranscript? spoken;
   final bool autoZoom;
   final Duration clickDuration;
+  final Duration shortcutDuration;
 }
 
 class LoadedScreenZooms {
-  const LoadedScreenZooms(this.zooms, {this.unavailable = false, this.clicks});
+  const LoadedScreenZooms(
+    this.zooms, {
+    this.unavailable = false,
+    this.clicks,
+    this.shortcuts,
+  });
   final ScreenZooms zooms;
   final bool unavailable;
   final ScreenClicks? clicks;
+  final ScreenShortcuts? shortcuts;
 }
 
 Future<LoadedScreenZooms> loadScreenZooms(ScreenZoomJob job) async {
@@ -69,17 +78,22 @@ Future<LoadedScreenZooms> loadScreenZooms(ScreenZoomJob job) async {
     final clicks = job.clickDuration > Duration.zero
         ? ScreenClickPlanner(job.clickDuration)
         : null;
+    final shortcuts = job.shortcutDuration > Duration.zero
+        ? ScreenShortcutPlanner(job.shortcutDuration)
+        : null;
     await for (final row in activityRows(file)) {
       if (row['type'] == 'header' || row['type'] == 'end') continue;
       final event = ActivityEvent.fromJson(row);
       if (event.timeUs < job.plan.sourceDuration.inMicroseconds) {
         if (job.autoZoom) planner.add(event);
         clicks?.add(event);
+        shortcuts?.add(event);
       }
     }
     return LoadedScreenZooms(
       planner.finish(job.plan),
       clicks: clicks?.finish(job.plan),
+      shortcuts: shortcuts?.finish(job.plan),
     );
   } on Object {
     // Generic information only, never private paths, activity or exceptions.

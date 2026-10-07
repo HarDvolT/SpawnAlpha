@@ -1,6 +1,6 @@
 # Status
 
-Last updated: 2026-10-06
+Last updated: 2026-10-07
 
 ## Where we are
 
@@ -24,6 +24,8 @@ and reversible cutting after Stop are connected. Optional local screen
 activity zooms follow clicks, shortcuts and typing on the cut clock, with
 an on/off export choice and frozen target history. Independent optional amber
 click highlights follow retained visible clicks and leave the camera clear.
+Independent optional glass shortcut badges show only allowlisted modifier
+chords; ordinary typing stays hidden and badges stop at source cuts.
 Optional sound-join fades
 soften internal cut edges without shifting words. Optional Readable/Cue/Punch/Karaoke captions
 follow saved actual words/corrections and the cut clock. Reversible filler
@@ -54,6 +56,25 @@ dot to grow and act out each cue in the cue's colour, and for the next features.
 build step 2 (screen recording).
 
 ## Handover (2026-10-05): from here, Codex on the owner's Windows PC
+
+- **Latest checkpoint (2026-10-07, shortcut badges):** 754 Flutter tests,
+  254 screenshots and clean analysis. Show shortcuts starts on for existing
+  local Screen/Both activity, independently of zooms/clicks. Only the existing
+  14 Ctrl/Ctrl+Shift chords become fixed LTR glass badges; ordinary key timings
+  never become text. Latest badge wins, with retained/reordered output times,
+  continuous-split invariance and source-cut lifetime clamps. Immutable local
+  tracks/count history and strict recovery survive activity removal without
+  private paths. Native private OFL Martian Mono single-line labels pass
+  decoded wide/portrait onset, safe bounds, spring rise/fade and rejected
+  private labels. Actual Windows app-channel 12 EN/FR/AR wide/feed/portrait
+  all/plain/click-only/shortcut-only exports pass exact subtitle clocks,
+  tracks/history and unchanged source/activity bytes. EN/AR phone and native
+  portrait PNGs inspected; no owner media/input or dependency. Normal Windows
+  Release build restored. **Half done:** smooth cursor,
+  frame/backdrop/blur and further sound/coaching remain; the full product is
+  unfinished. Next finish the screen frame and remaining Cut tracks before
+  voice-follow/mobile. Owner hardware trials remain deferred; the design
+  artifact needs republishing from docs/design by Claude.
 
 - **Latest checkpoint (2026-10-06, click highlights):** 735 Flutter tests,
   254 screenshots, clean analysis and normal Windows Release build. Highlight
@@ -901,11 +922,19 @@ build step 2 (screen recording).
    comparison, original listening and safe reversible Keep attempt choices.
    Automatic best-performance ranking is still pending. Next
    cursor/frame effects and remaining sound polish/delivery
-   coaching; optional activity zooms and short sound-join fades are connected.
+   coaching; optional activity zooms, click rings, shortcut badges and short
+   sound-join fades are connected.
    Keep originals intact.
    See OpenScreen in the brief for reusable parts.
 
 ## Decisions
+
+- 2026-10-07, shortcut badges: offer an independent default-on Show shortcuts
+  export choice for existing Screen/Both activity. Use only the disclosed
+  allowlisted modifier labels, fixed LTR Martian Mono top-left glass and
+  existing safe zones/spring tokens. Latest chord replaces the previous badge;
+  source cuts clamp it. Save bounded immutable times/labels/count without
+  private paths. Ordinary typing never becomes text. Screen frames follow.
 
 - 2026-10-06, click highlights: offer a separate default-on export choice for
   retained visible Screen/Both clicks. Use fixed amber/spring design tokens,
@@ -1126,6 +1155,24 @@ build step 2 (screen recording).
   word lists, not prosody.
 
 ## Session log
+
+- 2026-10-07, shortcut badges:
+  - Added the bounded allowlisted shortcut collector, cut/reorder retiming,
+    latest-wins overlap handling, continuous-split invariance and strict
+    JSON/native clock/label guards. Shared sidecar worker supplies each screen
+    effect independently. Added Show shortcuts controls, count history,
+    portable tracks and exact frozen completion recovery.
+  - A separate native CaptionOverlay uses already bundled private OFL
+    Martian Mono, fixed signal type and top-left safe-edge glass. Whole-plate
+    spring rise/fade keeps glyph geometry stable; caption rendering remains
+    separate. No new font installation, dependency, model or collection.
+  - Clean analysis, 754 tests and 254 screenshots pass. Native wide/portrait
+    decoded safe bounds, onset/rise/fade and private-label rejection pass.
+    Actual app-channel 12 EN/FR/AR all/plain/click-only/shortcut-only exports
+    preserve subtitle clocks, track/history reload and original source/activity
+    bytes. EN/AR UI and native PNGs inspected; normal Release restored.
+    Frame/backdrop, smooth cursor/blur and further sound/coaching
+    follow. Owner hardware/mobile/launch trials remain deferred.
 
 - 2026-10-06, click highlights:
   - Added the bounded visible-click collector and source-range pulse retiming,

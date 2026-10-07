@@ -293,9 +293,11 @@ void RenderLocalVideo(const LocalRenderRequest& request, std::atomic<bool>& canc
     Compositor compositor; compositor.Open(device.get(), request.width, request.height, !request.camera.empty(),
       request.camera_inset, request.camera_margin);
     CaptionOverlay captions;
+    CaptionOverlay shortcuts;
     ClickOverlay clicks;
     clicks.Open(device.get(), request.width, request.height, total_us, request.click_pulses, request.click_layout);
     captions.Open(device.get(), request.width, request.height, total_us, request.captions, request.caption_layout);
+    shortcuts.Open(device.get(), request.width, request.height, total_us, request.shortcut_badges, request.shortcut_layout);
     GpuVideoWriter writer;
     check_hresult(writer.Start(device.get(), request.output, request.width, request.height, 30,
       has_audio ? GpuAudioFormat{static_cast<UINT>(kRate), audio.channels} : GpuAudioFormat{}, &owned, false));
@@ -329,6 +331,7 @@ void RenderLocalVideo(const LocalRenderRequest& request, std::atomic<bool>& canc
       clicks.Draw(image.get(), output_ticks / 10, main_box, main_crop,
         Fit(main.width, main.height, full), camera_frame.image ? Fit(camera.width, camera.height, inset) : RECT{});
       captions.Draw(image.get(), output_ticks / 10);
+      shortcuts.Draw(image.get(), output_ticks / 10);
       check_hresult(writer.WriteFrame(image.get(), request.width, request.height, output_ticks, end_ticks - output_ticks));
       if (has_audio) {
         const auto end_sample = std::min(total_samples, (end_ticks * kRate + kSecond / 2) / kSecond);

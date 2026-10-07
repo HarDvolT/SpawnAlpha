@@ -10,6 +10,7 @@ import 'package:spawnalpha/src/recording/recording_inspector.dart';
 import 'package:spawnalpha/src/render/export_processor.dart';
 import 'package:spawnalpha/src/render/screen_zooms.dart';
 import 'package:spawnalpha/src/render/screen_clicks.dart';
+import 'package:spawnalpha/src/render/screen_shortcuts.dart';
 import 'package:spawnalpha/src/render/video_renderer.dart';
 import 'package:spawnalpha/src/storage/clean_cut_store.dart';
 import 'package:spawnalpha/src/storage/script_store.dart';
@@ -89,9 +90,23 @@ Future<void> main() async {
               'detail': 'left',
             }),
           jsonEncode({
+            'type': 'shortcut',
+            'timeUs': 1100000,
+            'width': 640,
+            'height': 360,
+            'detail': 'Ctrl+C',
+          }),
+          jsonEncode({
+            'type': 'key',
+            'timeUs': 1200000,
+            'width': 640,
+            'height': 360,
+            'count': 1,
+          }),
+          jsonEncode({
             'type': 'end',
             'timeUs': 4000000,
-            'events': 1,
+            'events': 3,
             'complete': true,
           }),
           '',
@@ -142,8 +157,10 @@ Future<void> main() async {
       );
       await library.save(document);
       String? subtitles;
-      for (final choice in ['all', 'plain', 'clicks']) {
-        final enabled = choice == 'all', highlight = choice != 'plain';
+      for (final choice in ['all', 'plain', 'clicks', 'shortcuts']) {
+        final enabled = choice == 'all',
+            highlight = choice == 'all' || choice == 'clicks';
+        final keys = choice == 'all' || choice == 'shortcuts';
         stage = 'render enabled and full-picture choices';
         final latest = library.byId(document.id)!.takes.single;
         final video = await job.export(
@@ -156,12 +173,14 @@ Future<void> main() async {
               : VideoFormat.landscape,
           autoZoom: enabled,
           clickHighlights: highlight,
+          showShortcuts: keys,
         );
         require(
           video != null &&
               job.phase == ExportPhase.done &&
               video.zoomCount == (enabled ? 1 : 0) &&
               video.clickCount == (highlight ? 1 : 0) &&
+              video.shortcutCount == (keys ? 1 : 0) &&
               video.duration == take.duration,
         );
         final metadata =
@@ -176,6 +195,21 @@ Future<void> main() async {
                 Map<String, Object?>.from(metadata['screenClicks'] as Map),
               );
         require((clicks?.count ?? 0) == video.clickCount);
+        final shortcuts = metadata['screenShortcuts'] == null
+            ? null
+            : ScreenShortcuts.fromJson(
+                Map<String, Object?>.from(metadata['screenShortcuts'] as Map),
+              );
+        require((shortcuts?.count ?? 0) == video.shortcutCount);
+        if (keys) {
+          require(
+            shortcuts!.badges.single.label == 'Ctrl+C' &&
+                shortcuts.badges.single.start ==
+                    const Duration(milliseconds: 1100) &&
+                shortcuts.badges.single.end ==
+                    const Duration(milliseconds: 2200),
+          );
+        }
         if (highlight) {
           require(
             clicks!.pulses.single.start == const Duration(milliseconds: 700) &&
@@ -200,10 +234,11 @@ Future<void> main() async {
       await library.load();
       final history = await store.load(library.byId(document.id)!.takes.single);
       require(
-        history.length == 3 &&
+        history.length == 4 &&
             history.where((v) => v.zoomCount == 1).length == 1,
       );
       require(history.where((v) => v.clickCount == 1).length == 2);
+      require(history.where((v) => v.shortcutCount == 1).length == 2);
       final after = await source.readAsBytes();
       require(
         before.length == after.length &&
@@ -213,7 +248,7 @@ Future<void> main() async {
     }
     // ignore: avoid_print
     print(
-      'Local screen zoom check passed: EN/FR/AR spoken pointing phrases, one click, wide/feed/portrait, independent zoom/click on/off, caption clocks, immutable targets/history and unchanged source/activity bytes.',
+      'Local screen effects check passed: EN/FR/AR wide/feed/portrait, independent zoom/click/shortcut on/off, hidden plain typing, exact caption clocks, immutable tracks/history and unchanged source/activity bytes.',
     );
   } on Object {
     // ignore: avoid_print

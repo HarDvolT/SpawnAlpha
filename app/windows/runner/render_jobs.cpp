@@ -86,6 +86,30 @@ LocalRenderRequest Request(const Map& args) {
         Number(*pulse, "x"), Number(*pulse, "y"), static_cast<UINT>(sw), static_cast<UINT>(sh)});
     }
   }
+  if (const auto found = args.find(Value("shortcutBadges")); found != args.end()) {
+    const auto* badges = std::get_if<flutter::EncodableList>(&found->second);
+    const auto* style = std::get_if<Map>(&Field(args, "shortcutLayout"));
+    if (!badges || badges->size() > 20000 || !style) throw std::runtime_error("Invalid shortcuts");
+    for (const auto& value : *badges) {
+      const auto* badge = std::get_if<Map>(&value);
+      if (!badge || badge->size() != 3) throw std::runtime_error("Invalid shortcut");
+      const auto label = Path(*badge, "label");
+      if (!IsShortcutLabel(label)) throw std::runtime_error("Invalid shortcut");
+      request.shortcut_badges.push_back({Integer(*badge, "startUs"), Integer(*badge, "endUs"), label});
+    }
+    auto& layout = request.shortcut_layout;
+    layout.keycap = true;
+    const auto text = Integer(*style, "textColor"), plate = Integer(*style, "plateColor"), weight = Integer(*style, "weight");
+    if (text < 0 || text > UINT32_MAX || plate < 0 || plate > UINT32_MAX || weight < 100 || weight > 900)
+      throw std::runtime_error("Invalid shortcut layout");
+    layout.text_color = static_cast<uint32_t>(text); layout.plate_color = static_cast<uint32_t>(plate); layout.weight = static_cast<UINT>(weight);
+    layout.edge = Number(*style, "edge"); layout.safe_top = Number(*style, "safeTop"); layout.safe_right = Number(*style, "safeRight");
+    layout.bottom = layout.safe_bottom = layout.edge;
+    layout.font_size = layout.min_size = Number(*style, "fontSize"); layout.line_height = Number(*style, "lineHeight");
+    layout.padding = Number(*style, "padding"); layout.radius = Number(*style, "radius");
+    layout.rise = Number(*style, "rise"); layout.fade_us = Integer(*style, "fadeUs");
+    layout.smooth_mass = Number(*style, "mass"); layout.smooth_stiffness = Number(*style, "stiffness"); layout.smooth_damping = Number(*style, "damping");
+  }
   if (const auto found = args.find(Value("captions")); found != args.end()) {
     const auto* captions = std::get_if<flutter::EncodableList>(&found->second);
     if (!captions || captions->size() > 100000) throw std::runtime_error("Invalid captions");

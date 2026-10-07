@@ -208,6 +208,25 @@ discarded attempts cannot supply evidence. A visible click still supplies the
 position. The ordinary Auto-zoom switch controls these targets too, and no
 transcript text is written into portable zoom metadata.
 
+### Windows shortcut badges
+
+Screen/Both with local activity offer **Show shortcuts**, initially on and
+independent of zooms and click highlights. Show only the existing allowlisted
+Ctrl and Ctrl+Shift chords for A, C, S, V, X, Y and Z; ordinary typing never
+becomes text. Keep the modifier label left to right in every script language.
+One glass keycap uses the bundled Martian Mono signal voice at
+`keycap-font-size` / `keycap-line-height`, signal-label weight, stage-text on
+stage-glass, radius-md and space-3 padding. It sits at the top left with the
+export's safe edges (13% top / 14% right in portrait), clear of bottom camera
+and captions. The whole plate rises `keycap-rise` on spring-smooth, without
+reflow, and fades for `keycap-fade` at the end of `keycap-duration`.
+
+The newest chord replaces the previous badge. Clamp at discontinuous source
+cuts, merge continuous source splits, and keep retained/reordered times on
+the output clock. Save a bounded immutable label/time track without private
+paths or typed text. Native validation also rejects unapproved labels.
+Missing activity draws no badges; history remembers each video's badge count.
+
 ### Windows click highlights
 
 Screen/Both with local activity also offer **Highlight clicks**, initially on

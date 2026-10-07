@@ -36,6 +36,8 @@ class VideoExportPanel extends StatelessWidget {
     this.onAutoZoom,
     this.clickHighlights = true,
     this.onClickHighlights,
+    this.showShortcuts = true,
+    this.onShowShortcuts,
   });
   final VideoFormat format;
   final ValueChanged<VideoFormat> onFormat;
@@ -59,6 +61,8 @@ class VideoExportPanel extends StatelessWidget {
   final ValueChanged<bool>? onAutoZoom;
   final bool clickHighlights;
   final ValueChanged<bool>? onClickHighlights;
+  final bool showShortcuts;
+  final ValueChanged<bool>? onShowShortcuts;
   final List<VideoExport> videos;
   final ValueChanged<VideoExport> onView, onShow;
 
@@ -75,7 +79,8 @@ class VideoExportPanel extends StatelessWidget {
           '${video.burnedCaptions ? ' · ${video.captionStyle.label} captions${video.captionMotion ? '' : ' · Still'}' : ''}'
           '${video.softAudioJoins ? ' · Soft sound joins' : ''}'
           '${video.zoomCount > 0 ? ' · ${video.zoomCount} zooms' : ''}'
-          '${video.clickCount > 0 ? ' · ${video.clickCount} click highlights' : ''}',
+          '${video.clickCount > 0 ? ' · ${video.clickCount} click highlights' : ''}'
+          '${video.shortcutCount > 0 ? ' · ${video.shortcutCount} shortcuts' : ''}',
           style: SaType.signalLabel.copyWith(color: p.ink2),
         ),
         TextButton.icon(
@@ -164,6 +169,18 @@ class VideoExportPanel extends StatelessWidget {
                 : (value) => onAutoZoom?.call(value ?? false),
             title: const Text('Auto-zoom screen activity'),
             subtitle: const Text('Follow clicks and typing on this device.'),
+          ),
+        if (hasScreenActivity)
+          CheckboxListTile(
+            contentPadding: EdgeInsets.zero,
+            value: showShortcuts,
+            onChanged: busy
+                ? null
+                : (value) => onShowShortcuts?.call(value ?? false),
+            title: const Text('Show shortcuts'),
+            subtitle: const Text(
+              'Show Ctrl+C and similar actions. Ordinary typing stays hidden.',
+            ),
           ),
         if (hasCaptions)
           Text(

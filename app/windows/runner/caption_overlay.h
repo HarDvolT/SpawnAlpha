@@ -17,6 +17,8 @@ struct RenderCaption {
   std::vector<RenderCaptionWord> words;
 };
 struct CaptionLayout {
+  bool keycap = false;
+  int64_t fade_us = 0;
   bool rtl = false;
   double edge = 0, bottom = 0, safe_top = 0, safe_bottom = 0, safe_right = 0;
   double font_size = 0, line_height = 0, min_size = 0;
@@ -33,6 +35,13 @@ struct CaptionLayout {
   double smooth_mass = 0, smooth_stiffness = 0, smooth_damping = 0;
   double pop_mass = 0, pop_stiffness = 0, pop_damping = 0;
 };
+// The anonymous activity contract allows these modifier chords only.
+inline bool IsShortcutLabel(const std::wstring& text) {
+  const auto base = text.rfind(L"Ctrl+Shift+", 0) == 0 ? 11u :
+    text.rfind(L"Ctrl+", 0) == 0 ? 5u : 0u;
+  return base != 0 && text.size() == base + 1 &&
+    std::wstring(L"ACSVXYZ").find(text[base]) != std::wstring::npos;
+}
 // Worker-only, bounded one-phrase layout. DirectWrite shapes bundled fonts and
 // Direct2D composites onto the owned GPU frame. No system font installation.
 class CaptionOverlay {
