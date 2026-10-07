@@ -37,6 +37,11 @@ LocalRenderRequest Request(const Map& args) {
   LocalRenderRequest request;
   request.source = Path(args, "source"); request.camera = Path(args, "camera"); request.output = Path(args, "output");
   request.source_duration_us = Integer(args, "sourceDurationUs");
+  if (const auto found = args.find(Value("roomTone")); found != args.end()) {
+    const auto* range = std::get_if<Map>(&found->second);
+    if (!range || range->size() != 2) throw std::runtime_error("Invalid room tone");
+    request.room_tone = RenderRange{Integer(*range, "startUs"), Integer(*range, "endUs")};
+  }
   if (args.find(Value("audioJoinFadeUs")) != args.end())
     request.audio_join_fade_us = Integer(args, "audioJoinFadeUs");
   if (request.audio_join_fade_us < 0 || request.audio_join_fade_us > 100000)

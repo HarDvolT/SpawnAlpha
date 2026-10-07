@@ -127,7 +127,14 @@ omit the camera. The original sound keeps its source clock through each cut.
 and can be switched off. A short 20ms envelope uses 10ms of each retained side,
 with no overlap or clock change. Continuous spans and outer edges keep their
 sound. History labels the choice as **Soft sound joins**. Noise/loudness and
-room-tone crossfades remain separate work.
+room tone are independent controls. **Use room tone at cuts** starts off and
+appears only with soft joins and a retained measured quiet sample clear of
+recognized words. It adds that bounded sample beneath join edges without
+overlapping words or changing clocks. Source-coordinate decisions survive
+history/recovery. Native quiet validation falls back to the ordinary fade
+when the sample is unsuitable; the saved label records the room-tone choice.
+See autoedit.md for the conservative word/quiet gates. Optional background
+noise reduction and S sound softening start off, and volume balance starts on.
 
 Progress has **Cancel export** until saving starts. Saving verifies decoded
 dimensions and duration before attaching history. Each saved video shows its

@@ -23,6 +23,8 @@ import 'package:spawnalpha/src/model/mark.dart';
 import 'package:spawnalpha/src/model/mark_editing.dart';
 import 'package:spawnalpha/src/model/samples.dart';
 import 'package:spawnalpha/src/model/script_document.dart';
+import 'package:spawnalpha/src/model/cut_plan.dart';
+import 'package:spawnalpha/src/render/room_tone.dart';
 import 'package:spawnalpha/src/model/script_language.dart';
 import 'package:spawnalpha/src/prompter/guide.dart';
 import 'package:spawnalpha/src/prompter/prompter_controller.dart';
@@ -400,6 +402,20 @@ void main() {
               busy: false, supported: true, onBalanceSound: (_) {}, onSoftenSharpSound: (_) {}, onReduceNoise: (_) {},
               videos: [VideoExport(id: 'generated', format: VideoFormat.portrait, balanceSound: true, softenSharpSound: true, reduceNoise: true,
                 duration: const Duration(seconds: 4), createdAt: DateTime(2026, 10, 7, 10, 30))], onView: (_) {}, onShow: (_) {}),
+          ])), [script], brightness: brightness);
+      });
+      testWidgets('room tone export $language $brightness', (tester) async {
+        final script = sampleScripts().firstWhere((s) => s.language == language);
+        await shoot(tester, 'sound-room-${language.name}-${brightness.name}', phone, (app) => Scaffold(
+          appBar: AppBar(title: const Text('Your take')), body: ListView(padding: const EdgeInsets.all(SaSpace.s5), children: [
+            Directionality(textDirection: language.isRtl ? TextDirection.rtl : TextDirection.ltr,
+              child: Text(script.displayTitle, style: SaType.body)),
+            const SizedBox(height: SaSpace.s5),
+            VideoExportPanel(format: VideoFormat.portrait, onFormat: (_) {}, onExport: () {}, job: app.exports,
+              busy: false, supported: true, hasAudioJoins: true, onSoftAudioJoins: (_) {}, hasRoomTone: true, onRoomToneJoins: (_) {}, onBalanceSound: (_) {},
+              videos: [VideoExport(id: 'generated', format: VideoFormat.portrait, balanceSound: true, softAudioJoins: true,
+                roomTone: RoomTone(SourceRange(start: Duration.zero, end: const Duration(milliseconds: 100))),
+                duration: const Duration(milliseconds: 2600), createdAt: DateTime(2026, 10, 7, 11, 30))], onView: (_) {}, onShow: (_) {}),
           ])), [script], brightness: brightness);
       });
       testWidgets('camera placement export $language $brightness', (tester) async {

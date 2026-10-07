@@ -7,15 +7,19 @@
 #include <vector>
 
 // Half of a de-click envelope on either side of an internal discontinuity.
-// No overlap, extra samples, gain above one or changes to the cut clock.
+// Retained speech gain stays at most one; an optional quiet bed fills the faded
+// edges. No speech overlap, extra samples or changes to the cut clock.
 inline void ApplyAudioJoinFade(std::vector<int16_t>& pcm, uint32_t channels,
     int64_t position, int64_t range_start, int64_t range_end,
-    int64_t half_fade_samples, bool fade_in, bool fade_out) {
+    int64_t half_fade_samples, bool fade_in, bool fade_out,
+    const std::vector<int16_t>* room_tone = nullptr) {
   if (channels < 1 || channels > 2 || pcm.size() % channels != 0 ||
       pcm.size() > 48000 * channels || half_fade_samples < 0 || half_fade_samples > 2400 ||
       range_start < 0 || range_end <= range_start || position < range_start ||
       static_cast<int64_t>(pcm.size() / channels) > range_end - position)
     throw std::runtime_error("Invalid sound join");
+  if (room_tone && (room_tone->empty() || room_tone->size() % channels != 0 || room_tone->size() > 12000 * channels))
+    throw std::runtime_error("Invalid room tone");
   const auto fade = std::min(half_fade_samples, (range_end - range_start) / 2);
   if (fade == 0 || (!fade_in && !fade_out)) return;
   const auto ramp = [fade](int64_t distance) {
@@ -30,7 +34,9 @@ inline void ApplyAudioJoinFade(std::vector<int16_t>& pcm, uint32_t channels,
     if (gain >= 1) continue;
     for (uint32_t channel = 0; channel < channels; ++channel) {
       const auto index = frame * channels + channel;
-      pcm[index] = static_cast<int16_t>(std::lround(pcm[index] * gain));
+      const double tone = room_tone ? (*room_tone)[static_cast<size_t>(sample % (room_tone->size() / channels)) * channels + channel] : 0;
+      const auto mixed = pcm[index] * gain + tone * std::sqrt(std::max(0.0, 1 - gain * gain));
+      pcm[index] = static_cast<int16_t>(std::clamp(std::lround(mixed), -32768L, 32767L));
     }
   }
 }

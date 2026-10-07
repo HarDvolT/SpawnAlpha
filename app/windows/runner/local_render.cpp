@@ -239,8 +239,43 @@ std::vector<AudioRangeClock> AudioClocks(const LocalRenderRequest& request, cons
   }
   return result;
 }
+void ValidateRoomTone(const LocalRenderRequest& request, int64_t total_us) {
+  if (!request.room_tone) return;
+  const auto sample = *request.room_tone;
+  Require(request.audio_join_fade_us > 0 && total_us >= 400000 && sample.start_us >= 0 &&
+    sample.end_us <= request.source_duration_us && sample.end_us - sample.start_us >= 80000 && sample.end_us - sample.start_us <= 250000);
+  bool joins = false;
+  for (size_t i = 1; i < request.ranges.size(); ++i) joins = joins || request.ranges[i - 1].end_us != request.ranges[i].start_us;
+  Require(joins);
+  auto sorted = request.ranges;
+  std::sort(sorted.begin(), sorted.end(), [](const auto& a, const auto& b) { return a.start_us < b.start_us; });
+  auto covered = sample.start_us;
+  for (const auto& range : sorted) {
+    if (range.start_us > covered) break;
+    if (range.end_us > covered) covered = range.end_us;
+    if (covered >= sample.end_us) return;
+  }
+  throw std::runtime_error("Room tone is not retained");
+}
+std::vector<int16_t> ReadRoomTone(const LocalRenderRequest& request, std::atomic<bool>& cancel) {
+  if (!request.room_tone) return {};
+  const auto begin = SampleAtUs(request.room_tone->start_us), end = SampleAtUs(request.room_tone->end_us);
+  RawAudioReader probe; if (!probe.Open(request.source)) return {};
+  probe.Reset(begin * kSecond / kRate);
+  const auto raw = probe.At(begin, static_cast<UINT>(end - begin), cancel);
+  double power = 0;
+  for (const auto value : raw) {
+    if (std::abs(static_cast<int>(value)) / 32768.0 > .001) return {};
+    power += static_cast<double>(value) * value / (32768.0 * 32768.0);
+  }
+  if (power / raw.size() > 1e-6) return {};
+  AudioReader reader; Require(reader.Open(request.source, request.noise)); reader.Reset(begin, end, end);
+  auto treated = reader.At(begin, static_cast<UINT>(end - begin), cancel);
+  AudioDeEsser de_ess(reader.channels, request.de_ess); de_ess.Apply(treated);
+  return treated;
+}
 double BalancedSoundGain(const LocalRenderRequest& request, const std::vector<int64_t>& starts,
-    int64_t total_us, std::atomic<bool>& cancel, const std::function<void(double)>& progress) {
+    int64_t total_us, const std::vector<int16_t>& room_tone, std::atomic<bool>& cancel, const std::function<void(double)>& progress) {
   auto noise_policy = request.noise; if (total_us < 400000) noise_policy.enabled = false;
   AudioReader reader; if (!reader.Open(request.source, noise_policy)) return 1;
   AudioLoudness meter(reader.channels);
@@ -263,9 +298,9 @@ double BalancedSoundGain(const LocalRenderRequest& request, const std::vector<in
       const auto count = static_cast<UINT>(std::min<int64_t>(1024, end - position));
       auto pcm = reader.At(clocks[range].source + position - clocks[range].output, count, cancel);
       de_ess.Apply(pcm);
-      ApplyAudioJoinFade(pcm, reader.channels, position, begin, end, request.audio_join_fade_us * kRate / 2000000,
-        range > 0 && request.ranges[range - 1].end_us != request.ranges[range].start_us,
-        range + 1 < request.ranges.size() && request.ranges[range].end_us != request.ranges[range + 1].start_us);
+      const auto group_end = clocks[range].output + clocks[range].end - clocks[range].source;
+      ApplyAudioJoinFade(pcm, reader.channels, position, clocks[range].output, group_end, request.audio_join_fade_us * kRate / 2000000,
+        clocks[range].output > 0, group_end < total_samples, room_tone.empty() ? nullptr : &room_tone);
       meter.Add(pcm); position += count;
       progress(.15 * static_cast<double>(position) / total_samples);
     }
@@ -405,11 +440,13 @@ void RenderLocalVideo(const LocalRenderRequest& request, std::atomic<bool>& canc
       }
       punch.Open(steps, request.punch_spring, width, height, total_us);
     }
+    ValidateRoomTone(request, total_us);
+    const auto room_tone = ReadRoomTone(request, cancel);
     auto noise_policy = request.noise; if (total_us < 400000) noise_policy.enabled = false;
     AudioReader audio; const bool has_audio = audio.Open(request.source, noise_policy);
     AudioDeEsser de_ess(has_audio ? audio.channels : 1, total_us >= 400000 ? request.de_ess : DeEssPolicy{});
     const auto sound_gain = has_audio && request.sound_balance.enabled
-        ? BalancedSoundGain(request, starts, total_us, cancel, progress) : 1;
+        ? BalancedSoundGain(request, starts, total_us, room_tone, cancel, progress) : 1;
     Compositor compositor; compositor.Open(device.get(), request.width, request.height, !request.camera.empty());
     CaptionOverlay captions;
     CaptionOverlay shortcuts;
@@ -494,10 +531,10 @@ void RenderLocalVideo(const LocalRenderRequest& request, std::atomic<bool>& canc
           }
           auto pcm = audio.At(source_sample, count, cancel);
           de_ess.Apply(pcm);
+          const auto group_end = audio_clocks[audio_range].output + audio_clocks[audio_range].end - audio_clocks[audio_range].source;
           ApplyAudioJoinFade(pcm, audio.channels, audio_position,
-            SampleAtUs(starts[audio_range]), range_end, request.audio_join_fade_us * kRate / 2000000,
-            audio_range > 0 && request.ranges[audio_range - 1].end_us != request.ranges[audio_range].start_us,
-            audio_range + 1 < request.ranges.size() && request.ranges[audio_range].end_us != request.ranges[audio_range + 1].start_us);
+            audio_clocks[audio_range].output, group_end, request.audio_join_fade_us * kRate / 2000000,
+            audio_clocks[audio_range].output > 0, group_end < total_samples, room_tone.empty() ? nullptr : &room_tone);
           ApplySoundGain(pcm, sound_gain);
           check_hresult(writer.WriteAudio(pcm.data(), count, audio_position * kSecond / kRate));
           audio_position += count;

@@ -31,6 +31,9 @@ class VideoExportPanel extends StatelessWidget {
     this.hasAudioJoins = false,
     this.softAudioJoins = true,
     this.onSoftAudioJoins,
+    this.hasRoomTone = false,
+    this.roomToneJoins = false,
+    this.onRoomToneJoins,
     this.hasScreenActivity = false,
     this.autoZoom = true,
     this.onAutoZoom,
@@ -74,6 +77,8 @@ class VideoExportPanel extends StatelessWidget {
   final ValueChanged<bool>? onCaptionMotion;
   final bool hasAudioJoins, softAudioJoins;
   final ValueChanged<bool>? onSoftAudioJoins;
+  final bool hasRoomTone, roomToneJoins;
+  final ValueChanged<bool>? onRoomToneJoins;
   final bool hasScreenActivity, autoZoom;
   final ValueChanged<bool>? onAutoZoom;
   final bool clickHighlights;
@@ -109,6 +114,7 @@ class VideoExportPanel extends StatelessWidget {
           '${video.format.label} · ${formatCutTime(video.duration)}'
           '${video.burnedCaptions ? ' · ${video.captionStyle.label} captions${video.captionMotion ? '' : ' · Still'}' : ''}'
           '${video.softAudioJoins ? ' · Soft sound joins' : ''}'
+          '${video.roomTone != null ? ' · Room tone at cuts' : ''}'
           '${video.zoomCount > 0 ? ' · ${video.zoomCount} zooms' : ''}'
           '${video.clickCount > 0 ? ' · ${video.clickCount} click highlights' : ''}'
           '${video.shortcutCount > 0 ? ' · ${video.shortcutCount} shortcuts' : ''}'
@@ -226,6 +232,18 @@ class VideoExportPanel extends StatelessWidget {
                 : (value) => onSoftAudioJoins?.call(value ?? false),
             title: const Text('Soften sound at cuts'),
             subtitle: const Text('Smooth the joins while keeping word timing.'),
+          ),
+        if (hasAudioJoins && softAudioJoins && hasRoomTone)
+          CheckboxListTile(
+            contentPadding: EdgeInsets.zero,
+            value: roomToneJoins,
+            onChanged: busy
+                ? null
+                : (value) => onRoomToneJoins?.call(value ?? false),
+            title: const Text('Use room tone at cuts'),
+            subtitle: const Text(
+              'Uses quiet sound from the parts you keep. Words and timing stay the same.',
+            ),
           ),
         if (onReduceNoise != null)
           CheckboxListTile(

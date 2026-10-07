@@ -168,7 +168,8 @@ later. Every selection changes video and subtitle clocks together.
 
 **Use room tone at cuts** is a separate saved-take export choice, initially off.
 It is offered when the current cut has internal joins and frozen measured quiet
-audio has a retained 100ms sample clear of every recognized word by 100ms.
+audio has a retained 100ms sample clear of every recognized word by 100ms
+(one second around uncertain word times).
 Choose the first eligible source sample deterministically. Removed ranges,
 uncertain wording, a script gap alone and an unavailable quiet analysis never
 supply sound. Notes and Script use the same actual-speech protection.

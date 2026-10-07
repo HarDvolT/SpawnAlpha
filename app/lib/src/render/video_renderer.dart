@@ -15,6 +15,7 @@ import 'screen_clicks.dart';
 import 'screen_shortcuts.dart';
 import 'camera_punches.dart';
 import 'camera_targets.dart';
+import 'room_tone.dart';
 
 class VideoRenderRequest {
   VideoRenderRequest({
@@ -37,6 +38,7 @@ class VideoRenderRequest {
     this.balanceSound = false,
     this.softenSharpSound = false,
     this.reduceNoise = false,
+    this.roomTone,
     this.cameraTargets,
     List<Caption> captions = const [],
   }) : captions = List.unmodifiable(
@@ -51,6 +53,10 @@ class VideoRenderRequest {
        ) {
     if (motionBlur && ((screenZooms?.count ?? 0) == 0 || cameraPunchMain)) {
       throw const FormatException('Invalid screen motion blur');
+    }
+    roomTone?.validateClock(plan);
+    if (roomTone != null && !softAudioJoins) {
+      throw const FormatException('Room tone requires soft joins');
     }
     cameraTargets?.validateClock(plan);
     if (cameraClear && camera == null ||
@@ -154,6 +160,7 @@ class VideoRenderRequest {
   final bool balanceSound;
   final bool softenSharpSound;
   final bool reduceNoise;
+  final RoomTone? roomTone;
   final CameraTargets? cameraTargets;
   final List<Caption> captions;
   Map<String, Object?> toJson() => {
@@ -169,6 +176,7 @@ class VideoRenderRequest {
         ? SaVideoExport.audioJoinFade.inMicroseconds
         : 0,
     'ranges': plan.ranges.map((r) => r.toJson()).toList(),
+    'roomTone': ?roomTone?.toJson(),
     if (reduceNoise)
       'noiseReduction': {
         'suppression': SaSoundPolish.noiseSuppression,

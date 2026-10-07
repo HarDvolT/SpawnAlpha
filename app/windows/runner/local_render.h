@@ -3,6 +3,7 @@
 #include <windows.h>
 #include <atomic>
 #include <functional>
+#include <optional>
 #include <string>
 #include <vector>
 #include "caption_overlay.h"
@@ -42,6 +43,7 @@ struct LocalRenderRequest {
   SoundBalance sound_balance;
   DeEssPolicy de_ess;
   NoisePolicy noise;
+  std::optional<RenderRange> room_tone;
 };
 // COM/MF initialized worker only. Original media is read-only, packets are bounded,
 // output is created exclusively, and failure/cancellation removes only that output.

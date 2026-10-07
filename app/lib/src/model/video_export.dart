@@ -1,4 +1,5 @@
 import 'caption_style.dart';
+import '../render/room_tone.dart';
 
 enum VideoFormat {
   landscape('16:9 · 1080p', 1920, 1080),
@@ -37,8 +38,10 @@ class VideoExport {
     this.balanceSound = false,
     this.softenSharpSound = false,
     this.reduceNoise = false,
+    this.roomTone,
   }) {
-    if (motionBlur && zoomCount == 0 ||
+    if (roomTone != null && !softAudioJoins ||
+        motionBlur && zoomCount == 0 ||
         cameraClear && !camera ||
         cameraPunchCount < 0 ||
         cameraPunchCount > 10000 ||
@@ -74,6 +77,7 @@ class VideoExport {
   final bool balanceSound;
   final bool softenSharpSound;
   final bool reduceNoise;
+  final RoomTone? roomTone;
   Map<String, Object?> toJson() => {
     'id': id,
     'format': format.name,
@@ -97,6 +101,7 @@ class VideoExport {
     'balanceSound': balanceSound,
     'softenSharpSound': softenSharpSound,
     'reduceNoise': reduceNoise,
+    'roomTone': ?roomTone?.toJson(),
   };
   factory VideoExport.fromJson(Map<String, Object?> json) {
     final format = VideoFormat.values
@@ -160,6 +165,9 @@ class VideoExport {
         balanceSound: json['balanceSound'] as bool? ?? false,
         softenSharpSound: json['softenSharpSound'] as bool? ?? false,
         reduceNoise: json['reduceNoise'] as bool? ?? false,
+        roomTone: json['roomTone'] == null
+            ? null
+            : RoomTone.fromJson(json['roomTone']),
       );
     } on ArgumentError {
       throw const FormatException('Invalid video export');

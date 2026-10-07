@@ -93,6 +93,7 @@ class VideoExportStore {
     CameraPunches? cameraPunches,
     CameraTargets? cameraTargets,
   }) async {
+    video.roomTone?.validateClock(plan);
     cameraTargets?.validateClock(plan);
     cameraPunches?.validateClock(
       plan,
@@ -308,6 +309,7 @@ class VideoExportStore {
           continue;
         }
         final plan = CutPlan.fromJson(json['plan']! as Map<String, Object?>);
+        video.roomTone?.validateClock(plan);
         final zooms = json['screenZooms'] == null
             ? null
             : ScreenZooms.fromJson(

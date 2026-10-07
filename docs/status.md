@@ -62,6 +62,27 @@ build step 2 (screen recording).
 
 ## Handover (2026-10-05): from here, Codex on the owner's Windows PC
 
+- **Latest checkpoint (2026-10-07, room-tone joins):** 934 Flutter tests,
+  296 screenshots and clean analysis. Use room tone at cuts is an independent
+  later choice, initially off, offered with soft joins and a retained measured
+  100ms quiet sample. Every recognized word has a 100ms guard, uncertain words
+  a one-second guard. Removed sound cannot supply it. Frozen source coordinates
+  survive metadata/recovery; no paths or word text are added to the track.
+  Native quiet peak/RMS gating falls back to ordinary fades for audible samples.
+  Selected noise/de-essing treats the bed before the same join mix and volume
+  prepass/render. Continuous source groups now share the fade clock too,
+  avoiding a short fade reset at fractional/zero-sample subranges near cuts.
+  Pure mono/stereo packet identity/endpoints/zero fallback, native decoded
+  sample counts, retained/discarded tones, quiet fallback, continuous identity,
+  source validation, cancellation and combined volume target pass with the full
+  native suite. Six actual EN/FR/AR app exports include French Notes, wide/feed/
+  portrait and Camera/Screen/Both; exact subtitles/history/originals remain.
+  Reopened review offers the choice and hides it after Restore all; EN/AR phone
+  PNGs inspected. No new dependency, model, owner media/input, upload or private
+  logging. **Half done:** smooth cursor, complete coaching/editor and mobile/
+  launch remain. Next continue Cut tools and explicit cursor-free provenance;
+  actual listening/hardware trials stay deferred.
+
 - **Latest checkpoint (2026-10-07, background-noise reduction):** 895 Flutter
   tests, 290 screenshots and clean analysis. Reduce background noise is an
   independent saved-take choice, initially off, with whole-mix scope explained.
@@ -1103,12 +1124,19 @@ build step 2 (screen recording).
    sound-join fades, rounded local screen frames and gentle camera emphasis
    are connected, alongside paired-camera placement, screen motion blur and
    optional sound volume balance, light de-essing and classic background-noise
-   reduction. Room-tone joins are next; smooth cursor, complete coaching and
+   reduction. Room-tone joins are connected; smooth cursor, complete coaching and
    editor tools remain.
    Keep originals intact.
    See OpenScreen in the brief for reusable parts.
 
 ## Decisions
+
+- 2026-10-07, room tone: offer the separate later choice off initially. Borrow
+  only a retained measured 100ms quiet sample, guarded from all actual words
+  and uncertainty. Mix it beneath existing internal fades on one continuous
+  group clock, without overlapping speech or changing duration. Recheck the
+  decoded quiet gate and fall back to ordinary fades if it fails. Preserve
+  source coordinates with each version and measure the final treated mix.
 
 - 2026-10-07, background noise: use the commercially audited/pinned SpeexDSP
   1.2.1 classic preprocessing subset without learned weights. Keep the separate
@@ -1395,6 +1423,25 @@ build step 2 (screen recording).
   word lists, not prosody.
 
 ## Session log
+
+- 2026-10-07, room-tone joins:
+  - Added pure bounded retained-quiet selection, all-word/uncertainty guards,
+    immutable source coordinates, strict history/recovery validation and a
+    separate initially-off after-recording control. Reopened review refreshes
+    eligibility after cuts, restored changes and word corrections.
+  - Native bounded bed decoding checks peak/RMS quiet again and falls back to
+    ordinary fades for audible sound. Noise/de-essing, joins and volume share
+    the same processed bed. Fades now use continuous group anchors, preserving
+    exact identity for tiny/fractional source splits near joins.
+  - 934 Flutter tests, 296 screenshots and clean analysis. Pure and decoded
+    mono/stereo endpoints/packet clocks, quiet fallback, retained/discarded-tone
+    protection, continuous splits, source validation/cancellation and combined
+    sound target pass with the full native suite. Six actual EN/FR/AR exports
+    cover French Notes and all recording modes at wide/feed/portrait; exact
+    subtitles/history/words/media stay intact. EN/AR phone PNGs inspected.
+  - No new dependency/model, owner media/input, upload or private logging.
+    Cursor, complete coaching/editor tools and mobile/launch remain. Real
+    listening/hardware trials stay deferred; continue the remaining Cut tools.
 
 - 2026-10-07, background-noise reduction:
   - Added independent saved-take control, strict additive metadata/recovery and

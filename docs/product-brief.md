@@ -131,7 +131,9 @@ Revised 2026-09-30 by the owner. Screen recording moves up, and the automatic ed
      measures retained audio, applies one gain toward -14 LUFS, caps boosts at
      12dB and protects estimated true peaks with -2dB headroom. The choice can
      change after recording; originals and earlier videos stay intact. Smooth
-     cursor and room-tone joins remain. Optional classic background-noise
+     cursor remains. Optional room-tone joins use only retained measured
+     quiet audio clear of recognized words, with an independent later choice
+     and fixed word/video clocks. Optional classic background-noise
      reduction is connected, initially off, using a commercial BSD-3 backend
      without learned weights. It targets steady hiss/fans, preserves the
      output clock and explains whole-mix scope; see [noise-runtime.md](noise-runtime.md).

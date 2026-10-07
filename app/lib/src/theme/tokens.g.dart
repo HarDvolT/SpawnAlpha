@@ -591,6 +591,8 @@ abstract final class SaSoundPolish {
   static const double noiseSuppression = -12.0;
   /// Treated share mixed with time-aligned original sound.
   static const double noiseStrength = 0.65;
+  /// Retained measured quiet sample used at internal sound joins.
+  static const Duration roomToneSample = Duration(milliseconds: 100);
 }
 
 /// The four type voices: display, reading, signal and pencil.

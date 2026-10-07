@@ -3,6 +3,8 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:spawnalpha/src/model/video_export.dart';
+import 'package:spawnalpha/src/model/cut_plan.dart';
+import 'package:spawnalpha/src/render/room_tone.dart';
 import 'package:spawnalpha/src/model/caption_style.dart';
 import 'package:spawnalpha/src/render/export_processor.dart';
 import 'package:spawnalpha/src/storage/clean_cut_store.dart';
@@ -15,6 +17,79 @@ import '../render/export_processor_test.dart' show FakeRenderer;
 import '../storage/screen_take_store_test.dart' show FakeInspector;
 
 void main() {
+  for (final mode in ['choose', 'busy', 'missing', 'off', 'continuous']) {
+    testWidgets('room tone is a separate later choice: $mode', (tester) async {
+      final library = ScriptLibrary(MemoryScriptStore()),
+          inspector = FakeInspector();
+      final job = ExportProcessor(
+        FakeRenderer(inspector),
+        VideoExportStore(Directory.systemTemp, library, inspector),
+        CleanCutStore(Directory.systemTemp, library),
+        (_) async => null,
+      );
+      var enabled = false;
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: buildTheme(Brightness.light),
+          home: Scaffold(
+            body: SingleChildScrollView(
+              child: StatefulBuilder(
+                builder: (context, update) => VideoExportPanel(
+                  format: VideoFormat.landscape,
+                  onFormat: (_) {},
+                  onExport: () {},
+                  job: job,
+                  supported: true,
+                  busy: mode == 'busy',
+                  hasRoomTone: mode != 'missing',
+                  hasAudioJoins: mode != 'continuous',
+                  softAudioJoins: mode != 'off',
+                  roomToneJoins: enabled,
+                  onRoomToneJoins: (v) => update(() => enabled = v),
+                  videos: [
+                    VideoExport(
+                      id: 'generated',
+                      format: VideoFormat.landscape,
+                      duration: const Duration(seconds: 4),
+                      createdAt: DateTime(2026),
+                      softAudioJoins: true,
+                      roomTone: RoomTone(
+                        SourceRange(
+                          start: Duration.zero,
+                          end: const Duration(milliseconds: 100),
+                        ),
+                      ),
+                    ),
+                  ],
+                  onView: (_) {},
+                  onShow: (_) {},
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      final choice = find.widgetWithText(
+        CheckboxListTile,
+        'Use room tone at cuts',
+      );
+      if (['missing', 'off', 'continuous'].contains(mode)) {
+        expect(choice, findsNothing);
+      } else if (mode == 'busy') {
+        expect(tester.widget<CheckboxListTile>(choice).onChanged, isNull);
+      } else {
+        expect(tester.widget<CheckboxListTile>(choice).value, isFalse);
+        await tester.tap(choice);
+        await tester.pumpAndSettle();
+        expect(enabled, isTrue);
+      }
+      expect(find.textContaining('Room tone at cuts'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox());
+      job.dispose();
+      library.dispose();
+    });
+  }
   for (final mode in ['choose', 'busy', 'hidden']) {
     testWidgets('noise reduction starts off and can change later: $mode', (
       tester,

@@ -6,6 +6,8 @@ import 'package:flutter/material.dart';
 import 'package:spawnalpha/src/model/script_document.dart';
 import 'package:spawnalpha/src/model/script_language.dart';
 import 'package:spawnalpha/src/model/video_export.dart';
+import 'package:spawnalpha/src/model/cut_plan.dart';
+import 'package:spawnalpha/src/cut/clean_plan.dart';
 import 'package:spawnalpha/src/recording/recording_inspector.dart';
 import 'package:spawnalpha/src/render/export_processor.dart';
 import 'package:spawnalpha/src/render/video_renderer.dart';
@@ -24,7 +26,10 @@ bool sameBytes(List<int> a, List<int> b) =>
 Future<void> main() async {
   const essCheck = bool.fromEnvironment('SPAWNALPHA_ESS_CHECK');
   const noiseCheck = bool.fromEnvironment('SPAWNALPHA_NOISE_CHECK');
-  const kind = noiseCheck
+  const roomCheck = bool.fromEnvironment('SPAWNALPHA_ROOM_CHECK');
+  const kind = roomCheck
+      ? 'room'
+      : noiseCheck
       ? 'noise'
       : essCheck
       ? 'ess'
@@ -69,11 +74,14 @@ Future<void> main() async {
     for (final language in ScriptLanguage.values) {
       stage = 'prepare generated sound';
       final source = await File(
-        '$prefix${noiseCheck || essCheck ? '-$kind-source-${language == ScriptLanguage.ar ? 2 : 1}.mp4' : '-sound-source.mp4'}',
+        '$prefix${roomCheck || noiseCheck || essCheck ? '-$kind-source-${language == ScriptLanguage.ar ? 2 : 1}.mp4' : '-sound-source.mp4'}',
       ).copy('${root.absolute.path}/${language.name}.mp4');
       final original = await source.readAsBytes();
       final snapshot = ScriptDocument.create(
         language: language,
+        recordingAid: roomCheck && language == ScriptLanguage.fr
+            ? RecordingAid.notes
+            : RecordingAid.script,
         text: switch (language) {
           ScriptLanguage.en => 'We launch today.',
           ScriptLanguage.fr => 'Nous lançons demain.',
@@ -87,8 +95,12 @@ Future<void> main() async {
           for (var i = 0; i < snapshot.tokens.length; ++i)
             SpokenWord(
               text: snapshot.tokens[i].text,
-              start: Duration(milliseconds: 300 + i * 500),
-              end: Duration(milliseconds: 600 + i * 500),
+              start: Duration(
+                milliseconds: roomCheck ? [1050, 3050, 3300][i] : 300 + i * 500,
+              ),
+              end: Duration(
+                milliseconds: roomCheck ? [1250, 3250, 3500][i] : 600 + i * 500,
+              ),
               confidence: .9,
             ),
         ],
@@ -111,18 +123,43 @@ Future<void> main() async {
             sourcePath: source.path,
             transcript: words,
             snapshot: snapshot,
-            alignment: {'attemptCount': 1},
+            alignment: snapshot.usesNotes ? null : {'attemptCount': 1},
+            quiet: roomCheck
+                ? [
+                    SourceRange(
+                      start: const Duration(milliseconds: 100),
+                      end: const Duration(milliseconds: 900),
+                    ),
+                  ]
+                : [],
           ).toJson(),
         ),
       );
       final originalWords = await File(take.wordsPath!).readAsString();
       await library.save(snapshot.copyWith(takes: [take]));
+      final cut = roomCheck
+          ? CleanPlan(
+              takeId: 'generated',
+              language: language,
+              sourceDuration: take.duration,
+              changes: [
+                CutChange(
+                  id: 'quiet-0',
+                  range: SourceRange(
+                    start: const Duration(milliseconds: 1400),
+                    end: const Duration(milliseconds: 2800),
+                  ),
+                ),
+              ],
+            )
+          : null;
+      if (cut != null) await job.cuts.save(snapshot.id, take, cut);
       String? srt;
       final saved = <String, List<int>>{};
       final formats = switch (language) {
         ScriptLanguage.en => [
           VideoFormat.landscape,
-          if (!essCheck && !noiseCheck) VideoFormat.landscape4k,
+          if (!essCheck && !noiseCheck && !roomCheck) VideoFormat.landscape4k,
         ],
         ScriptLanguage.fr => [VideoFormat.feed],
         ScriptLanguage.ar => [VideoFormat.portrait],
@@ -136,9 +173,11 @@ Future<void> main() async {
             current,
             current.takes.single,
             format,
-            balanceSound: essCheck || noiseCheck || enabled,
-            softenSharpSound: noiseCheck || (essCheck && enabled),
-            reduceNoise: noiseCheck && enabled,
+            clean: cut,
+            roomToneJoins: roomCheck && enabled,
+            balanceSound: roomCheck || essCheck || noiseCheck || enabled,
+            softenSharpSound: roomCheck || noiseCheck || (essCheck && enabled),
+            reduceNoise: roomCheck || (noiseCheck && enabled),
             cameraClear: false,
             autoZoom: false,
             motionBlur: false,
@@ -148,26 +187,39 @@ Future<void> main() async {
           );
           require(
             video != null &&
-                video.balanceSound == (essCheck || noiseCheck || enabled) &&
+                video.balanceSound ==
+                    (roomCheck || essCheck || noiseCheck || enabled) &&
                 video.softenSharpSound ==
-                    (noiseCheck || (essCheck && enabled)) &&
-                video.reduceNoise == (noiseCheck && enabled) &&
-                video.duration == words.duration,
+                    (roomCheck || noiseCheck || (essCheck && enabled)) &&
+                video.reduceNoise == (roomCheck || (noiseCheck && enabled)) &&
+                (video.roomTone != null) == (roomCheck && enabled) &&
+                video.duration ==
+                    (roomCheck
+                        ? const Duration(milliseconds: 2600)
+                        : words.duration),
           );
           final metadata = jsonDecode(
             await store.file(video!, 'json').readAsString(),
           ) as Map;
           require(
             (metadata['video'] as Map)['balanceSound'] ==
-                (essCheck || noiseCheck || enabled),
+                (roomCheck || essCheck || noiseCheck || enabled),
           );
           require(
             (metadata['video'] as Map)['softenSharpSound'] ==
-                (noiseCheck || (essCheck && enabled)),
+                (roomCheck || noiseCheck || (essCheck && enabled)),
           );
           require(
             (metadata['video'] as Map)['reduceNoise'] ==
-                (noiseCheck && enabled),
+                (roomCheck || (noiseCheck && enabled)),
+          );
+          require(
+            jsonEncode((metadata['video'] as Map)['roomTone']) ==
+                jsonEncode(
+                  roomCheck && enabled
+                      ? {'startUs': 100000, 'endUs': 200000}
+                      : null,
+                ),
           );
           final subtitle = await store.file(video, 'srt').readAsString();
           require(srt == null || srt == subtitle);
@@ -193,7 +245,9 @@ Future<void> main() async {
         history.length == formats.length * 2 &&
             history
                     .where(
-                      (v) => noiseCheck
+                      (v) => roomCheck
+                          ? v.roomTone != null
+                          : noiseCheck
                           ? v.reduceNoise
                           : essCheck
                           ? v.softenSharpSound

@@ -1051,7 +1051,7 @@ void CheckNoiseBlocks() {
     bool caught = false; try { AudioNoise bad(1, {true, invalid}); } catch (...) { caught = true; } Require(caught);
   }
 }
-void GenerateNoiseSource(ID3D11Device* device, const std::wstring& path, UINT channels) {
+void GenerateNoiseSource(ID3D11Device* device, const std::wstring& path, UINT channels, int noise_divisor = 24) {
   GpuVideoWriter writer; check_hresult(writer.Start(device, path, kWidth, kHeight, 30, {48000, channels}));
   std::vector<uint32_t> pixels(kWidth * kHeight, 0xff25b64a);
   D3D11_TEXTURE2D_DESC desc{}; desc.Width = kWidth; desc.Height = kHeight;
@@ -1069,7 +1069,7 @@ void GenerateNoiseSource(ID3D11Device* device, const std::wstring& path, UINT ch
       const auto hz = (removed ? 770 : third ? 990 : 330) * (c ? 2 : 1);
       const auto amplitude = removed ? 12000 : first || second || third ? 8000 : 0;
       seed = seed * 1664525 + 1013904223;
-      const auto noise = (static_cast<int>(seed >> 16) - 32768) / 24;
+      const auto noise = (static_cast<int>(seed >> 16) - 32768) / noise_divisor;
       pcm[f * channels + c] = static_cast<int16_t>(noise + amplitude * std::sin(at * hz * 6.283185307179586 / 48000));
     }
     check_hresult(writer.WriteAudio(pcm.data(), 1600, frame * kSecond / 30));
@@ -1140,8 +1140,63 @@ void CheckNoiseExports(ID3D11Device* device, const std::wstring& prefix, const c
   stage = "verify noise reduction does not invent a silent video soundtrack";
   RenderLocalVideo(resample, cancel, [](double) {}); Require(!ProbeRecording(resample.output, cancel).has_audio);
 }
+void CheckRoomToneBlocks() {
+  for (UINT channels : {1u, 2u}) {
+    std::vector<int16_t> full(48000 * channels, 12000), tone(4800 * channels, 5);
+    if (channels == 2) for (size_t i = 1; i < tone.size(); i += 2) tone[i] = -7;
+    const auto original = full;
+    ApplyAudioJoinFade(full, channels, 0, 0, 48000, 480, true, true, &tone);
+    Require(full.front() == 5 && full[full.size() - channels] == 5 && full[24000 * channels] == 12000);
+    if (channels == 2) Require(full[1] == -7 && full.back() == -7);
+    std::vector<int16_t> packeted;
+    for (size_t first = 0; first < 48000; first += 1024) {
+      auto part = std::vector<int16_t>(original.begin() + first * channels, original.begin() + std::min<size_t>(48000, first + 1024) * channels);
+      ApplyAudioJoinFade(part, channels, static_cast<int64_t>(first), 0, 48000, 480, true, true, &tone);
+      packeted.insert(packeted.end(), part.begin(), part.end());
+    }
+    Require(packeted == full);
+    auto disabled = original; ApplyAudioJoinFade(disabled, channels, 0, 0, 48000, 480, false, false, &tone); Require(disabled == original);
+    std::vector<int16_t> zero(tone.size(), 0), a = original, b = original;
+    ApplyAudioJoinFade(a, channels, 0, 0, 48000, 480, true, true, &zero);
+    ApplyAudioJoinFade(b, channels, 0, 0, 48000, 480, true, true); Require(a == b);
+  }
+}
+void CheckRoomToneExports(ID3D11Device* device, const std::wstring& prefix, const char*& stage) {
+  std::atomic<bool> cancel{false};
+  for (UINT channels : {1u, 2u}) {
+    const auto source = prefix + L"-room-source-" + std::to_wstring(channels) + L".mp4";
+    stage = "generate low room tone and isolated retained/discarded tones"; GenerateNoiseSource(device, source, channels, 1638);
+    LocalRenderRequest request{source, L"", prefix + L"-room-fade-" + std::to_wstring(channels) + L".mp4", 4000000, 640, 360, {{0, 1400000}, {2800000, 4000000}}};
+    request.audio_join_fade_us = 20000;
+    stage = "render ordinary sound-join reference"; RenderLocalVideo(request, cancel, [](double) {}); const auto reference = Audio(request.output, channels);
+    request.room_tone = RenderRange{100000, 200000}; request.output = prefix + L"-room-mix-" + std::to_wstring(channels) + L".mp4";
+    stage = "render room tone beneath exact cut edges"; RenderLocalVideo(request, cancel, [](double) {}); const auto mixed = Audio(request.output, channels);
+    Require(mixed.size() == reference.size() && mixed != reference); VerifyLocalCut(request, 78, 2600000, false, false, true);
+    for (UINT c = 0; c < channels; ++c) {
+      std::vector<int16_t> mono; for (size_t f = 0; f < mixed.size() / channels; ++f) mono.push_back(mixed[f * channels + c]);
+      Require(ToneAt(mono, 50400, 330 * (c ? 2 : 1)) > 3000 && ToneAt(mono, 90000, 990 * (c ? 2 : 1)) > 3000);
+      for (size_t first = 0; first + 12000 < mono.size(); first += 4000) Require(ToneAt(mono, first, 770 * (c ? 2 : 1)) < 800);
+    }
+    request.ranges = {{0, 1399999}, {1399999, 1400000}, {2800000, 2800001}, {2800001, 4000000}};
+    request.output = prefix + L"-room-fractional-" + std::to_wstring(channels) + L".mp4";
+    stage = "verify fades and room tone share continuous group clock"; RenderLocalVideo(request, cancel, [](double) {}); Require(Audio(request.output, channels) == mixed);
+    request.room_tone = RenderRange{1000000, 1100000}; request.output = prefix + L"-room-unsafe-fallback-" + std::to_wstring(channels) + L".mp4";
+    stage = "reject audible borrowed sound while preserving ordinary fades"; RenderLocalVideo(request, cancel, [](double) {}); Require(Audio(request.output, channels) == reference);
+    request.room_tone = RenderRange{100000, 200000}; request.noise = {true}; request.de_ess = {true}; request.sound_balance = {true};
+    request.output = prefix + L"-room-balanced-" + std::to_wstring(channels) + L".mp4";
+    stage = "verify combined noise/softening/room-tone balance clock"; RenderLocalVideo(request, cancel, [](double) {});
+    Require(std::abs(MeasureSound(Audio(request.output, channels), channels) + 14) < .4);
+    request.room_tone = RenderRange{1600000, 1700000}; request.output = prefix + L"-room-removed-" + std::to_wstring(channels) + L".mp4";
+    stage = "reject removed room-tone source before output creation";
+    bool rejected = false; try { RenderLocalVideo(request, cancel, [](double) {}); } catch (...) { rejected = true; }
+    Require(rejected && GetFileAttributesW(request.output.c_str()) == INVALID_FILE_ATTRIBUTES);
+    request.room_tone = RenderRange{100000, 200000}; request.output = prefix + L"-room-cancel-" + std::to_wstring(channels) + L".mp4";
+    bool stopped = false; try { RenderLocalVideo(request, cancel, [&](double value) { if (value > .02) cancel = true; }); } catch (...) { stopped = true; }
+    Require(stopped && GetFileAttributesW(request.output.c_str()) == INVALID_FILE_ATTRIBUTES); cancel = false;
+  }
+}
 int wmain(int count, wchar_t** args) {
-  if (count != 2 && (count != 3 || (std::wstring(args[2]) != L"--camera-only" && std::wstring(args[2]) != L"--cleanup-only" && std::wstring(args[2]) != L"--placement-only" && std::wstring(args[2]) != L"--blur-only" && std::wstring(args[2]) != L"--sound-only" && std::wstring(args[2]) != L"--ess-only" && std::wstring(args[2]) != L"--noise-only"))) return 2;
+  if (count != 2 && (count != 3 || (std::wstring(args[2]) != L"--camera-only" && std::wstring(args[2]) != L"--cleanup-only" && std::wstring(args[2]) != L"--placement-only" && std::wstring(args[2]) != L"--blur-only" && std::wstring(args[2]) != L"--sound-only" && std::wstring(args[2]) != L"--ess-only" && std::wstring(args[2]) != L"--noise-only" && std::wstring(args[2]) != L"--room-only"))) return 2;
   const auto com = CoInitializeEx(nullptr, COINIT_MULTITHREADED); if (FAILED(com)) return 3;
   const char* stage = "initialize";
   try {
@@ -1149,6 +1204,7 @@ int wmain(int count, wchar_t** args) {
     stage = "calibrated packet-independent loudness, gating and oversampled peak"; CheckSoundMeter();
     stage = "linked de-essing detection, cap, floor and packet independence"; CheckDeEsser();
     stage = "classic noise floor, exact overlap compensation and partial tails"; CheckNoiseBlocks();
+    stage = "bounded room-tone join mixing and packet independence"; CheckRoomToneBlocks();
     stage = "screen zoom springs, resize fit and cut reset"; CheckScreenZoomCrop();
     check_hresult(MFStartup(MF_VERSION));
     {
@@ -1388,6 +1444,7 @@ int wmain(int count, wchar_t** args) {
       if (count == 2 || std::wstring(args[2]) == L"--sound-only") CheckSoundBalance(device.get(), prefix, stage);
       if (count == 2 || std::wstring(args[2]) == L"--ess-only") CheckDeEssExports(device.get(), prefix, stage);
       if (count == 2 || std::wstring(args[2]) == L"--noise-only") CheckNoiseExports(device.get(), prefix, stage);
+      if (count == 2 || std::wstring(args[2]) == L"--room-only") CheckRoomToneExports(device.get(), prefix, stage);
     }
     if (count == 3) std::cout << "Focused local render check passed: " <<
       (std::wstring(args[2]) == L"--cleanup-only" ? "injected zero/one-sample failure cleanup" :
@@ -1396,6 +1453,7 @@ int wmain(int count, wchar_t** args) {
        std::wstring(args[2]) == L"--sound-only" ? "loudness/gating/peak calibration, mono/stereo clocks, resampling, retained joins and cancellation" :
        std::wstring(args[2]) == L"--ess-only" ? "linked de-essing caps/floor/stereo, continuous/source-cut clocks, decoded attenuation and balanced volume" :
        std::wstring(args[2]) == L"--noise-only" ? "classic noise reduction, delay/tails, fractional continuous clock, discarded-word protection and combined sound balance" :
+       std::wstring(args[2]) == L"--room-only" ? "room-tone mix, quiet/retained gates, exact group clocks, discarded-word protection and combined sound balance" :
        "camera crops/cut resets and failure cleanup") << ".\n";
     else std::cout << "Local render check passed: streaming PCM/GPU pair, source selection/reordering, reviewed filler and retake tone/picture removal, silent input, stereo resampling, EN/FR/AR Readable/Karaoke/Cue/Punch timing and safe pixels, word reveal, emphasis, spring motion and Still, RTL underline, gaps, vertical Arabic, no clipped words, camera inset/end, exact portrait duration, cancel cleanup, damaged input, overwrite protection, centred main/paired camera crops/cut resets, camera placement, screen motion blur, volume balance/gates/peaks/mono/stereo/joins and injected zero/one-sample failure cleanup.\n";
     MFShutdown(); CoUninitialize(); return 0;

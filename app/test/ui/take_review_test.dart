@@ -8,6 +8,7 @@ import 'package:spawnalpha/src/model/script_document.dart';
 import 'package:spawnalpha/src/model/script_language.dart';
 import 'package:spawnalpha/src/model/caption_style.dart';
 import 'package:spawnalpha/src/model/video_export.dart';
+import 'package:spawnalpha/src/cut/clean_plan.dart';
 import 'package:spawnalpha/src/storage/script_store.dart';
 import 'package:spawnalpha/src/storage/settings.dart';
 import 'package:spawnalpha/src/theme/theme.dart';
@@ -30,6 +31,7 @@ import '../cut/retake_review_test.dart'
     show retakeWords, retakeScript, retakeQuiet;
 import '../render/camera_punches_test.dart' as punch;
 import '../transcription/caption_cues_test.dart' show cueScript;
+import '../render/room_tone_test.dart' as room;
 import '../render/export_processor_test.dart' show FakeRenderer;
 import '../storage/screen_take_store_test.dart' show FakeInspector;
 
@@ -75,6 +77,113 @@ SavedTranscript reviewFixture(
 }
 
 void main() {
+  for (final language in ScriptLanguage.values) {
+    testWidgets(
+      'saved review offers room tone and hides it after restoring cuts $language',
+      (tester) async {
+        tester.view.physicalSize = const Size(1280, 2400);
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.reset);
+        late Directory root;
+        late ScriptLibrary library;
+        late AppServices services;
+        late ScriptDocument script;
+        late Take take;
+        await tester.runAsync(() async {
+          root = await Directory.systemTemp.createTemp(
+            'spawnalpha-room-review-',
+          );
+          library = ScriptLibrary(MemoryScriptStore());
+          take = Take(
+            path: '${root.path}/generated.mp4',
+            wordsPath: '${root.path}/words.json',
+            recordedAt: DateTime(2026),
+            duration: const Duration(seconds: 4),
+          );
+          script = ScriptDocument.create(language: language)
+              .copyWith(takes: [take]);
+          await library.save(script);
+          services = AppServices(
+            library: library,
+            settings: Settings(secrets: MemorySecretStore()),
+            recordingsDir: Directory('${root.path}/recordings'),
+            playback: FakePlayback(),
+            speechBackend: FakeSpeech('unused'),
+            renderer: FakeRenderer(FakeInspector()),
+          );
+          services.speech.result = SavedTranscript(
+            sourcePath: take.path,
+            transcript: room.words(language),
+            quiet: [room.range(0, 900)],
+          );
+          await services.cuts.save(
+            script.id,
+            take,
+            CleanPlan(
+              takeId: 'generated',
+              language: language,
+              sourceDuration: take.duration,
+              changes: [
+                CutChange(id: 'quiet-0', range: room.range(1400, 2800)),
+              ],
+            ),
+          );
+          take = library.byId(script.id)!.takes.single;
+        });
+        await tester.runAsync(() async {
+          await tester.pumpWidget(
+            AppScope(
+              services: services,
+              child: MaterialApp(
+                theme: buildTheme(Brightness.light),
+                home: TakeReviewScreen(script: script, take: take),
+              ),
+            ),
+          );
+          await Future<void>.delayed(const Duration(milliseconds: 100));
+        });
+        await tester.pumpAndSettle();
+        expect(
+          tester
+              .widget<VideoExportPanel>(find.byType(VideoExportPanel))
+              .hasAudioJoins,
+          isTrue,
+        );
+        expect(
+          tester
+              .widget<VideoExportPanel>(find.byType(VideoExportPanel))
+              .hasRoomTone,
+          isTrue,
+        );
+        final choice = find.widgetWithText(
+          CheckboxListTile,
+          'Use room tone at cuts',
+        );
+        expect(choice, findsOneWidget);
+        expect(tester.widget<CheckboxListTile>(choice).value, isFalse);
+        await tester.ensureVisible(choice);
+        await tester.tap(choice);
+        await tester.pumpAndSettle();
+        expect(tester.widget<CheckboxListTile>(choice).value, isTrue);
+        final restore = find.text('Restore all gaps');
+        await tester.ensureVisible(restore);
+        await tester.runAsync(() async {
+          await tester.tap(restore);
+          await Future<void>.delayed(const Duration(milliseconds: 100));
+        });
+        await tester.pumpAndSettle();
+        expect(choice, findsNothing);
+        expect(tester.takeException(), isNull);
+        await tester.pumpWidget(const SizedBox());
+        services.processing.dispose();
+        services.speech.dispose();
+        services.speechModels.dispose();
+        services.exports.dispose();
+        library.dispose();
+        await tester.runAsync(() => root.delete(recursive: true));
+      },
+    );
+  }
   for (final language in ScriptLanguage.values) {
     for (final reduced in [false, true]) {
       testWidgets(

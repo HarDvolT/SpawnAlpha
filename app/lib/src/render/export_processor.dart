@@ -19,6 +19,7 @@ import 'video_renderer.dart';
 import 'screen_zooms.dart';
 import 'screen_zoom_loader.dart';
 import 'camera_punches.dart';
+import 'room_tone.dart';
 import '../theme/tokens.g.dart';
 
 enum ExportPhase { idle, preparing, rendering, saving, done, cancelled, failed }
@@ -105,6 +106,7 @@ class ExportProcessor extends ChangeNotifier {
     bool balanceSound = false,
     bool softenSharpSound = false,
     bool reduceNoise = false,
+    bool roomToneJoins = false,
   }) async {
     if (busy) return null;
     source = take.path;
@@ -239,7 +241,10 @@ class ExportProcessor extends ChangeNotifier {
           : null;
       final punches = captionTracks?.$3;
       final soundAvailable =
-          (balanceSound || softenSharpSound || reduceNoise) &&
+          (balanceSound ||
+              softenSharpSound ||
+              reduceNoise ||
+              roomToneJoins && softAudioJoins && plan.hasJoins) &&
           plan.duration >= SaSoundPolish.minimumDuration &&
           (await store.inspector.inspect(take.path)).hasAudio;
       if (_cancelled) throw const RenderCancelled();
@@ -266,6 +271,15 @@ class ExportProcessor extends ChangeNotifier {
         balanceSound: balanceSound && soundAvailable,
         softenSharpSound: softenSharpSound && soundAvailable,
         reduceNoise: reduceNoise && soundAvailable,
+        roomTone:
+            roomToneJoins && softAudioJoins && soundAvailable && spoken != null
+            ? roomToneOnCut(
+                plan,
+                spoken.transcript,
+                spoken.quiet,
+                sample: SaSoundPolish.roomToneSample,
+              )
+            : null,
         cameraClear:
             cameraClear &&
             pairedCamera &&
@@ -311,6 +325,7 @@ class ExportProcessor extends ChangeNotifier {
           balanceSound: video.balanceSound,
           softenSharpSound: video.softenSharpSound,
           reduceNoise: video.reduceNoise,
+          roomTone: video.roomTone,
           cameraTargets: zooms.cameraTargets,
         ),
         (amount) {

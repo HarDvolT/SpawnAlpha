@@ -12,6 +12,7 @@ import '../model/video_export.dart';
 import '../model/caption_style.dart';
 import '../model/cut_plan.dart';
 import '../render/export_processor.dart';
+import '../render/room_tone.dart';
 import '../review/repeated_sections.dart';
 import '../theme/theme.dart';
 import '../transcription/captions.dart';
@@ -58,6 +59,24 @@ class _TakeReviewScreenState extends State<TakeReviewScreen> {
   bool _captionStyleChosen = false;
   bool? _captionMotion;
   bool _softAudioJoins = true;
+  bool _roomToneJoins = false;
+  RoomTone? _roomTone;
+  void _refreshRoomTone() {
+    _roomTone = _spoken != null && _clean != null
+        ? roomToneOnCut(
+            _clean!.asCutPlan(),
+            _spoken!.transcript,
+            _spoken!.quiet,
+            sample: SaSoundPolish.roomToneSample,
+          )
+        : null;
+  }
+
+  void _setClean(CleanPlan? plan) {
+    _clean = plan;
+    _refreshRoomTone();
+  }
+
   bool _autoZoom = true;
   bool _clickHighlights = true;
   bool _showShortcuts = true;
@@ -80,6 +99,7 @@ class _TakeReviewScreenState extends State<TakeReviewScreen> {
   int _comparisonGeneration = 0;
   void _setSpoken(SavedTranscript? spoken) {
     _spoken = spoken;
+    _refreshRoomTone();
     _sections = const [];
     _comparisonProblem = null;
     _comparing = false;
@@ -168,7 +188,7 @@ class _TakeReviewScreenState extends State<TakeReviewScreen> {
           // A slow disk read must not replace a newly processed or edited cut.
           if (latest.wordsPath == loadingTake.wordsPath &&
               latest.cutPath == loadingTake.cutPath) {
-            _clean = values[0] as CleanPlan?;
+            _setClean(values[0] as CleanPlan?);
           }
           if (latest.exportsPath == loadingTake.exportsPath) {
             _videos = values[1]! as List<VideoExport>;
@@ -200,6 +220,7 @@ class _TakeReviewScreenState extends State<TakeReviewScreen> {
       captionStyle: _captionStyle,
       captionMotion: _captionMotion ?? !MediaQuery.disableAnimationsOf(context),
       softAudioJoins: _softAudioJoins,
+      roomToneJoins: _roomToneJoins,
       autoZoom: _autoZoom,
       clickHighlights: _clickHighlights,
       showShortcuts: _showShortcuts,
@@ -233,7 +254,7 @@ class _TakeReviewScreenState extends State<TakeReviewScreen> {
     if (mounted) {
       setState(() {
         _setSpoken(spoken);
-        _clean = clean;
+        _setClean(clean);
       });
     }
   }
@@ -252,7 +273,7 @@ class _TakeReviewScreenState extends State<TakeReviewScreen> {
         _spoken!,
         base: reviewFillers ? _clean : null,
       );
-      if (mounted) setState(() => _clean = plan);
+      if (mounted) setState(() => _setClean(plan));
     } on Object {
       if (mounted) {
         setState(
@@ -275,7 +296,7 @@ class _TakeReviewScreenState extends State<TakeReviewScreen> {
     if (!mounted || corrected == null) return;
     setState(() {
       _setSpoken(corrected);
-      _clean = null;
+      _setClean(null);
     });
     await _makeCut();
   }
@@ -291,7 +312,7 @@ class _TakeReviewScreenState extends State<TakeReviewScreen> {
       await app.cuts.save(widget.script.id, _latestTake(app), plan);
       if (mounted) {
         setState(() {
-          _clean = plan;
+          _setClean(plan);
           _exportFile = null;
           _exportMessage = null;
         });
@@ -633,6 +654,10 @@ class _TakeReviewScreenState extends State<TakeReviewScreen> {
                   onClickHighlights: (value) =>
                       setState(() => _clickHighlights = value),
                   hasAudioJoins: _clean?.asCutPlan().hasJoins ?? false,
+                  hasRoomTone: _roomTone != null,
+                  roomToneJoins: _roomToneJoins,
+                  onRoomToneJoins: (value) =>
+                      setState(() => _roomToneJoins = value),
                   balanceSound: _balanceSound,
                   softenSharpSound: _softenSharpSound,
                   reduceNoise: _reduceNoise,
