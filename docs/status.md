@@ -62,6 +62,21 @@ build step 2 (screen recording).
 
 ## Handover (2026-10-05): from here, Codex on the owner's Windows PC
 
+- **Latest checkpoint (2026-10-07, effects after recording):** 815 Flutter
+  tests, 260 screenshots and clean analysis. The owner clarified that camera
+  emphasis must be addable/removable after recording, including later from a
+  saved take. This already uses export-time choices; the save panel now says
+  that each save creates a new version and keeps the original and earlier
+  videos. New EN/FR/AR disk-reload regressions switch it off/on/off, preserve
+  every earlier video/subtitle/history file and original media/words, and use
+  frozen cues even after the current library script changes. EN/AR phone
+  layouts inspected; normal Windows Release rebuilt. No native behavior,
+  dependency, data collection or upload changed. **Half done:** the remaining
+  camera movement, blur/cursor, sound/coaching and editor/export work is still
+  unfinished. Next keep the paired camera clear of activity/zoom targets,
+  then continue the Cut tracks. Owner trials stay deferred; mobile and paid
+  launch remain unfinished.
+
 - **Latest checkpoint (2026-10-07, camera emphasis):** 812 Flutter tests,
   260 screenshots and clean analysis. Emphasize the camera starts on for
   aligned Script Camera/Both exports unless system reduced motion is set;
@@ -984,6 +999,12 @@ build step 2 (screen recording).
 
 ## Decisions
 
+- 2026-10-07, effects after recording: the owner requires camera emphasis to
+  be addable/removable after Stop and later from a reopened saved take. Effects
+  are chosen for each new export; originals and earlier saved videos stay
+  intact. Make this explicit in the save panel. Re-recording is unnecessary,
+  and changing the current script does not replace the take's frozen cues.
+
 - 2026-10-07, camera emphasis: offer a separate Emphasize the camera choice
   for aligned Script Camera/Both exports, initially on unless system reduced
   motion is requested. Use accepted actually spoken exact reliable/corrected
@@ -1227,6 +1248,18 @@ build step 2 (screen recording).
   word lists, not prosody.
 
 ## Session log
+
+- 2026-10-07, saved-take effect choices:
+  - Clarified the existing post-recording effect choices in the design, brief
+    and save panel. Each save makes a new version without replacing earlier
+    videos or original recordings.
+  - Added EN/FR/AR saved-take disk-reload off/on/off regression checks,
+    including later library script edits, unchanged subtitle clocks, complete
+    history and byte preservation. All 815 Flutter tests and 260 screenshots
+    pass; analysis is clean. EN/AR phone PNGs inspected and normal Windows
+    Release rebuilt. Native effect behavior is unchanged from the verified
+    camera-emphasis checkpoint. Owner trials remain deferred; remaining Cut,
+    mobile and launch work continues from the handover above.
 
 - 2026-10-07, camera emphasis and failed-export cleanup:
   - Added trusted frozen Script stress planning, cut/reorder/continuous clocks,

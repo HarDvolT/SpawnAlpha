@@ -73,6 +73,14 @@ void main() {
         expect(find.textContaining('20 seconds'), findsOneWidget);
       }
       expect(find.textContaining('2 camera accents'), findsOneWidget);
+      expect(
+        find.textContaining('Add or remove effects after recording.'),
+        findsOneWidget,
+      );
+      expect(
+        find.textContaining('keeps your original and earlier videos.'),
+        findsOneWidget,
+      );
       expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox());
       job.dispose();

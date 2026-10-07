@@ -73,6 +73,11 @@ Center alignment, Kinetic word effects and Voice pace when a microphone works
 - **Recording aid:** Script for coached reading, or Notes for private manually
   advanced talking-point cards. Requested by the owner on 2026-10-06.
 
+- **Effects after recording:** add or remove effects such as camera emphasis
+  from a saved take, including when returning later. Each save creates a new
+  video and keeps the original and earlier versions. No re-recording is
+  needed. Clarified by the owner on 2026-10-07.
+
 - **Platforms:** Windows on desktop plus Android and iOS. The proposed stack is **Flutter**, which covers all three from one codebase.
 - **Languages:** English, French and Arabic.
   - Scripts, markup and speech analysis must work in all three.

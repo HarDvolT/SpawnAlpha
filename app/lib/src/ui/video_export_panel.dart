@@ -152,6 +152,11 @@ class VideoExportPanel extends StatelessWidget {
               : 'Keeps the whole picture and saves a new MP4 on this device.',
           style: SaType.bodySm.copyWith(color: p.ink2),
         ),
+        const SizedBox(height: SaSpace.s1),
+        Text(
+          'Add or remove effects after recording. Each save makes a new version and keeps your original and earlier videos.',
+          style: SaType.bodySm.copyWith(color: p.ink2),
+        ),
         if (hasCameraEmphasis)
           CheckboxListTile(
             contentPadding: EdgeInsets.zero,

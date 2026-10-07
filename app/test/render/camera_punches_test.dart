@@ -95,6 +95,102 @@ List<Caption> phrases(
 void main() {
   for (final language in ScriptLanguage.values) {
     test(
+      'reopened saved take supports off/on/off without replacing earlier videos $language',
+      () async {
+        final root = await Directory.systemTemp.createTemp(
+          'spawnalpha-later-effects-',
+        );
+        final scripts = Directory('${root.path}/scripts'),
+            inspector = FakeInspector();
+        var library = ScriptLibrary(FileScriptStore(scripts));
+        ExportProcessor? job;
+        try {
+          final original = File('${root.path}/generated.mp4');
+          await original.writeAsString('generated original');
+          final frozen = cueScript(language),
+              words = speech(cueScript(language));
+          final take = Take(
+            path: original.path,
+            recordedAt: DateTime(2026),
+            duration: words.duration,
+            wordsPath: '${root.path}/words.json',
+          );
+          final originalWords = jsonEncode(
+            SavedTranscript(
+              sourcePath: take.path,
+              transcript: words,
+              snapshot: frozen,
+              alignment: {'attemptCount': 4},
+            ).toJson(),
+          );
+          await File(take.wordsPath!).writeAsString(originalWords);
+          final doc = frozen.copyWith(takes: [take]);
+          await library.save(doc);
+          final videos = <VideoExport>[];
+          final priorFiles = <String, String>{};
+          String? subtitles;
+          for (final on in [false, true, false]) {
+            // A fresh library/services instance simulates returning to the take later.
+            library.dispose();
+            library = ScriptLibrary(FileScriptStore(scripts));
+            await library.load();
+            final currentDoc = library.byId(doc.id)!;
+            await library.save(currentDoc.withText('A later script edit.'));
+            final reopened = library.byId(doc.id)!,
+                currentTake = reopened.takes.single;
+            final renderer = FakeRenderer(inspector);
+            final store = VideoExportStore(
+              Directory('${root.path}/exports'),
+              library,
+              inspector,
+            );
+            job = ExportProcessor(
+              renderer,
+              store,
+              CleanCutStore(Directory('${root.path}/cuts'), library),
+              (t) async => SavedTranscript.fromJson(
+                jsonDecode(await File(t.wordsPath!).readAsString())
+                    as Map<String, Object?>,
+              ),
+            );
+            final video = (await job.export(
+              reopened,
+              currentTake,
+              VideoFormat.portrait,
+              cameraPunch: on,
+            ))!;
+            expect(video.cameraPunchCount, on ? 3 : 0);
+            expect(renderer.request!.cameraPunches!.count, on ? 3 : 0);
+            videos.add(video);
+            final srt = await store.file(video, 'srt').readAsString();
+            if (subtitles != null) expect(srt, subtitles);
+            subtitles = srt;
+            for (final entry in priorFiles.entries) {
+              expect(await File(entry.key).readAsString(), entry.value);
+            }
+            for (final extension in ['mp4', 'json', 'srt', 'vtt']) {
+              final file = store.file(video, extension);
+              priorFiles[file.path] = await file.readAsString();
+            }
+            expect(
+              (await store.load(library.byId(doc.id)!.takes.single)).length,
+              videos.length,
+            );
+            expect(await original.readAsString(), 'generated original');
+            expect(await File(take.wordsPath!).readAsString(), originalWords);
+            job.dispose();
+            job = null;
+          }
+          expect(videos.map((v) => v.id).toSet(), hasLength(3));
+          expect(videos.map((v) => v.cameraPunchCount), [0, 3, 0]);
+        } finally {
+          job?.dispose();
+          library.dispose();
+          await root.delete(recursive: true);
+        }
+      },
+    );
+    test(
       'camera stress uses frozen words, output spacing and continuous splits $language',
       () {
         final frozen = cueScript(language),

@@ -281,6 +281,13 @@ with the same generic activity notice. Legacy exports have no highlights.
 
 ### First Windows video export
 
+Effects are chosen after recording and can be changed when reopening a saved
+take. Beneath the save controls, say: **Add or remove effects after recording.
+Each save makes a new version and keeps your original and earlier videos.**
+Toggling an effect applies to the next saved video; it never overwrites an
+existing MP4. Camera emphasis still uses the take's frozen accepted cues and
+reliable spoken words. No re-recording or recording-time effect choice is needed.
+
 The saved plan now renders to a separate finalized H.264/AAC MP4 in 16:9
 1080p/4K, 9:16 or 4:5. This slice fits the complete source on black space unless
 optional screen activity zooms are enabled. Face reframing,
