@@ -55,6 +55,22 @@ LocalRenderRequest Request(const Map& args) {
     if (!range) throw std::runtime_error("Invalid render range");
     request.ranges.push_back({Integer(*range, "startUs"), Integer(*range, "endUs")});
   }
+  if (const auto found = args.find(Value("cameraTargets")); found != args.end()) {
+    const auto* targets = std::get_if<flutter::EncodableList>(&found->second);
+    const auto* layout = std::get_if<Map>(&Field(args, "cameraClearLayout"));
+    if (!targets || targets->size() > 20000 || !layout || layout->size() != 5)
+      throw std::runtime_error("Invalid camera placement");
+    request.camera_clear = {true, Number(*layout, "gap"), Integer(*layout, "intervalUs"),
+      {Number(*layout, "mass"), Number(*layout, "stiffness"), Number(*layout, "damping")}};
+    for (const auto& value : *targets) {
+      const auto* target = std::get_if<Map>(&value);
+      if (!target || target->size() != 6) throw std::runtime_error("Invalid camera target");
+      const auto sw = Integer(*target, "width"), sh = Integer(*target, "height");
+      if (sw < 1 || sw > 100000 || sh < 1 || sh > 100000) throw std::runtime_error("Invalid camera target");
+      request.camera_targets.push_back({Integer(*target, "startUs"), Integer(*target, "endUs"),
+        Number(*target, "x"), Number(*target, "y"), static_cast<UINT>(sw), static_cast<UINT>(sh)});
+    }
+  }
   if (const auto found = args.find(Value("punchSteps")); found != args.end()) {
     const auto* steps = std::get_if<flutter::EncodableList>(&found->second);
     const auto* main = std::get_if<bool>(&Field(args, "punchMain"));

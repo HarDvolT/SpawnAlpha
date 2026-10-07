@@ -15,6 +15,77 @@ import '../render/export_processor_test.dart' show FakeRenderer;
 import '../storage/screen_take_store_test.dart' show FakeInspector;
 
 void main() {
+  for (final mode in ['choose', 'busy', 'hidden', 'missing']) {
+    testWidgets(
+      'camera placement choice uses saved activity and camera: $mode',
+      (tester) async {
+        final library = ScriptLibrary(MemoryScriptStore()),
+            inspector = FakeInspector();
+        final job = ExportProcessor(
+          FakeRenderer(inspector),
+          VideoExportStore(Directory.systemTemp, library, inspector),
+          CleanCutStore(Directory.systemTemp, library),
+          (_) async => null,
+        );
+        var clear = true;
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: buildTheme(Brightness.light),
+            home: Scaffold(
+              body: SingleChildScrollView(
+                child: StatefulBuilder(
+                  builder: (context, update) => VideoExportPanel(
+                    format: VideoFormat.landscape,
+                    onFormat: (_) {},
+                    onExport: () {},
+                    job: job,
+                    busy: mode == 'busy',
+                    supported: true,
+                    hasCamera: true,
+                    includeCamera: mode != 'hidden',
+                    hasScreenActivity: mode != 'missing',
+                    cameraClear: clear,
+                    onCameraClear: (v) => update(() => clear = v),
+                    videos: [
+                      VideoExport(
+                        id: 'generated',
+                        format: VideoFormat.landscape,
+                        duration: const Duration(seconds: 4),
+                        createdAt: DateTime(2026),
+                        camera: true,
+                        cameraClear: true,
+                      ),
+                    ],
+                    onView: (_) {},
+                    onShow: (_) {},
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+        final choice = find.widgetWithText(
+          CheckboxListTile,
+          'Keep the camera clear',
+        );
+        if (mode == 'hidden' || mode == 'missing') {
+          expect(choice, findsNothing);
+        } else if (mode == 'busy') {
+          expect(tester.widget<CheckboxListTile>(choice).onChanged, isNull);
+        } else {
+          await tester.ensureVisible(choice);
+          await tester.tap(choice);
+          await tester.pumpAndSettle();
+          expect(clear, isFalse);
+        }
+        expect(find.textContaining('Camera stays clear'), findsOneWidget);
+        expect(tester.takeException(), isNull);
+        await tester.pumpWidget(const SizedBox());
+        job.dispose();
+        library.dispose();
+      },
+    );
+  }
   for (final mode in ['choose', 'busy', 'missing']) {
     testWidgets('camera emphasis controls and history: $mode', (tester) async {
       final library = ScriptLibrary(MemoryScriptStore()),

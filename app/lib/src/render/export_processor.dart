@@ -100,6 +100,7 @@ class ExportProcessor extends ChangeNotifier {
     bool showShortcuts = true,
     bool screenFrame = true,
     bool cameraPunch = true,
+    bool cameraClear = true,
   }) async {
     if (busy) return null;
     source = take.path;
@@ -157,7 +158,13 @@ class ExportProcessor extends ChangeNotifier {
           ? speechOnCut(spoken.transcript, plan)
           : speechOnCleanCut(spoken.transcript, clean);
       final zooms =
-          (autoZoom || clickHighlights || showShortcuts) &&
+          (autoZoom ||
+                  clickHighlights ||
+                  showShortcuts ||
+                  cameraClear &&
+                      camera &&
+                      take.mode == TakeMode.both &&
+                      take.cameraPath != null) &&
               take.mode != TakeMode.camera &&
               take.activityPath != null
           ? await compute(
@@ -185,6 +192,14 @@ class ExportProcessor extends ChangeNotifier {
                 shortcutDuration: showShortcuts
                     ? SaScreenFx.keycapDuration
                     : Duration.zero,
+                cameraHold:
+                    cameraClear &&
+                        camera &&
+                        take.mode == TakeMode.both &&
+                        take.cameraPath != null
+                    ? SaVideoExport.cameraClearHold
+                    : Duration.zero,
+                cameraDistance: SaVideoExport.cameraClearDistance,
               ),
             )
           : LoadedScreenZooms(ScreenZooms(0, const []));
@@ -238,6 +253,11 @@ class ExportProcessor extends ChangeNotifier {
         shortcutCount: zooms.shortcuts?.count ?? 0,
         screenFrame: screenFrame && take.mode != TakeMode.camera,
         cameraPunchCount: punches?.count ?? 0,
+        cameraClear:
+            cameraClear &&
+            pairedCamera &&
+            ((zooms.cameraTargets?.targets.isNotEmpty ?? false) ||
+                zooms.zooms.count > 0),
       );
       final captions = captionTracks?.$1;
       final reservation = await store.reserve(
@@ -251,6 +271,7 @@ class ExportProcessor extends ChangeNotifier {
         screenClicks: zooms.clicks,
         screenShortcuts: zooms.shortcuts,
         cameraPunches: punches,
+        cameraTargets: zooms.cameraTargets,
       );
       reserved = reservation;
       if (_cancelled) throw const RenderCancelled();
@@ -272,6 +293,8 @@ class ExportProcessor extends ChangeNotifier {
           screenFrame: video.screenFrame,
           cameraPunches: punches,
           cameraPunchMain: take.mode == TakeMode.camera,
+          cameraClear: video.cameraClear,
+          cameraTargets: zooms.cameraTargets,
         ),
         (amount) {
           progress = amount;

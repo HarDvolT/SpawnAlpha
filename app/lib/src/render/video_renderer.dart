@@ -14,6 +14,7 @@ import 'screen_zooms.dart';
 import 'screen_clicks.dart';
 import 'screen_shortcuts.dart';
 import 'camera_punches.dart';
+import 'camera_targets.dart';
 
 class VideoRenderRequest {
   VideoRenderRequest({
@@ -31,6 +32,8 @@ class VideoRenderRequest {
     this.screenFrame = false,
     this.cameraPunches,
     this.cameraPunchMain = false,
+    this.cameraClear = false,
+    this.cameraTargets,
     List<Caption> captions = const [],
   }) : captions = List.unmodifiable(
          captions.map(
@@ -42,6 +45,12 @@ class VideoRenderRequest {
            ),
          ),
        ) {
+    cameraTargets?.validateClock(plan);
+    if (cameraClear && camera == null ||
+        (cameraTargets?.targets.isNotEmpty ?? false) &&
+            (!cameraClear || camera == null)) {
+      throw const FormatException('Invalid camera placement');
+    }
     cameraPunches?.validateClock(
       plan,
       minimum: SaVideoExport.cameraPunchMinimum,
@@ -133,6 +142,8 @@ class VideoRenderRequest {
   final bool screenFrame;
   final CameraPunches? cameraPunches;
   final bool cameraPunchMain;
+  final bool cameraClear;
+  final CameraTargets? cameraTargets;
   final List<Caption> captions;
   Map<String, Object?> toJson() => {
     'source': source,
@@ -147,6 +158,17 @@ class VideoRenderRequest {
         ? SaVideoExport.audioJoinFade.inMicroseconds
         : 0,
     'ranges': plan.ranges.map((r) => r.toJson()).toList(),
+    if (cameraClear) ...{
+      'cameraTargets':
+          cameraTargets?.targets.map((t) => t.toJson()).toList() ?? [],
+      'cameraClearLayout': {
+        'gap': SaVideoExport.cameraClearGap,
+        'intervalUs': SaVideoExport.cameraClearInterval.inMicroseconds,
+        'mass': SaSprings.camera.mass,
+        'stiffness': SaSprings.camera.stiffness,
+        'damping': SaSprings.camera.damping,
+      },
+    },
     if (cameraPunches != null && cameraPunches!.count > 0) ...{
       'punchSteps': cameraPunches!.steps.map((s) => s.toJson()).toList(),
       'punchMain': cameraPunchMain,

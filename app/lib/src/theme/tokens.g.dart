@@ -545,6 +545,14 @@ abstract final class SaVideoExport {
   static const Duration cameraPunchInterval = Duration(milliseconds: 8000);
   /// Camera emphasis hold after the stressed word; clamp at the source cut.
   static const Duration cameraPunchHold = Duration(milliseconds: 1400);
+  /// Fresh visible pointer protection window; expires at a source cut.
+  static const Duration cameraClearHold = Duration(milliseconds: 700);
+  /// Coalesce stationary pointer targets within this source fraction.
+  static const double cameraClearDistance = 0.02;
+  /// Target clearance around a moving camera bubble at a 1080px short edge.
+  static const double cameraClearGap = 24.0;
+  /// Minimum time between camera corner changes.
+  static const Duration cameraClearInterval = Duration(milliseconds: 1400);
 }
 
 /// The four type voices: display, reading, signal and pencil.

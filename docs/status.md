@@ -62,6 +62,26 @@ build step 2 (screen recording).
 
 ## Handover (2026-10-05): from here, Codex on the owner's Windows PC
 
+- **Latest checkpoint (2026-10-07, camera placement):** 832 Flutter tests,
+  266 screenshots and clean analysis. Keep the camera clear starts on for
+  Screen + camera with local activity unless system reduced motion is set.
+  A fixed-size camera slides on the camera spring between lower corners
+  only when a fresh pointer/active zoom target covers the current corner.
+  Holds, clearance and move interval are token-driven; source cuts reset,
+  continuous splits stay identical and absent camera frames stay absent.
+  Screen crop/frame mapping, click exclusion and masks share the moving
+  rectangle. EN/FR/AR saved-take on/off, hidden camera, missing activity,
+  clock/order/privacy bounds and frozen recovery after activity removal pass.
+  Native decoded wide/framed motion, continuous pixels and source-cut reset
+  pass with the full render suite. Six actual app-channel EN/FR/AR wide/feed/
+  portrait on/off exports preserve exact subtitles, history and originals.
+  EN/AR phone and native framed PNGs inspected. No new owner media/input,
+  dependency, face inference, upload or private logs. **Half done:** directional
+  blur, smooth cursor, sound/coaching and editor/export tools remain. Continue
+  the Cut tracks; cursor replacement needs explicit cursor-free capture
+  provenance because existing WGC videos contain a baked-in pointer. Owner
+  trials remain deferred; mobile and paid launch are unfinished.
+
 - **Latest checkpoint (2026-10-07, effects after recording):** 815 Flutter
   tests, 260 screenshots and clean analysis. The owner clarified that camera
   emphasis must be addable/removable after recording, including later from a
@@ -999,6 +1019,14 @@ build step 2 (screen recording).
 
 ## Decisions
 
+- 2026-10-07, camera placement: an independent after-recording Keep the camera
+  clear choice starts on for paired-camera/local-activity exports, except
+  reduced motion. Keep size/vertical position fixed; use the camera spring,
+  two lower corners, 700ms fresh pointer windows, 2% source coalescing, 24px
+  clearance at a 1080px short edge and 1400ms between moves. Keep the current
+  corner if both are occupied or evidence expires; reset at source cuts.
+  Use existing opt-in activity only and save text-free immutable windows.
+
 - 2026-10-07, effects after recording: the owner requires camera emphasis to
   be addable/removable after Stop and later from a reopened saved take. Effects
   are chosen for each new export; originals and earlier saved videos stay
@@ -1248,6 +1276,22 @@ build step 2 (screen recording).
   word lists, not prosody.
 
 ## Session log
+
+- 2026-10-07, camera placement:
+  - Added bounded pointer-window planning, cut/reorder/continuous clocks and
+    independent export choice/history/recovery. Notes need no script match.
+    Native corner selection maps existing pointer and zoom targets through
+    source resize, crop and frame placement. Bubble springs stay bounded;
+    click effects/frame masks use its actual destination and source cuts
+    reset it. Missing activity keeps a fixed camera without new collection.
+  - Clean analysis, all 832 Flutter tests and 266 screenshots pass. Full native
+    render suite, generated decoded movement/continuous pixels/cut resets and
+    six real app-channel EN/FR/AR wide/feed/portrait on/off exports pass.
+    Original media, words, activity and earlier saved versions stay intact.
+    EN/AR phone and native framed PNGs inspected. No owner media/input, new
+    package, model, copied code, upload or private diagnostic. Owner trials
+    stay deferred. Blur/cursor, sound/coaching, editor tools, mobile and launch
+    remain unfinished; continue from the handover above.
 
 - 2026-10-07, saved-take effect choices:
   - Clarified the existing post-recording effect choices in the design, brief

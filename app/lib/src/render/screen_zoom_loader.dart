@@ -7,6 +7,7 @@ import '../transcription/speech_processor.dart';
 import 'screen_zooms.dart';
 import 'screen_clicks.dart';
 import 'screen_shortcuts.dart';
+import 'camera_targets.dart';
 
 class ScreenZoomJob {
   const ScreenZoomJob(
@@ -18,6 +19,8 @@ class ScreenZoomJob {
     this.autoZoom = true,
     this.clickDuration = Duration.zero,
     this.shortcutDuration = Duration.zero,
+    this.cameraHold = Duration.zero,
+    this.cameraDistance = .02,
   });
   final String source, activity;
   final CutPlan plan;
@@ -26,6 +29,8 @@ class ScreenZoomJob {
   final bool autoZoom;
   final Duration clickDuration;
   final Duration shortcutDuration;
+  final Duration cameraHold;
+  final double cameraDistance;
 }
 
 class LoadedScreenZooms {
@@ -34,11 +39,13 @@ class LoadedScreenZooms {
     this.unavailable = false,
     this.clicks,
     this.shortcuts,
+    this.cameraTargets,
   });
   final ScreenZooms zooms;
   final bool unavailable;
   final ScreenClicks? clicks;
   final ScreenShortcuts? shortcuts;
+  final CameraTargets? cameraTargets;
 }
 
 Future<LoadedScreenZooms> loadScreenZooms(ScreenZoomJob job) async {
@@ -81,6 +88,9 @@ Future<LoadedScreenZooms> loadScreenZooms(ScreenZoomJob job) async {
     final shortcuts = job.shortcutDuration > Duration.zero
         ? ScreenShortcutPlanner(job.shortcutDuration)
         : null;
+    final camera = job.cameraHold > Duration.zero
+        ? CameraTargetPlanner(job.cameraHold, job.cameraDistance)
+        : null;
     await for (final row in activityRows(file)) {
       if (row['type'] == 'header' || row['type'] == 'end') continue;
       final event = ActivityEvent.fromJson(row);
@@ -88,12 +98,14 @@ Future<LoadedScreenZooms> loadScreenZooms(ScreenZoomJob job) async {
         if (job.autoZoom) planner.add(event);
         clicks?.add(event);
         shortcuts?.add(event);
+        camera?.add(event);
       }
     }
     return LoadedScreenZooms(
       planner.finish(job.plan),
       clicks: clicks?.finish(job.plan),
       shortcuts: shortcuts?.finish(job.plan),
+      cameraTargets: camera?.finish(job.plan),
     );
   } on Object {
     // Generic information only, never private paths, activity or exceptions.

@@ -114,6 +114,13 @@ paid release, a lawyer should review:
   recordings get no effect. Reduced motion disables its starting choice. This
   is a reversible export effect, without a new model, delivery score, copied
   code, package, data collection or upload. Original media remains read-only.
+- Optional camera placement uses only existing explicitly enabled local
+  pointer/activity targets. Bounded time/normalized-position windows contain
+  no typed text, labels, face data or private paths. Installed Direct3D moves
+  the fixed-size bubble on the existing camera spring; click/frame protection
+  uses that same rectangle. Choices and frozen targets stay local and survive
+  later activity removal. No new input collection, model, dependency, upload
+  or copied code. Original media and earlier video versions remain intact.
 - Optional captions on video use installed DirectWrite/Direct2D and the already
   bundled OFL Anybody/Reem Kufi fonts through a private local font collection.
   No font installation/download, new package, copied code or network service.
@@ -249,6 +256,7 @@ person using the app.
 | Windows render-core risk spike and portable EDL | Checked 2026-10-06 in Debug/Release with generated colour/tone files only. Uses installed D3D11/Media Foundation; no dependency, bundled codec, copied code, model or owner media/input. EDL has no paths/platform IDs. Full exporter/captions/mobile pipeline and launch legal review remain pending; see render-core-spike.md |
 | Optional Windows recording activity: explicit local-only choice, anonymous typing, source scoping, safe recovery | Implemented 2026-10-06. Initially off; setup explains what is saved and never typed text. Fixed Ctrl shortcut allowlist, no AltGr text translation, scan codes, titles, handles or device IDs. Raw-input receiver does not consume owner input and stops with capture. Bounded queue/streaming inspection, no private logs/network/dependency/copied code. Pure privacy/common-clock, in-memory own-window exclusion and generated full-take checks pass. Owner trials deferred |
 | Font licences bundled and shown | Done |
+| Optional Windows camera placement | Checked 2026-10-07 with EN/FR/AR saved-take on/off, hidden-camera/missing-activity protection, bounded text-free windows, cut/reorder/continuous clocks and frozen recovery after activity removal. Native generated geometry and decoded wide/framed movement, continuous pixels and cut resets pass; six actual app-channel wide/feed/portrait on/off exports preserve subtitles/history/original bytes. Uses installed Direct3D and existing camera spring only. No new owner input/media, model, package, upload or private logging. Real hardware/quality trials and launch review remain pending |
 | Automatic after-stop processing and live-input release | Checked 2026-10-06 with generated speech only. EN/FR/AR Script/Notes, missing setup without HTTP, pre-start cancellation, reuse/reload and recorder input lifetime pass. Cached public model copied after size/SHA-256 verification. No owner recordings processed, dependency added or private errors logged. Hardware/language trials remain deferred |
 | Local transcript wording corrections | Checked 2026-10-06 with pure EN/FR/AR fixtures and generated native Script/Notes speech. Original recognized text, confidence and times are retained locally; correction/restore creates immutable revisions, rebuilds cuts and preserves earlier exports. No model/network/owner input required. Failed attachment rollback, stale/concurrent rejection and retry pass. Notes/computer-only stay unscored; time editing, filler/retake policy and real-language quality trials remain pending |
 | Windows first video exporter and local history | Checked 2026-10-06 with generated colors/tones only: all four formats, exact video clock, selected/reordered audio, mono/stereo resampling, silent source, camera inset/end, Unicode paths, paused playback, cancellation, damaged input, overwrite rejection and caption/library failure recovery. No owner media/input, new dependency, copied code, network or bundled codec. Full Cut polish/mobile implementation and launch counsel review remain pending |

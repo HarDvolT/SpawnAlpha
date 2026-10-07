@@ -647,6 +647,71 @@ void CheckCameraPunch(ID3D11Device* device, const std::wstring& prefix, const ch
     Require(rejected && GetFileAttributesW(bad.output.c_str()) == INVALID_FILE_ATTRIBUTES);
   }
 }
+void CheckCameraPlacement(ID3D11Device* device, const std::wstring& prefix, const char*& stage) {
+  stage = "verify camera placement geometry, stability, zoom and source resets";
+  const RECT screen{0, 0, 1000, 1000}, camera{700, 700, 960, 960};
+  CameraClearLayout layout{true, 24, 1400000, {1, 90, 19}};
+  CameraPlacement movement;
+  movement.Open({{100000, 900000, .8, .8, 1000, 1000}, {2000000, 3000000, .1, .8, 1000, 1000}}, {}, layout, 4000000, 1000, 1000);
+  movement.Reset(0);
+  Require(movement.Place(0, screen, screen, screen, camera, 40).left == 700);
+  const auto first = movement.Place(100000, screen, screen, screen, camera, 40);
+  Require(first.left == 700);
+  const auto moving = movement.Place(400000, screen, screen, screen, camera, 40);
+  Require(moving.left > 40 && moving.left < 700 && moving.top == camera.top && moving.right - moving.left == 260);
+  Require(movement.Place(1500000, screen, screen, screen, camera, 40).left <= 41);
+  movement.Place(2000000, screen, screen, screen, camera, 40);
+  Require(movement.Place(3400000, screen, screen, screen, camera, 40).left >= 699);
+  movement.Reset(3500000);
+  Require(movement.Place(3500000, screen, screen, screen, camera, 40).left == 700);
+  CameraPlacement zoom;
+  zoom.Open({}, {{0, .8, .8, 1.8, 1000, 1000}, {2000000, .8, .8, 1, 1000, 1000}}, layout, 4000000, 1000, 1000);
+  zoom.Reset(0); zoom.Place(0, screen, screen, screen, camera, 40);
+  Require(zoom.Place(1500000, screen, screen, screen, camera, 40).left <= 41);
+  // An out-of-viewport target must not displace the camera.
+  CameraPlacement cropped;
+  cropped.Open({{0, 4000000, .9, .9, 1000, 1000}}, {}, layout, 4000000, 1000, 1000);
+  cropped.Reset(0); const RECT crop{0, 0, 500, 500};
+  Require(cropped.Place(0, screen, crop, screen, camera, 40).left == 700);
+  Require(cropped.Place(1500000, screen, crop, screen, camera, 40).left == 700);
+  for (int variant = 0; variant < 4; ++variant) {
+    auto bad = layout; if (variant == 0) bad.gap = NAN;
+    if (variant == 1) bad.interval_us = 0;
+    if (variant == 2) bad.spring.mass = 0;
+    std::vector<CameraTarget> t{{0, variant == 3 ? 5000000 : 4000000, .8, .8, 1000, 1000}};
+    bool rejected = false; try { CameraPlacement invalid; invalid.Open(t, {}, bad, 4000000, 1000, 1000); } catch (...) { rejected = true; }
+    Require(rejected);
+  }
+  const auto source = prefix + L"-clear-screen.mp4", paired = prefix + L"-clear-camera.mp4";
+  stage = "generate camera placement screen and camera colours";
+  GenerateZoomSource(device, source); GenerateZoomSource(device, paired);
+  std::atomic<bool> cancel{false};
+  for (bool framed : {false, true}) {
+    LocalRenderRequest request{source, paired, prefix + (framed ? L"-clear-frame.mp4" : L"-clear.mp4"), 4000000, 960, 540, {{0, 4000000}}};
+    request.camera_inset = .28; request.camera_margin = .04; request.camera_clear = layout;
+    request.camera_targets = {{100000, 3000000, .85, .85, kWidth, kHeight}};
+    if (framed) request.screen_frame = FrameFixture();
+    stage = "render moving camera with shared frame and click geometry";
+    RenderLocalVideo(request, cancel, [](double) {});
+    const auto before = FramePixels(request.output, request.width, request.height, 0);
+    const auto during = FramePixels(request.output, request.width, request.height, 45);
+    const UINT left = (440 * request.width + 40) * 4, right = (440 * request.width + 710) * 4;
+    // Camera bars replace the blue screen at the left and reveal red screen at the right.
+    Require(before[left + 2] < 100 && during[left + 2] < 100);
+    const UINT center_left = (440 * request.width + 154) * 4;
+    Require(before[center_left + 1] < 130 && during[center_left + 1] > 150);
+    Require(before[right] > 150 && during[right + 2] > 150);
+    SaveCaptionPng(request.output + L".png", request.width, request.height, during.data());
+    auto split = request; split.output += L"-split.mp4"; split.ranges = {{0, 700000}, {700000, 4000000}};
+    stage = "verify continuous split leaves camera pixels identical"; RenderLocalVideo(split, cancel, [](double) {});
+    Require(FramePixels(split.output, split.width, split.height, 45) == during);
+    auto cut = request; cut.output += L"-cut.mp4"; cut.ranges = {{0, 2000000}, {3000000, 4000000}};
+    cut.camera_targets.front().end_us = 2000000;
+    stage = "verify camera reset at a discontinuous source cut"; RenderLocalVideo(cut, cancel, [](double) {});
+    const auto reset = FramePixels(cut.output, cut.width, cut.height, 60);
+    Require(reset[center_left + 1] < 130 && reset[right] > 150);
+  }
+}
 void CheckWriterUnwind(ID3D11Device* device, const std::wstring& prefix) {
   for (bool queued : {false, true}) {
     const auto output = prefix + (queued ? L"-failed-queued.mp4" : L"-failed-empty.mp4");
@@ -667,7 +732,7 @@ void CheckWriterUnwind(ID3D11Device* device, const std::wstring& prefix) {
   }
 }
 int wmain(int count, wchar_t** args) {
-  if (count != 2 && (count != 3 || (std::wstring(args[2]) != L"--camera-only" && std::wstring(args[2]) != L"--cleanup-only"))) return 2;
+  if (count != 2 && (count != 3 || (std::wstring(args[2]) != L"--camera-only" && std::wstring(args[2]) != L"--cleanup-only" && std::wstring(args[2]) != L"--placement-only"))) return 2;
   const auto com = CoInitializeEx(nullptr, COINIT_MULTITHREADED); if (FAILED(com)) return 3;
   const char* stage = "initialize";
   try {
@@ -906,8 +971,12 @@ int wmain(int count, wchar_t** args) {
       Require(rejected && GetFileAttributesW(request.output.c_str()) == INVALID_FILE_ATTRIBUTES);
       }
       if (count == 2 || std::wstring(args[2]) == L"--camera-only") CheckCameraPunch(device.get(), prefix, stage);
+      if (count == 2 || std::wstring(args[2]) == L"--placement-only") CheckCameraPlacement(device.get(), prefix, stage);
     }
-    if (count == 3) std::cout << "Focused local render check passed: " << (std::wstring(args[2]) == L"--cleanup-only" ? "injected zero/one-sample failure cleanup" : "camera crops/cut resets and failure cleanup") << ".\n";
+    if (count == 3) std::cout << "Focused local render check passed: " <<
+      (std::wstring(args[2]) == L"--cleanup-only" ? "injected zero/one-sample failure cleanup" :
+       std::wstring(args[2]) == L"--placement-only" ? "camera placement geometry/pixels, frame mapping and source resets" :
+       "camera crops/cut resets and failure cleanup") << ".\n";
     else std::cout << "Local render check passed: streaming PCM/GPU pair, source selection/reordering, reviewed filler and retake tone/picture removal, silent input, stereo resampling, EN/FR/AR Readable/Karaoke/Cue/Punch timing and safe pixels, word reveal, emphasis, spring motion and Still, RTL underline, gaps, vertical Arabic, no clipped words, camera inset/end, exact portrait duration, cancel cleanup, damaged input, overwrite protection, centred main/paired camera crops/cut resets and injected zero/one-sample failure cleanup.\n";
     MFShutdown(); CoUninitialize(); return 0;
   } catch (...) {

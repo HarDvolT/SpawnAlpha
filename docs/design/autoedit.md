@@ -208,6 +208,27 @@ discarded attempts cannot supply evidence. A visible click still supplies the
 position. The ordinary Auto-zoom switch controls these targets too, and no
 transcript text is written into portable zoom metadata.
 
+### Windows camera placement
+
+Screen + camera exports with saved local activity offer **Keep the camera clear**,
+initially on unless system reduced motion is requested. The switch applies to a
+new saved version and works after reopening a take. The bubble keeps its size
+and vertical position, sliding between the two lower corners on `spring-camera`
+only when its current corner covers a fresh visible pointer or an active zoom
+target. Pointer targets hold for 700ms, coalesce within 2% of source dimensions,
+and expire at source cuts. A 24px clearance at a 1080px short edge protects the
+target. A 1400ms minimum between moves prevents rapid corner hopping. When both
+corners are occupied, retain the current corner; never hide or shrink the camera.
+Do not spring back just because activity ends. A discontinuous cut resets to
+the lower-right corner; continuous source splits do not reset motion.
+
+Targets use the existing explicitly enabled local activity only: no new hooks,
+typed characters, face inference or upload. Resize/letterbox/zoom/frame mapping
+must match the screen compositor. Click effects and frame masks follow the same
+moving camera rectangle. Missing camera frames remain absent. Notes need no
+script alignment. Bounded immutable target windows and the switch survive
+history/recovery; old exports keep their fixed corner.
+
 ### Windows camera emphasis
 
 Scripted Camera/Both exports offer **Emphasize the camera**, initially on

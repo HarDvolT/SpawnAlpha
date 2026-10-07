@@ -44,6 +44,8 @@ class VideoExportPanel extends StatelessWidget {
     this.hasCameraEmphasis = false,
     this.cameraPunch = true,
     this.onCameraPunch,
+    this.cameraClear = true,
+    this.onCameraClear,
   });
   final VideoFormat format;
   final ValueChanged<VideoFormat> onFormat;
@@ -73,6 +75,8 @@ class VideoExportPanel extends StatelessWidget {
   final ValueChanged<bool>? onScreenFrame;
   final bool hasCameraEmphasis, cameraPunch;
   final ValueChanged<bool>? onCameraPunch;
+  final bool cameraClear;
+  final ValueChanged<bool>? onCameraClear;
   final List<VideoExport> videos;
   final ValueChanged<VideoExport> onView, onShow;
 
@@ -92,7 +96,8 @@ class VideoExportPanel extends StatelessWidget {
           '${video.clickCount > 0 ? ' · ${video.clickCount} click highlights' : ''}'
           '${video.shortcutCount > 0 ? ' · ${video.shortcutCount} shortcuts' : ''}'
           '${video.screenFrame ? ' · Framed screen' : ''}'
-          '${video.cameraPunchCount > 0 ? ' · ${video.cameraPunchCount} camera accents' : ''}',
+          '${video.cameraPunchCount > 0 ? ' · ${video.cameraPunchCount} camera accents' : ''}'
+          '${video.cameraClear ? ' · Camera stays clear' : ''}',
           style: SaType.signalLabel.copyWith(color: p.ink2),
         ),
         TextButton.icon(
@@ -167,6 +172,18 @@ class VideoExportPanel extends StatelessWidget {
             title: const Text('Emphasize the camera'),
             subtitle: const Text(
               'Gently zoom in on marked emphasis in takes of 20 seconds or more.',
+            ),
+          ),
+        if (hasCamera && includeCamera && hasScreenActivity)
+          CheckboxListTile(
+            contentPadding: EdgeInsets.zero,
+            value: cameraClear,
+            onChanged: busy
+                ? null
+                : (value) => onCameraClear?.call(value ?? false),
+            title: const Text('Keep the camera clear'),
+            subtitle: const Text(
+              'Move the camera aside when it covers the pointer or a zoom target.',
             ),
           ),
         if (hasScreen)

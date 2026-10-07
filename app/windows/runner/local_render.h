@@ -9,6 +9,7 @@
 #include "screen_zoom.h"
 #include "click_overlay.h"
 #include "screen_frame.h"
+#include "camera_placement.h"
 struct RenderRange { int64_t start_us, end_us; };
 struct CameraPunchStep { int64_t time_us = 0; bool zoomed = false; };
 struct LocalRenderRequest {
@@ -31,6 +32,8 @@ struct LocalRenderRequest {
   bool punch_main = false;
   double punch_factor = 0;
   ZoomSpring punch_spring;
+  std::vector<CameraTarget> camera_targets;
+  CameraClearLayout camera_clear;
 };
 // COM/MF initialized worker only. Original media is read-only, packets are bounded,
 // output is created exclusively, and failure/cancellation removes only that output.

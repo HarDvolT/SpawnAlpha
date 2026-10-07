@@ -11,6 +11,7 @@ import '../render/screen_zooms.dart';
 import '../render/screen_clicks.dart';
 import '../render/screen_shortcuts.dart';
 import '../render/camera_punches.dart';
+import '../render/camera_targets.dart';
 import '../theme/tokens.g.dart';
 
 class ExportReservation {
@@ -25,6 +26,7 @@ class ExportReservation {
     this.screenClicks,
     this.screenShortcuts,
     this.cameraPunches,
+    this.cameraTargets,
   });
   final String scriptId, source;
   final VideoExport video;
@@ -34,6 +36,7 @@ class ExportReservation {
   final ScreenClicks? screenClicks;
   final ScreenShortcuts? screenShortcuts;
   final CameraPunches? cameraPunches;
+  final CameraTargets? cameraTargets;
   Map<String, Object?> toJson({bool complete = false}) => {
     'version': 1,
     'scriptId': scriptId,
@@ -47,6 +50,7 @@ class ExportReservation {
     if (screenClicks != null) 'screenClicks': screenClicks!.toJson(),
     if (screenShortcuts != null) 'screenShortcuts': screenShortcuts!.toJson(),
     if (cameraPunches != null) 'cameraPunches': cameraPunches!.toJson(),
+    if (cameraTargets != null) 'cameraTargets': cameraTargets!.toJson(),
   };
 }
 
@@ -87,13 +91,16 @@ class VideoExportStore {
     ScreenClicks? screenClicks,
     ScreenShortcuts? screenShortcuts,
     CameraPunches? cameraPunches,
+    CameraTargets? cameraTargets,
   }) async {
+    cameraTargets?.validateClock(plan);
     cameraPunches?.validateClock(
       plan,
       minimum: SaVideoExport.cameraPunchMinimum,
       interval: SaVideoExport.cameraPunchInterval,
     );
-    if ((cameraPunches?.count ?? 0) != video.cameraPunchCount ||
+    if ((cameraTargets?.targets.isNotEmpty ?? false) && !video.cameraClear ||
+        (cameraPunches?.count ?? 0) != video.cameraPunchCount ||
         (cameraPunches?.steps.any((s) => s.time > plan.duration) ?? false) ||
         (screenShortcuts?.count ?? 0) != video.shortcutCount ||
         (screenShortcuts?.badges.any((b) => b.end > plan.duration) ?? false) ||
@@ -125,6 +132,7 @@ class VideoExportStore {
       screenClicks: screenClicks,
       screenShortcuts: screenShortcuts,
       cameraPunches: cameraPunches,
+      cameraTargets: cameraTargets,
     );
     await _write(_journal(video), reservation.toJson());
     return reservation;
@@ -204,6 +212,8 @@ class VideoExportStore {
         'screenShortcuts': reservation.screenShortcuts!.toJson(),
       if (reservation.cameraPunches != null)
         'cameraPunches': reservation.cameraPunches!.toJson(),
+      if (reservation.cameraTargets != null)
+        'cameraTargets': reservation.cameraTargets!.toJson(),
     });
     await _attach(reservation);
   }
@@ -318,12 +328,20 @@ class VideoExportStore {
             : CameraPunches.fromJson(
                 json['cameraPunches']! as Map<String, Object?>,
               );
+        final cameraTargets = json['cameraTargets'] == null
+            ? null
+            : CameraTargets.fromJson(
+                json['cameraTargets']! as Map<String, Object?>,
+              );
+        cameraTargets?.validateClock(plan);
         punches?.validateClock(
           plan,
           minimum: SaVideoExport.cameraPunchMinimum,
           interval: SaVideoExport.cameraPunchInterval,
         );
-        if ((punches?.count ?? 0) != video.cameraPunchCount ||
+        if ((cameraTargets?.targets.isNotEmpty ?? false) &&
+                !video.cameraClear ||
+            (punches?.count ?? 0) != video.cameraPunchCount ||
             (punches?.steps.any((s) => s.time > plan.duration) ?? false) ||
             (shortcuts?.count ?? 0) != video.shortcutCount ||
             (shortcuts?.badges.any((b) => b.end > plan.duration) ?? false) ||
@@ -354,6 +372,7 @@ class VideoExportStore {
             screenClicks: clicks,
             screenShortcuts: shortcuts,
             cameraPunches: punches,
+            cameraTargets: cameraTargets,
           ),
         );
         ++recovered;

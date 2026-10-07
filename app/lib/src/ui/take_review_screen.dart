@@ -63,6 +63,7 @@ class _TakeReviewScreenState extends State<TakeReviewScreen> {
   bool _showShortcuts = true;
   bool _screenFrame = true;
   bool? _cameraPunch;
+  bool? _cameraClear;
   List<VideoExport> _videos = [];
   VideoExport? _viewing;
   final _reviewScroll = ScrollController();
@@ -200,6 +201,7 @@ class _TakeReviewScreenState extends State<TakeReviewScreen> {
       showShortcuts: _showShortcuts,
       screenFrame: _screenFrame,
       cameraPunch: _cameraPunch ?? !MediaQuery.disableAnimationsOf(context),
+      cameraClear: _cameraClear ?? !MediaQuery.disableAnimationsOf(context),
     );
     final saved = await app.videoExports.load(_latestTake(app));
     if (mounted) {
@@ -595,6 +597,10 @@ class _TakeReviewScreenState extends State<TakeReviewScreen> {
                   onCameraPunch: (value) =>
                       setState(() => _cameraPunch = value),
                   includeCamera: _cameraInExport,
+                  cameraClear:
+                      _cameraClear ?? !MediaQuery.disableAnimationsOf(context),
+                  onCameraClear: (value) =>
+                      setState(() => _cameraClear = value),
                   onCamera: (value) => setState(() => _cameraInExport = value),
                   hasCaptions: words.isNotEmpty,
                   hasScreenActivity:

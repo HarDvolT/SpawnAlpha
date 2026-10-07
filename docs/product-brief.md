@@ -120,7 +120,9 @@ Revised 2026-09-30 by the owner. Screen recording moves up, and the automatic ed
      are connected too, along with optional glass shortcut badges for
      allowlisted modifier chords. Ordinary typing stays hidden.
      Optional rounded screen frames, local dark backdrops and soft shadows
-     are connected. Optional camera emphasis uses reliable spoken accepted
+     are connected. Optional paired-camera placement avoids fresh pointers
+     and zoom targets using saved local activity and a reversible export
+     choice. Optional camera emphasis uses reliable spoken accepted
      Script stress cues, with a subtle centred crop, a separate switch and
      a reduced-motion default. It stays off for takes/cuts under 20 seconds
      and spaces entrances by eight seconds. Smooth cursor/blur and moving
