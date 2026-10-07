@@ -33,6 +33,7 @@ class VideoRenderRequest {
     this.cameraPunches,
     this.cameraPunchMain = false,
     this.cameraClear = false,
+    this.motionBlur = false,
     this.cameraTargets,
     List<Caption> captions = const [],
   }) : captions = List.unmodifiable(
@@ -45,6 +46,9 @@ class VideoRenderRequest {
            ),
          ),
        ) {
+    if (motionBlur && ((screenZooms?.count ?? 0) == 0 || cameraPunchMain)) {
+      throw const FormatException('Invalid screen motion blur');
+    }
     cameraTargets?.validateClock(plan);
     if (cameraClear && camera == null ||
         (cameraTargets?.targets.isNotEmpty ?? false) &&
@@ -143,6 +147,7 @@ class VideoRenderRequest {
   final CameraPunches? cameraPunches;
   final bool cameraPunchMain;
   final bool cameraClear;
+  final bool motionBlur;
   final CameraTargets? cameraTargets;
   final List<Caption> captions;
   Map<String, Object?> toJson() => {
@@ -158,6 +163,12 @@ class VideoRenderRequest {
         ? SaVideoExport.audioJoinFade.inMicroseconds
         : 0,
     'ranges': plan.ranges.map((r) => r.toJson()).toList(),
+    if (motionBlur)
+      'screenBlur': {
+        'maximum': SaScreenFx.blurMax,
+        'minimum': SaScreenFx.blurMinimum,
+        'shutterUs': SaScreenFx.blurShutter.inMicroseconds,
+      },
     if (cameraClear) ...{
       'cameraTargets':
           cameraTargets?.targets.map((t) => t.toJson()).toList() ?? [],

@@ -33,8 +33,10 @@ class VideoExport {
     this.screenFrame = false,
     this.cameraPunchCount = 0,
     this.cameraClear = false,
+    this.motionBlur = false,
   }) {
-    if (cameraClear && !camera ||
+    if (motionBlur && zoomCount == 0 ||
+        cameraClear && !camera ||
         cameraPunchCount < 0 ||
         cameraPunchCount > 10000 ||
         shortcutCount < 0 ||
@@ -65,6 +67,7 @@ class VideoExport {
   final bool screenFrame;
   final int cameraPunchCount;
   final bool cameraClear;
+  final bool motionBlur;
   Map<String, Object?> toJson() => {
     'id': id,
     'format': format.name,
@@ -84,6 +87,7 @@ class VideoExport {
     'screenFrame': screenFrame,
     'cameraPunchCount': cameraPunchCount,
     'cameraClear': cameraClear,
+    'motionBlur': motionBlur,
   };
   factory VideoExport.fromJson(Map<String, Object?> json) {
     final format = VideoFormat.values
@@ -115,7 +119,8 @@ class VideoExport {
         (json['screenFrame'] != null && json['screenFrame'] is! bool) ||
         (json['cameraPunchCount'] != null &&
             json['cameraPunchCount'] is! int) ||
-        (json['cameraClear'] != null && json['cameraClear'] is! bool)) {
+        (json['cameraClear'] != null && json['cameraClear'] is! bool) ||
+        (json['motionBlur'] != null && json['motionBlur'] is! bool)) {
       throw const FormatException('Invalid video export');
     }
     try {
@@ -138,6 +143,7 @@ class VideoExport {
         screenFrame: json['screenFrame'] as bool? ?? false,
         cameraPunchCount: json['cameraPunchCount'] as int? ?? 0,
         cameraClear: json['cameraClear'] as bool? ?? false,
+        motionBlur: json['motionBlur'] as bool? ?? false,
       );
     } on ArgumentError {
       throw const FormatException('Invalid video export');

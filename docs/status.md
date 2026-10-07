@@ -62,6 +62,27 @@ build step 2 (screen recording).
 
 ## Handover (2026-10-05): from here, Codex on the owner's Windows PC
 
+- **Latest checkpoint (2026-10-07, screen motion blur):** 846 Flutter tests,
+  272 screenshots and clean analysis. Soften zoom motion starts on for screen
+  activity zooms unless system reduced motion is set. An explicit later export
+  choice overrides it. Unrounded viewport spring geometry drives directional
+  blur with a token 16ms shutter, 6px cap and 0.5px threshold at a 1080px short
+  edge. Source cuts reset it, continuous splits stay identical, and first/
+  settled frames stay sharp. This fixes a final two-pixel crop-quantization
+  flash found during generated tests. The main screen is blurred before the
+  separate camera, captions, clicks and frame; a GPU copy keeps source and
+  target distinct. Existing exports remain unchanged and legacy choice is off.
+  The full native suite and decoded direction/cap, sharp camera/still frames,
+  continuous pixels and cut resets pass. Cut comparison permits only measured encoder residuals
+  (max four code values), not a blur flash. Six app-channel EN/FR/AR wide/feed/
+  portrait on/off exports preserve exact subtitles, history and original
+  words/media/activity. EN/AR phone and native paired PNGs inspected. No new
+  owner media/input, package, model, asset, upload or private logs. **Half done:**
+  smooth cursor, further sound/coaching and editor/export tools remain. Continue
+  the Cut tracks; cursor replacement requires explicit cursor-free capture
+  provenance. Owner trials stay deferred; mobile and paid launch are unfinished.
+  The Claude design artifact is behind the current docs/design source.
+
 - **Latest checkpoint (2026-10-07, camera placement):** 832 Flutter tests,
   266 screenshots and clean analysis. Keep the camera clear starts on for
   Screen + camera with local activity unless system reduced motion is set.
@@ -1019,6 +1040,13 @@ build step 2 (screen recording).
 
 ## Decisions
 
+- 2026-10-07, screen motion blur: an independent reversible Soften zoom motion
+  choice starts on for screen zooms except reduced motion. Use unrounded screen
+  viewport displacement, a 16ms shutter, the existing 6px blur cap and a 0.5px
+  threshold at a 1080px short edge. Draw the screen before the camera and other
+  layers; keep still frames sharp and reset at discontinuous source cuts.
+  No Camera-take blur, new input collection or dependency.
+
 - 2026-10-07, camera placement: an independent after-recording Keep the camera
   clear choice starts on for paired-camera/local-activity exports, except
   reduced motion. Keep size/vertical position fixed; use the camera spring,
@@ -1276,6 +1304,21 @@ build step 2 (screen recording).
   word lists, not prosody.
 
 ## Session log
+
+- 2026-10-07, screen motion blur:
+  - Added export-time choice/history, system reduced-motion starting choice,
+    screen-only guards and installed Direct2D directional blur. Main-picture
+    GPU snapshot/effect rendering precedes independent camera composition and
+    all overlays. The camera stays sharp. Unrounded viewport springs eliminate
+    a final crop-quantization flash; discontinuous cuts reset the motion sample.
+  - Clean analysis, all 846 Flutter tests and 272 screenshots pass. Native
+    full suite plus generated direction/cap, first/settled/camera sharpness, continuous pixels
+    and cut-reset checks pass. Six real app-channel EN/FR/AR wide/feed/portrait
+    on/off exports preserve exact subtitles, original media/words/activity and
+    history. EN/AR phone and native paired PNGs inspected. No owner input/media,
+    new dependency, copied code, model, asset, upload or private diagnostic.
+    Smooth cursor, sound/coaching, editor tools, mobile and launch remain;
+    owner trials stay deferred.
 
 - 2026-10-07, camera placement:
   - Added bounded pointer-window planning, cut/reorder/continuous clocks and

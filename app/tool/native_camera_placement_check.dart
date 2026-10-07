@@ -24,6 +24,8 @@ bool sameBytes(List<int> a, List<int> b) =>
     a.length == b.length && a.indexed.every((v) => v.$2 == b[v.$1]);
 
 Future<void> main() async {
+  const blurCheck = bool.fromEnvironment('SPAWNALPHA_BLUR_CHECK');
+  const kind = blurCheck ? 'blur' : 'clear';
   WidgetsFlutterBinding.ensureInitialized();
   runApp(
     const MaterialApp(
@@ -37,12 +39,12 @@ Future<void> main() async {
   ExportProcessor? job;
   try {
     final prefix = (await File(
-      'build/clear-fixture-prefix.txt',
+      'build/$kind-fixture-prefix.txt',
     ).readAsString()).trim();
     require(
-      prefix.startsWith('${Directory.current.path}\\build\\exports\\clear-'),
+      prefix.startsWith('${Directory.current.path}\\build\\exports\\$kind-'),
     );
-    final root = await Directory('build/exports').createTemp('clear-app-');
+    final root = await Directory('build/exports').createTemp('$kind-app-');
     library = ScriptLibrary(
       FileScriptStore(Directory('${root.absolute.path}/scripts')),
     );
@@ -62,10 +64,12 @@ Future<void> main() async {
     );
     for (final language in ScriptLanguage.values) {
       stage = 'prepare generated paired take';
-      final source = await File('$prefix-clear-screen.mp4')
-          .copy('${root.absolute.path}/${language.name}.mp4');
-      final camera = await File('$prefix-clear-camera.mp4')
-          .copy('${root.absolute.path}/${language.name}-camera.mp4');
+      final source = await File(
+        '$prefix${blurCheck ? '-blur-source.mp4' : '-clear-screen.mp4'}',
+      ).copy('${root.absolute.path}/${language.name}.mp4');
+      final camera = await File(
+        '$prefix${blurCheck ? '-blur-source.mp4' : '-clear-camera.mp4'}',
+      ).copy('${root.absolute.path}/${language.name}-camera.mp4');
       final activity = File('${source.path}.activity.jsonl');
       await activity.writeAsString(
         [
@@ -77,14 +81,18 @@ Future<void> main() async {
           }),
           for (final ms in [100, 400, 700, 1000, 1300, 1600, 1900, 2200, 2500])
             jsonEncode({
-              'type': 'cursor',
+              'type': blurCheck && (ms == 700 || ms == 1000)
+                  ? 'click'
+                  : 'cursor',
               'timeUs': ms * 1000,
               'width': 640,
               'height': 360,
               'x': 544,
               'y': 306,
               'visible': true,
-              'detail': 'arrow',
+              'detail': blurCheck && (ms == 700 || ms == 1000)
+                  ? 'left'
+                  : 'arrow',
             }),
           jsonEncode({
             'type': 'end',
@@ -148,15 +156,15 @@ Future<void> main() async {
         ScriptLanguage.ar => VideoFormat.portrait,
       };
       for (final enabled in [true, false]) {
-        stage =
-            'export generated paired take ${language.name} camera-clear $enabled';
+        stage = 'export generated paired take ${language.name} $kind $enabled';
         final current = library.byId(snapshot.id)!;
         final video = await job.export(
           current,
           current.takes.single,
           format,
-          cameraClear: enabled,
-          autoZoom: false,
+          cameraClear: !blurCheck && enabled,
+          autoZoom: blurCheck,
+          motionBlur: blurCheck && enabled,
           clickHighlights: false,
           showShortcuts: false,
           cameraPunch: false,
@@ -164,13 +172,15 @@ Future<void> main() async {
         require(
           video != null &&
               video.camera &&
-              video.cameraClear == enabled &&
+              (blurCheck
+                  ? video.motionBlur == enabled && video.zoomCount > 0
+                  : video.cameraClear == enabled) &&
               video.duration == words.duration,
         );
         final metadata = jsonDecode(
           await store.file(video!, 'json').readAsString(),
         ) as Map<String, Object?>;
-        if (enabled) {
+        if (enabled && !blurCheck) {
           final targets = CameraTargets.fromJson(
             metadata['cameraTargets']! as Map<String, Object?>,
           );
@@ -201,13 +211,17 @@ Future<void> main() async {
       }
       final history = await store.load(library.byId(snapshot.id)!.takes.single);
       require(
-        history.length == 2 && history.where((v) => v.cameraClear).length == 1,
+        history.length == 2 &&
+            history
+                    .where((v) => blurCheck ? v.motionBlur : v.cameraClear)
+                    .length ==
+                1,
       );
     }
-    await File('build/clear-app-check-result.json')
+    await File('build/$kind-app-check-result.json')
         .writeAsString(jsonEncode({'passed': true, 'exports': 6}));
     stdout.writeln(
-      'Generated camera placement app-channel checks passed: six EN/FR/AR wide/feed/portrait on/off exports, exact subtitles, immutable targets/history and originals.',
+      'Generated $kind app-channel checks passed: six EN/FR/AR wide/feed/portrait on/off exports, exact subtitles, immutable targets/history and originals.',
     );
     job.dispose();
     library.dispose();

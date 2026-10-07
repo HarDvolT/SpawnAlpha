@@ -208,6 +208,21 @@ discarded attempts cannot supply evidence. A visible click still supplies the
 position. The ordinary Auto-zoom switch controls these targets too, and no
 transcript text is written into portable zoom metadata.
 
+### Windows screen motion blur
+
+Screen zoom exports offer **Soften zoom motion**, initially on unless system
+reduced motion is requested. The switch can be changed after recording or from
+a saved take. Directional blur follows the largest viewport-edge displacement
+between frames, scaled by a 16ms shutter and capped at `blur-max` (6px at a
+1080px short edge). Below 0.5px it draws nothing; a still frame stays sharp.
+Only the screen picture is blurred, before composing the camera, click rings,
+shortcuts, captions and rounded frame. Source cuts reset motion so they never
+produce a blur flash; continuous source splits preserve it. Disabling zooms
+removes this effect. No blur is added to Camera takes or static camera emphasis.
+Save the choice with each new video; old versions remain unchanged and legacy
+exports have it off. This is local rendering with installed Windows effects,
+without a new dependency, asset, upload or recognition claim.
+
 ### Windows camera placement
 
 Screen + camera exports with saved local activity offer **Keep the camera clear**,

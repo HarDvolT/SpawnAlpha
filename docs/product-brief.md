@@ -122,7 +122,8 @@ Revised 2026-09-30 by the owner. Screen recording moves up, and the automatic ed
      Optional rounded screen frames, local dark backdrops and soft shadows
      are connected. Optional paired-camera placement avoids fresh pointers
      and zoom targets using saved local activity and a reversible export
-     choice. Optional camera emphasis uses reliable spoken accepted
+     choice. Optional directional blur follows screen zoom/pan springs and
+     keeps the camera, captions and still frames sharp. Optional camera emphasis uses reliable spoken accepted
      Script stress cues, with a subtle centred crop, a separate switch and
      a reduced-motion default. It stays off for takes/cuts under 20 seconds
      and spaces entrances by eight seconds. Smooth cursor/blur and moving

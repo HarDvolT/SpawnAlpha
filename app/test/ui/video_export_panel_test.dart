@@ -16,6 +16,72 @@ import '../storage/screen_take_store_test.dart' show FakeInspector;
 
 void main() {
   for (final mode in ['choose', 'busy', 'hidden', 'missing']) {
+    testWidgets('screen motion blur choice and history: $mode', (tester) async {
+      final library = ScriptLibrary(MemoryScriptStore()),
+          inspector = FakeInspector();
+      final job = ExportProcessor(
+        FakeRenderer(inspector),
+        VideoExportStore(Directory.systemTemp, library, inspector),
+        CleanCutStore(Directory.systemTemp, library),
+        (_) async => null,
+      );
+      var blur = true;
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: buildTheme(Brightness.light),
+          home: Scaffold(
+            body: SingleChildScrollView(
+              child: StatefulBuilder(
+                builder: (context, update) => VideoExportPanel(
+                  format: VideoFormat.landscape,
+                  onFormat: (_) {},
+                  onExport: () {},
+                  job: job,
+                  busy: mode == 'busy',
+                  supported: true,
+                  hasMotionBlur: mode != 'missing',
+                  autoZoom: mode != 'hidden',
+                  motionBlur: blur,
+                  onMotionBlur: (v) => update(() => blur = v),
+                  videos: [
+                    VideoExport(
+                      id: 'generated',
+                      format: VideoFormat.landscape,
+                      duration: const Duration(seconds: 4),
+                      createdAt: DateTime(2026),
+                      zoomCount: 1,
+                      motionBlur: true,
+                    ),
+                  ],
+                  onView: (_) {},
+                  onShow: (_) {},
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      final choice = find.widgetWithText(
+        CheckboxListTile,
+        'Soften zoom motion',
+      );
+      if (mode == 'hidden' || mode == 'missing') {
+        expect(choice, findsNothing);
+      } else if (mode == 'busy') {
+        expect(tester.widget<CheckboxListTile>(choice).onChanged, isNull);
+      } else {
+        await tester.tap(choice);
+        await tester.pumpAndSettle();
+        expect(blur, isFalse);
+      }
+      expect(find.textContaining('Soft zoom motion'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox());
+      job.dispose();
+      library.dispose();
+    });
+  }
+  for (final mode in ['choose', 'busy', 'hidden', 'missing']) {
     testWidgets(
       'camera placement choice uses saved activity and camera: $mode',
       (tester) async {

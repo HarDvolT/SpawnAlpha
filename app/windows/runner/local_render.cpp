@@ -207,12 +207,13 @@ class Compositor {
     image.Format = DXGI_FORMAT_B8G8R8A8_UNORM; image.SampleDesc.Count = 1;
     image.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
     check_hresult(device_->CreateTexture2D(&image, nullptr, output_.put()));
+    if (paired) check_hresult(device_->CreateTexture2D(&image, nullptr, backdrop_.put()));
     D3D11_VIDEO_PROCESSOR_OUTPUT_VIEW_DESC view{}; view.ViewDimension = D3D11_VPOV_DIMENSION_TEXTURE2D;
     check_hresult(video_->CreateVideoProcessorOutputView(output_.get(), enumerator_.get(), &view, target_.put()));
     check_hresult(device_->CreateRenderTargetView(output_.get(), nullptr, clear_.put()));
   }
   com_ptr<ID3D11Texture2D> Compose(const Frame& main, const Frame& camera,
-      const RECT& main_box, UINT index, const RECT& main_crop, const RECT& picture_bounds, const RECT& camera_crop, const RECT& camera_destination) {
+      const RECT& main_box, UINT index, const RECT& main_crop, const RECT& picture_bounds, const RECT& camera_crop, const RECT& camera_destination, bool main_rgb = false) {
     const UINT mw = main_box.right - main_box.left, mh = main_box.bottom - main_box.top;
     const FLOAT black[4] = {0, 0, 0, 1}; context_->ClearRenderTargetView(clear_.get(), black);
     const Frame frames[] = {main, camera};
@@ -229,7 +230,8 @@ class Compositor {
       view.Texture2D.ArraySlice = frames[stream].slice / desc.MipLevels;
       check_hresult(video_->CreateVideoProcessorInputView(frames[stream].image.get(), enumerator_.get(), &view, inputs[stream].put()));
       control_->VideoProcessorSetStreamFrameFormat(processor_.get(), stream, D3D11_VIDEO_FRAME_FORMAT_PROGRESSIVE);
-      control_->VideoProcessorSetStreamColorSpace1(processor_.get(), stream, DXGI_COLOR_SPACE_YCBCR_STUDIO_G22_LEFT_P709);
+      control_->VideoProcessorSetStreamColorSpace1(processor_.get(), stream,
+        stream == 0 && main_rgb ? DXGI_COLOR_SPACE_RGB_FULL_G22_NONE_P709 : DXGI_COLOR_SPACE_YCBCR_STUDIO_G22_LEFT_P709);
       control_->VideoProcessorSetStreamAutoProcessingMode(processor_.get(), stream, FALSE);
       control_->VideoProcessorSetStreamSourceRect(processor_.get(), stream, TRUE, &sources[stream]);
       control_->VideoProcessorSetStreamDestRect(processor_.get(), stream, TRUE, &destinations[stream]);
@@ -238,11 +240,18 @@ class Compositor {
     if (main.image || camera.image) check_hresult(control_->VideoProcessorBlt(processor_.get(), target_.get(), index, count, streams));
     context_->Flush(); return output_;
   }
+  com_ptr<ID3D11Texture2D> OverlayCamera(const Frame& camera, UINT index, const RECT& crop, const RECT& destination, UINT width, UINT height) {
+    context_->CopyResource(backdrop_.get(), output_.get());
+    Frame main; main.image = backdrop_;
+    const RECT full{0, 0, static_cast<LONG>(width), static_cast<LONG>(height)};
+    return Compose(main, camera, full, index, full, full, crop, destination, true);
+  }
  private:
   com_ptr<ID3D11Device> device_; com_ptr<ID3D11DeviceContext> context_;
   com_ptr<ID3D11VideoDevice> video_; com_ptr<ID3D11VideoContext1> control_;
   com_ptr<ID3D11VideoProcessorEnumerator> enumerator_; com_ptr<ID3D11VideoProcessor> processor_;
   com_ptr<ID3D11Texture2D> output_; com_ptr<ID3D11VideoProcessorOutputView> target_;
+  com_ptr<ID3D11Texture2D> backdrop_;
   com_ptr<ID3D11RenderTargetView> clear_;
 };
 }
@@ -306,6 +315,11 @@ void RenderLocalVideo(const LocalRenderRequest& request, std::atomic<bool>& canc
     Require(!request.camera_clear.enabled || !request.camera.empty());
     CameraPlacement placement;
     placement.Open(request.camera_targets, request.zoom_steps, request.camera_clear, total_us, request.width, request.height);
+    Require(!request.screen_blur.enabled || (!request.zoom_steps.empty() && !request.punch_main));
+    ViewportMotion motion;
+    motion.Open(request.screen_blur, request.width, request.height);
+    ScreenMotionBlur blur;
+    blur.Open(device.get(), request.width, request.height, picture, request.screen_blur);
     ScreenFrame screen_frame;
     screen_frame.Open(device.get(), request.width, request.height, picture, request.screen_frame);
     ClickOverlay clicks;
@@ -329,7 +343,7 @@ void RenderLocalVideo(const LocalRenderRequest& request, std::atomic<bool>& canc
       if (video_range != previous_video_range) {
         main.Reset(source_ticks); if (!request.camera.empty()) camera.Reset(source_ticks); previous_video_range = video_range;
         if (video_range == 0 || request.ranges[video_range - 1].end_us != request.ranges[video_range].start_us)
-          { zoom.Reset(starts[video_range]); punch.Reset(starts[video_range]); placement.Reset(starts[video_range]); }
+          { zoom.Reset(starts[video_range]); punch.Reset(starts[video_range]); placement.Reset(starts[video_range]); motion.Reset(); }
       }
       const RECT main_box{main.x, main.y, main.x + static_cast<LONG>(main.width), main.y + static_cast<LONG>(main.height)};
       const auto main_crop = request.punch_main ? punch.Crop(main_box, output_ticks / 10) : zoom.Crop(main_box, output_ticks / 10);
@@ -344,8 +358,12 @@ void RenderLocalVideo(const LocalRenderRequest& request, std::atomic<bool>& canc
       const auto placed = placement.Place(output_ticks / 10, main_box, main_crop, picture,
         request.camera.empty() ? RECT{} : Fit(camera.width, camera.height, inset), margin);
       const auto camera_destination = camera_frame.image ? placed : RECT{};
-      const auto image = compositor.Compose(main.At(source_ticks, true, cancel),
-        camera_frame, main_box, frame, main_crop, picture_bounds, camera_crop, camera_destination);
+      const auto sample = motion.SampleViewport(zoom.Viewport(main_box, output_ticks / 10), picture, output_ticks / 10);
+      auto image = compositor.Compose(main.At(source_ticks, true, cancel),
+        sample.radius > 0 ? Frame{} : camera_frame, main_box, frame, main_crop, picture_bounds, camera_crop, camera_destination);
+      blur.Draw(image.get(), sample);
+      if (sample.radius > 0 && camera_frame.image)
+        image = compositor.OverlayCamera(camera_frame, frame, camera_crop, camera_destination, request.width, request.height);
       clicks.Draw(image.get(), output_ticks / 10, main_box, main_crop,
         picture, camera_destination);
       screen_frame.Draw(image.get(), camera_destination);

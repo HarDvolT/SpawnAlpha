@@ -101,6 +101,7 @@ class ExportProcessor extends ChangeNotifier {
     bool screenFrame = true,
     bool cameraPunch = true,
     bool cameraClear = true,
+    bool motionBlur = true,
   }) async {
     if (busy) return null;
     source = take.path;
@@ -253,6 +254,7 @@ class ExportProcessor extends ChangeNotifier {
         shortcutCount: zooms.shortcuts?.count ?? 0,
         screenFrame: screenFrame && take.mode != TakeMode.camera,
         cameraPunchCount: punches?.count ?? 0,
+        motionBlur: motionBlur && zooms.zooms.count > 0,
         cameraClear:
             cameraClear &&
             pairedCamera &&
@@ -294,6 +296,7 @@ class ExportProcessor extends ChangeNotifier {
           cameraPunches: punches,
           cameraPunchMain: take.mode == TakeMode.camera,
           cameraClear: video.cameraClear,
+          motionBlur: video.motionBlur,
           cameraTargets: zooms.cameraTargets,
         ),
         (amount) {

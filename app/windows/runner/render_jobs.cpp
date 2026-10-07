@@ -55,6 +55,11 @@ LocalRenderRequest Request(const Map& args) {
     if (!range) throw std::runtime_error("Invalid render range");
     request.ranges.push_back({Integer(*range, "startUs"), Integer(*range, "endUs")});
   }
+  if (const auto found = args.find(Value("screenBlur")); found != args.end()) {
+    const auto* layout = std::get_if<Map>(&found->second);
+    if (!layout || layout->size() != 3) throw std::runtime_error("Invalid screen blur");
+    request.screen_blur = {true, Number(*layout, "maximum"), Number(*layout, "minimum"), Integer(*layout, "shutterUs")};
+  }
   if (const auto found = args.find(Value("cameraTargets")); found != args.end()) {
     const auto* targets = std::get_if<flutter::EncodableList>(&found->second);
     const auto* layout = std::get_if<Map>(&Field(args, "cameraClearLayout"));

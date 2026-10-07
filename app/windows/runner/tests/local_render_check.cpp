@@ -712,6 +712,81 @@ void CheckCameraPlacement(ID3D11Device* device, const std::wstring& prefix, cons
     Require(reset[center_left + 1] < 130 && reset[right] > 150);
   }
 }
+void CheckScreenMotionBlur(ID3D11Device* device, const std::wstring& prefix, const char*& stage) {
+  stage = "verify screen blur motion cap, direction, stillness and reset";
+  const ScreenBlurLayout layout{true, 6, .5, 16000};
+  ViewportMotion motion; motion.Open(layout, 1920, 1080);
+  const RECT full{0, 0, 1000, 1000}, picture{0, 0, 1920, 1080};
+  Require(motion.Sample(full, picture, 0).radius == 0);
+  Require(motion.Sample(full, picture, 33333).radius == 0);
+  const RECT pan{100, 0, 1100, 1000};
+  const auto moving = motion.Sample(pan, picture, 66666);
+  Require(moving.radius == 6 && std::abs(std::abs(moving.angle) - 180) < .001);
+  Require(motion.Sample(pan, picture, 99999).radius == 0);
+  motion.Reset(); Require(motion.Sample(full, picture, 200000).radius == 0);
+  for (int variant = 0; variant < 3; ++variant) {
+    auto bad = layout; if (variant == 0) bad.maximum = NAN;
+    if (variant == 1) bad.minimum = 10; if (variant == 2) bad.shutter_us = 0;
+    bool rejected = false; try { ViewportMotion invalid; invalid.Open(bad, 1920, 1080); } catch (...) { rejected = true; }
+    Require(rejected);
+  }
+  const auto source = prefix + L"-blur-source.mp4";
+  stage = "generate sharp bars for screen motion blur"; GenerateZoomSource(device, source);
+  std::atomic<bool> cancel{false};
+  for (bool paired : {false, true}) {
+    LocalRenderRequest request{source, paired ? source : L"", L"", 4000000, 960, 540, {{0, 4000000}}};
+    request.camera_inset = .28; request.camera_margin = .04; request.screen_frame = FrameFixture();
+    request.zoom_spring = {1, 90, 19}; request.zoom_steps = {{100000, .5, .5, 1.8, kWidth, kHeight}, {2000000, .5, .5, 1, kWidth, kHeight}};
+    request.output = prefix + (paired ? L"-blur-pair-plain.mp4" : L"-blur-plain.mp4");
+    stage = "render unblurred comparison"; RenderLocalVideo(request, cancel, [](double) {});
+    const auto plain = request.output;
+    request.output = prefix + (paired ? L"-blur-pair.mp4" : L"-blur.mp4"); request.screen_blur = layout;
+    stage = "render screen motion blur before independent camera"; RenderLocalVideo(request, cancel, [](double) {});
+    stage = "verify initial screen blur frame stays sharp";
+    const auto before = FramePixels(request.output, request.width, request.height, 0);
+    Require(before == FramePixels(plain, request.width, request.height, 0));
+    stage = "verify motion changes screen edges only";
+    const auto blurred = FramePixels(request.output, request.width, request.height, 6);
+    const auto sharp = FramePixels(plain, request.width, request.height, 6);
+    int changed = 0;
+    for (UINT y = 100; y < 300; ++y) for (UINT x = 100; x < 860; ++x) {
+      const auto i = (y * request.width + x) * 4;
+      if (std::abs(static_cast<int>(blurred[i]) - sharp[i]) +
+          std::abs(static_cast<int>(blurred[i + 1]) - sharp[i + 1]) +
+          std::abs(static_cast<int>(blurred[i + 2]) - sharp[i + 2]) > 12) ++changed;
+    }
+    Require(changed > 200 && changed < 12000);
+    stage = "verify paired camera stays sharp during screen blur";
+    if (paired) {
+      int64_t difference = 0, pixels = 0;
+      for (UINT y = 400; y < 500; ++y) for (UINT x = 700; x < 920; ++x) {
+        const auto i = (y * request.width + x) * 4;
+        for (UINT c = 0; c < 3; ++c) difference += std::abs(static_cast<int>(blurred[i + c]) - sharp[i + c]);
+        ++pixels;
+      }
+      Require(difference < pixels * 3);
+    }
+    stage = "verify settled screen blur frame stays sharp";
+    const auto after = FramePixels(request.output, request.width, request.height, 110);
+    Require(after == FramePixels(plain, request.width, request.height, 110));
+    SaveCaptionPng(request.output + L".png", request.width, request.height, blurred.data());
+    auto split = request; split.output += L"-split.mp4"; split.ranges = {{0, 300000}, {300000, 4000000}};
+    stage = "verify continuous split preserves blur pixels"; RenderLocalVideo(split, cancel, [](double) {});
+    Require(FramePixels(split.output, split.width, split.height, 6) == blurred);
+    auto cut = request; cut.output += L"-cut.mp4"; cut.ranges = {{0, 700000}, {2000000, 4000000}};
+    cut.zoom_steps.back().time_us = 700000;
+    stage = "verify source cut resets blur without a flash"; RenderLocalVideo(cut, cancel, [](double) {});
+    auto cut_plain = cut; cut_plain.output += L"-plain.mp4"; cut_plain.screen_blur.enabled = false;
+    RenderLocalVideo(cut_plain, cancel, [](double) {});
+    const auto reset = FramePixels(cut.output, cut.width, cut.height, 21), reset_plain = FramePixels(cut_plain.output, cut.width, cut.height, 21);
+    int64_t delta = 0; int maximum = 0;
+    for (size_t i = 0; i < reset.size(); ++i) {
+      const auto d = std::abs(static_cast<int>(reset[i]) - reset_plain[i]); delta += d; maximum = std::max(maximum, d);
+    }
+    std::cout << "Generated source-reset pixel difference: total=" << delta << " maximum=" << maximum << std::endl;
+    Require(delta < static_cast<int64_t>(reset.size()) / 10 && maximum <= 8);
+  }
+}
 void CheckWriterUnwind(ID3D11Device* device, const std::wstring& prefix) {
   for (bool queued : {false, true}) {
     const auto output = prefix + (queued ? L"-failed-queued.mp4" : L"-failed-empty.mp4");
@@ -732,7 +807,7 @@ void CheckWriterUnwind(ID3D11Device* device, const std::wstring& prefix) {
   }
 }
 int wmain(int count, wchar_t** args) {
-  if (count != 2 && (count != 3 || (std::wstring(args[2]) != L"--camera-only" && std::wstring(args[2]) != L"--cleanup-only" && std::wstring(args[2]) != L"--placement-only"))) return 2;
+  if (count != 2 && (count != 3 || (std::wstring(args[2]) != L"--camera-only" && std::wstring(args[2]) != L"--cleanup-only" && std::wstring(args[2]) != L"--placement-only" && std::wstring(args[2]) != L"--blur-only"))) return 2;
   const auto com = CoInitializeEx(nullptr, COINIT_MULTITHREADED); if (FAILED(com)) return 3;
   const char* stage = "initialize";
   try {
@@ -972,10 +1047,12 @@ int wmain(int count, wchar_t** args) {
       }
       if (count == 2 || std::wstring(args[2]) == L"--camera-only") CheckCameraPunch(device.get(), prefix, stage);
       if (count == 2 || std::wstring(args[2]) == L"--placement-only") CheckCameraPlacement(device.get(), prefix, stage);
+      if (count == 2 || std::wstring(args[2]) == L"--blur-only") CheckScreenMotionBlur(device.get(), prefix, stage);
     }
     if (count == 3) std::cout << "Focused local render check passed: " <<
       (std::wstring(args[2]) == L"--cleanup-only" ? "injected zero/one-sample failure cleanup" :
        std::wstring(args[2]) == L"--placement-only" ? "camera placement geometry/pixels, frame mapping and source resets" :
+       std::wstring(args[2]) == L"--blur-only" ? "screen blur direction/cap, sharp camera/still frames and source resets" :
        "camera crops/cut resets and failure cleanup") << ".\n";
     else std::cout << "Local render check passed: streaming PCM/GPU pair, source selection/reordering, reviewed filler and retake tone/picture removal, silent input, stereo resampling, EN/FR/AR Readable/Karaoke/Cue/Punch timing and safe pixels, word reveal, emphasis, spring motion and Still, RTL underline, gaps, vertical Arabic, no clipped words, camera inset/end, exact portrait duration, cancel cleanup, damaged input, overwrite protection, centred main/paired camera crops/cut resets and injected zero/one-sample failure cleanup.\n";
     MFShutdown(); CoUninitialize(); return 0;

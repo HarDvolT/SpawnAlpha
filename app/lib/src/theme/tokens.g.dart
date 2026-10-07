@@ -478,6 +478,10 @@ abstract final class SaScreenFx {
   static const Duration cursorIdle = Duration(milliseconds: 1500);
   /// Motion blur at the fastest zoom or pan; none when the frame is still.
   static const double blurMax = 6.0;
+  /// Screen viewport displacement exposure for directional motion blur.
+  static const Duration blurShutter = Duration(milliseconds: 16);
+  /// Ignore subpixel screen motion blur at a 1080px short edge.
+  static const double blurMinimum = 0.5;
 }
 
 /// Studio take review and video playback.

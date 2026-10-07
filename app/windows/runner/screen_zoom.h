@@ -15,6 +15,7 @@ struct ScreenZoomStep {
 struct ZoomSpring {
   double mass = 0, stiffness = 0, damping = 0;
 };
+struct ZoomViewport { double left, top, right, bottom; };
 
 class ScreenZoom {
  public:
@@ -59,6 +60,19 @@ class ScreenZoom {
     const LONG left = std::clamp<LONG>(x / 2 * 2, 0, width - crop_width);
     const LONG top = std::clamp<LONG>(y / 2 * 2, 0, height - crop_height);
     return {box.left + left, box.top + top, box.left + left + crop_width, box.top + top + crop_height};
+  }
+  // Call after Crop at this clock. Motion uses the unrounded spring geometry,
+  // so a final two-pixel encoder crop adjustment cannot cause a blur flash.
+  ZoomViewport Viewport(const RECT& box, int64_t output_us) const {
+    const double width = box.right - box.left, height = box.bottom - box.top;
+    if (steps_.empty()) return {static_cast<double>(box.left), static_cast<double>(box.top), static_cast<double>(box.right), static_cast<double>(box.bottom)};
+    Require(output_us >= started_us_);
+    const auto time = static_cast<double>(output_us - started_us_) / 1000000;
+    const auto factor = std::clamp(Evaluate(factor_, time).position, 1.0, 3.0);
+    const auto w = std::min(width, std::max(2.0, width / factor)), h = std::min(height, std::max(2.0, height / factor));
+    const auto x = std::clamp(std::clamp(Evaluate(x_, time).position, 0.0, 1.0) * width - w / 2, 0.0, width - w);
+    const auto y = std::clamp(std::clamp(Evaluate(y_, time).position, 0.0, 1.0) * height - h / 2, 0.0, height - h);
+    return {box.left + x, box.top + y, box.left + x + w, box.top + y + h};
   }
  private:
   struct State { double position, velocity, target; };
