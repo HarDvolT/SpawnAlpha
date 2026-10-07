@@ -15,6 +15,8 @@ import '../render/export_processor.dart';
 import '../render/export_batch.dart';
 import '../render/room_tone.dart';
 import '../review/repeated_sections.dart';
+import '../review/publishing_loader.dart';
+import '../storage/publishing_store.dart';
 import '../theme/theme.dart';
 import '../transcription/captions.dart';
 import '../transcription/speech_processor.dart';
@@ -24,6 +26,7 @@ import 'format.dart';
 import 'home_screen.dart';
 import 'clean_cut_panel.dart';
 import 'cut_editor_screen.dart';
+import 'publishing_screen.dart';
 import 'take_player.dart';
 import 'video_export_panel.dart';
 import 'word_review_panel.dart';
@@ -54,6 +57,7 @@ class _TakeReviewScreenState extends State<TakeReviewScreen> {
   CleanPlan? _clean;
   bool _planning = false;
   bool _editingCut = false;
+  bool _publishingText = false;
   String? _cutProblem;
   VideoFormat _format = VideoFormat.landscape;
   ExportBatch? _batch;
@@ -369,6 +373,61 @@ class _TakeReviewScreenState extends State<TakeReviewScreen> {
     await _saveCut(edited);
   }
 
+  Future<void> _openPublishingText() async {
+    final app = AppScope.of(context);
+    if (_spoken == null || _publishingText || !_reviewReady) return;
+    final take = _latestTake(app);
+    setState(() {
+      _publishingText = true;
+      _cutProblem = null;
+    });
+    try {
+      final spoken = await app.speech.load(take),
+          clean = await app.cuts.load(take);
+      if (spoken == null || take.cutPath != null && clean == null) {
+        throw const FormatException('Saved words/cut unavailable');
+      }
+      final plan =
+          clean?.asCutPlan() ??
+          CutPlan(
+            takeId: 'publishing',
+            language: spoken.transcript.language,
+            sourceDuration: take.duration,
+            ranges: [SourceRange(start: Duration.zero, end: take.duration)],
+          );
+      final draft = await compute(
+        loadPublishingText,
+        PublishingJob(spoken, plan, take, clean: clean),
+      );
+      if (!mounted) return;
+      final latest = _latestTake(app);
+      if (latest.wordsPath != take.wordsPath ||
+          latest.cutPath != take.cutPath) {
+        throw const FormatException('Take changed');
+      }
+      await Navigator.of(context).push<void>(
+        MaterialPageRoute(
+          builder: (_) => PublishingScreen(
+            draft: draft,
+            store: PublishingStore(
+              Directory(
+                '${app.recordingsDir.parent.path}${Platform.pathSeparator}exports',
+              ),
+            ),
+          ),
+        ),
+      );
+    } on Object {
+      if (mounted) {
+        setState(
+          () => _cutProblem = 'Text could not be prepared. Reopen the take and try again. Your recording is safe.',
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _publishingText = false);
+    }
+  }
+
   Future<void> _export() async {
     final spoken = _spoken;
     if (spoken == null || _exporting) return;
@@ -429,6 +488,7 @@ class _TakeReviewScreenState extends State<TakeReviewScreen> {
                 model.busy ||
                 _planning ||
                 _editingCut ||
+                _publishingText ||
                 app.exports.busy ||
                 (_batch?.busy ?? false) ||
                 app.processing.busy;
@@ -569,7 +629,7 @@ class _TakeReviewScreenState extends State<TakeReviewScreen> {
                 TakePlayer(
                   key: _playerViewKey,
                   backend: app.playback,
-                  active: !_editingCut,
+                  active: !_editingCut && !_publishingText,
                   excerpt: _listenRange,
                   playRequest: _listenRequest,
                   path: _viewing == null
@@ -754,6 +814,18 @@ class _TakeReviewScreenState extends State<TakeReviewScreen> {
                 ),
                 if (spoken != null) ...[
                   const SizedBox(height: SaSpace.s5),
+                  OutlinedButton.icon(
+                    onPressed:
+                        busy ||
+                            !_reviewReady ||
+                            _latestTake(app).wordsPath == null ||
+                            words.isEmpty
+                        ? null
+                        : _openPublishingText,
+                    icon: const Icon(Icons.description_outlined),
+                    label: const Text('Chapters and description'),
+                  ),
+                  if (_publishingText) const LinearProgressIndicator(),
                   if (_clean != null)
                     CleanCutPanel(
                       plan: _clean!,

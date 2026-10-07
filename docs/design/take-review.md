@@ -121,6 +121,25 @@ eligibility and later batch exports use the new cut clock. This first editor
 does not extend a removal beyond its measured quiet proposal or add arbitrary
 speech cuts. No new data collection, dependency or upload.
 
+**Chapters and description** prepares editable local text for the current cut.
+Use the take's frozen aid and saved actual speech, including corrections;
+never use the later edited script. Description is an excerpt of retained speech,
+not a cloud summary. Script paragraphs have chapters only where a reliable exact
+retained word anchors the section. Notes use the frozen card titles and saved
+card clock; never copy private bullet bodies or score script adherence. Missing
+card timing leaves chapters unavailable rather than guessing. Merge sections
+that start within the same whole second. The first retained chapter starts at
+zero; subsequent times follow the cut. Say that starts are estimates and need
+checking, and that earlier videos may use another cut.
+
+Show title/description in reading type and their language direction. Chapter
+times use left-to-right signal type; titles use reading type in their direction.
+Allow changing title/description/chapter titles and keeping/removing each chapter.
+Page chapters. **Copy text** uses the clipboard only; **Save text files** creates
+a fresh local folder with title, description, chapters and combined text/JSON.
+The user can open that folder. Save/copy are explicit and never post or upload.
+Previous files/media/exports remain intact; drafts are discarded on Back.
+
 **Save your video** makes a separate local MP4 from the saved cut (or the whole
 take when no cut exists). The first Windows renderer fits the complete picture
 inside 16:9 1080p/4K, 9:16 or 4:5; unused space stays black. Screen/Both with

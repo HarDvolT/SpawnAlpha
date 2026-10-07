@@ -10,6 +10,7 @@ import 'package:spawnalpha/src/model/cut_plan.dart';
 import 'package:spawnalpha/src/model/script_document.dart';
 import 'package:spawnalpha/src/model/script_language.dart';
 import 'package:spawnalpha/src/model/video_export.dart';
+import 'package:spawnalpha/src/model/note_deck.dart';
 import 'package:spawnalpha/src/recording/recording_inspector.dart';
 import 'package:spawnalpha/src/render/export_batch.dart';
 import 'package:spawnalpha/src/render/export_processor.dart';
@@ -17,6 +18,8 @@ import 'package:spawnalpha/src/render/video_renderer.dart';
 import 'package:spawnalpha/src/storage/clean_cut_store.dart';
 import 'package:spawnalpha/src/storage/script_store.dart';
 import 'package:spawnalpha/src/storage/video_export_store.dart';
+import 'package:spawnalpha/src/storage/publishing_store.dart';
+import 'package:spawnalpha/src/review/publishing_loader.dart';
 import 'package:spawnalpha/src/transcription/captions.dart';
 import 'package:spawnalpha/src/transcription/speech_processor.dart';
 import 'package:spawnalpha/src/transcription/word_timing.dart';
@@ -29,8 +32,14 @@ bool sameBytes(List<int> a, List<int> b) =>
     a.length == b.length && a.indexed.every((v) => v.$2 == b[v.$1]);
 
 Future<void> main() async {
-  const gapCheck = bool.fromEnvironment('SPAWNALPHA_GAP_CHECK');
-  const kind = gapCheck ? 'gap' : 'batch';
+  const publishingCheck = bool.fromEnvironment('SPAWNALPHA_PUBLISHING_CHECK');
+  const gapCheck =
+      bool.fromEnvironment('SPAWNALPHA_GAP_CHECK') || publishingCheck;
+  const kind = publishingCheck
+      ? 'publishing'
+      : gapCheck
+      ? 'gap'
+      : 'batch';
   WidgetsFlutterBinding.ensureInitialized();
   runApp(
     const MaterialApp(
@@ -76,7 +85,7 @@ Future<void> main() async {
         '$prefix-room-source-${language == ScriptLanguage.ar ? 2 : 1}.mp4',
       ).copy('${root.absolute.path}/${language.name}.mp4');
       final original = await source.readAsBytes();
-      final snapshot = ScriptDocument.create(
+      var snapshot = ScriptDocument.create(
         language: language,
         recordingAid: language == ScriptLanguage.fr
             ? RecordingAid.notes
@@ -87,6 +96,22 @@ Future<void> main() async {
           ScriptLanguage.ar => 'نحن نبدأ الآن.',
         },
       );
+      if (publishingCheck && snapshot.usesNotes) {
+        snapshot = snapshot.copyWith(
+          notes: NoteDeck([
+            NoteCard(
+              id: 'one',
+              title: 'Introduction',
+              body: 'Generated private reminders',
+            ),
+            NoteCard(
+              id: 'two',
+              title: 'Les étapes suivantes',
+              body: 'Generated unspoken bullet body',
+            ),
+          ]),
+        );
+      }
       final words = WordTranscript(
         language: language,
         duration: const Duration(seconds: 4),
@@ -111,6 +136,9 @@ Future<void> main() async {
         },
         cameraPath: language == ScriptLanguage.ar ? source.path : null,
         wordsPath: '${source.path}.words.json',
+        metadataPath: publishingCheck && snapshot.usesNotes
+            ? '${source.path}.manifest.json'
+            : null,
       );
       final spoken = SavedTranscript(
         sourcePath: source.path,
@@ -125,6 +153,20 @@ Future<void> main() async {
         ],
       );
       await File(take.wordsPath!).writeAsString(jsonEncode(spoken.toJson()));
+      if (take.metadataPath != null) {
+        await File(take.metadataPath!).writeAsString(
+          jsonEncode({
+            'version': 1,
+            'mode': take.mode.name,
+            'video': '${language.name}.mp4',
+            'script': snapshot.toJson(),
+            'noteChanges': [
+              {'cardIndex': 0, 'timeUs': 0},
+              {'cardIndex': 1, 'timeUs': 2900000},
+            ],
+          }),
+        );
+      }
       final originalWords = await File(take.wordsPath!).readAsString();
       await library.save(snapshot.copyWith(takes: [take]));
       var clean = CleanPlan(
@@ -165,6 +207,48 @@ Future<void> main() async {
         );
       }
       final current = library.byId(snapshot.id)!;
+      if (publishingCheck) {
+        stage = 'publishing text ${language.name}';
+        final draft = await loadPublishingText(
+          PublishingJob(
+            spoken,
+            clean.asCutPlan(),
+            current.takes.single,
+            clean: clean,
+          ),
+        );
+        require(
+          draft.duration == clean.asCutPlan().duration &&
+              draft.description == words.words.map((w) => w.text).join(' ') &&
+              draft.chapters.length == (snapshot.usesNotes ? 2 : 1),
+        );
+        require(
+          !draft.combined.contains('reminders') &&
+              !draft.combined.contains('bullet'),
+        );
+        if (snapshot.usesNotes) {
+          require(draft.chapterText.contains('00:02 Les étapes suivantes'));
+        }
+        final textStore = PublishingStore(
+          Directory('${root.absolute.path}/publishing'),
+        );
+        final first = await textStore.save(draft),
+            originalText = await File(
+              '${(await textStore.save(draft.copyWith(title: '${draft.title} edited'))).path}/publishing.json',
+            ).readAsString();
+        require(jsonDecode(originalText)['title'] == '${draft.title} edited');
+        require(
+          await File('${first.path}/publishing.txt').readAsString() ==
+                  draft.combined &&
+              jsonEncode(
+                    jsonDecode(
+                      await File('${first.path}/publishing.json')
+                          .readAsString(),
+                    ),
+                  ) ==
+                  jsonEncode(draft.toJson()),
+        );
+      }
       stage = 'batch ${language.name}';
       final videos = await batch.run(
         current,

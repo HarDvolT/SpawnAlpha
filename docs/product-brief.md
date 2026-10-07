@@ -145,7 +145,11 @@ Revised 2026-09-30 by the owner. Screen recording moves up, and the automatic ed
    - the finish screen.
      Windows take review now has a local cut editor: restore more of a shortened
      quiet gap with bounded handles, keep/revert individual changes and save a
-     fresh cut revision. Broader timeline operations and chapter text remain.
+     fresh cut revision. Editable local chapter/description text now uses
+     retained actual words and frozen Script sections or Notes card titles.
+     Explicit copy/fresh text files never post online; chapter starts are
+     estimates to review. Notes bullet reminders stay out. Broader timeline
+     operations remain.
 5. **Delivery review and section retakes.** The best take is chosen by how well it matches the script.
 6. **Voice-following scroll.** This needs real-time speech recognition on the device.
 7. **Mobile parity.** Android screen recording (single-app sharing), a companion prompter for iOS, and face reframing.

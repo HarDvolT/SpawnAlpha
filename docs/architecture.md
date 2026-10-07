@@ -656,6 +656,25 @@ Take review renders the switches and exports captions from the selected plan.
 The first native video export now uses these kept ranges; remaining Cut tracks
 are still next.
 
+## Local publishing text
+
+`review/publishing_text.dart` builds immutable editable chapter/description
+drafts from the current saved source transcript and validated clean plan.
+Only authorized quiet/filler/retake removals can discard words. Description
+is a bounded actual retained speech excerpt. Reliable exact/corrected frozen
+Script matches anchor paragraph labels; Notes use only frozen card titles
+and verified card-clock events, never bodies. Output chapter times follow
+kept ranges, merge within whole seconds and are estimates for review.
+`publishing_loader.dart` checks source duration/identity and bounded local
+metadata, frozen deck, mode and same resolved folder. Windows network/ADS
+paths and direct metadata links cannot supply anchors. Unavailable metadata
+preserves the speech excerpt without invented chapter starts.
+Take review reloads words/cut, checks revisions after isolate work, pauses
+its player and opens a local draft. `PublishingStore` flushes five UTF-8
+text/JSON files into one fresh temporary folder and atomically renames it.
+Copy/save are explicit; Back discards unsaved edits. No provider call,
+posting, video change or private diagnostic. Older videos may use another cut.
+
 ## Local take playback
 
 `LocalPlayback` exposes guarded open/status/play/pause/seek/mute/close sessions.

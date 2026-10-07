@@ -62,6 +62,27 @@ build step 2 (screen recording).
 
 ## Handover (2026-10-05): from here, Codex on the owner's Windows PC
 
+- **Latest checkpoint (2026-10-07, publishing text):** 1054 Flutter tests,
+  314 screenshots and clean analysis. Chapters and description opens an
+  editable local draft from current saved words/cut and the frozen aid.
+  Description starts with an actual retained speech excerpt. Script section
+  starts require reliable exact alignment; Notes use verified frozen card
+  titles and card clocks, never bullet reminders. Missing anchors are not
+  guessed. Chapter clocks follow the cut, merge within a second and remain
+  estimates for review. Explicit Copy text/Save text files writes no posts;
+  new text folders preserve previous files and media. EN/FR/AR editing,
+  copying, saving, paging, errors, metadata substitution/link/size guards and
+  saved-review reopening pass. Thirteen actual Windows app exports cover
+  all formats/languages, French Notes, Camera/Screen/Both and cancellation;
+  six fresh text folders retain exact chapters and earlier bytes. EN light
+  and AR dark phone PNGs inspected; normal release build restored.
+  No native change, dependency, owner media/input, upload or private logs.
+  **Half done:** smooth cursor, broader editor operations, full delivery
+  review/voice follow and mobile/launch remain. Continue explicit cursor-free
+  provenance and Cut work; owner trials stay deferred. Separate design
+  assessment/concept commits remain local; technical updates continue to push.
+  The Claude design artifact trails docs/design.
+
 - **Latest checkpoint (2026-10-07, bounded cut editor):** 1005 Flutter tests,
   308 screenshots and clean analysis. Open in editor shows a local draft,
   source timeline/explicit original listening, existing cut/retake choices
@@ -1166,11 +1187,20 @@ build step 2 (screen recording).
    reduction. Room-tone joins and batch format exports are connected; smooth
    cursor, complete coaching and further editor tools remain. The first local
    cut editor restores quiet-gap handles inside their safe bounds; arbitrary
-   speech cuts, chapters/descriptions and broader timeline operations remain.
+   speech cuts and broader timeline operations remain. Local editable chapter
+   and description text is connected from saved actual words/frozen sections,
+   with explicit copy/fresh files and no online generation or posting.
    Keep originals intact.
    See OpenScreen in the brief for reusable parts.
 
 ## Decisions
+
+- 2026-10-07, publishing text: derive draft descriptions extractively from
+  retained actual words. Use reliable frozen Script section matches or
+  verified frozen Notes card titles/clocks for chapter labels, excluding
+  private bullet reminders. Keep starts as estimates on the current cut,
+  editable locally; copy/save only by explicit action, with fresh files and
+  no provider call or posting. Earlier saved videos can use a different cut.
 
 - 2026-10-07, first cut editor: allow quiet handles only inside the original
   measured safe removal. Editing restores sound rather than extending a cut.
@@ -1492,6 +1522,24 @@ build step 2 (screen recording).
   - No native change, dependency, owner media/input, upload or private logs.
     Broader editor/chapters, smooth cursor, full coaching/voice follow and
     mobile/launch remain. Owner trials are deferred; continue Cut work.
+
+- 2026-10-07, publishing text:
+  - Connected a local draft title, actual speech excerpt and estimated chapters
+    to the current saved cut/words. Frozen Script alignment or verified Notes
+    card clocks supply section starts; missing/uncertain anchors never guess.
+    Notes bullet reminders stay out. The editable paged screen supports
+    explicit clipboard copy and atomic fresh text/JSON folders, without posting.
+  - 1054 Flutter tests, 314 screenshots and clean analysis. EN/FR/AR cut clocks,
+    retained-word policy, card/source provenance, link/size guards, paging,
+    clipboard/files, failures, busy locks and reopened review pass. Thirteen
+    generated real Windows exports cover all formats/modes/languages and a
+    cancelled second render; six fresh text saves preserve exact chapters,
+    prior files and original media. EN/AR phone PNGs inspected; normal release
+    build restored. No new native code, dependency, upload or private logs.
+  - Smooth cursor, broader editor operations, full coaching/voice follow and
+    mobile/launch remain. Owner hardware/listening trials remain deferred.
+    Separate design assessment/concept commits stay local while technical
+    changes are published on the requested branch.
 
 - 2026-10-07, batch exports:
   - Added immutable shared export choices, a serial queue, explicit format

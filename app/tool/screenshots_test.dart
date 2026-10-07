@@ -57,6 +57,9 @@ import 'package:spawnalpha/src/ui/notes_editor_screen.dart';
 import 'package:spawnalpha/src/ui/notes_practice_screen.dart';
 import 'package:spawnalpha/src/ui/take_review_screen.dart';
 import 'package:spawnalpha/src/ui/cut_editor_screen.dart';
+import 'package:spawnalpha/src/ui/publishing_screen.dart';
+import 'package:spawnalpha/src/review/publishing_text.dart';
+import 'package:spawnalpha/src/storage/publishing_store.dart';
 import 'package:spawnalpha/src/ui/clean_cut_panel.dart';
 import 'package:spawnalpha/src/ui/retake_review_panel.dart';
 import 'package:spawnalpha/src/review/repeated_sections.dart';
@@ -64,6 +67,7 @@ import 'package:spawnalpha/src/cut/clean_plan.dart';
 import 'package:spawnalpha/src/transcription/speech_models.dart';
 import '../test/cut/clean_plan_test.dart' show cleanFixture, gap;
 import '../test/cut/cut_editor_test.dart' show editorFixture, range;
+import '../test/review/publishing_text_test.dart' show publishingScript, publishingWords, publishingPlan;
 import '../test/review/repeated_sections_test.dart' show repeatedScript, repeatedSpeech;
 import '../test/cut/retake_review_test.dart' show retakeWords, retakeScript, retakePlan;
 import '../test/cut/filler_review_test.dart' show fillerFixture, fillerPlan, fillerScript;
@@ -439,6 +443,13 @@ void main() {
         await shoot(tester, 'gap-editor-${language.name}-${brightness.name}', phone,
           (_) => CutEditorScreen(plan: plan, title: script.displayTitle,
             take: Take(path: 'generated', recordedAt: DateTime(2026), duration: plan.sourceDuration), playback: FakePlayback()),
+          [script], brightness: brightness);
+      });
+      testWidgets('publishing text $language $brightness', (tester) async {
+        final script = publishingScript(language);
+        final draft = publishingFromSpeech(source: publishingWords(language), plan: publishingPlan(language), snapshot: script, aligned: true);
+        await shoot(tester, 'publishing-text-${language.name}-${brightness.name}', phone,
+          (_) => PublishingScreen(draft: draft, store: PublishingStore(Directory.systemTemp)),
           [script], brightness: brightness);
       });
       testWidgets('camera placement export $language $brightness', (tester) async {

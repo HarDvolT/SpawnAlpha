@@ -18,6 +18,7 @@ import 'package:spawnalpha/src/theme/theme.dart';
 import 'package:spawnalpha/src/ui/take_review_screen.dart';
 import 'package:spawnalpha/src/ui/video_export_panel.dart';
 import 'package:spawnalpha/src/ui/cut_editor_screen.dart';
+import 'package:spawnalpha/src/ui/publishing_screen.dart';
 
 import '../render/export_batch_test.dart' show BatchRenderer;
 import '../storage/screen_take_store_test.dart' show FakeInspector;
@@ -51,6 +52,7 @@ void main() {
       'editor-cancel',
       'editor-words',
       'editor-cut',
+      'publishing',
     ]) {
       testWidgets('saved review $outcome $language', (tester) async {
         tester.view.physicalSize = const Size(1280, 2400);
@@ -99,6 +101,10 @@ void main() {
           await File(take.wordsPath!).writeAsString(jsonEncode(words.toJson()));
           await library.save(script);
           services.speech.result = words;
+          if (outcome == 'publishing') {
+            script = script.copyWith(title: 'Changed later');
+            await library.save(script);
+          }
           if (outcome.startsWith('editor')) {
             await services.cuts.save(
               script.id,
@@ -143,6 +149,59 @@ void main() {
           await tester.runAsync(() => root.delete(recursive: true));
         }
 
+        if (outcome == 'publishing') {
+          await tester.scrollUntilVisible(
+            find.text('Chapters and description'),
+            300,
+            scrollable: find.byType(Scrollable).first,
+          );
+          await tester.ensureVisible(find.text('Chapters and description'));
+          await tester.runAsync(() async {
+            await tester.tap(find.text('Chapters and description'));
+            await Future<void>.delayed(const Duration(milliseconds: 100));
+          });
+          await tester.pumpAndSettle();
+          final page = tester.widget<PublishingScreen>(
+            find.byType(PublishingScreen),
+          );
+          expect(page.draft.title, isNot('Changed later'));
+          expect(page.draft.duration, take.duration);
+          expect(
+            page.draft.description,
+            services.speech.result!.transcript.words
+                .map((w) => w.text)
+                .join(' '),
+          );
+          await tester.ensureVisible(find.text('Save text files'));
+          await tester.runAsync(() async {
+            await tester.tap(find.text('Save text files'));
+            await Future<void>.delayed(const Duration(milliseconds: 100));
+          });
+          await tester.pumpAndSettle();
+          expect(find.text('Text files saved on this device.'), findsOneWidget);
+          await tester.runAsync(() async {
+            final saved = (await Directory(
+              '${root.path}/exports',
+            ).list().toList()).whereType<Directory>().single;
+            expect(
+              await File('${saved.path}/description.txt').readAsString(),
+              page.draft.description,
+            );
+            expect(
+              await File(take.path).readAsString(),
+              'generated source bytes',
+            );
+          });
+          await tester.runAsync(() async {
+            await tester.pageBack();
+            await Future<void>.delayed(const Duration(milliseconds: 100));
+          });
+          await tester.pumpAndSettle();
+          expect(find.byType(TakeReviewScreen), findsOneWidget);
+          expect(renderer.requests, isEmpty);
+          await closeReview();
+          return;
+        }
         if (outcome.startsWith('editor')) {
           final originalCut = take.cutPath!;
           final bytes = (await tester.runAsync(
