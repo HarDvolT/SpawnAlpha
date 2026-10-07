@@ -178,6 +178,22 @@ applied consistently. The new version and saved choice keep earlier exports
 intact; legacy exports have the choice off. This first sound slice does not
 replace noise reduction, de-essing or room-tone work.
 
+### Windows light de-essing
+
+**Soften harsh S sounds** is a separate after-recording export choice. It starts
+off until the person chooses it, and can be changed later for any saved take.
+A 5kHz high-pass detector compares smoothed high-frequency energy with total
+energy. A soft knee above a 55% energy ratio and a -42dBFS floor gates a linked
+mono/stereo gain reduction of at most 3dB, with a 2ms attack and 80ms release.
+The high-pass filters only the detector: the output is the original full-band
+sound multiplied by this gentle gain, preserving stereo balance and phase.
+This is light wideband de-essing, without a learned model or language guesses.
+The same treatment precedes volume measurement and final gain. Source cuts
+reset the detector; contiguous ranges preserve it. It adds no samples/delay,
+leaves silent/short takes unchanged and never modifies originals/earlier videos.
+An explicit choice affects the whole saved mix, including computer sound.
+Noise reduction and room-tone joins remain separate work.
+
 ### Windows sound joins
 
 **Soften sound at cuts** starts enabled when the selected plan joins separated

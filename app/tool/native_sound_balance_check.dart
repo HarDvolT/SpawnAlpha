@@ -22,6 +22,8 @@ void require(bool value) {
 bool sameBytes(List<int> a, List<int> b) =>
     a.length == b.length && a.indexed.every((v) => v.$2 == b[v.$1]);
 Future<void> main() async {
+  const essCheck = bool.fromEnvironment('SPAWNALPHA_ESS_CHECK');
+  const kind = essCheck ? 'ess' : 'sound';
   WidgetsFlutterBinding.ensureInitialized();
   runApp(
     const MaterialApp(
@@ -35,10 +37,10 @@ Future<void> main() async {
   ExportProcessor? job;
   try {
     final prefix = (await File(
-      'build/sound-fixture-prefix.txt',
+      'build/$kind-fixture-prefix.txt',
     ).readAsString()).trim();
     require(
-      prefix.startsWith('${Directory.current.path}\\build\\exports\\sound-'),
+      prefix.startsWith('${Directory.current.path}\\build\\exports\\$kind-'),
     );
     final root = await Directory('build/exports').createTemp('sound-app-');
     library = ScriptLibrary(
@@ -61,8 +63,9 @@ Future<void> main() async {
     var count = 0;
     for (final language in ScriptLanguage.values) {
       stage = 'prepare generated sound';
-      final source = await File('$prefix-sound-source.mp4')
-          .copy('${root.absolute.path}/${language.name}.mp4');
+      final source = await File(
+        '$prefix${essCheck ? '-ess-source-${language == ScriptLanguage.ar ? 2 : 1}.mp4' : '-sound-source.mp4'}',
+      ).copy('${root.absolute.path}/${language.name}.mp4');
       final original = await source.readAsBytes();
       final snapshot = ScriptDocument.create(
         language: language,
@@ -112,7 +115,10 @@ Future<void> main() async {
       String? srt;
       final saved = <String, List<int>>{};
       final formats = switch (language) {
-        ScriptLanguage.en => [VideoFormat.landscape, VideoFormat.landscape4k],
+        ScriptLanguage.en => [
+          VideoFormat.landscape,
+          if (!essCheck) VideoFormat.landscape4k,
+        ],
         ScriptLanguage.fr => [VideoFormat.feed],
         ScriptLanguage.ar => [VideoFormat.portrait],
       };
@@ -125,7 +131,8 @@ Future<void> main() async {
             current,
             current.takes.single,
             format,
-            balanceSound: enabled,
+            balanceSound: essCheck || enabled,
+            softenSharpSound: essCheck && enabled,
             cameraClear: false,
             autoZoom: false,
             motionBlur: false,
@@ -135,13 +142,20 @@ Future<void> main() async {
           );
           require(
             video != null &&
-                video.balanceSound == enabled &&
+                video.balanceSound == (essCheck || enabled) &&
+                video.softenSharpSound == (essCheck && enabled) &&
                 video.duration == words.duration,
           );
           final metadata = jsonDecode(
             await store.file(video!, 'json').readAsString(),
           ) as Map;
-          require((metadata['video'] as Map)['balanceSound'] == enabled);
+          require(
+            (metadata['video'] as Map)['balanceSound'] == (essCheck || enabled),
+          );
+          require(
+            (metadata['video'] as Map)['softenSharpSound'] ==
+                (essCheck && enabled),
+          );
           final subtitle = await store.file(video, 'srt').readAsString();
           require(srt == null || srt == subtitle);
           srt = subtitle;
@@ -164,13 +178,18 @@ Future<void> main() async {
       final history = await store.load(library.byId(snapshot.id)!.takes.single);
       require(
         history.length == formats.length * 2 &&
-            history.where((v) => v.balanceSound).length == formats.length,
+            history
+                    .where(
+                      (v) => essCheck ? v.softenSharpSound : v.balanceSound,
+                    )
+                    .length ==
+                formats.length,
       );
     }
-    await File('build/sound-app-check-result.json')
+    await File('build/$kind-app-check-result.json')
         .writeAsString(jsonEncode({'passed': true, 'exports': count}));
     stdout.writeln(
-      'Generated sound app-channel checks passed: eight EN/FR/AR exports in all four formats, saved on/off choices, exact subtitles, history and original bytes.',
+      'Generated $kind app-channel checks passed: $count EN/FR/AR exports, saved on/off choices, exact subtitles, history and original bytes.',
     );
     job.dispose();
     library.dispose();

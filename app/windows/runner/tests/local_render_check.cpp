@@ -521,10 +521,12 @@ void VerifyStereo(const std::wstring& path) {
   Require(ToneAt(right, 12000, 990) > 9000 && ToneAt(right, 12000, 330) < 1500);
 }
 
-void VerifyLocalCut(const LocalRenderRequest& request, int expected_frames, int64_t expected_us, bool early_camera = false, bool filler_removed = false) {
+void VerifyLocalCut(const LocalRenderRequest& request, int expected_frames, int64_t expected_us, bool early_camera = false, bool filler_removed = false, bool aac_padding = false) {
   std::atomic<bool> cancel{false}; const auto probe = ProbeRecording(request.output, cancel);
   Require(probe.readable && probe.width == static_cast<int>(request.width) && probe.height == static_cast<int>(request.height));
-  Require(std::abs(probe.duration_100ns - expected_us * 10) < 100000);
+  // Some AAC streams advertise final packet padding in container duration;
+  // decoded video presentation times/end below must still be exact.
+  Require(std::abs(probe.duration_100ns - expected_us * 10) < (aac_padding ? kSecond * 1024 / kRate : 100000));
   com_ptr<IMFAttributes> attributes; check_hresult(MFCreateAttributes(attributes.put(), 1));
   check_hresult(attributes->SetUINT32(MF_SOURCE_READER_ENABLE_VIDEO_PROCESSING, TRUE));
   com_ptr<IMFSourceReader> reader; check_hresult(MFCreateSourceReaderFromURL(request.output.c_str(), attributes.get(), reader.put()));
@@ -927,13 +929,101 @@ void CheckSoundBalance(ID3D11Device* device, const std::wstring& prefix, const c
   bool rejected = false; try { RenderLocalVideo(cut, cancel, [](double) {}); } catch (...) { rejected = true; }
   Require(rejected && GetFileAttributesW(cut.output.c_str()) == INVALID_FILE_ATTRIBUTES);
 }
+void CheckDeEsser() {
+  for (UINT channels : {1u, 2u}) {
+    std::vector<int16_t> original(48000 * channels), low(48000 * channels);
+    for (size_t f = 0; f < 48000; ++f) for (UINT c = 0; c < channels; ++c) {
+      const auto amplitude = c ? 6000 : 12000;
+      original[f * channels + c] = static_cast<int16_t>(amplitude * std::sin(f * 8000 * 6.283185307179586 / 48000));
+      low[f * channels + c] = static_cast<int16_t>(amplitude * std::sin(f * 330 * 6.283185307179586 / 48000));
+    }
+    auto processed = original; AudioDeEsser whole(channels, {true}); whole.Apply(processed);
+    const auto ratio = WindowRms(processed, 24000 * channels, 12000 * channels) / WindowRms(original, 24000 * channels, 12000 * channels);
+    Require(std::abs(20 * std::log10(ratio) + 3) < .01);
+    for (size_t i = 0; i < original.size(); ++i) {
+      Require(std::abs(processed[i]) <= std::abs(original[i]));
+      if (channels == 2 && i % 2) Require(std::abs(processed[i - 1] - 2 * processed[i]) <= 2);
+    }
+    for (size_t size : {1u, 7u, 480u, 1024u}) {
+      AudioDeEsser packets(channels, {true}); std::vector<int16_t> actual;
+      for (size_t first = 0; first < original.size(); first += size * channels) {
+        std::vector<int16_t> part(original.begin() + first, original.begin() + std::min(original.size(), first + size * channels));
+        packets.Apply(part); actual.insert(actual.end(), part.begin(), part.end());
+      }
+      Require(actual == processed);
+    }
+    auto low_processed = low; AudioDeEsser fresh(channels, {true}); fresh.Apply(low_processed); Require(low_processed == low);
+    whole.Reset(); low_processed = low; whole.Apply(low_processed); Require(low_processed == low);
+    auto quiet = original; for (auto& value : quiet) value = static_cast<int16_t>(value / 100);
+    const auto quiet_original = quiet; AudioDeEsser below_floor(channels, {true}); below_floor.Apply(quiet); Require(quiet == quiet_original);
+    std::vector<int16_t> silent(48000 * channels, 0); whole.Apply(silent); Require(std::all_of(silent.begin(), silent.end(), [](int16_t value) { return value == 0; }));
+    auto disabled = original; AudioDeEsser bypass(channels, {false}); bypass.Apply(disabled); Require(disabled == original);
+  }
+  for (double invalid : {0.0, 20000.0, std::numeric_limits<double>::quiet_NaN()}) {
+    bool caught = false; try { AudioDeEsser bad(1, {true, invalid}); } catch (...) { caught = true; } Require(caught);
+  }
+  bool caught = false; try { AudioDeEsser bad(2, {true}); std::vector<int16_t> invalid{1}; bad.Apply(invalid); } catch (...) { caught = true; } Require(caught);
+}
+void GenerateEssSource(ID3D11Device* device, const std::wstring& path, UINT channels) {
+  GpuVideoWriter writer; check_hresult(writer.Start(device, path, kWidth, kHeight, 30, {48000, channels}));
+  std::vector<uint32_t> pixels(kWidth * kHeight, 0xff25b64a);
+  D3D11_TEXTURE2D_DESC desc{}; desc.Width = kWidth; desc.Height = kHeight;
+  desc.MipLevels = desc.ArraySize = 1; desc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
+  desc.SampleDesc.Count = 1; desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+  D3D11_SUBRESOURCE_DATA data{pixels.data(), kWidth * 4, 0}; com_ptr<ID3D11Texture2D> texture;
+  check_hresult(device->CreateTexture2D(&desc, &data, texture.put()));
+  for (UINT frame = 0; frame < 120; ++frame) {
+    check_hresult(writer.WriteFrame(texture.get(), kWidth, kHeight, frame * kSecond / 30));
+    std::vector<int16_t> pcm(1600 * channels);
+    for (UINT f = 0; f < 1600; ++f) for (UINT c = 0; c < channels; ++c) {
+      const auto at = frame * 1600 + f; const auto hz = (at / 48000) % 2 ? 8000 : 330;
+      pcm[f * channels + c] = static_cast<int16_t>((c ? 6000 : 12000) * std::sin(at * hz * 6.283185307179586 / 48000));
+    }
+    check_hresult(writer.WriteAudio(pcm.data(), 1600, frame * kSecond / 30));
+  }
+  check_hresult(writer.Finish());
+}
+void CheckDeEssExports(ID3D11Device* device, const std::wstring& prefix, const char*& stage) {
+  std::atomic<bool> cancel{false};
+  for (UINT channels : {1u, 2u}) {
+    const auto source = prefix + L"-ess-source-" + std::to_wstring(channels) + L".mp4";
+    stage = "generate alternating low and sibilant sound"; GenerateEssSource(device, source, channels);
+    LocalRenderRequest request{source, L"", prefix + L"-ess-raw-" + std::to_wstring(channels) + L".mp4", 4000000, 640, 360, {{0, 4000000}}};
+    stage = "render de-essing reference"; RenderLocalVideo(request, cancel, [](double) {}); const auto raw = Audio(request.output, channels);
+    request.de_ess = {true}; request.output = prefix + L"-ess-soft-" + std::to_wstring(channels) + L".mp4";
+    stage = "render linked de-essing without changing clocks"; RenderLocalVideo(request, cancel, [](double) {}); const auto soft = Audio(request.output, channels);
+    stage = "verify de-essed video and audio sample clocks";
+    if (raw.size() != soft.size()) std::cout << "Generated de-essing samples: " << raw.size() << " " << soft.size() << "\n";
+    Require(raw.size() == soft.size()); VerifyLocalCut(request, 120, 4000000, false, false, true);
+    stage = "verify distant low-frequency audio stays unchanged";
+    for (size_t frame : {12000u, 108000u}) Require(std::abs(WindowRms(soft, frame * channels, 12000 * channels) / WindowRms(raw, frame * channels, 12000 * channels) - 1) < .03);
+    stage = "verify decoded sibilant attenuation";
+    for (size_t frame : {60000u, 156000u}) Require(std::abs(20 * std::log10(WindowRms(soft, frame * channels, 12000 * channels) / WindowRms(raw, frame * channels, 12000 * channels)) + 3) < .3);
+    request.ranges = {{0, 1100000}, {1100000, 4000000}}; request.audio_join_fade_us = 20000;
+    request.output = prefix + L"-ess-continuous-" + std::to_wstring(channels) + L".mp4";
+    stage = "verify de-essing is identical across contiguous ranges"; RenderLocalVideo(request, cancel, [](double) {}); Require(Audio(request.output, channels) == soft);
+    request.ranges = {{1250000, 1750000}, {250000, 750000}};
+    request.output = prefix + L"-ess-cut-" + std::to_wstring(channels) + L".mp4";
+    stage = "verify source cuts reset the detector"; RenderLocalVideo(request, cancel, [](double) {}); const auto cut = Audio(request.output, channels);
+    Require(WindowRms(cut, 36000 * channels, 6000 * channels) > 7500 / (channels == 1 ? 1 : 1.3));
+    VerifyLocalCut(request, 30, 1000000);
+    request.ranges = {{0, 4000000}}; request.sound_balance = {true}; request.output = prefix + L"-ess-balanced-" + std::to_wstring(channels) + L".mp4";
+    stage = "verify volume balance measures the softened sound"; RenderLocalVideo(request, cancel, [](double) {}); const auto balanced = Audio(request.output, channels);
+    Require(std::abs(MeasureSound(balanced, channels) + 14) < .3);
+    request.ranges = {{1250000, 1450000}}; request.sound_balance.enabled = false;
+    request.output = prefix + L"-ess-short-" + std::to_wstring(channels) + L".mp4"; RenderLocalVideo(request, cancel, [](double) {}); const auto short_soft = Audio(request.output, channels);
+    request.de_ess.enabled = false; request.output = prefix + L"-ess-short-raw-" + std::to_wstring(channels) + L".mp4"; RenderLocalVideo(request, cancel, [](double) {});
+    Require(Audio(request.output, channels) == short_soft);
+  }
+}
 int wmain(int count, wchar_t** args) {
-  if (count != 2 && (count != 3 || (std::wstring(args[2]) != L"--camera-only" && std::wstring(args[2]) != L"--cleanup-only" && std::wstring(args[2]) != L"--placement-only" && std::wstring(args[2]) != L"--blur-only" && std::wstring(args[2]) != L"--sound-only"))) return 2;
+  if (count != 2 && (count != 3 || (std::wstring(args[2]) != L"--camera-only" && std::wstring(args[2]) != L"--cleanup-only" && std::wstring(args[2]) != L"--placement-only" && std::wstring(args[2]) != L"--blur-only" && std::wstring(args[2]) != L"--sound-only" && std::wstring(args[2]) != L"--ess-only"))) return 2;
   const auto com = CoInitializeEx(nullptr, COINIT_MULTITHREADED); if (FAILED(com)) return 3;
   const char* stage = "initialize";
   try {
     stage = "pure packet-independent sound join envelope"; CheckAudioJoinEnvelope();
     stage = "calibrated packet-independent loudness, gating and oversampled peak"; CheckSoundMeter();
+    stage = "linked de-essing detection, cap, floor and packet independence"; CheckDeEsser();
     stage = "screen zoom springs, resize fit and cut reset"; CheckScreenZoomCrop();
     check_hresult(MFStartup(MF_VERSION));
     {
@@ -1171,12 +1261,14 @@ int wmain(int count, wchar_t** args) {
       if (count == 2 || std::wstring(args[2]) == L"--placement-only") CheckCameraPlacement(device.get(), prefix, stage);
       if (count == 2 || std::wstring(args[2]) == L"--blur-only") CheckScreenMotionBlur(device.get(), prefix, stage);
       if (count == 2 || std::wstring(args[2]) == L"--sound-only") CheckSoundBalance(device.get(), prefix, stage);
+      if (count == 2 || std::wstring(args[2]) == L"--ess-only") CheckDeEssExports(device.get(), prefix, stage);
     }
     if (count == 3) std::cout << "Focused local render check passed: " <<
       (std::wstring(args[2]) == L"--cleanup-only" ? "injected zero/one-sample failure cleanup" :
        std::wstring(args[2]) == L"--placement-only" ? "camera placement geometry/pixels, frame mapping and source resets" :
        std::wstring(args[2]) == L"--blur-only" ? "screen blur direction/cap, sharp camera/still frames and source resets" :
        std::wstring(args[2]) == L"--sound-only" ? "loudness/gating/peak calibration, mono/stereo clocks, resampling, retained joins and cancellation" :
+       std::wstring(args[2]) == L"--ess-only" ? "linked de-essing caps/floor/stereo, continuous/source-cut clocks, decoded attenuation and balanced volume" :
        "camera crops/cut resets and failure cleanup") << ".\n";
     else std::cout << "Local render check passed: streaming PCM/GPU pair, source selection/reordering, reviewed filler and retake tone/picture removal, silent input, stereo resampling, EN/FR/AR Readable/Karaoke/Cue/Punch timing and safe pixels, word reveal, emphasis, spring motion and Still, RTL underline, gaps, vertical Arabic, no clipped words, camera inset/end, exact portrait duration, cancel cleanup, damaged input, overwrite protection, centred main/paired camera crops/cut resets, camera placement, screen motion blur, volume balance/gates/peaks/mono/stereo/joins and injected zero/one-sample failure cleanup.\n";
     MFShutdown(); CoUninitialize(); return 0;

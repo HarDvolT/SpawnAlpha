@@ -184,17 +184,21 @@ double BalancedSoundGain(const LocalRenderRequest& request, const std::vector<in
     int64_t total_us, std::atomic<bool>& cancel, const std::function<void(double)>& progress) {
   AudioReader reader; if (!reader.Open(request.source)) return 1;
   AudioLoudness meter(reader.channels);
+  AudioDeEsser de_ess(reader.channels, total_us >= 400000 ? request.de_ess : DeEssPolicy{});
   const auto total_samples = SampleAtUs(total_us);
   for (size_t range = 0; range < request.ranges.size(); ++range) {
     Cancel(cancel);
-    if (range == 0 || request.ranges[range - 1].end_us != request.ranges[range].start_us)
+    if (range == 0 || request.ranges[range - 1].end_us != request.ranges[range].start_us) {
       reader.Reset(request.ranges[range].start_us * 10);
+      de_ess.Reset();
+    }
     const auto begin = SampleAtUs(starts[range]);
     const auto end = range + 1 < starts.size() ? SampleAtUs(starts[range + 1]) : total_samples;
     for (auto position = begin; position < end;) {
       Cancel(cancel);
       const auto count = static_cast<UINT>(std::min<int64_t>(1024, end - position));
       auto pcm = reader.At(SampleAtUs(request.ranges[range].start_us) + position - begin, count, cancel);
+      de_ess.Apply(pcm);
       ApplyAudioJoinFade(pcm, reader.channels, position, begin, end, request.audio_join_fade_us * kRate / 2000000,
         range > 0 && request.ranges[range - 1].end_us != request.ranges[range].start_us,
         range + 1 < request.ranges.size() && request.ranges[range].end_us != request.ranges[range + 1].start_us);
@@ -295,6 +299,7 @@ void RenderLocalVideo(const LocalRenderRequest& request, std::atomic<bool>& canc
   if (request.sound_balance.enabled) {
     AudioLoudness validation(1); validation.Finish(request.sound_balance);
   }
+  AudioDeEsser de_ess_validation(1, request.de_ess);
   int64_t total_us = 0;
   std::vector<int64_t> starts;
   for (const auto& range : request.ranges) {
@@ -335,6 +340,7 @@ void RenderLocalVideo(const LocalRenderRequest& request, std::atomic<bool>& canc
       punch.Open(steps, request.punch_spring, width, height, total_us);
     }
     AudioReader audio; const bool has_audio = audio.Open(request.source);
+    AudioDeEsser de_ess(has_audio ? audio.channels : 1, total_us >= 400000 ? request.de_ess : DeEssPolicy{});
     const auto sound_gain = has_audio && request.sound_balance.enabled
         ? BalancedSoundGain(request, starts, total_us, cancel, progress) : 1;
     Compositor compositor; compositor.Open(device.get(), request.width, request.height, !request.camera.empty());
@@ -410,11 +416,14 @@ void RenderLocalVideo(const LocalRenderRequest& request, std::atomic<bool>& canc
           Require(count > 0);
           const auto source_sample = SampleAtUs(request.ranges[audio_range].start_us) + audio_position - SampleAtUs(starts[audio_range]);
           if (audio_range != previous_audio_range) {
-            if (audio_range == 0 || request.ranges[audio_range - 1].end_us != request.ranges[audio_range].start_us)
+            if (audio_range == 0 || request.ranges[audio_range - 1].end_us != request.ranges[audio_range].start_us) {
               audio.Reset(request.ranges[audio_range].start_us * 10);
+              de_ess.Reset();
+            }
             previous_audio_range = audio_range;
           }
           auto pcm = audio.At(source_sample, count, cancel);
+          de_ess.Apply(pcm);
           ApplyAudioJoinFade(pcm, audio.channels, audio_position,
             SampleAtUs(starts[audio_range]), range_end, request.audio_join_fade_us * kRate / 2000000,
             audio_range > 0 && request.ranges[audio_range - 1].end_us != request.ranges[audio_range].start_us,

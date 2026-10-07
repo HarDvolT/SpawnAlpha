@@ -376,6 +376,19 @@ void main() {
                 duration: const Duration(seconds: 4), createdAt: DateTime(2026, 10, 7, 10, 30))], onView: (_) {}, onShow: (_) {}),
           ])), [script], brightness: brightness);
       });
+      testWidgets('gentle S sound export $language $brightness', (tester) async {
+        final script = sampleScripts().firstWhere((s) => s.language == language);
+        await shoot(tester, 'sound-softening-${language.name}-${brightness.name}', phone, (app) => Scaffold(
+          appBar: AppBar(title: const Text('Your take')), body: ListView(padding: const EdgeInsets.all(SaSpace.s5), children: [
+            Directionality(textDirection: language.isRtl ? TextDirection.rtl : TextDirection.ltr,
+              child: Text(script.displayTitle, style: SaType.body)),
+            const SizedBox(height: SaSpace.s5),
+            VideoExportPanel(format: VideoFormat.portrait, onFormat: (_) {}, onExport: () {}, job: app.exports,
+              busy: false, supported: true, onBalanceSound: (_) {}, onSoftenSharpSound: (_) {},
+              videos: [VideoExport(id: 'generated', format: VideoFormat.portrait, balanceSound: true, softenSharpSound: true,
+                duration: const Duration(seconds: 4), createdAt: DateTime(2026, 10, 7, 10, 30))], onView: (_) {}, onShow: (_) {}),
+          ])), [script], brightness: brightness);
+      });
       testWidgets('camera placement export $language $brightness', (tester) async {
         final script = sampleScripts().firstWhere((s) => s.language == language);
         await shoot(tester, 'camera-placement-${language.name}-${brightness.name}', phone, (app) => Scaffold(

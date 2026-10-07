@@ -561,7 +561,7 @@ abstract final class SaVideoExport {
 
 /// Local sound balance targets and limits.
 ///
-/// Fixed-gain local sound balance; reserve headroom for AAC encoding.
+/// Local sound balance and gentle wideband de-essing; reserve headroom for AAC encoding.
 abstract final class SaSoundPolish {
   /// Product integrated loudness target in LUFS; peak protection takes priority.
   static const double loudnessTarget = -14.0;
@@ -569,8 +569,24 @@ abstract final class SaSoundPolish {
   static const double peakCeiling = -2.0;
   /// Maximum fixed amplification in dB to avoid excessive noise gain.
   static const double maximumBoost = 12.0;
-  /// Minimum retained sound duration for gated loudness measurement.
+  /// Minimum retained sound duration for sound processing.
   static const Duration minimumDuration = Duration(milliseconds: 400);
+  /// Detector high-pass cutoff in Hz; never filters the output sound.
+  static const double essCutoff = 5000.0;
+  /// Minimum high-frequency share of total smoothed energy.
+  static const double essRatio = 0.55;
+  /// Energy-ratio width of the gentle reduction transition.
+  static const double essKnee = 0.25;
+  /// Minimum high-frequency RMS in dBFS.
+  static const double essFloor = -42.0;
+  /// Maximum linked mono/stereo attenuation in dB.
+  static const double essReduction = 3.0;
+  /// Smoothed energy detector time constant.
+  static const Duration essDetector = Duration(milliseconds: 5);
+  /// Gain reduction attack time constant.
+  static const Duration essAttack = Duration(milliseconds: 2);
+  /// Gain reduction release time constant.
+  static const Duration essRelease = Duration(milliseconds: 80);
 }
 
 /// The four type voices: display, reading, signal and pencil.

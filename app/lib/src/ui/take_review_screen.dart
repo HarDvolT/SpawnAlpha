@@ -66,6 +66,7 @@ class _TakeReviewScreenState extends State<TakeReviewScreen> {
   bool? _cameraClear;
   bool? _motionBlur;
   bool _balanceSound = true;
+  bool _softenSharpSound = false;
   List<VideoExport> _videos = [];
   VideoExport? _viewing;
   final _reviewScroll = ScrollController();
@@ -206,6 +207,7 @@ class _TakeReviewScreenState extends State<TakeReviewScreen> {
       cameraClear: _cameraClear ?? !MediaQuery.disableAnimationsOf(context),
       motionBlur: _motionBlur ?? !MediaQuery.disableAnimationsOf(context),
       balanceSound: _balanceSound,
+      softenSharpSound: _softenSharpSound,
     );
     final saved = await app.videoExports.load(_latestTake(app));
     if (mounted) {
@@ -630,6 +632,9 @@ class _TakeReviewScreenState extends State<TakeReviewScreen> {
                       setState(() => _clickHighlights = value),
                   hasAudioJoins: _clean?.asCutPlan().hasJoins ?? false,
                   balanceSound: _balanceSound,
+                  softenSharpSound: _softenSharpSound,
+                  onSoftenSharpSound: (value) =>
+                      setState(() => _softenSharpSound = value),
                   onBalanceSound: (value) =>
                       setState(() => _balanceSound = value),
                   softAudioJoins: _softAudioJoins,

@@ -103,6 +103,7 @@ class ExportProcessor extends ChangeNotifier {
     bool cameraClear = true,
     bool motionBlur = true,
     bool balanceSound = false,
+    bool softenSharpSound = false,
   }) async {
     if (busy) return null;
     source = take.path;
@@ -236,8 +237,8 @@ class ExportProcessor extends ChangeNotifier {
             )
           : null;
       final punches = captionTracks?.$3;
-      final balanced =
-          balanceSound &&
+      final soundAvailable =
+          (balanceSound || softenSharpSound) &&
           plan.duration >= SaSoundPolish.minimumDuration &&
           (await store.inspector.inspect(take.path)).hasAudio;
       if (_cancelled) throw const RenderCancelled();
@@ -261,7 +262,8 @@ class ExportProcessor extends ChangeNotifier {
         screenFrame: screenFrame && take.mode != TakeMode.camera,
         cameraPunchCount: punches?.count ?? 0,
         motionBlur: motionBlur && zooms.zooms.count > 0,
-        balanceSound: balanced,
+        balanceSound: balanceSound && soundAvailable,
+        softenSharpSound: softenSharpSound && soundAvailable,
         cameraClear:
             cameraClear &&
             pairedCamera &&
@@ -305,6 +307,7 @@ class ExportProcessor extends ChangeNotifier {
           cameraClear: video.cameraClear,
           motionBlur: video.motionBlur,
           balanceSound: video.balanceSound,
+          softenSharpSound: video.softenSharpSound,
           cameraTargets: zooms.cameraTargets,
         ),
         (amount) {

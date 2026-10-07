@@ -62,6 +62,30 @@ build step 2 (screen recording).
 
 ## Handover (2026-10-05): from here, Codex on the owner's Windows PC
 
+- **Latest checkpoint (2026-10-07, light de-essing):** 879 Flutter tests,
+  284 screenshots and clean analysis. Soften harsh S sounds is an independent
+  optional saved-take export choice, initially off, with whole-mix scope
+  explained. A 5kHz detector high-pass, 55% energy ratio/25% knee, -42dBFS
+  floor and 5ms energy smoothing drive at most 3dB linked full-band attenuation
+  with 2ms attack/80ms release. The audible output is never filtered; no delay
+  or amplification is added. Silent/short/quiet/disabled PCM stays unchanged;
+  source cuts reset and contiguous ranges preserve packet-identical state.
+  Both the volume prepass and renderer apply it before joins/gain. Native
+  generated mono/stereo detection/caps/floor, exact packet identity, decoded
+  attenuation, unchanged distant low tones, continuous/cut clocks and combined
+  volume target pass with the full native suite. A four-second AAC fixture
+  advertises 10.65ms container padding; the check permits one AAC packet while
+  still requiring exact video presentation/end and equal decoded audio length.
+  EN/FR/AR disk-reload on/off/recovery and six actual app-channel exports
+  preserve exact subtitles, history and original words/media. EN/AR phone PNGs
+  inspected. No dependency, copied code, model, owner media/input or upload.
+  **Half done:** noise reduction, room-tone joins, smooth cursor, further
+  coaching/editor and mobile/launch remain. For noise, current separate RNNoise
+  weights lack a resolved explicit licence statement (upstream issue #284).
+  SpeexDSP 1.2.1 classic denoising is a BSD-3 candidate with no learned weights;
+  review its source subset/build/notices before adopting it. Owner listening
+  and hardware trials stay deferred. The Claude design artifact trails docs/design.
+
 - **Latest checkpoint (2026-10-07, sound volume balance):** 863 Flutter tests,
   278 screenshots and clean analysis. Balance sound volume starts on in take
   review and can change after recording or after reopening the take. Retained
@@ -1064,6 +1088,13 @@ build step 2 (screen recording).
 
 ## Decisions
 
+- 2026-10-07, light de-essing: offer a separate reversible Soften harsh S
+  sounds export choice, initially off pending owner listening. Use a detector
+  high-pass only and at most 3dB linked full-band attenuation; keep output
+  phase/stereo balance and exact word/video clocks. Measure softened sound
+  before fixed volume gain. State that an explicit choice affects the entire
+  recorded mix, including computer sound. No language/model guesses.
+
 - 2026-10-07, sound volume balance: start the separate reversible export
   choice on in take review. Use one fixed gain on the retained output sound,
   gated K-weighted 400ms windows, a -14 LUFS target, 12dB maximum boost and
@@ -1335,6 +1366,26 @@ build step 2 (screen recording).
   word lists, not prosody.
 
 ## Session log
+
+- 2026-10-07, light de-essing:
+  - Added optional after-recording control and additive choice/history with
+    legacy off. Own bounded detector and linked gain preserve PCM length,
+    phase/stereo balance and output clocks. Silent/short/quiet/disabled sound
+    remains unchanged. Source cuts reset; continuous splits preserve state.
+  - Generated pure packet identity, detector caps/floor/stereo and decoded
+    alternating high/low mono/stereo sound pass. Exact video clocks and equal
+    decoded audio lengths remain required despite AAC container packet padding.
+    Combined de-essing/volume prepass reaches the target on treated sound.
+    The full native render suite passes.
+  - 879 Flutter tests, 284 screenshots and clean analysis. EN/FR/AR saved
+    off/on/off versions, source/mix independence, short/silent protection,
+    legacy parsing and failed attachment recovery pass. Six actual Windows
+    app-channel exports combine optional de-essing with volume balance while
+    preserving subtitle/history/word/media bytes. EN/AR phone PNGs inspected.
+  - No dependency, model, copied code, owner media/input or upload. Researched
+    RNNoise separate-weight licence uncertainty and SpeexDSP's commercial
+    BSD-3 classic-noise candidate; nothing adopted yet. Noise/room-tone,
+    cursor, coaching/editor and mobile/launch remain. Owner trials deferred.
 
 - 2026-10-07, sound volume balance:
   - Added independent after-recording choice, fixed-policy channel request,
