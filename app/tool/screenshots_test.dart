@@ -247,6 +247,14 @@ void main() {
     // Animations that should be caught mid-way skip settling.
     settle ? await tester.pumpAndSettle() : await tester.pump();
     if (before != null) await before(tester);
+    // Retained display lists can lose text between Windows golden captures.
+    // Repaint without advancing time so intentional animation frames stay put.
+    void repaint(RenderObject object) {
+      object.markNeedsPaint();
+      object.visitChildren(repaint);
+    }
+    for (final view in tester.binding.renderViews) { repaint(view); }
+    await tester.pump();
     await expectLater(find.byType(MaterialApp), matchesGoldenFile('screenshots/$name.png'));
   }
 

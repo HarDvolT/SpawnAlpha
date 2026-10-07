@@ -56,6 +56,8 @@ EncodableMap Status(const ScreenRecordingStatus& status) {
     {EncodableValue("cameraFrames"), EncodableValue(static_cast<int64_t>(status.camera_frames))},
     {EncodableValue("systemAudioFrames"), EncodableValue(static_cast<int64_t>(status.system_audio_frames))},
     {EncodableValue("activityEvents"), EncodableValue(static_cast<int64_t>(status.activity_events))},
+    {EncodableValue("cursorFreeFrames"), EncodableValue(static_cast<int64_t>(status.cursor_free_frames))},
+    {EncodableValue("cursorFreeComplete"), EncodableValue(status.cursor_free_complete)},
     {EncodableValue("durationUs"), EncodableValue(status.duration_100ns / 10)},
     {EncodableValue("peakDb"), EncodableValue(status.peak_db)},
     {EncodableValue("rmsDb"), EncodableValue(status.rms_db)},
@@ -141,6 +143,7 @@ struct ScreenRecorder::Impl {
           const auto camera = StringArgument(*args, "cameraId");
           const auto camera_path = StringArgument(*args, "cameraPath");
           const auto activity_path = StringArgument(*args, "activityPath");
+          const auto cursor_free_path = StringArgument(*args, "cursorFreePath");
           const auto audio = args->find(EncodableValue("recordAudio"));
           const auto system_audio = args->find(EncodableValue("recordSystemAudio"));
           if (!source || !path || path->empty() || audio == args->end() || !std::holds_alternative<bool>(audio->second)) {
@@ -156,6 +159,10 @@ struct ScreenRecorder::Impl {
             result->Error("invalid", "Choose a separate local activity file."); return;
           }
           HMONITOR monitor = nullptr; HWND window = nullptr;
+          if (cursor_free_path && (!activity_path || cursor_free_path->empty() || *cursor_free_path == *path ||
+              (camera_path && *cursor_free_path == *camera_path) || *cursor_free_path == *activity_path)) {
+            result->Error("invalid", "Choose a separate local picture file with Activity enabled."); return;
+          }
           if (!ResolveScreenSource(*source, &monitor, &window)) {
             result->Error("source", "This source is unavailable. Choose another."); return;
           }
@@ -164,7 +171,8 @@ struct ScreenRecorder::Impl {
               microphone ? winrt::to_hstring(*microphone).c_str() : L"", std::get<bool>(audio->second),
               camera ? winrt::to_hstring(*camera).c_str() : L"", camera_path ? winrt::to_hstring(*camera_path).c_str() : L"",
               system_audio != args->end() && std::get<bool>(system_audio->second),
-              activity_path ? winrt::to_hstring(*activity_path).c_str() : L""));
+              activity_path ? winrt::to_hstring(*activity_path).c_str() : L"",
+              cursor_free_path ? winrt::to_hstring(*cursor_free_path).c_str() : L""));
           active = std::move(next); ++generation;
           result->Success(EncodableValue(EncodableMap{{EncodableValue("sessionId"), EncodableValue(generation)}}));
         } else if (call.method_name() == "status") {

@@ -78,6 +78,13 @@ target_compile_options(gpu_video_writer_check PRIVATE /W4 /WX /EHsc /wd"4100")
 target_compile_definitions(gpu_video_writer_check PRIVATE "NOMINMAX")
 target_link_libraries(gpu_video_writer_check PRIVATE "d3d11.lib" "dxgi.lib" "mf.lib" "mfplat.lib" "mfreadwrite.lib" "mfuuid.lib" "ole32.lib" "oleaut32.lib" "windowsapp.lib")
 
+# Captures only an owned generated window; verifies independent pointer flags.
+add_executable(cursor_capture_check EXCLUDE_FROM_ALL "tests/cursor_capture_check.cpp")
+target_compile_features(cursor_capture_check PRIVATE cxx_std_17)
+target_compile_options(cursor_capture_check PRIVATE /W4 /WX /EHsc /wd"4100")
+target_compile_definitions(cursor_capture_check PRIVATE "NOMINMAX")
+target_link_libraries(cursor_capture_check PRIVATE "d3d11.lib" "dxgi.lib" "ole32.lib" "windowsapp.lib" "user32.lib" "gdi32.lib")
+
 # Reads a short microphone stream into memory and discards it. Explicit only.
 add_executable(microphone_capture_check EXCLUDE_FROM_ALL "microphone_capture.cpp" "tests/microphone_capture_check.cpp")
 target_compile_features(microphone_capture_check PRIVATE cxx_std_17)
@@ -86,12 +93,17 @@ target_compile_definitions(microphone_capture_check PRIVATE "NOMINMAX")
 target_link_libraries(microphone_capture_check PRIVATE "ole32.lib" "windowsapp.lib")
 
 # Captures only its own generated-color window; no private desktop capture.
-add_executable(screen_recording_check EXCLUDE_FROM_ALL "recording_activity.cpp" "recording_activity_schema.cpp" "screen_recording_core.cpp" "gpu_video_writer.cpp" "microphone_capture.cpp" "camera_capture.cpp" "tests/screen_recording_check.cpp")
+add_executable(screen_recording_check EXCLUDE_FROM_ALL "recording_activity.cpp" "recording_activity_schema.cpp" "screen_recording_core.cpp" "gpu_video_writer.cpp" "microphone_capture.cpp" "camera_capture.cpp" "recording_probe.cpp" "tests/screen_recording_check.cpp")
 target_compile_features(screen_recording_check PRIVATE cxx_std_17)
 target_compile_options(screen_recording_check PRIVATE /W4 /WX /EHsc /wd"4100")
-target_compile_definitions(screen_recording_check PRIVATE "NOMINMAX")
+target_compile_definitions(screen_recording_check PRIVATE "NOMINMAX" "SPAWNALPHA_RECORDING_FIXTURE")
 target_link_libraries(screen_recording_check PRIVATE "dwmapi.lib" "d3d11.lib" "dxgi.lib" "mf.lib" "mfplat.lib" "mfreadwrite.lib" "mfuuid.lib" "ole32.lib" "oleaut32.lib" "windowsapp.lib" "user32.lib" "gdi32.lib")
 
+add_executable(video_clock_check EXCLUDE_FROM_ALL "gpu_video_writer.cpp" "recording_probe.cpp" "tests/video_clock_check.cpp")
+target_compile_features(video_clock_check PRIVATE cxx_std_17)
+target_compile_options(video_clock_check PRIVATE /W4 /WX /EHsc /wd"4100")
+target_compile_definitions(video_clock_check PRIVATE "NOMINMAX")
+target_link_libraries(video_clock_check PRIVATE "d3d11.lib" "dxgi.lib" "mf.lib" "mfplat.lib" "mfreadwrite.lib" "mfuuid.lib" "ole32.lib" "oleaut32.lib" "windowsapp.lib")
 add_executable(recording_probe_check EXCLUDE_FROM_ALL "recording_probe.cpp" "tests/recording_probe_check.cpp")
 target_compile_features(recording_probe_check PRIVATE cxx_std_17)
 target_compile_options(recording_probe_check PRIVATE /W4 /WX /EHsc /wd"4100")
@@ -159,10 +171,10 @@ target_compile_options(system_audio_capture_check PRIVATE /W4 /WX /EHsc /wd"4100
 target_compile_definitions(system_audio_capture_check PRIVATE "NOMINMAX")
 target_link_libraries(system_audio_capture_check PRIVATE "ole32.lib" "windowsapp.lib")
 
-add_executable(audio_recording_check EXCLUDE_FROM_ALL "recording_activity.cpp" "recording_activity_schema.cpp" "screen_recording_core.cpp" "gpu_video_writer.cpp" "camera_capture.cpp" "tests/audio_capture_fixture.cpp" "tests/screen_recording_check.cpp")
+add_executable(audio_recording_check EXCLUDE_FROM_ALL "recording_activity.cpp" "recording_activity_schema.cpp" "screen_recording_core.cpp" "gpu_video_writer.cpp" "camera_capture.cpp" "recording_probe.cpp" "tests/audio_capture_fixture.cpp" "tests/screen_recording_check.cpp")
 target_compile_features(audio_recording_check PRIVATE cxx_std_17)
 target_compile_options(audio_recording_check PRIVATE /W4 /WX /EHsc /wd"4100")
-target_compile_definitions(audio_recording_check PRIVATE "NOMINMAX" "SPAWNALPHA_AUDIO_FIXTURE")
+target_compile_definitions(audio_recording_check PRIVATE "NOMINMAX" "SPAWNALPHA_AUDIO_FIXTURE" "SPAWNALPHA_RECORDING_FIXTURE")
 target_link_libraries(audio_recording_check PRIVATE "dwmapi.lib" "d3d11.lib" "dxgi.lib" "mf.lib" "mfplat.lib" "mfreadwrite.lib" "mfuuid.lib" "ole32.lib" "oleaut32.lib" "windowsapp.lib" "user32.lib" "gdi32.lib")
 
 # Timing-only activity fixtures never register an input receiver or read the PC.
@@ -199,3 +211,13 @@ target_compile_options(local_render_check PRIVATE /W4 /WX /EHsc /wd"4100")
 target_compile_definitions(local_render_check PRIVATE "NOMINMAX")
 target_link_libraries(local_render_check PRIVATE spawnalpha_noise)
 target_link_libraries(local_render_check PRIVATE "windowscodecs.lib" "d2d1.lib" "dwrite.lib" "dxguid.lib" "d3d11.lib" "dxgi.lib" "mf.lib" "mfplat.lib" "mfreadwrite.lib" "mfuuid.lib" "ole32.lib" "oleaut32.lib" "windowsapp.lib")
+
+# Native checks must use the app's OS and DPI compatibility declarations.
+# Otherwise Media Foundation selects an older MP4 behavior and hides errors
+# that occur in the manifested Windows app.
+get_property(SPAWNALPHA_CHECK_TARGETS DIRECTORY PROPERTY BUILDSYSTEM_TARGETS)
+foreach(CHECK_TARGET IN LISTS SPAWNALPHA_CHECK_TARGETS)
+  if(CHECK_TARGET MATCHES "_check$")
+    target_sources(${CHECK_TARGET} PRIVATE "runner.exe.manifest")
+  endif()
+endforeach()

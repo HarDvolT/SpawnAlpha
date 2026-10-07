@@ -16,6 +16,8 @@ struct ScreenRecordingStatus {
   UINT64 camera_frames = 0;
   UINT64 system_audio_frames = 0;
   UINT64 activity_events = 0;
+  UINT64 cursor_free_frames = 0;
+  bool cursor_free_complete = false;
   LONGLONG duration_100ns = 0;
   double peak_db = -100, rms_db = -100, loudest_rms_db = -100;
   double loudest_system_rms_db = -100;
@@ -30,7 +32,8 @@ class ScreenRecordingCore {
   HRESULT Start(HMONITOR monitor, HWND window, const std::wstring& path,
                 const std::wstring& microphone_id, bool record_audio,
                 const std::wstring& camera_id = {}, const std::wstring& camera_path = {},
-                bool record_system_audio = false, const std::wstring& activity_path = {});
+                bool record_system_audio = false, const std::wstring& activity_path = {},
+                const std::wstring& cursor_free_path = {});
   void RequestStop();
   void SetPaused(bool paused);
   ScreenRecordingStatus Status() const;

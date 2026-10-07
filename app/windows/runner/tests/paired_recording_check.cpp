@@ -8,7 +8,13 @@
 #include <iostream>
 #include <cmath>
 
-void Require(bool value) { if (!value) throw winrt::hresult_error(E_FAIL); }
+void RequireAt(bool value, int line) {
+  if (!value) {
+    std::cerr << "Generated paired guard at line " << line << "\n";
+    throw winrt::hresult_error(E_FAIL);
+  }
+}
+#define Require(value) RequireAt(value, __LINE__)
 LRESULT CALLBACK Fixture(HWND window, UINT message, WPARAM wp, LPARAM lp) {
   if (message == WM_PAINT) {
     PAINTSTRUCT paint{}; const auto dc = BeginPaint(window, &paint);
@@ -44,7 +50,8 @@ int wmain(int count, wchar_t** args) {
   if (count != 4 && count != 5) return 2;
   const bool stop_paused = count == 5 && std::wcscmp(args[4], L"--stop-paused") == 0;
   const bool camera_loss = count == 5 && std::wcscmp(args[4], L"--camera-loss") == 0;
-  if (count == 5 && !stop_paused && !camera_loss) return 2;
+  const bool cursor = count == 5 && std::wcscmp(args[4], L"--cursor") == 0;
+  if (count == 5 && !stop_paused && !camera_loss && !cursor) return 2;
   if (FAILED(CoInitializeEx(nullptr, COINIT_MULTITHREADED))) return 3;
   HWND window = nullptr; int result = 1;
   const char* stage = "capture";
@@ -55,7 +62,8 @@ int wmain(int count, wchar_t** args) {
       100, 100, 640, 360, nullptr, nullptr, type.hInstance, nullptr);
     Require(window != nullptr); ShowWindow(window, SW_SHOWNOACTIVATE); UpdateWindow(window);
     ScreenRecordingCore capture;
-    winrt::check_hresult(capture.Start(nullptr, window, args[1], L"", false, args[3], args[2]));
+    const std::wstring cursor_path = std::wstring(args[1]) + L".clean.mp4";
+    winrt::check_hresult(capture.Start(nullptr, window, args[1], L"", false, args[3], args[2], false, {}, cursor ? cursor_path : L""));
     const auto deadline = GetTickCount64() + 15000;
     ULONGLONG origin = 0;
     bool paused = false, resumed = false, stopped = false;
@@ -91,8 +99,16 @@ int wmain(int count, wchar_t** args) {
     Require(preview_live_while_paused && preview && !preview->bgra.empty() && !capture.LatestCamera());
     stage = "decode paired files"; winrt::check_hresult(MFStartup(MF_VERSION));
     const auto screen = Decode(args[1]), camera = Decode(args[2]);
+    std::cout << "Generated paired clocks: screen=" << screen.first << "/" << screen.second
+              << " camera=" << camera.first << "/" << camera.second
+              << " expected=" << state.frames << "/" << state.duration_100ns << "\n";
+    if (cursor) {
+      Require(state.cursor_free_complete && state.cursor_free_frames == state.frames);
+      Require(Decode(cursor_path) == screen);
+    }
     Require(screen.first == state.frames && camera.first == state.frames && screen.second == camera.second);
-    Require(std::abs(screen.second + 10000000LL / 30 - state.duration_100ns) <= 2);
+    // A 30,000Hz MP4 fragment index can round by one track tick.
+    Require(std::abs(screen.second + 10000000LL / 30 - state.duration_100ns) <= 334);
     winrt::check_hresult(MFShutdown());
     std::cout << "Paired recording check passed: separate fragmented files, identical frame times, paused clock, ordered decoded endpoints, clean stop.\n";
     result = 0;

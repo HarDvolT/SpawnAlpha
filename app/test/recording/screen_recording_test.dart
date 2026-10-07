@@ -60,6 +60,49 @@ void main() {
     ),
   );
 
+  test('cursor-free pictures require activity and a separate file', () async {
+    Map? request;
+    messenger.setMockMethodCallHandler(WindowsScreenRecordings.channel, (
+      call,
+    ) async {
+      request = call.arguments as Map;
+      return {'sessionId': 1};
+    });
+    for (final value in ['', 'screen.mp4', 'camera.mp4', 'trace.jsonl']) {
+      await expectLater(
+        backend.start(
+          source: source,
+          path: 'screen.mp4',
+          recordAudio: false,
+          cameraId: 'fixture',
+          cameraPath: 'camera.mp4',
+          activityPath: 'trace.jsonl',
+          cursorFreePath: value,
+        ),
+        throwsArgumentError,
+      );
+    }
+    await expectLater(
+      backend.start(
+        source: source,
+        path: 'screen.mp4',
+        recordAudio: false,
+        cursorFreePath: 'clean.mp4',
+      ),
+      throwsArgumentError,
+    );
+    await backend.start(
+      source: source,
+      path: 'screen.mp4',
+      recordAudio: false,
+      activityPath: 'trace.jsonl',
+      cursorFreePath: 'clean.mp4',
+    );
+    expect(request!['cursorFreePath'], 'clean.mp4');
+    await backend.start(source: source, path: 'screen.mp4', recordAudio: false);
+    expect(request!.containsKey('cursorFreePath'), isFalse);
+  });
+
   test(
     'start sends exact chosen microphone and explicit audio choice',
     () async {

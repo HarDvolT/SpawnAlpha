@@ -8,6 +8,13 @@
 #include <filesystem>
 #include <wincodec.h>
 #include "../audio_join_fade.h"
+void RequireLocal(bool value, int line) {
+  if (!value) {
+    std::cerr << "Generated local render guard at line " << line << "\n";
+    throw winrt::hresult_error(E_FAIL);
+  }
+}
+#define Require(value) RequireLocal(value, __LINE__)
 void SaveCaptionPng(const std::wstring&, UINT, UINT, const BYTE*);
 std::vector<BYTE> CaptionPixels(IMFSourceReader*, IMFSample*, UINT, UINT);
 
@@ -562,6 +569,10 @@ void VerifyLocalCut(const LocalRenderRequest& request, int expected_frames, int6
         valid = frames < 30 ? bytes[inset + 1] > bytes[inset] + 80 && bytes[inset + 1] > bytes[inset + 2] + 80
                             : bytes[inset] > bytes[inset + 2] + 80;
       }
+      if (!valid)
+        std::cerr << "Generated cut pixel: frame=" << frames << " sourceUs=" << source
+                  << " rgb=" << unsigned(bytes[center + 2]) << "/"
+                  << unsigned(bytes[center + 1]) << "/" << unsigned(bytes[center]) << "\n";
       Require(valid); ++frames;
     }
     if (flags & MF_SOURCE_READERF_ENDOFSTREAM) break;

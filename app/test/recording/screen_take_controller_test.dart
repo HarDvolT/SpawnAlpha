@@ -109,6 +109,8 @@ class TestRecorder implements ScreenRecordings {
   bool writeCamera = true;
   bool writeActivity = true;
   String? activityFile;
+  String? cursorFreeFile;
+  bool? cursorFreeComplete;
   @override
   bool get supported => true;
   @override
@@ -118,6 +120,7 @@ class TestRecorder implements ScreenRecordings {
     required bool recordAudio,
     bool recordSystemAudio = false,
     String? activityPath,
+    String? cursorFreePath,
     String? microphoneId,
     String? cameraId,
     String? cameraPath,
@@ -133,6 +136,7 @@ class TestRecorder implements ScreenRecordings {
     camera = cameraId;
     cameraFile = cameraPath;
     activityFile = activityPath;
+    cursorFreeFile = cursorFreePath;
     await File(path).writeAsString('fixture', flush: true);
     if (cameraPath != null && writeCamera) {
       await File(cameraPath).writeAsString('fixture', flush: true);
@@ -155,6 +159,7 @@ class TestRecorder implements ScreenRecordings {
       reason: reason,
       duration: duration,
       frames: 90,
+      cursorFreeComplete: cursorFreeComplete,
       audioFrames: audio == true ? 144000 : 0,
       systemAudioFrames: systemAudio == true ? 144000 : 0,
       loudestSystemRmsDb: systemAudio == true && !quietSystem ? -18 : -100,
@@ -255,15 +260,24 @@ void main() {
     bool both = false,
     bool notes = false,
   }) async {
-    final script = ScriptDocument.create(
-      language: language,
-      text: switch (language) {
-        ScriptLanguage.en => 'Read the line.',
-        ScriptLanguage.fr => 'Lisez cette phrase.',
-        ScriptLanguage.ar => 'اقرأ هذه الجملة.',
-      },
-    ).copyWith(recordingAid: notes ? RecordingAid.notes : RecordingAid.script,
-      notes: notes ? NoteDeck([NoteCard(id: 'a', title: 'First'), NoteCard(id: 'b', title: 'Second'), NoteCard(id: 'c', title: 'Last')]) : null);
+    final script =
+        ScriptDocument.create(
+          language: language,
+          text: switch (language) {
+            ScriptLanguage.en => 'Read the line.',
+            ScriptLanguage.fr => 'Lisez cette phrase.',
+            ScriptLanguage.ar => 'اقرأ هذه الجملة.',
+          },
+        ).copyWith(
+          recordingAid: notes ? RecordingAid.notes : RecordingAid.script,
+          notes: notes
+              ? NoteDeck([
+                  NoteCard(id: 'a', title: 'First'),
+                  NoteCard(id: 'b', title: 'Second'),
+                  NoteCard(id: 'c', title: 'Last'),
+                ])
+              : null,
+        );
     await library.save(script);
     await owner.start(
       presentation: FloatingPresentation(script: script),
@@ -278,31 +292,46 @@ void main() {
     );
   }
 
-  test('Notes card clock coalesces paused browsing and ignores other sessions', () async {
-    recorder.onStatus = (poll) async {
-      recorder.duration = Duration(milliseconds: poll < 3 ? poll * 300 : poll < 5 ? 600 : 1200);
-      if (poll == 2) reader.stream.add(const FloatingCommand(4, 'card', cardIndex: 1));
-      if (poll == 3) {
-        recorder.paused = true;
-        reader.stream.add(const FloatingCommand(4, 'card', cardIndex: 2));
-      }
-      if (poll == 4) reader.stream.add(const FloatingCommand(4, 'card', cardIndex: 0));
-      if (poll == 5) {
-        recorder.paused = false;
-        reader.stream.add(const FloatingCommand(99, 'card', cardIndex: 2));
-      }
-      if (poll == 6) owner.stop();
-    };
-    await start(ScriptLanguage.ar, notes: true);
-    expect(owner.take, isNotNull);
-    final manifest = jsonDecode(await File(owner.take!.metadataPath!).readAsString()) as Map<String, dynamic>;
-    expect(manifest['noteChanges'], [
-      {'cardIndex': 0, 'timeUs': 0},
-      {'cardIndex': 1, 'timeUs': 600000},
-      {'cardIndex': 0, 'timeUs': 1200000},
-    ]);
-    expect((manifest['script'] as Map)['recordingAid'], 'notes');
-  });
+  test(
+    'Notes card clock coalesces paused browsing and ignores other sessions',
+    () async {
+      recorder.onStatus = (poll) async {
+        recorder.duration = Duration(
+          milliseconds: poll < 3
+              ? poll * 300
+              : poll < 5
+              ? 600
+              : 1200,
+        );
+        if (poll == 2) {
+          reader.stream.add(const FloatingCommand(4, 'card', cardIndex: 1));
+        }
+        if (poll == 3) {
+          recorder.paused = true;
+          reader.stream.add(const FloatingCommand(4, 'card', cardIndex: 2));
+        }
+        if (poll == 4) {
+          reader.stream.add(const FloatingCommand(4, 'card', cardIndex: 0));
+        }
+        if (poll == 5) {
+          recorder.paused = false;
+          reader.stream.add(const FloatingCommand(99, 'card', cardIndex: 2));
+        }
+        if (poll == 6) owner.stop();
+      };
+      await start(ScriptLanguage.ar, notes: true);
+      expect(owner.take, isNotNull);
+      final manifest = jsonDecode(
+        await File(owner.take!.metadataPath!).readAsString(),
+      ) as Map<String, dynamic>;
+      expect(manifest['noteChanges'], [
+        {'cardIndex': 0, 'timeUs': 0},
+        {'cardIndex': 1, 'timeUs': 600000},
+        {'cardIndex': 0, 'timeUs': 1200000},
+      ]);
+      expect((manifest['script'] as Map)['recordingAid'], 'notes');
+    },
+  );
 
   test('unavailable activity explains how to record without it', () async {
     final inspector = FakeInspector();
@@ -333,6 +362,21 @@ void main() {
     expect(events.indexOf('release'), lessThan(events.indexOf('unprotect')));
   });
   for (final language in ScriptLanguage.values) {
+    test(
+      'optional mouse pictures can fail without losing the $language take',
+      () async {
+        recorder.cursorFreeComplete = false;
+        recorder.onStatus = (poll) async {
+          if (poll == 2) owner.stop();
+        };
+        await start(language, activity: true);
+        expect(recorder.cursorFreeFile, endsWith('-cursor-free.mp4'));
+        expect(owner.take, isNotNull);
+        expect(owner.take!.cursorFreePath, isNull);
+        expect(owner.problem, contains('Mouse smoothing is unavailable'));
+        expect(owner.problem, isNot(contains('private')));
+      },
+    );
     test(
       'activity opt-in reaches the saved $language take after protected cleanup',
       () async {

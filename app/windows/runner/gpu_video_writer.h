@@ -25,7 +25,7 @@ class GpuVideoWriter {
   HRESULT WriteFrame(ID3D11Texture2D* source, UINT content_width,
                      UINT content_height, LONGLONG time_100ns, LONGLONG duration_100ns = 0);
   HRESULT WriteAudio(const int16_t* pcm, UINT frames, LONGLONG time_100ns);
-  HRESULT Finish();
+  HRESULT Finish(bool finalize = true);
  private:
   struct Impl;
   std::unique_ptr<Impl> impl_;

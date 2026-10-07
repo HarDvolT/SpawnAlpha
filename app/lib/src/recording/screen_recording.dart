@@ -40,6 +40,8 @@ class ScreenRecordingStatus {
     this.cameraFrames = 0,
     this.systemAudioFrames = 0,
     this.activityEvents = 0,
+    this.cursorFreeFrames = 0,
+    this.cursorFreeComplete,
     this.duration = Duration.zero,
     this.peakDb = -100,
     this.rmsDb = -100,
@@ -50,6 +52,8 @@ class ScreenRecordingStatus {
   final ScreenRecordingReason reason;
   final int width, height, frames, audioFrames, cameraFrames, systemAudioFrames;
   final int activityEvents;
+  final int cursorFreeFrames;
+  final bool? cursorFreeComplete;
   final Duration duration;
   final double peakDb, rmsDb, loudestRmsDb, loudestSystemRmsDb;
   bool get terminal =>
@@ -70,6 +74,7 @@ abstract class ScreenRecordings {
     required bool recordAudio,
     bool recordSystemAudio = false,
     String? activityPath,
+    String? cursorFreePath,
     String? microphoneId,
     String? cameraId,
     String? cameraPath,
@@ -94,10 +99,21 @@ class WindowsScreenRecordings implements ScreenRecordings {
     required bool recordAudio,
     bool recordSystemAudio = false,
     String? activityPath,
+    String? cursorFreePath,
     String? microphoneId,
     String? cameraId,
     String? cameraPath,
   }) async {
+    if (cursorFreePath != null &&
+        (cursorFreePath.isEmpty ||
+            activityPath == null ||
+            cursorFreePath == path ||
+            cursorFreePath == cameraPath ||
+            cursorFreePath == activityPath)) {
+      throw ArgumentError(
+        'Choose a separate picture file with Activity enabled',
+      );
+    }
     if (activityPath == '' ||
         activityPath == path ||
         (activityPath != null && activityPath == cameraPath)) {
@@ -115,6 +131,7 @@ class WindowsScreenRecordings implements ScreenRecordings {
       'recordAudio': recordAudio,
       'recordSystemAudio': recordSystemAudio,
       'activityPath': ?activityPath,
+      'cursorFreePath': ?cursorFreePath,
       'microphoneId': ?microphoneId,
       'cameraId': ?cameraId,
       'cameraPath': ?cameraPath,
@@ -162,6 +179,12 @@ class WindowsScreenRecordings implements ScreenRecordings {
     return ScreenRecordingStatus(
       phase: phase,
       reason: reason,
+      cursorFreeFrames: info['cursorFreeFrames'] == null
+          ? 0
+          : integer('cursorFreeFrames'),
+      cursorFreeComplete: info['cursorFreeComplete'] is bool
+          ? info['cursorFreeComplete'] as bool
+          : null,
       width: integer('width'),
       height: integer('height'),
       frames: integer('frames'),
@@ -208,6 +231,7 @@ class UnsupportedScreenRecordings implements ScreenRecordings {
     required bool recordAudio,
     bool recordSystemAudio = false,
     String? activityPath,
+    String? cursorFreePath,
     String? microphoneId,
     String? cameraId,
     String? cameraPath,

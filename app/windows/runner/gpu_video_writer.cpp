@@ -8,12 +8,23 @@
 #include <icodecapi.h>
 #include <winrt/base.h>
 #include <algorithm>
+#include <cstdlib>
 #include <cstring>
 #include <exception>
 
 namespace {
 using winrt::com_ptr;
 using winrt::check_hresult;
+
+LONGLONG FragmentTime(LONGLONG value, UINT fps) {
+  // MP4 uses fps*1000 ticks. Match the nearest tick, then round its 100ns
+  // representation up so the sink cannot truncate it to the preceding tick.
+  constexpr LONGLONG second = 10000000;
+  const LONGLONG rate = static_cast<LONGLONG>(fps) * 1000;
+  const LONGLONG tick = value / second * rate +
+      (value % second * rate + second / 2) / second;
+  return tick / rate * second + (tick % rate * second + rate - 1) / rate;
+}
 
 com_ptr<IMFMediaType> VideoType(GUID subtype, UINT width, UINT height, UINT fps) {
   com_ptr<IMFMediaType> type;
@@ -69,6 +80,7 @@ struct GpuVideoWriter::Impl {
       started = true;
       device.copy_from(given_device);
       width = given_width; height = given_height; fps = given_fps;
+      fragmented_recording = fragmented;
       audio = given_audio;
       device->GetImmediateContext(context.put());
       const auto multithread = context.as<ID3D11Multithread>();
@@ -90,6 +102,13 @@ struct GpuVideoWriter::Impl {
       check_hresult(fragmented
         ? MFCreateFMPEG4MediaSink(bytes.get(), output.get(), audio_output.get(), sink.put())
         : MFCreateMPEG4MediaSink(bytes.get(), output.get(), audio_output.get(), sink.put()));
+      if (fragmented) {
+        // Keep completed recording fragments near one second. AAC can close
+        // them at a different boundary; independently decodable pictures and
+        // exact MP4 tick alignment below preserve their common clock.
+        check_hresult(sink.as<IMFAttributes>()->SetUINT64(MF_MPEG4SINK_MIN_FRAGMENT_DURATION,
+            (10000000LL / fps) * std::max<UINT>(1, fps - 1)));
+      }
       com_ptr<IMFAttributes> attributes;
       check_hresult(MFCreateAttributes(attributes.put(), 4));
       check_hresult(attributes->SetUnknown(MF_SINK_WRITER_D3D_MANAGER, manager.get()));
@@ -101,14 +120,20 @@ struct GpuVideoWriter::Impl {
         check_hresult(writer->SetInputMediaType(1, AudioType(MFAudioFormat_PCM, audio).get(), nullptr));
       }
       com_ptr<ICodecAPI> codec;
-      if (SUCCEEDED(writer->GetServiceForStream(0, GUID_NULL, IID_PPV_ARGS(codec.put())))) {
-        VARIANT gop{}; gop.vt = VT_UI4; gop.ulVal = fps;
-        // Optional driver setting: shorter GOPs allow completed fragments sooner.
-        codec->SetValue(&CODECAPI_AVEncMPVGOPSize, &gop);
+      const HRESULT codec_result = writer->GetServiceForStream(0, GUID_NULL, IID_PPV_ARGS(codec.put()));
+      if (fragmented) check_hresult(codec_result);
+      if (SUCCEEDED(codec_result)) {
+        VARIANT gop{}; gop.vt = VT_UI4; gop.ulVal = fragmented ? 1 : fps;
+        // Recording fragments can close on either video or AAC boundaries.
+        // Independently decodable recording frames avoid the Windows source
+        // assigning a later in-fragment keyframe's time to preceding pictures.
+        const HRESULT configured = codec->SetValue(&CODECAPI_AVEncMPVGOPSize, &gop);
+        if (fragmented) check_hresult(configured);
       }
       check_hresult(writer->BeginWriting());
       writing = true;
       last_time = -1;
+      video_end = -1;
       audio_end = -1;
       return S_OK;
     } catch (...) { const HRESULT error = winrt::to_hresult(); Finish(false); return error; }
@@ -160,7 +185,9 @@ struct GpuVideoWriter::Impl {
   }
 
   HRESULT WriteFrame(ID3D11Texture2D* source, UINT content_width, UINT content_height, LONGLONG time, LONGLONG duration) {
-    if (!writing || !source || time < 0 || time <= last_time || duration < 0 || duration > 10000000LL) return E_INVALIDARG;
+    if (!writing || !source || time < 0 || (!frames && time != 0) || time <= last_time ||
+        (video_end >= 0 && std::abs(time - video_end) > 2) ||
+        duration < 0 || duration > 10000000LL) return E_INVALIDARG;
     try {
       PrepareInput(source, content_width, content_height);
       D3D11_TEXTURE2D_DESC desc{};
@@ -189,10 +216,14 @@ struct GpuVideoWriter::Impl {
       com_ptr<IMFSample> sample;
       check_hresult(MFCreateSample(sample.put()));
       check_hresult(sample->AddBuffer(buffer.get()));
-      check_hresult(sample->SetSampleTime(time));
-      check_hresult(sample->SetSampleDuration(duration ? duration : 10000000LL / fps));
+      const auto end = time + (duration ? duration : 10000000LL / fps);
+      const auto sample_time = fragmented_recording ? FragmentTime(time, fps) : time;
+      const auto sample_end = fragmented_recording ? FragmentTime(end, fps) : end;
+      if (sample_end <= sample_time) return E_INVALIDARG;
+      check_hresult(sample->SetSampleTime(sample_time));
+      check_hresult(sample->SetSampleDuration(sample_end - sample_time));
       check_hresult(writer->WriteSample(0, sample.get()));
-      last_time = time; ++frames;
+      last_time = time; video_end = time + (duration ? duration : 10000000LL / fps); ++frames;
       return S_OK;
     } catch (...) { return winrt::to_hresult(); }
   }
@@ -250,6 +281,8 @@ struct GpuVideoWriter::Impl {
   UINT width = 0, height = 0, fps = 30, input_width = 0, input_height = 0;
   UINT64 frames = 0;
   LONGLONG last_time = -1;
+  LONGLONG video_end = -1;
+  bool fragmented_recording = false;
   LONGLONG audio_end = -1;
   GpuAudioFormat audio{};
   com_ptr<ID3D11Device> device;
@@ -276,4 +309,4 @@ HRESULT GpuVideoWriter::WriteAudio(const int16_t* pcm, UINT frames, LONGLONG tim
 HRESULT GpuVideoWriter::WriteFrame(ID3D11Texture2D* source, UINT width, UINT height, LONGLONG time, LONGLONG duration) {
   return impl_->WriteFrame(source, width, height, time, duration);
 }
-HRESULT GpuVideoWriter::Finish() { return impl_->Finish(); }
+HRESULT GpuVideoWriter::Finish(bool finalize) { return impl_->Finish(finalize); }

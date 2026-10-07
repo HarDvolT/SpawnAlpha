@@ -263,6 +263,15 @@ Telemetry stays with the take on the device. It is what makes zooms land **befor
 
 Set-up offers **Activity for automatic edits**, initially off on each visit. Its caption is
 **Saves mouse positions, clicks and typing timing on this PC. Never saves what you type.**
+The caption also says **Also saves an extra video for mouse effects. Uses more
+disk space.** With this explicit choice, Windows records a silent cursor-free
+picture companion on the original video clock. The original keeps the Windows
+pointer and recorded sound. Verify cursor exclusion before starting the extra
+session; failure preserves ordinary recording. Only a finalized full companion
+with matching frames, dimensions and duration is eligible. Interrupted/partial
+companions remain local but never supply replacement cursors. This foundation
+does not turn smoothing on until its export track is connected. Legacy takes
+keep their baked pointer. No extra input or key text is collected.
 The choice freezes during countdown and recording. Camera-only takes do not collect activity.
 For a window take, input is limited to that window; for a display take, it is limited to the
 chosen display. SpawnAlpha's protected controls and reader never contribute input or focus.

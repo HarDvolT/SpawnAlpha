@@ -131,7 +131,12 @@ Revised 2026-09-30 by the owner. Screen recording moves up, and the automatic ed
      measures retained audio, applies one gain toward -14 LUFS, caps boosts at
      12dB and protects estimated true peaks with -2dB headroom. The choice can
      change after recording; originals and earlier videos stay intact. Smooth
-     cursor remains. Optional room-tone joins use only retained measured
+     cursor remains. Its recording foundation now saves a verified silent
+     cursor-free companion only with explicit local Activity consent, explaining
+     the extra disk space. The original keeps its pointer and sound. Interrupted,
+     partial and legacy takes cannot supply a replacement pointer; the later
+     verified export track and on/off choice are still pending.
+     Optional room-tone joins use only retained measured
      quiet audio clear of recognized words, with an independent later choice
      and fixed word/video clocks. Optional classic background-noise
      reduction is connected, initially off, using a commercial BSD-3 backend

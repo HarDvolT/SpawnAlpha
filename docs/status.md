@@ -62,6 +62,37 @@ build step 2 (screen recording).
 
 ## Handover (2026-10-05): from here, Codex on the owner's Windows PC
 
+- **Latest checkpoint (2026-10-07, cursor capture foundation):** explicit Activity
+  consent now explains an extra silent video and disk use. Independent WGC
+  sessions preserve the original Windows pointer/sound and exclude the
+  pointer from the companion. Full native finalization, frame parity and
+  matching regular-file dimensions/clocks gate attachment; pending recovery
+  never promotes partial companions. EN/FR/AR persistence/legacy/failure and
+  34-microsecond boundary cases pass; 1076 Flutter tests, 314 screenshots and
+  clean analysis.
+  Native checks now embed the app's Windows/DPI manifest, exposing a fragment
+  timing bug hidden by older console behavior. Independently decodable
+  recording frames and exact MP4 tick representation fix keyframe clock
+  substitution and rounding at AAC-driven fragment boundaries. Export
+  encoding stays unchanged. Continuous zero-origin cadence and pressure
+  checks preserve sound/picture alignment. Optional picture
+  lag over 500ms disables that track; required lag over one second saves a
+  readable original and stops before draining excess sound. Fourteen generated
+  clock/held/short-tail/mixed-sound cases, 30-second capture/three pauses, paired files,
+  generated mic/computer sound, blocked files, pressure and abrupt exit pass.
+  The protected real-app fixture saves 63 equal frames at 658x392 with exact
+  2,099,999-microsecond clocks and eligible silent companion. EN/AR consent
+  PNGs inspected after repairing retained-text screenshot repainting.
+  The full native export regression passes with the app manifest, including
+  exact retained-picture/source-cut checks and generated sound. The real
+  protected app recheck passes with saved version/frame-count proof too.
+  Normal release build restored and ready for the owner's deferred trial.
+  **Half done:** the verified export loader, frozen cursor track, rendering
+  and later Smooth cursor on/off choice are next; smoothing is not enabled.
+  Broader editor, delivery review/voice follow and mobile/launch remain.
+  See [cursor-capture.md](cursor-capture.md). Owner trials stay deferred and
+  separate design commits stay local. No dependency, upload or private logs.
+
 - **Latest checkpoint (2026-10-07, publishing text):** 1054 Flutter tests,
   314 screenshots and clean analysis. Chapters and description opens an
   editable local draft from current saved words/cut and the frozen aid.
@@ -1190,10 +1221,25 @@ build step 2 (screen recording).
    speech cuts and broader timeline operations remain. Local editable chapter
    and description text is connected from saved actual words/frozen sections,
    with explicit copy/fresh files and no online generation or posting.
+   Cursor-free capture provenance is connected with explicit Activity consent
+   and a disk-space explanation. Next build its verified local export loader,
+   immutable cut-clock cursor track, renderer and later on/off choice;
+   partial/interrupted and legacy baked-pointer takes stay ineligible.
+   See [cursor-capture.md](cursor-capture.md).
    Keep originals intact.
    See OpenScreen in the brief for reusable parts.
 
 ## Decisions
+
+- 2026-10-07, cursor recording foundation: preserve the original pointer and
+  sound, and save an optional silent clean picture only with explicit local
+  Activity consent and disk disclosure. Require finalized full-frame parity,
+  regular files and matching picture clocks before attaching it; never infer
+  exclusion from a pending/recovered filename. Disable optional capture under
+  pressure before risking the original. Use continuous zero-origin picture
+  cadence and stop a severely stalled encoder before appending excess sound.
+  Native fixtures must use the app's Windows/DPI manifest. Cursor replacement
+  remains a separate reversible export slice, unavailable for legacy takes.
 
 - 2026-10-07, publishing text: derive draft descriptions extractively from
   retained actual words. Use reliable frozen Script section matches or
@@ -1540,6 +1586,35 @@ build step 2 (screen recording).
     mobile/launch remain. Owner hardware/listening trials remain deferred.
     Separate design assessment/concept commits stay local while technical
     changes are published on the requested branch.
+
+- 2026-10-07, cursor capture foundation:
+  - Added consent/disk disclosure, separate silent WGC picture, explicit
+    cursor inclusion/exclusion checks and optional encoder fallback. Original
+    pointer/audio and previous files remain intact. Durable take/manifest
+    provenance requires finalization, frame parity, regular files and matching
+    dimensions/clocks; pending crash recovery never promotes the companion.
+  - Fixed fragmented picture clocks with continuous zero-origin cadence,
+    independently decodable recording frames, exact MP4 tick representation
+    and encoded-endpoint probing that retains held/short-tail durations.
+    Required encoder setup checks the recording policy; exports stay unchanged.
+    Native checks now share
+    the app manifest; old console compatibility had hidden the timing defect.
+    Bounded pressure drops the optional picture first and stops severe stalls
+    before draining excess sound. Generated direct mic/mixed sound verify it.
+  - 1076 Flutter tests, 314 screenshots and clean analysis; EN/FR/AR persistence,
+    legacy, partial/clock/link/audio guards and save warnings pass. Fourteen
+    native clock/clean-point/held/short/mixed-sound cases, independent pointer
+    pixels in both startup orders, 30-second/three-pause/bounded-memory capture,
+    paired streams, generated AAC and abrupt exit
+    pass. The protected app saves matching 63-frame original/clean pictures at
+    658x392 and 2,099,999 microseconds. EN/AR consent PNGs inspected; repainting
+    golden captures fixes missing retained text without advancing animation.
+    Saved proof includes version, frame count, method and duration. The full
+    native export regression passes with the app's manifest, including exact
+    retained picture/source cuts, sound, captions and cleanup.
+  - Normal release build restored. Smooth cursor loader/track/render/on-off,
+    broader editor/coaching/voice follow and mobile/launch remain; no owner
+    media/input, dependency, upload or private logs. Trials stay deferred.
 
 - 2026-10-07, batch exports:
   - Added immutable shared export choices, a serial queue, explicit format

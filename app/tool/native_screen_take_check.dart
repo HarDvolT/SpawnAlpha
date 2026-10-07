@@ -48,6 +48,7 @@ Future<void> runGeneratedTake({
   Process? fixture;
   ScreenTakeController? owner;
   Timer? action;
+  var passed = false;
   try {
     if (crashAfterRecord && !generatedActivity) {
       throw StateError('Crash check requires generated activity');
@@ -227,6 +228,27 @@ Future<void> runGeneratedTake({
     );
     action?.cancel();
     final take = controller.take;
+    if (generatedActivity && take != null) {
+      final original = await const WindowsRecordingInspector().inspect(take.path);
+      final clean = await const WindowsRecordingInspector().inspect(take.path.replaceFirst('-screen.mp4', '-cursor-free.mp4'));
+      await File('$root/build/cursor-app-check-result.json').writeAsString(jsonEncode({
+        'complete': controller.status!.cursorFreeComplete,
+        'frames': controller.status!.frames,
+        'cleanFrames': controller.status!.cursorFreeFrames,
+        'statusWidth': controller.status!.width,
+        'statusHeight': controller.status!.height,
+        'statusDurationUs': controller.status!.duration.inMicroseconds,
+        'originalWidth': original.width,
+        'originalHeight': original.height,
+        'originalDurationUs': original.duration.inMicroseconds,
+        'cleanWidth': clean.width,
+        'cleanHeight': clean.height,
+        'cleanDurationUs': clean.duration.inMicroseconds,
+        'cleanReadable': clean.readable,
+        'cleanHasAudio': clean.hasAudio,
+        'attached': take.cursorFreePath != null,
+      }), flush: true);
+    }
     if (notes && take != null) {
       final metadata = jsonDecode(await File(take.metadataPath!).readAsString()) as Map;
       final changes = metadata['noteChanges'] as List;
@@ -271,6 +293,18 @@ Future<void> runGeneratedTake({
       }
     }
     if (generatedActivity) {
+      final original = await const WindowsRecordingInspector().inspect(take.path);
+      final picture = take.cursorFreePath == null ? null : await const WindowsRecordingInspector().inspect(take.cursorFreePath!);
+      final metadata = jsonDecode(await File(take.metadataPath!).readAsString()) as Map;
+      if (picture == null || !picture.readable || picture.hasAudio || picture.width != original.width || picture.height != original.height ||
+          (picture.duration - original.duration).inMicroseconds.abs() > 2 || controller.status!.cursorFreeComplete != true ||
+          controller.status!.cursorFreeFrames != controller.status!.frames || metadata['cursorFreeMethod'] != 'wgcCursorExcluded' ||
+          metadata['cursorFreeReadable'] != true || metadata['cursorFreeVersion'] != 1 ||
+          metadata['cursorFreeFrames'] != controller.status!.frames ||
+          Take.fromJson(take.toJson())!.cursorFreePath != take.cursorFreePath) {
+        throw StateError('Verified full cursor-free picture missing');
+      }
+      debugPrint('Native cursor-free companion passed: matching picture clocks/dimensions/counts, explicit finalized provenance and local save/reload.');
       final activity = await inspectActivity(File(take.activityPath!));
       if (!activity.complete ||
           activity.events < 80 ||
@@ -312,6 +346,7 @@ Future<void> runGeneratedTake({
       );
     }
     library.dispose();
+    passed = true;
   } on Object {
     debugPrint(
       generatedSystemAudio
@@ -325,5 +360,12 @@ Future<void> runGeneratedTake({
     owner?.dispose();
     fixture?.kill();
   }
+  if (generatedActivity) {
+    final result = File('${Directory.current.path}/build/cursor-app-check-result.json');
+    final metrics = await result.exists() ? jsonDecode(await result.readAsString()) as Map : <String, Object?>{};
+    metrics['passed'] = passed;
+    await result.writeAsString(jsonEncode(metrics), flush: true);
+  }
   await SystemNavigator.pop();
+  if (generatedActivity) exit(passed ? 0 : 1);
 }

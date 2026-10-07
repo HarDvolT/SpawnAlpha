@@ -96,6 +96,86 @@ void main() {
   });
 
   for (final language in ScriptLanguage.values) {
+    test('verified cursor-free companion stays frozen in $language', () async {
+      await library.save(script(language));
+      final pending = await store.reserve(
+        presentation: FloatingPresentation(script: script(language)),
+        source: source,
+        recordAudio: true,
+        recordActivity: true,
+        pace: 'voice',
+      );
+      expect(pending.cursorFreePath, endsWith('${pending.id}-cursor-free.mp4'));
+      await File(pending.videoPath).writeAsString('original');
+      await File(pending.cursorFreePath!)
+          .writeAsString('generated clean pictures');
+      inspector.byPath[pending.cursorFreePath!] = const RecordingInfo(
+        readable: true,
+        width: 640,
+        height: 360,
+        duration: Duration(seconds: 3),
+      );
+      final take = await store.finish(
+        pending,
+        const ScreenRecordingStatus(
+          phase: ScreenRecordingPhase.finished,
+          width: 640,
+          height: 360,
+          frames: 90,
+          cursorFreeFrames: 90,
+          cursorFreeComplete: true,
+          duration: Duration(seconds: 3),
+        ),
+      );
+      expect(take.cursorFreePath, pending.cursorFreePath);
+      for (final version in [
+        take,
+        take.withWords('new words'),
+        take.withCut('new cut'),
+        take.withExports('new history'),
+      ]) {
+        expect(
+          Take.fromJson(version.toJson())!.cursorFreePath,
+          pending.cursorFreePath,
+        );
+      }
+      final metadata =
+          jsonDecode(await File(pending.metadataPath).readAsString()) as Map;
+      expect(metadata['cursorFreeReadable'], isTrue);
+      expect(metadata['cursorFreeMethod'], 'wgcCursorExcluded');
+      expect(metadata['cursorFreeVersion'], 1);
+      expect(metadata['cursorFreeFrames'], 90);
+      expect(metadata['cursorFreeDurationUs'], 3000000);
+      expect(await File(take.path).readAsString(), 'original');
+    });
+    test(
+      'recovered companion is ineligible without finalized proof in $language',
+      () async {
+        await library.save(script(language));
+        final pending = await store.reserve(
+          presentation: FloatingPresentation(script: script(language)),
+          source: source,
+          recordAudio: false,
+          recordActivity: true,
+          pace: 'voice',
+        );
+        await File(pending.videoPath).writeAsString('original');
+        await File(pending.cursorFreePath!).writeAsString('partial clean');
+        inspector.byPath[pending.cursorFreePath!] = const RecordingInfo(
+          readable: true,
+          width: 640,
+          height: 360,
+          duration: Duration(seconds: 3),
+        );
+        expect(await store.recover(), 1);
+        expect(library.scripts.single.takes.single.cursorFreePath, isNull);
+        expect(inspector.inspected, isNot(contains(pending.cursorFreePath)));
+        expect(
+          await File(pending.cursorFreePath!).readAsString(),
+          'partial clean',
+        );
+      },
+    );
     test(
       'activity consent and truncated trace survive $language recovery',
       () async {
@@ -127,6 +207,119 @@ void main() {
         expect(await store.recover(), 0);
       },
     );
+  }
+
+  for (final offsetUs in [-35, -34, 34, 35]) {
+    test(
+      'cursor proof permits only one MP4 track tick: $offsetUs us',
+      () async {
+        await library.save(script(ScriptLanguage.en));
+        final pending = await store.reserve(
+          presentation: FloatingPresentation(script: script(ScriptLanguage.en)),
+          source: source,
+          recordAudio: false,
+          recordActivity: true,
+          pace: 'timed',
+        );
+        await File(pending.videoPath).writeAsString('original');
+        await File(pending.cursorFreePath!).writeAsString('clean');
+        inspector.byPath[pending.cursorFreePath!] = const RecordingInfo(
+          readable: true,
+          width: 640,
+          height: 360,
+          duration: Duration(seconds: 3),
+        );
+        final take = await store.finish(
+          pending,
+          ScreenRecordingStatus(
+            phase: ScreenRecordingPhase.finished,
+            width: 640,
+            height: 360,
+            frames: 90,
+            cursorFreeFrames: 90,
+            cursorFreeComplete: true,
+            duration: Duration(microseconds: 3000000 + offsetUs),
+          ),
+        );
+        expect(
+          take.cursorFreePath,
+          offsetUs.abs() <= 34 ? pending.cursorFreePath : null,
+        );
+        expect(await File(pending.videoPath).readAsString(), 'original');
+      },
+    );
+  }
+  for (final condition in [
+    'partial',
+    'frames',
+    'clock',
+    'audio',
+    'size',
+    'short',
+    'missing',
+    'link',
+  ]) {
+    test('cursor companion $condition preserves the original', () async {
+      await library.save(script(ScriptLanguage.en));
+      final pending = await store.reserve(
+        presentation: FloatingPresentation(script: script(ScriptLanguage.en)),
+        source: source,
+        recordAudio: false,
+        recordActivity: true,
+        pace: 'voice',
+      );
+      await File(pending.videoPath).writeAsString('original');
+      if (condition == 'link') {
+        final target = File(
+          '${directory.path}${Platform.pathSeparator}unrelated.mp4',
+        );
+        await target.writeAsString('unrelated');
+        await Link(pending.cursorFreePath!).create(target.absolute.path);
+      } else if (condition != 'missing') {
+        await File(pending.cursorFreePath!)
+            .writeAsString('preserve clean bytes');
+      }
+      inspector.byPath[pending.cursorFreePath!] = RecordingInfo(
+        readable: true,
+        hasAudio: condition == 'audio',
+        width: condition == 'size' ? 320 : 640,
+        height: 360,
+        duration: Duration(seconds: condition == 'short' ? 2 : 3),
+      );
+      final take = await store.finish(
+        pending,
+        ScreenRecordingStatus(
+          phase: ScreenRecordingPhase.finished,
+          width: 640,
+          height: 360,
+          frames: 90,
+          cursorFreeFrames: condition == 'frames' ? 89 : 90,
+          cursorFreeComplete: condition != 'partial',
+          duration: Duration(seconds: condition == 'clock' ? 2 : 3),
+        ),
+      );
+      expect(take.cursorFreePath, isNull);
+      expect(await File(take.path).readAsString(), 'original');
+      if (condition != 'missing') {
+        expect(
+          await File(pending.cursorFreePath!).readAsString(),
+          condition == 'link' ? 'unrelated' : 'preserve clean bytes',
+        );
+      }
+      if ([
+        'partial',
+        'frames',
+        'clock',
+        'missing',
+        'link',
+      ].contains(condition)) {
+        expect(inspector.inspected, isNot(contains(pending.cursorFreePath)));
+      }
+      final metadata =
+          jsonDecode(await File(pending.metadataPath).readAsString()) as Map;
+      expect(metadata['cursorFreeReadable'], isFalse);
+      expect(metadata.containsKey('cursorFreeMethod'), isFalse);
+    });
   }
 
   test('bad or missing activity preserves the video and local bytes', () async {

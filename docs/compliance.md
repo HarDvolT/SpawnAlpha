@@ -159,6 +159,13 @@ paid release, a lawyer should review:
   anything; original media and earlier files stay intact. Source/metadata
   location, frozen deck, clock and bounded payload checks prevent unrelated
   private cards supplying chapters. No new collection, dependency or logs.
+- Explicit local Activity consent also explains an extra silent picture and
+  its disk-space use. Independent Windows capture sessions preserve the
+  original pointer/sound and exclude the pointer only from that companion.
+  Partial, interrupted, linked or mismatched companions cannot supply mouse
+  replacement. This recording foundation adds no input collection, model,
+  dependency, upload or private diagnostic. Pending recovery preserves bytes
+  without inferring exclusion; later export provenance remains required.
 - **If FFmpeg is used at all:**
   - use an **LGPL build** without `--enable-gpl` or `--enable-nonfree`, which means no
     x264 or x265;
@@ -314,6 +321,7 @@ person using the app.
 | Windows source picker: names kept only in memory, no capture or title logging, no new dependency | Checked 2026-10-05; owner-confirmed. Recording and thumbnails remain pending; preview is separate below |
 | Windows live preview: selected source only, frames in memory, no files/audio/network/private logs, capture closes on exit | Checked 2026-10-05; owner confirmed live updates. Uses installed Windows SDK APIs; no copied code or new package |
 | Windows floating prompter: capture exclusion before visibility, in-process script transfer only, no new microphone/file/network access | Implemented 2026-10-05; native visibility/exclusion/close smoke passed, owner trial pending. No new dependency or copied code. Global shortcuts only, no input hooks or typed-character logging |
+| Optional Windows cursor-free picture foundation | Checked 2026-10-07 with explicit Activity/disk disclosure, original pointer/audio preserved, independent WGC cursor pixels, full frame/dimension/clock/version provenance and pending/partial/link/legacy protection in EN/FR/AR. Native checks share the app's Windows/DPI manifest. Required independently decodable recording frames, exact MP4 ticks and pressure-before-sound checks fix fragmented clock/source-cut faults; finalized export policy remains unchanged. Fourteen generated clock/clean-point/mixed-sound cases, long/paused/paired capture, AAC, interruption recovery, the full native export suite and the protected real-app save/reopen check pass. No owner input/media, dependency, model, upload or private logs. Smooth cursor loader/track/rendering, real-material quality/disk and hardware trials remain pending; see [cursor-capture.md](cursor-capture.md) |
 | Windows video/sound saver cores: operating-system H.264/AAC, GPU conversion, local fragmented MP4 only | Checked 2026-10-05 with generated colors/tones and abrupt-exit recovery. Shared microphone capture pins the chosen/default endpoint and never falls back from a missing choice. Connected to Screen mode. No bundled codec, new package, copied code or private logging |
 | Windows capture/save pipeline: explicit selected source and microphone, common-clock local file, recoverable stop | Implemented 2026-10-05; native generated-window tests pass, including real default-microphone AAC and source loss. Fixtures stay under ignored app/build; no private content/title logging. Screen setup is enabled with protected windows, explicit silent choice, safe release and durable metadata |
 | Durable take manifests and recovery: on-device script snapshot, source description, audio choice and file verification | Implemented/tested 2026-10-05 in EN/FR/AR and normal Screen setup. No keys or native handles persisted. Recovery rejects external paths/symlinks, preserves later edits/deletions and unreadable data, and never logs private content or errors. Empty pre-capture cancellations are marked locally; unreadable captured files remain for recovery |

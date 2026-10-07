@@ -32,13 +32,15 @@ RecordingInfo ProbeRecording(const std::wstring& path, const std::atomic<bool>& 
       check_hresult(rgb->SetGUID(MF_MT_SUBTYPE, MFVideoFormat_RGB32));
       check_hresult(reader->SetCurrentMediaType(video, nullptr, rgb.get()));
       bool decoded = false;
+      LONGLONG decoded_start = 0;
       while (!cancelled && !decoded) {
-        DWORD flags = 0; com_ptr<IMFSample> sample;
-        check_hresult(reader->ReadSample(video, 0, nullptr, &flags, nullptr, sample.put()));
+        DWORD flags = 0; LONGLONG time = 0; com_ptr<IMFSample> sample;
+        check_hresult(reader->ReadSample(video, 0, nullptr, &flags, &time, sample.put()));
         if (flags & MF_SOURCE_READERF_ENDOFSTREAM) break;
         if (sample) {
           DWORD length = 0; check_hresult(sample->GetTotalLength(&length));
           decoded = length > 0;
+          if (decoded) decoded_start = time;
         }
       }
       if (!decoded || cancelled) throw winrt::hresult_error(E_FAIL);
@@ -57,27 +59,31 @@ RecordingInfo ProbeRecording(const std::wstring& path, const std::atomic<bool>& 
           static_cast<UINT>(aperture.Area.cx) <= info.width && static_cast<UINT>(aperture.Area.cy) <= info.height) {
         info.width = static_cast<UINT>(aperture.Area.cx); info.height = static_cast<UINT>(aperture.Area.cy);
       }
-      PROPVARIANT duration{};
-      if (SUCCEEDED(reader->GetPresentationAttribute(static_cast<DWORD>(MF_SOURCE_READER_MEDIASOURCE),
-          MF_PD_DURATION, &duration)) && duration.vt == VT_UI8 && duration.uhVal.QuadPart <= LLONG_MAX) {
-        info.duration_100ns = static_cast<LONGLONG>(duration.uhVal.QuadPart);
-      }
-      PropVariantClear(&duration);
-      if (info.duration_100ns <= 0) {
-        // No movie duration after a crash. Read encoded samples without decoding
-        // the whole video to find the last completed fragment's timestamp.
+      {
+        // Fragmented MP4 presentation duration can omit its final short fragment
+        // even after a normal Stop. Audio padding can also extend that field.
+        // Use encoded video sample endpoints for the actual picture clock,
+        // both finalized and interrupted, without decoding the whole take.
         reader = nullptr;
         check_hresult(MFCreateSourceReaderFromURL(path.c_str(), nullptr, reader.put()));
         check_hresult(reader->SetStreamSelection(all, FALSE));
         check_hresult(reader->SetStreamSelection(video, TRUE));
+        bool first = true;
+        LONGLONG offset = 0;
         while (!cancelled) {
           DWORD flags = 0; LONGLONG time = 0; com_ptr<IMFSample> sample;
           check_hresult(reader->ReadSample(video, 0, nullptr, &flags, &time, sample.put()));
           if (flags & MF_SOURCE_READERF_ENDOFSTREAM) break;
           if (!sample) continue;
+          // The raw H.264 source reader can retain the encoder's preroll
+          // offset that the decoded presentation reader removes. Anchor its
+          // ordered samples to the first actual decoded frame, not that offset.
+          if (first) { offset = time - decoded_start; first = false; }
           LONGLONG length = 0;
           check_hresult(sample->GetSampleDuration(&length));
-          if (time >= 0 && length > 0) info.duration_100ns = std::max(info.duration_100ns, time + length);
+          if (time >= offset && length > 0 && time - offset <= LLONG_MAX - length) {
+            info.duration_100ns = std::max(info.duration_100ns, time - offset + length);
+          }
         }
       }
       info.readable = !cancelled && info.width > 0 && info.height > 0 && info.duration_100ns > 0;

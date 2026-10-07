@@ -13,6 +13,10 @@
 #include <winrt/Windows.Graphics.Capture.h>
 #include <winrt/Windows.Graphics.DirectX.Direct3D11.h>
 #include <algorithm>
+#ifdef SPAWNALPHA_RECORDING_FIXTURE
+namespace { DWORD fixture_stall = 0; }
+void ConfigureRecordingStall(DWORD milliseconds) { fixture_stall = milliseconds; }
+#endif
 #include <atomic>
 #include <cmath>
 #include <mutex>
@@ -47,12 +51,14 @@ struct ScreenRecordingCore::Impl : std::enable_shared_from_this<Impl> {
   ~Impl() { StopAndJoin(); }
   HRESULT Start(HMONITOR monitor, HWND window, const std::wstring& path,
                 const std::wstring& microphone_id, bool record_audio,
-                const std::wstring& camera_id, const std::wstring& camera_path, bool record_system_audio, const std::wstring& activity_path) {
+                const std::wstring& camera_id, const std::wstring& camera_path, bool record_system_audio, const std::wstring& activity_path,
+                const std::wstring& cursor_free_path) {
     if (worker.joinable() || (!monitor && !window) || (monitor && window) || path.empty() ||
-        camera_id.empty() != camera_path.empty() || (!camera_path.empty() && camera_path == path)) return E_INVALIDARG;
+        camera_id.empty() != camera_path.empty() || (!camera_path.empty() && camera_path == path) ||
+        (!cursor_free_path.empty() && (cursor_free_path == path || cursor_free_path == camera_path || cursor_free_path == activity_path))) return E_INVALIDARG;
     try {
-      worker = std::thread([this, monitor, window, path, microphone_id, record_audio, camera_id, camera_path, record_system_audio, activity_path] {
-        Run(monitor, window, path, microphone_id, record_audio, camera_id, camera_path, record_system_audio, activity_path);
+      worker = std::thread([this, monitor, window, path, microphone_id, record_audio, camera_id, camera_path, record_system_audio, activity_path, cursor_free_path] {
+        Run(monitor, window, path, microphone_id, record_audio, camera_id, camera_path, record_system_audio, activity_path, cursor_free_path);
       });
       return S_OK;
     } catch (...) { return winrt::to_hresult(); }
@@ -73,9 +79,9 @@ struct ScreenRecordingCore::Impl : std::enable_shared_from_this<Impl> {
     std::lock_guard<std::mutex> lock(status_mutex);
     status.state = state;
   }
-  void OnFrame(const Direct3D11CaptureFramePool& sender) noexcept {
+  void OnFrame(const Direct3D11CaptureFramePool& sender, bool cursor_free = false) noexcept {
     std::lock_guard<std::mutex> lock(frame_mutex);
-    if (stop || source_closed || capture_failed) return;
+    if (stop || source_closed || capture_failed || (cursor_free && cursor_free_failed)) return;
     try {
       auto frame = sender.TryGetNextFrame();
       if (!frame) return;
@@ -94,31 +100,41 @@ struct ScreenRecordingCore::Impl : std::enable_shared_from_this<Impl> {
       context->CopyResource(next->texture.get(), texture.get());
       // The capture pool can immediately reuse its surface after Close. Retain
       // our own GPU snapshot, never a reference to that reusable pool surface.
-      latest = std::move(next);
+      if (cursor_free) cursor_free_latest = std::move(next);
+      else latest = std::move(next);
       frame.Close();
-      if (content.Width != size.Width || content.Height != size.Height) {
+      auto& current_size = cursor_free ? cursor_free_size : size;
+      if (content.Width != current_size.Width || content.Height != current_size.Height) {
         sender.Recreate(rt_device, DirectXPixelFormat::B8G8R8A8UIntNormalized, 2, content);
-        size = content;
+        current_size = content;
       }
-    } catch (...) { capture_failed = true; }
+    } catch (...) { if (cursor_free) cursor_free_failed = true; else capture_failed = true; }
   }
   void CloseCapture() {
     Direct3D11CaptureFramePool old_pool{nullptr};
     GraphicsCaptureSession old_capture{nullptr};
     GraphicsCaptureItem old_item{nullptr};
+    Direct3D11CaptureFramePool old_cursor_pool{nullptr};
+    GraphicsCaptureSession old_cursor_capture{nullptr};
     {
       std::lock_guard<std::mutex> lock(frame_mutex);
       old_pool = std::exchange(pool, nullptr);
       old_capture = std::exchange(capture, nullptr);
       old_item = std::exchange(item, nullptr);
+      old_cursor_pool = std::exchange(cursor_free_pool, nullptr);
+      old_cursor_capture = std::exchange(cursor_free_capture, nullptr);
     }
     // Close may wait for the last event handler. Never hold its mutex here.
     try { if (old_pool) old_pool.FrameArrived(frame_token); } catch (...) {}
+    try { if (old_cursor_pool) old_cursor_pool.FrameArrived(cursor_free_token); } catch (...) {}
     try { if (old_item) old_item.Closed(closed_token); } catch (...) {}
     try { if (old_capture) old_capture.Close(); } catch (...) {}
     try { if (old_pool) old_pool.Close(); } catch (...) {}
+    try { if (old_cursor_capture) old_cursor_capture.Close(); } catch (...) {}
+    try { if (old_cursor_pool) old_cursor_pool.Close(); } catch (...) {}
     std::lock_guard<std::mutex> lock(frame_mutex);
     latest.reset();
+    cursor_free_latest.reset();
   }
   void DrainAudio(MicrophoneCapture& microphone, GpuVideoWriter& writer,
                   const RecordingClock& clock, LONGLONG end, LONGLONG& written_audio_frames,
@@ -220,10 +236,13 @@ struct ScreenRecordingCore::Impl : std::enable_shared_from_this<Impl> {
   }
   void Run(HMONITOR monitor, HWND window, const std::wstring& path,
            const std::wstring& microphone_id, bool record_audio,
-           const std::wstring& camera_id, const std::wstring& camera_path, bool record_system_audio, const std::wstring& activity_path) noexcept {
+           const std::wstring& camera_id, const std::wstring& camera_path, bool record_system_audio, const std::wstring& activity_path,
+           const std::wstring& cursor_free_path) noexcept {
     bool initialized = false, writer_started = false, camera_writer_started = false;
     GpuVideoWriter writer;
     GpuVideoWriter camera_writer;
+    GpuVideoWriter cursor_free_writer;
+    bool cursor_free_started = false;
     MicrophoneCapture microphone;
     SystemAudioCapture system;
     RecordingAudioMixer mixer;
@@ -275,12 +294,29 @@ struct ScreenRecordingCore::Impl : std::enable_shared_from_this<Impl> {
         if (const auto self = weak.lock()) self->source_closed = true;
       });
       capture = pool.CreateCaptureSession(item);
+      if (!cursor_free_path.empty()) {
+        try {
+          capture.IsCursorCaptureEnabled(true);
+          if (!capture.IsCursorCaptureEnabled()) throw hresult_error(E_FAIL);
+          cursor_free_size = size;
+          cursor_free_pool = Direct3D11CaptureFramePool::CreateFreeThreaded(rt_device, DirectXPixelFormat::B8G8R8A8UIntNormalized, 2, size);
+          cursor_free_token = cursor_free_pool.FrameArrived([weak](const auto& sender, const auto&) {
+            if (const auto self = weak.lock()) self->OnFrame(sender, true);
+          });
+          cursor_free_capture = cursor_free_pool.CreateCaptureSession(item);
+          cursor_free_capture.IsCursorCaptureEnabled(false);
+          if (cursor_free_capture.IsCursorCaptureEnabled()) throw hresult_error(E_FAIL);
+          cursor_free_capture.StartCapture();
+        } catch (...) { cursor_free_failed = true; }
+      }
       capture.StartCapture();  // Keep the Windows capture border enabled.
       const LONGLONG started_waiting = QpcTime();
       std::shared_ptr<CapturedFrame> first;
       while (!stop && !source_closed && !capture_failed && QpcTime() - started_waiting < 5 * kSecond) {
         { std::lock_guard<std::mutex> lock(frame_mutex); first = latest; }
-        if (first) break;
+        bool clean_ready;
+        { std::lock_guard<std::mutex> lock(frame_mutex); clean_ready = cursor_free_latest != nullptr; }
+        if (first && (cursor_free_path.empty() || cursor_free_failed || clean_ready)) break;
         Sleep(5);
       }
       if (stop) { Fail(ScreenRecordingReason::cancelled); throw hresult_error(E_ABORT); }
@@ -324,6 +360,18 @@ struct ScreenRecordingCore::Impl : std::enable_shared_from_this<Impl> {
           record_system_audio ? GpuAudioFormat{kAudioRate, 2} :
               record_audio ? GpuAudioFormat{kAudioRate, 1} : GpuAudioFormat{}));
       writer_started = true;
+      if (!cursor_free_path.empty() && !cursor_free_failed) {
+        bool clean_ready;
+        { std::lock_guard<std::mutex> lock(frame_mutex); clean_ready = cursor_free_latest != nullptr; }
+        if (clean_ready) {
+          // Reserve required screen/camera encoders first. An optional silent
+          // picture must never take their hardware slot. Original video/audio
+          // keeps the Windows pointer; partial companions are never eligible.
+          const auto result = cursor_free_writer.Start(device.get(), cursor_free_path, width, height, kFramesPerSecond);
+          cursor_free_started = SUCCEEDED(result);
+          if (!cursor_free_started) cursor_free_failed = true;
+        } else cursor_free_failed = true;
+      }
       if (stop) { Fail(ScreenRecordingReason::cancelled); throw hresult_error(E_ABORT); }
       if (record_audio) {
         stage = ScreenRecordingReason::microphone;
@@ -333,15 +381,17 @@ struct ScreenRecordingCore::Impl : std::enable_shared_from_this<Impl> {
         stage = ScreenRecordingReason::systemAudio;
         check_hresult(system.Start());
       }
-      const LONGLONG origin = QpcTime();
-      RecordingClock clock(origin);
       if (!activity_path.empty()) {
         stage = ScreenRecordingReason::activity;
         check_hresult(activity_writer.Start(activity_path));
-        activity_clock = std::make_unique<RecordingClock>(origin);
         check_hresult(activity.Start(monitor, window));
         check_hresult(activity_writer.Flush());
       }
+      // File flush/input startup belongs to setup, not the saved take clock.
+      // Windows fragmented MP4 can shift a stream whose first sample is late.
+      const LONGLONG origin = QpcTime();
+      RecordingClock clock(origin);
+      if (!activity_path.empty()) activity_clock = std::make_unique<RecordingClock>(origin);
       LONGLONG activity_flush = origin;
       bool paused = false;
       { std::lock_guard<std::mutex> lock(status_mutex); status.width = width; status.height = height; }
@@ -365,6 +415,16 @@ struct ScreenRecordingCore::Impl : std::enable_shared_from_this<Impl> {
           SetState(paused ? ScreenRecordingState::paused : ScreenRecordingState::recording);
         }
         const LONGLONG elapsed = clock.Time(now);
+        const auto lag = elapsed - static_cast<LONGLONG>(next_frame) * kSecond / kFramesPerSecond;
+        // Check pressure before draining sound. Otherwise a stalled encoder
+        // could save audio beyond the final useful video frame before stopping.
+        if (!paused && next_frame != 0 && lag > kSecond) {
+          Fail(ScreenRecordingReason::encoder); break;
+        }
+        if (!paused && cursor_free_started && !cursor_free_failed && lag > kSecond / 2) {
+          cursor_free_failed = true;
+          cursor_free_writer.Finish(false);
+        }
         if (record_audio) DrainAudio(microphone, writer, clock, -1, audio_frames, got_audio, record_system_audio ? &mixer : nullptr);
         if (record_system_audio) {
           DrainSystem(system, mixer, clock, -1);
@@ -373,15 +433,25 @@ struct ScreenRecordingCore::Impl : std::enable_shared_from_this<Impl> {
           FlushMixed(writer, mixer, std::min(elapsed - kSecond / 10, Status().duration_100ns));
         }
         if (!paused && elapsed >= static_cast<LONGLONG>(next_frame) * kSecond / kFramesPerSecond) {
-          // If the encoder fell behind, drop to the latest cadence slot instead
-          // of building an unbounded queue. Audio and video keep common times.
-          next_frame = std::max(next_frame, static_cast<UINT64>(elapsed * kFramesPerSecond / kSecond));
+          // Encode a continuous cadence from the bounded latest snapshots.
+          // Sparse timestamps are rewritten inside Windows MP4 fragments and
+          // can move picture away from sound/activity. Brief stalls repeat the
+          // latest picture while catching up; no frame queue grows.
           std::shared_ptr<CapturedFrame> frame;
           { std::lock_guard<std::mutex> lock(frame_mutex); frame = latest; }
           if (frame) {
             const LONGLONG time = static_cast<LONGLONG>(next_frame) * kSecond / kFramesPerSecond;
             stage = ScreenRecordingReason::encoder;
             check_hresult(writer.WriteFrame(frame->texture.get(), frame->width, frame->height, time));
+            if (cursor_free_started && !cursor_free_failed) {
+              std::shared_ptr<CapturedFrame> clean_frame;
+              { std::lock_guard<std::mutex> lock(frame_mutex); clean_frame = cursor_free_latest; }
+              if (!clean_frame || FAILED(cursor_free_writer.WriteFrame(clean_frame->texture.get(), clean_frame->width, clean_frame->height, time))) {
+                cursor_free_failed = true;
+              } else {
+                std::lock_guard<std::mutex> lock(status_mutex); ++status.cursor_free_frames;
+              }
+            }
             if (camera_frame) {
               D3D11_TEXTURE2D_DESC camera_desc{};
               camera_desc.Width = camera_frame->width; camera_desc.Height = camera_frame->height;
@@ -399,6 +469,9 @@ struct ScreenRecordingCore::Impl : std::enable_shared_from_this<Impl> {
             status.duration_100ns = time + kSecond / kFramesPerSecond;
           }
           ++next_frame;
+#ifdef SPAWNALPHA_RECORDING_FIXTURE
+          if (next_frame == 10 && fixture_stall) Sleep(fixture_stall);
+#endif
         }
         drain_activity(false);
         if (!activity_path.empty() && now - activity_flush >= kSecond) {
@@ -438,6 +511,12 @@ struct ScreenRecordingCore::Impl : std::enable_shared_from_this<Impl> {
     writer.Finish();
     if (camera_writer_started && FAILED(camera_writer.Finish())) Fail(ScreenRecordingReason::encoder);
     camera_writer.Finish();
+    if (cursor_free_started && FAILED(cursor_free_writer.Finish(!cursor_free_failed))) cursor_free_failed = true;
+    cursor_free_writer.Finish();
+    {
+      std::lock_guard<std::mutex> lock(status_mutex);
+      status.cursor_free_complete = cursor_free_started && !cursor_free_failed && status.frames > 0 && status.cursor_free_frames == status.frames;
+    }
     rt_device = nullptr; context = nullptr; device = nullptr;
     if (initialized) uninit_apartment();
     const auto result = Status();
@@ -446,16 +525,22 @@ struct ScreenRecordingCore::Impl : std::enable_shared_from_this<Impl> {
   std::thread worker;
   CameraCapture camera;
   std::atomic<bool> stop{false}, source_closed{false}, capture_failed{false}, wanted_paused{false};
+  std::atomic<bool> cursor_free_failed{false};
   mutable std::mutex status_mutex;
   ScreenRecordingStatus status{};
   std::mutex frame_mutex;
   std::shared_ptr<CapturedFrame> latest;
+  std::shared_ptr<CapturedFrame> cursor_free_latest;
   com_ptr<ID3D11Device> device;
   com_ptr<ID3D11DeviceContext> context;
   IDirect3DDevice rt_device{nullptr};
   GraphicsCaptureItem item{nullptr};
   Direct3D11CaptureFramePool pool{nullptr};
   GraphicsCaptureSession capture{nullptr};
+  Direct3D11CaptureFramePool cursor_free_pool{nullptr};
+  GraphicsCaptureSession cursor_free_capture{nullptr};
+  SizeInt32 cursor_free_size{};
+  event_token cursor_free_token{};
   SizeInt32 size{};
   event_token frame_token{}, closed_token{};
 };
@@ -464,8 +549,9 @@ ScreenRecordingCore::ScreenRecordingCore() : impl_(std::make_shared<Impl>()) {}
 ScreenRecordingCore::~ScreenRecordingCore() { impl_->StopAndJoin(); }
 HRESULT ScreenRecordingCore::Start(HMONITOR monitor, HWND window, const std::wstring& path,
                                   const std::wstring& microphone_id, bool record_audio,
-                                  const std::wstring& camera_id, const std::wstring& camera_path, bool record_system_audio, const std::wstring& activity_path) {
-  return impl_->Start(monitor, window, path, microphone_id, record_audio, camera_id, camera_path, record_system_audio, activity_path);
+                                  const std::wstring& camera_id, const std::wstring& camera_path, bool record_system_audio, const std::wstring& activity_path,
+                                  const std::wstring& cursor_free_path) {
+  return impl_->Start(monitor, window, path, microphone_id, record_audio, camera_id, camera_path, record_system_audio, activity_path, cursor_free_path);
 }
 void ScreenRecordingCore::RequestStop() { impl_->stop = true; }
 void ScreenRecordingCore::SetPaused(bool paused) { impl_->wanted_paused = paused; }

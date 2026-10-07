@@ -13,7 +13,17 @@ import 'screen_recording.dart';
 import 'screen_source.dart';
 import 'camera_bubble.dart';
 
-enum ScreenTakePhase { idle, preparing, countdown, starting, recording, paused, saving, saved, failed }
+enum ScreenTakePhase {
+  idle,
+  preparing,
+  countdown,
+  starting,
+  recording,
+  paused,
+  saving,
+  saved,
+  failed,
+}
 
 /// One owner for the protected windows, countdown, native capture and durable
 /// take. Source/script data stays local; exceptions never enter messages/logs.
@@ -36,7 +46,8 @@ class ScreenTakeController extends ChangeNotifier {
           event.cardIndex! < (_noteClock?.cardCount ?? 0)) {
         _noteIndex = event.cardIndex!;
       }
-      if (event.sessionId == _reader?.sessionId && event.command == 'companionAsk') {
+      if (event.sessionId == _reader?.sessionId &&
+          event.command == 'companionAsk') {
         unawaited(askCompanion());
       }
     });
@@ -110,7 +121,8 @@ class ScreenTakeController extends ChangeNotifier {
         ScreenTakePhase.paused,
         ScreenTakePhase.saving,
       }.contains(phase);
-  bool get recording => phase == ScreenTakePhase.recording || phase == ScreenTakePhase.paused;
+  bool get recording =>
+      phase == ScreenTakePhase.recording || phase == ScreenTakePhase.paused;
   void _changed() {
     if (!_disposed) notifyListeners();
   }
@@ -159,7 +171,8 @@ class ScreenTakeController extends ChangeNotifier {
     problem = null;
     _voice.reset();
     _noteIndex = 0;
-    _noteClock = presentation.script.usesNotes && presentation.script.notes.ready
+    _noteClock =
+        presentation.script.usesNotes && presentation.script.notes.ready
         ? NoteTimeline(presentation.script.notes.cards.length)
         : null;
     _phase(ScreenTakePhase.preparing);
@@ -230,6 +243,7 @@ class ScreenTakeController extends ChangeNotifier {
         recordAudio: _audio,
         recordSystemAudio: _systemAudio,
         activityPath: pending.activityPath,
+        cursorFreePath: pending.cursorFreePath,
         microphoneId: microphoneId,
         cameraId: _cameraId,
         cameraPath: pending.cameraPath,
@@ -253,25 +267,38 @@ class ScreenTakeController extends ChangeNotifier {
         }
         if (_noteClock != null && recording) {
           try {
-            if (_noteClock!.observe(_noteIndex, status!.duration, paused: phase == ScreenTakePhase.paused)) {
+            if (_noteClock!.observe(
+              _noteIndex,
+              status!.duration,
+              paused: phase == ScreenTakePhase.paused,
+            )) {
               await store.saveNoteChanges(pending, _noteClock!.toJson());
             }
           } on Object {
-            problem = 'The video keeps recording. Card timing could not be saved.';
+            problem =
+                'The video keeps recording. Card timing could not be saved.';
           }
         }
-        if (phase == ScreenTakePhase.starting && startup.elapsed > SaDurations.beat * (_cameraId == null ? 7 : 12)) {
+        if (phase == ScreenTakePhase.starting &&
+            startup.elapsed > SaDurations.beat * (_cameraId == null ? 7 : 12)) {
           problem = 'No recording received. Restore the source and try again.';
           stop();
         }
-        final speaking = _audio && _voice.update(status!.rmsDb, SaDurations.recordingPoll);
+        final speaking =
+            _audio && _voice.update(status!.rmsDb, SaDurations.recordingPoll);
         await floating.update(
           _reader!,
-          FloatingRecordingState(active: recording, paused: phase == ScreenTakePhase.paused, speaking: speaking),
+          FloatingRecordingState(
+            active: recording,
+            paused: phase == ScreenTakePhase.paused,
+            speaking: speaking,
+          ),
         );
         final readerVersion = _readerVersion;
         final visible = await floating.isOpen(_reader!);
-        if (readerVersion == _readerVersion && !_visibilityChanging && !_placementChanging) {
+        if (readerVersion == _readerVersion &&
+            !_visibilityChanging &&
+            !_placementChanging) {
           readerVisible = visible;
         }
         if (!await huds.isOpen(_hud!)) {
@@ -319,10 +346,18 @@ class ScreenTakeController extends ChangeNotifier {
                       reason: ScreenRecordingReason.encoder,
                     ),
               );
-              problem ??= _stopMessage(status?.reason ?? ScreenRecordingReason.encoder);
+              problem ??= _stopMessage(
+                status?.reason ?? ScreenRecordingReason.encoder,
+              );
               if (_activity && take!.activityPath == null) {
                 problem =
                     '${problem == null ? '' : '${problem!} '}The video is saved. Activity could not be read; automatic edits can use the video alone.';
+              }
+              if (pending.cursorFreePath != null &&
+                  status?.cursorFreeComplete != null &&
+                  take!.cursorFreePath == null) {
+                problem =
+                    '${problem == null ? '' : '${problem!} '}The original video is saved. Mouse smoothing is unavailable for this take.';
               }
               if (pending.cameraPath != null && take!.cameraPath == null) {
                 problem =
@@ -389,12 +424,18 @@ class ScreenTakeController extends ChangeNotifier {
   }
 
   static String? _stopMessage(ScreenRecordingReason reason) => switch (reason) {
-    ScreenRecordingReason.source => 'The source closed or became unavailable. The captured part is saved.',
-    ScreenRecordingReason.microphone => 'The microphone disconnected. The captured part is saved.',
-    ScreenRecordingReason.camera => 'The camera disconnected. The captured part is saved.',
-    ScreenRecordingReason.systemAudio => 'The playback device became unavailable. The captured part is saved.',
-    ScreenRecordingReason.activity => 'Activity recording stopped early. The readable video is saved.',
-    ScreenRecordingReason.encoder => 'Recording stopped early. The readable part is saved.',
+    ScreenRecordingReason.source =>
+      'The source closed or became unavailable. The captured part is saved.',
+    ScreenRecordingReason.microphone =>
+      'The microphone disconnected. The captured part is saved.',
+    ScreenRecordingReason.camera =>
+      'The camera disconnected. The captured part is saved.',
+    ScreenRecordingReason.systemAudio =>
+      'The playback device became unavailable. The captured part is saved.',
+    ScreenRecordingReason.activity =>
+      'Activity recording stopped early. The readable video is saved.',
+    ScreenRecordingReason.encoder =>
+      'Recording stopped early. The readable part is saved.',
     _ => null,
   };
   Future<void> _updateHud() async {
@@ -445,7 +486,11 @@ class ScreenTakeController extends ChangeNotifier {
 
   Future<void> togglePrompter() async {
     final reader = _reader;
-    if (reader == null || !recording || _stopWanted || _visibilityChanging || _placementChanging) {
+    if (reader == null ||
+        !recording ||
+        _stopWanted ||
+        _visibilityChanging ||
+        _placementChanging) {
       return;
     }
     _visibilityChanging = true;
@@ -456,7 +501,8 @@ class ScreenTakeController extends ChangeNotifier {
       readerVisible = !readerVisible;
       await _updateHud();
     } on Object {
-      problem = 'The hidden reader is unavailable. The take is stopping safely.';
+      problem =
+          'The hidden reader is unavailable. The take is stopping safely.';
       stop();
     } finally {
       _visibilityChanging = false;
@@ -475,7 +521,10 @@ class ScreenTakeController extends ChangeNotifier {
   }
 
   Future<void> toggleCompanion() async {
-    if (!recording || _stopWanted || _placementChanging || _visibilityChanging) {
+    if (!recording ||
+        _stopWanted ||
+        _placementChanging ||
+        _visibilityChanging) {
       return;
     }
     if (!companion && _cameraId != null && cameraFollow == null) {
@@ -495,7 +544,11 @@ class ScreenTakeController extends ChangeNotifier {
   }
 
   Future<void> chooseCompanion(bool follow) async {
-    if (!recording || _stopWanted || !companionQuestion || _cameraId == null || _placementChanging) {
+    if (!recording ||
+        _stopWanted ||
+        !companionQuestion ||
+        _cameraId == null ||
+        _placementChanging) {
       return;
     }
     cameraFollow = follow;
@@ -511,7 +564,11 @@ class ScreenTakeController extends ChangeNotifier {
 
   Future<void> _placeCompanion(bool enabled) async {
     final reader = _reader;
-    if (reader == null || !recording || _stopWanted || _placementChanging || _visibilityChanging) {
+    if (reader == null ||
+        !recording ||
+        _stopWanted ||
+        _placementChanging ||
+        _visibilityChanging) {
       return;
     }
     _placementChanging = true;
@@ -534,7 +591,8 @@ class ScreenTakeController extends ChangeNotifier {
       }
       await _updateHud();
     } on Object {
-      problem = 'The hidden reader is unavailable. The take is stopping safely.';
+      problem =
+          'The hidden reader is unavailable. The take is stopping safely.';
       stop();
     } finally {
       _placementChanging = false;

@@ -394,12 +394,27 @@ recordings folder.
   video name and flushes a pending manifest before native capture. The manifest snapshots
   the script/presentation, source description and audio choice, excluding volatile handles,
   old takes, suggestions and secrets. Finish uses the native `ProbeRecording` worker to
-  decode one frame and verify visible aperture, audio track and duration; unfinished
-  fragmented MP4 can fall back to encoded-sample times. The library is saved before the
+  decode one frame and verify visible aperture/audio, then scan encoded video endpoints.
+  Header duration can omit a final fragment or include audio padding; both finished
+  and unfinished files therefore use actual picture sample times. The library is saved before the
   manifest changes from pending, allowing idempotent retries without losing later edits.
   Startup recovery is serialized with reservations/finishes, ignores external paths and
   symlinks, leaves unreadable files local, and never resurrects deleted scripts. Take's
   extra mode/metadata/camera/recovered fields preserve legacy camera-file compatibility.
+- **Optional cursor-free picture foundation:** explicit Activity consent reserves a
+  separate silent picture, leaving the original pointer and sound intact. Independent
+  WGC sessions verify cursor inclusion/exclusion and copy surfaces before release.
+  Required encoders precede the optional encoder; failed/partial companions never
+  prevent saving the original. Full native finalization, equal frame counts, regular
+  files and matching dimensions/picture clocks gate attachment and manifest provenance.
+  Pending recovery never infers eligibility. Continuous zero-origin cadence replaces
+  sparse slot dropping: brief stalls repeat bounded latest snapshots, optional picture
+  pressure disables that track at 500ms, and required encoding stops safely at one
+  second before draining more sound. Fragmented recording requires independently
+  decodable frames and exact MP4 tick representation, avoiding later-keyframe clock
+  substitution and accumulated rounding at AAC-driven boundaries. Finalized exports
+  keep their existing policy; final held/short samples keep their true duration.
+  Export cursor replacement is not connected; see [cursor-capture.md](cursor-capture.md).
 - **Recording pause clock (eighth slice):** `RecordingClock` removes QPC pause intervals
   from the shared video/audio timeline and splits microphone packets at pause/resume
   boundaries. The worker keeps monitoring source/microphone health and current pixels/

@@ -203,7 +203,7 @@ class ActivityChoice extends StatelessWidget {
             ],
           ),
           Text(
-            'Saves mouse positions, clicks and typing timing on this PC. Never saves what you type.',
+            'Saves mouse positions, clicks and typing timing on this PC. Never saves what you type. Also saves an extra video for mouse effects. Uses more disk space.',
             style: SaType.caption.copyWith(color: stage.stageChromeText),
           ),
         ],
