@@ -62,11 +62,21 @@ build step 2 (screen recording).
 
 ## Handover (2026-10-05): from here, Codex on the owner's Windows PC
 
+- **PC reinstall plan (2026-10-07):** the owner will keep E: intact. Current
+  project/data/SDK/local notes therefore survive a C:-only Windows reinstall.
+  Copied all 13 older Documents app files (323,010,901 bytes) to the ignored
+  project `local-data/windows-reinstall-backups/20261007-211803-f44c2c96/`
+  folder; every source/destination SHA-256 matches and the C: originals remain.
+  The local receipt records verification. This is a retained-drive copy, not an
+  external backup. Reinstall C: tools, environment and secure connections, then
+  resume from this Handover. Personal backup bytes remain untracked/unpublished.
+  See [restore-windows.md](restore-windows.md).
+
 - **PC reinstall recovery (2026-10-07):** live GitHub branch verification confirms
   technical work through `92eb94a`; the working tree is clean and separate
   planning/recovery notes remain local. The full project folder (including
   hidden `.git` and ignored `local-data`), existing older Documents app data
-  and any outside exports need a checked backup outside the PC before formatting.
+  and any outside exports need a checked backup outside the PC before an all-drives wipe.
   No external backup has been made. Toolchain/data environment and secure provider
   connections need restoring after Windows reinstall. The agent handles setup;
   see [restore-windows.md](restore-windows.md). The normal release build passes
@@ -1623,6 +1633,16 @@ build step 2 (screen recording).
     mobile/launch remain. Owner hardware/listening trials remain deferred.
     Separate design assessment/concept commits stay local while technical
     changes are published on the requested branch.
+
+- 2026-10-07, retained E: reinstall preparation:
+  - Owner confirmed E: will remain. Checked the older Documents app folder for
+    links, copied its 13 files (323,010,901 bytes) into a fresh ignored E: backup
+    folder and verified all SHA-256 pairs. No source deleted, app data merged,
+    personal bytes uploaded, secure keys exported or app code changed.
+  - Updated the recovery guide for C:-only reinstall with retained E:, the local
+    receipt and remaining toolchain/environment/secure-connection restoration.
+    An external backup remains absent; this copy protects the old C: app data
+    for the owner's stated reinstall plan.
 
 - 2026-10-07, updated PC reinstall recovery:
   - Verified the live requested GitHub branch at `92eb94a`. Technical work is
