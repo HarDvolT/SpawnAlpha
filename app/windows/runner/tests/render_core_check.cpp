@@ -95,7 +95,8 @@ class GpuReader {
   LONGLONG duration_ = 0;
 };
 
-std::vector<int16_t> Audio(const std::wstring& path) {
+std::vector<int16_t> Audio(const std::wstring& path, UINT channels = 1) {
+  Require(channels == 1 || channels == 2);
   com_ptr<IMFSourceReader> reader;
   check_hresult(MFCreateSourceReaderFromURL(path.c_str(), nullptr, reader.put()));
   check_hresult(reader->SetStreamSelection(kAllStreams, FALSE));
@@ -104,12 +105,12 @@ std::vector<int16_t> Audio(const std::wstring& path) {
   check_hresult(type->SetGUID(MF_MT_MAJOR_TYPE, MFMediaType_Audio));
   check_hresult(type->SetGUID(MF_MT_SUBTYPE, MFAudioFormat_PCM));
   check_hresult(type->SetUINT32(MF_MT_AUDIO_BITS_PER_SAMPLE, 16));
-  check_hresult(type->SetUINT32(MF_MT_AUDIO_NUM_CHANNELS, 1));
+  check_hresult(type->SetUINT32(MF_MT_AUDIO_NUM_CHANNELS, channels));
   check_hresult(type->SetUINT32(MF_MT_AUDIO_SAMPLES_PER_SECOND, kRate));
   check_hresult(reader->SetCurrentMediaType(kAudioStream, nullptr, type.get()));
   // This check's source is bounded to four seconds. A shipping renderer must
   // stream bounded PCM packets instead of allocating for the full recording.
-  std::vector<int16_t> pcm(kRate * 5);
+  std::vector<int16_t> pcm(kRate * 5 * channels);
   size_t last = 0;
   while (true) {
     DWORD flags = 0; LONGLONG time = 0; com_ptr<IMFSample> sample;
@@ -119,7 +120,7 @@ std::vector<int16_t> Audio(const std::wstring& path) {
     com_ptr<IMFMediaBuffer> buffer; check_hresult(sample->ConvertToContiguousBuffer(buffer.put()));
     BYTE* bytes = nullptr; DWORD length = 0; check_hresult(buffer->Lock(&bytes, nullptr, &length));
     const auto values = reinterpret_cast<const int16_t*>(bytes);
-    const auto first = static_cast<LONGLONG>(std::llround(static_cast<double>(time) * kRate / kSecond));
+    const auto first = static_cast<LONGLONG>(std::llround(static_cast<double>(time) * kRate / kSecond)) * channels;
     for (DWORD index = 0; index < length / 2; ++index) {
       const auto position = first + index;
       if (position >= 0 && static_cast<size_t>(position) < pcm.size()) {

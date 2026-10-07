@@ -443,7 +443,7 @@ void VerifyMotionPixels(const LocalRenderRequest& request) {
   } else Require(std::abs(static_cast<int>(early_gold) - static_cast<int>(late_gold)) < static_cast<int>(late_gold / 10 + 10));
 }
 
-void GenerateExtra(ID3D11Device* device, const std::wstring& path, UINT channels, UINT rate, uint32_t color) {
+void GenerateExtra(ID3D11Device* device, const std::wstring& path, UINT channels, UINT rate, uint32_t color, double amplitude = 12000) {
   GpuVideoWriter writer;
   check_hresult(writer.Start(device, path, kWidth, kHeight, 30, channels ? GpuAudioFormat{rate, channels} : GpuAudioFormat{}));
   std::vector<uint32_t> pixels(kWidth * kHeight, color);
@@ -458,7 +458,7 @@ void GenerateExtra(ID3D11Device* device, const std::wstring& path, UINT channels
     std::vector<int16_t> pcm(rate / 30 * channels);
     for (UINT index = 0; index < rate / 30; ++index) for (UINT ch = 0; ch < channels; ++ch) {
       const double hz = ch == 0 ? 330.0 : 990.0;
-      pcm[index * channels + ch] = static_cast<int16_t>(std::sin((frame * (rate / 30) + index) * hz * 6.283185307179586 / rate) * 12000);
+      pcm[index * channels + ch] = static_cast<int16_t>(std::sin((frame * (rate / 30) + index) * hz * 6.283185307179586 / rate) * amplitude);
     }
     check_hresult(writer.WriteAudio(pcm.data(), rate / 30, frame * kSecond / 30));
   }
@@ -806,12 +806,134 @@ void CheckWriterUnwind(ID3D11Device* device, const std::wstring& prefix) {
     Require(caught && injected && GetTickCount64() - started < 5000 && DeleteFileW(output.c_str()));
   }
 }
+double MeasureSound(const std::vector<int16_t>& pcm, UINT channels, double* peak = nullptr) {
+  AudioLoudness meter(channels);
+  for (size_t first = 0; first < pcm.size(); first += 1024 * channels) {
+    const auto end = std::min(pcm.size(), first + 1024 * channels);
+    meter.Add({pcm.begin() + first, pcm.begin() + end});
+  }
+  const auto gain = meter.Finish({true});
+  Require(std::isfinite(gain));
+  if (peak) *peak = meter.peak();
+  return meter.loudness();
+}
+void CheckSoundMeter() {
+  constexpr double pi = 6.283185307179586;
+  for (UINT channels : {1u, 2u}) {
+    std::vector<int16_t> sine(96000 * channels);
+    for (size_t f = 0; f < 96000; ++f) for (UINT c = 0; c < channels; ++c)
+      sine[f * channels + c] = static_cast<int16_t>(32768 * std::pow(10.0, -18.0 / 20) * std::sin(f * 1000 * pi / 48000));
+    double reference = 0;
+    for (size_t packet : {1u, 7u, 1024u, 48000u}) {
+      AudioLoudness meter(channels);
+      for (size_t first = 0; first < sine.size(); first += packet * channels)
+        meter.Add({sine.begin() + first, sine.begin() + std::min(sine.size(), first + packet * channels)});
+      const auto gain = meter.Finish({true});
+      Require(std::abs(meter.loudness() - (channels == 1 ? -21.0 : -17.99)) < .1);
+      if (reference) Require(std::abs(reference - gain) < 1e-12); else reference = gain;
+      auto normalized = sine; ApplySoundGain(normalized, gain);
+      Require(std::abs(MeasureSound(normalized, channels) + 14) < .03);
+      bool rejected = false; try { meter.Finish({true}); } catch (...) { rejected = true; } Require(rejected);
+    }
+    for (size_t frames : {1u, 19199u, 19200u, 96000u}) {
+      AudioLoudness silent(channels);
+      for (size_t first = 0; first < frames; first += 48000)
+        silent.Add(std::vector<int16_t>(std::min<size_t>(48000, frames - first) * channels, 0));
+      Require(silent.Finish({true}) == 1);
+    }
+    AudioLoudness short_sound(channels); short_sound.Add(std::vector<int16_t>(19199 * channels, 100));
+    Require(short_sound.Finish({true}) == 1);
+    AudioLoudness disabled(channels); disabled.Add({sine.begin(), sine.begin() + 48000 * channels});
+    Require(disabled.Finish({false}) == 1);
+    auto low = sine; for (auto& value : low) value = static_cast<int16_t>(value / 1000);
+    Require(!std::isfinite(MeasureSound(low, channels))); // Below the absolute gate.
+    AudioLoudness gated(channels);
+    for (size_t first = 0; first < sine.size(); first += 48000 * channels)
+      gated.Add({sine.begin() + first, sine.begin() + first + 48000 * channels});
+    for (size_t first = 0; first < low.size(); first += 48000 * channels)
+      gated.Add({low.begin() + first, low.begin() + first + 48000 * channels});
+    gated.Finish({true}); Require(std::abs(gated.loudness() - (channels == 1 ? -21.0 : -17.99)) < .5);
+  }
+  std::vector<int16_t> overs(48000);
+  for (size_t i = 0; i < overs.size(); ++i) overs[i] = static_cast<int16_t>(i % 4 < 2 ? 22937 : -22937);
+  AudioLoudness peak(1); peak.Add(overs); const auto gain = peak.Finish({true});
+  Require(peak.peak() > .9 && gain * peak.peak() <= std::pow(10.0, -2.0 / 20) + 1e-12);
+  std::vector<int16_t> transient(48000, 0);
+  for (size_t i = 0; i < transient.size(); ++i) transient[i] = static_cast<int16_t>(100 * std::sin(i * 1000 * pi / 48000));
+  transient[24000] = 30000;
+  AudioLoudness limited(1); limited.Add(transient); const auto capped = limited.Finish({true});
+  Require(capped <= std::pow(10.0, 12.0 / 20) && capped * limited.peak() <= std::pow(10.0, -2.0 / 20) + 1e-12);
+  auto treated = transient; ApplySoundGain(treated, capped); Require(treated.size() == transient.size());
+  for (UINT channels : {0u, 3u}) { bool caught = false; try { AudioLoudness invalid(channels); } catch (...) { caught = true; } Require(caught); }
+  for (double target : {1.0, -100.0, std::numeric_limits<double>::quiet_NaN()}) {
+    bool caught = false; try { AudioLoudness invalid(1); invalid.Finish({true, target}); } catch (...) { caught = true; } Require(caught);
+  }
+  bool caught = false; try { AudioLoudness invalid(2); invalid.Add({1}); } catch (...) { caught = true; } Require(caught);
+}
+void CheckSoundBalance(ID3D11Device* device, const std::wstring& prefix, const char*& stage) {
+  std::atomic<bool> cancel{false};
+  const auto source = prefix + L"-sound-source.mp4";
+  stage = "generate four-second sound fixture"; Generate(device, source);
+  for (UINT channels : {1u, 2u}) for (UINT rate : {48000u, 44100u}) for (UINT amplitude : {2000u, 12000u}) {
+    const auto extra = prefix + L"-sound-" + std::to_wstring(channels) + L"-" + std::to_wstring(rate) + L"-" + std::to_wstring(amplitude);
+    GenerateExtra(device, extra + L"-source.mp4", channels, rate, 0xff25b64a, amplitude);
+    LocalRenderRequest request{extra + L"-source.mp4", L"", extra + L"-raw.mp4", 1000000, 640, 360, {{0, 1000000}}};
+    stage = "render original sound reference"; RenderLocalVideo(request, cancel, [](double) {});
+    const auto raw = Audio(request.output, channels); const auto raw_loudness = MeasureSound(raw, channels);
+    request.sound_balance = {true}; request.output = extra + L"-balanced.mp4";
+    stage = "render balanced mono/stereo resampled sound";
+    double previous = 0; RenderLocalVideo(request, cancel, [&](double value) { Require(value >= previous && value <= 1); previous = value; });
+    const auto balanced = Audio(request.output, channels);
+    stage = "verify decoded loudness, exact clocks and channel preservation";
+    Require(previous == 1 && raw.size() == balanced.size());
+    VerifyLocalCut(request, 30, 1000000);
+    double decoded_peak = 0; const auto level = MeasureSound(balanced, channels, &decoded_peak);
+    Require(decoded_peak < std::pow(10.0, -1.0 / 20)); // AAC headroom is retained.
+    const auto expected = std::min(-14.0, raw_loudness + 12);
+    if (std::abs(level - expected) >= .3) std::cout << "Generated LUFS raw=" << raw_loudness << " balanced=" << level << "\n";
+    Require(std::abs(level - expected) < .3);
+    for (UINT c = 0; c < channels; ++c) {
+      std::vector<int16_t> a, b; for (size_t f = 0; f < raw.size() / channels; ++f) { a.push_back(raw[f * channels + c]); b.push_back(balanced[f * channels + c]); }
+      Require(ToneAt(b, 12000, c ? 990 : 330) > 1000);
+      const auto ratio = WindowRms(b, 12000, 12000) / WindowRms(a, 12000, 12000);
+      Require(std::abs(20 * std::log10(ratio) - (expected - raw_loudness)) < .4);
+    }
+    request.output = extra + L"-continuous.mp4"; request.ranges = {{0, 500000}, {500000, 1000000}}; request.audio_join_fade_us = 20000;
+    stage = "verify sound balance continuous splits are identical"; RenderLocalVideo(request, cancel, [](double) {});
+    Require(Audio(request.output, channels) == balanced);
+    request.ranges = {{0, 200000}}; request.output = extra + L"-short-balanced.mp4";
+    stage = "verify short sound remains unchanged"; RenderLocalVideo(request, cancel, [](double) {}); const auto short_balanced = Audio(request.output, channels);
+    request.sound_balance.enabled = false; request.output = extra + L"-short-raw.mp4"; RenderLocalVideo(request, cancel, [](double) {});
+    Require(Audio(request.output, channels) == short_balanced);
+  }
+  LocalRenderRequest cut{source, L"", prefix + L"-sound-cut.mp4", 4000000, 640, 360, {{3000000, 4000000}, {1000000, 2000000}}};
+  cut.sound_balance = {true}; cut.audio_join_fade_us = 20000;
+  stage = "verify retained/reordered sound balance and joins"; RenderLocalVideo(cut, cancel, [](double) {});
+  const auto pcm = Audio(cut.output); Require(std::abs(MeasureSound(pcm, 1) + 14) < .3);
+  Require(ToneAt(pcm, 12000, 880) > 1000 && ToneAt(pcm, 60000, 440) > 1000);
+  VerifyLocalCut(cut, 60, 2000000);
+  stage = "verify measurement cancellation before output ownership"; cut.output = prefix + L"-sound-cancel.mp4";
+  bool stopped = false; try { RenderLocalVideo(cut, cancel, [&](double value) { if (value > .02) cancel = true; }); } catch (...) { stopped = true; }
+  Require(stopped && GetFileAttributesW(cut.output.c_str()) == INVALID_FILE_ATTRIBUTES);
+  cancel = false; const auto silent = prefix + L"-sound-silent.mp4"; GenerateExtra(device, silent, 0, 0, 0xff25b64a);
+  cut.source = silent; cut.source_duration_us = 1000000; cut.ranges = {{0, 1000000}}; cut.output = prefix + L"-sound-silent-output.mp4";
+  stage = "verify silent video has no invented audio"; RenderLocalVideo(cut, cancel, [](double) {}); Require(!ProbeRecording(cut.output, cancel).has_audio);
+  const auto zero = prefix + L"-sound-zero.mp4"; GenerateExtra(device, zero, 1, 48000, 0xff25b64a, 0);
+  cut.source = zero; cut.output = prefix + L"-sound-zero-balanced.mp4";
+  stage = "verify silent PCM is unchanged"; RenderLocalVideo(cut, cancel, [](double) {}); const auto zero_pcm = Audio(cut.output);
+  cut.sound_balance.enabled = false; cut.output = prefix + L"-sound-zero-raw.mp4"; RenderLocalVideo(cut, cancel, [](double) {});
+  Require(Audio(cut.output) == zero_pcm); cut.sound_balance.enabled = true;
+  cut.sound_balance.target = 1; cut.output = prefix + L"-sound-invalid.mp4";
+  bool rejected = false; try { RenderLocalVideo(cut, cancel, [](double) {}); } catch (...) { rejected = true; }
+  Require(rejected && GetFileAttributesW(cut.output.c_str()) == INVALID_FILE_ATTRIBUTES);
+}
 int wmain(int count, wchar_t** args) {
-  if (count != 2 && (count != 3 || (std::wstring(args[2]) != L"--camera-only" && std::wstring(args[2]) != L"--cleanup-only" && std::wstring(args[2]) != L"--placement-only" && std::wstring(args[2]) != L"--blur-only"))) return 2;
+  if (count != 2 && (count != 3 || (std::wstring(args[2]) != L"--camera-only" && std::wstring(args[2]) != L"--cleanup-only" && std::wstring(args[2]) != L"--placement-only" && std::wstring(args[2]) != L"--blur-only" && std::wstring(args[2]) != L"--sound-only"))) return 2;
   const auto com = CoInitializeEx(nullptr, COINIT_MULTITHREADED); if (FAILED(com)) return 3;
   const char* stage = "initialize";
   try {
     stage = "pure packet-independent sound join envelope"; CheckAudioJoinEnvelope();
+    stage = "calibrated packet-independent loudness, gating and oversampled peak"; CheckSoundMeter();
     stage = "screen zoom springs, resize fit and cut reset"; CheckScreenZoomCrop();
     check_hresult(MFStartup(MF_VERSION));
     {
@@ -1048,13 +1170,15 @@ int wmain(int count, wchar_t** args) {
       if (count == 2 || std::wstring(args[2]) == L"--camera-only") CheckCameraPunch(device.get(), prefix, stage);
       if (count == 2 || std::wstring(args[2]) == L"--placement-only") CheckCameraPlacement(device.get(), prefix, stage);
       if (count == 2 || std::wstring(args[2]) == L"--blur-only") CheckScreenMotionBlur(device.get(), prefix, stage);
+      if (count == 2 || std::wstring(args[2]) == L"--sound-only") CheckSoundBalance(device.get(), prefix, stage);
     }
     if (count == 3) std::cout << "Focused local render check passed: " <<
       (std::wstring(args[2]) == L"--cleanup-only" ? "injected zero/one-sample failure cleanup" :
        std::wstring(args[2]) == L"--placement-only" ? "camera placement geometry/pixels, frame mapping and source resets" :
        std::wstring(args[2]) == L"--blur-only" ? "screen blur direction/cap, sharp camera/still frames and source resets" :
+       std::wstring(args[2]) == L"--sound-only" ? "loudness/gating/peak calibration, mono/stereo clocks, resampling, retained joins and cancellation" :
        "camera crops/cut resets and failure cleanup") << ".\n";
-    else std::cout << "Local render check passed: streaming PCM/GPU pair, source selection/reordering, reviewed filler and retake tone/picture removal, silent input, stereo resampling, EN/FR/AR Readable/Karaoke/Cue/Punch timing and safe pixels, word reveal, emphasis, spring motion and Still, RTL underline, gaps, vertical Arabic, no clipped words, camera inset/end, exact portrait duration, cancel cleanup, damaged input, overwrite protection, centred main/paired camera crops/cut resets and injected zero/one-sample failure cleanup.\n";
+    else std::cout << "Local render check passed: streaming PCM/GPU pair, source selection/reordering, reviewed filler and retake tone/picture removal, silent input, stereo resampling, EN/FR/AR Readable/Karaoke/Cue/Punch timing and safe pixels, word reveal, emphasis, spring motion and Still, RTL underline, gaps, vertical Arabic, no clipped words, camera inset/end, exact portrait duration, cancel cleanup, damaged input, overwrite protection, centred main/paired camera crops/cut resets, camera placement, screen motion blur, volume balance/gates/peaks/mono/stereo/joins and injected zero/one-sample failure cleanup.\n";
     MFShutdown(); CoUninitialize(); return 0;
   } catch (...) {
     std::cerr << "Local render check failed at " << stage << ": 0x" << std::hex << static_cast<unsigned long>(winrt::to_hresult()) << "\n";

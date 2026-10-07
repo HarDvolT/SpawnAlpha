@@ -55,6 +55,11 @@ LocalRenderRequest Request(const Map& args) {
     if (!range) throw std::runtime_error("Invalid render range");
     request.ranges.push_back({Integer(*range, "startUs"), Integer(*range, "endUs")});
   }
+  if (const auto found = args.find(Value("soundBalance")); found != args.end()) {
+    const auto* policy = std::get_if<Map>(&found->second);
+    if (!policy || policy->size() != 3) throw std::runtime_error("Invalid sound balance");
+    request.sound_balance = {true, Number(*policy, "target"), Number(*policy, "ceiling"), Number(*policy, "maximumBoost")};
+  }
   if (const auto found = args.find(Value("screenBlur")); found != args.end()) {
     const auto* layout = std::get_if<Map>(&found->second);
     if (!layout || layout->size() != 3) throw std::runtime_error("Invalid screen blur");

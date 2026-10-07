@@ -757,6 +757,11 @@ void main() {
       -150,
       scrollable: find.byType(Scrollable).first,
     );
+    await Scrollable.ensureVisible(
+      tester.element(find.text('Cancel processing')),
+      alignment: .5,
+    );
+    await tester.pump();
     await tester.tap(find.text('Cancel processing'));
     await tester.pump();
     expect(take.wordsPath, isNull);

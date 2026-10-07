@@ -62,6 +62,29 @@ build step 2 (screen recording).
 
 ## Handover (2026-10-05): from here, Codex on the owner's Windows PC
 
+- **Latest checkpoint (2026-10-07, sound volume balance):** 863 Flutter tests,
+  278 screenshots and clean analysis. Balance sound volume starts on in take
+  review and can change after recording or after reopening the take. Retained
+  48kHz mono/stereo PCM uses K weighting, gated 400ms/75%-overlap blocks and
+  four-times estimated true peaks, then one fixed gain toward -14 LUFS,
+  limited to 12dB boost and -2dB peak headroom. Peak/boost limits take priority;
+  silence and sound shorter than 400ms stay unchanged. Prepass and render use
+  identical joins without adding samples or changing subtitles. A discovered
+  AAC/resampling continuity issue is fixed by retaining the reader across
+  adjacent source ranges. Native calibration/gates/packet independence,
+  quiet/loud mono/stereo at 48/44.1kHz, decoded loudness/peaks, zero/no audio,
+  short sound, continuous identity, reorder/joins and cancellation pass with
+  the full native suite. Eight actual app-channel EN/FR/AR exports cover all
+  four formats, Camera/Screen/Both and later on/off choices, preserving exact
+  subtitles/history/words/media. Saved-take disk reload, failed attachment
+  recovery and legacy choice-off pass. EN/AR phone layouts inspected. Fixed
+  a test scroll that could tap Cancel under the toolbar. No owner media/input,
+  package, model, upload or private logging. **Half done:** smooth cursor,
+  noise/de-essing/room tone, further coaching and editor tools remain. Continue
+  sound polish; current separate RNNoise weights need an explicit licence
+  determination before shipping. Owner trials remain deferred; mobile and
+  paid launch are unfinished. The Claude design artifact is behind docs/design.
+
 - **Latest checkpoint (2026-10-07, screen motion blur):** 846 Flutter tests,
   272 screenshots and clean analysis. Soften zoom motion starts on for screen
   activity zooms unless system reduced motion is set. An explicit later export
@@ -1031,14 +1054,22 @@ build step 2 (screen recording).
    automatic processing after Stop. Repeated sections now offer a paged
    comparison, original listening and safe reversible Keep attempt choices.
    Automatic best-performance ranking is still pending. Next
-   remaining camera/cursor/blur effects and sound polish/delivery
+   remaining cursor effects and sound polish/delivery
    coaching; optional activity zooms, click rings, shortcut badges and short
    sound-join fades, rounded local screen frames and gentle camera emphasis
-   are connected.
+   are connected, alongside paired-camera placement, screen motion blur and
+   optional sound volume balance.
    Keep originals intact.
    See OpenScreen in the brief for reusable parts.
 
 ## Decisions
+
+- 2026-10-07, sound volume balance: start the separate reversible export
+  choice on in take review. Use one fixed gain on the retained output sound,
+  gated K-weighted 400ms windows, a -14 LUFS target, 12dB maximum boost and
+  four-times estimated true-peak protection at -2dB before AAC. Preserve short
+  sound, silence, stereo balance and exact word/video clocks. Avoid compressor
+  pumping or noise-removal claims. Legacy exports keep their old volume.
 
 - 2026-10-07, screen motion blur: an independent reversible Soften zoom motion
   choice starts on for screen zooms except reduced motion. Use unrounded screen
@@ -1304,6 +1335,29 @@ build step 2 (screen recording).
   word lists, not prosody.
 
 ## Session log
+
+- 2026-10-07, sound volume balance:
+  - Added independent after-recording choice, fixed-policy channel request,
+    backward-compatible history and completed-job recovery. Native bounded
+    measurement prepass matches join envelopes and supports cancellation
+    before output creation. Rendering applies exactly one gain.
+  - Calibrated K weighting and absolute/relative gates, packet-independent
+    gain, four-times intersample peak detection, boost/peak caps and silent/
+    short no-op behavior pass. Generated decoded mono/stereo quiet/loud AAC
+    at 48/44.1kHz, channel levels, exact clocks, retained/reordered joins,
+    adjacent identity, cancellation and invalid-policy cleanup pass with the
+    full native render suite. Avoid resetting AAC/resampling state at
+    continuous boundaries; this fixed a discovered audible continuity risk.
+  - 863 Flutter tests, 278 screenshots and clean analysis. Saved EN/FR/AR
+    takes switch off/on/off after disk reload without changing earlier videos;
+    failed final attachment recovers the saved choice. Eight actual Windows
+    app-channel on/off exports cover all four formats and Camera/Screen/Both,
+    preserving exact subtitles and original words/media/history. EN/AR phone
+    PNGs inspected. The cancellation widget check now centres the button
+    before tapping, so it no longer taps beneath the toolbar.
+  - No new dependency, model, copied code, owner media/input or upload. Further
+    sound polish, smooth cursor, coaching/editor tools and mobile/launch remain.
+    Owner listening and hardware trials are deferred.
 
 - 2026-10-07, screen motion blur:
   - Added export-time choice/history, system reduced-motion starting choice,

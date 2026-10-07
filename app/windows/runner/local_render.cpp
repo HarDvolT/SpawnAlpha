@@ -180,6 +180,31 @@ class AudioReader {
   bool eos_ = false;
 };
 
+double BalancedSoundGain(const LocalRenderRequest& request, const std::vector<int64_t>& starts,
+    int64_t total_us, std::atomic<bool>& cancel, const std::function<void(double)>& progress) {
+  AudioReader reader; if (!reader.Open(request.source)) return 1;
+  AudioLoudness meter(reader.channels);
+  const auto total_samples = SampleAtUs(total_us);
+  for (size_t range = 0; range < request.ranges.size(); ++range) {
+    Cancel(cancel);
+    if (range == 0 || request.ranges[range - 1].end_us != request.ranges[range].start_us)
+      reader.Reset(request.ranges[range].start_us * 10);
+    const auto begin = SampleAtUs(starts[range]);
+    const auto end = range + 1 < starts.size() ? SampleAtUs(starts[range + 1]) : total_samples;
+    for (auto position = begin; position < end;) {
+      Cancel(cancel);
+      const auto count = static_cast<UINT>(std::min<int64_t>(1024, end - position));
+      auto pcm = reader.At(SampleAtUs(request.ranges[range].start_us) + position - begin, count, cancel);
+      ApplyAudioJoinFade(pcm, reader.channels, position, begin, end, request.audio_join_fade_us * kRate / 2000000,
+        range > 0 && request.ranges[range - 1].end_us != request.ranges[range].start_us,
+        range + 1 < request.ranges.size() && request.ranges[range].end_us != request.ranges[range + 1].start_us);
+      meter.Add(pcm); position += count;
+      progress(.15 * static_cast<double>(position) / total_samples);
+    }
+  }
+  return meter.Finish(request.sound_balance);
+}
+
 RECT Fit(UINT w, UINT h, const RECT& box) {
   const double scale = std::min(double(box.right - box.left) / w, double(box.bottom - box.top) / h);
   const auto width = static_cast<LONG>(w * scale), height = static_cast<LONG>(h * scale);
@@ -267,6 +292,9 @@ void RenderLocalVideo(const LocalRenderRequest& request, std::atomic<bool>& canc
     !request.ranges.empty() && request.ranges.size() <= 20001 && request.width >= 2 && request.height >= 2 &&
     request.width <= 4096 && request.height <= 4096 && request.width % 2 == 0 && request.height % 2 == 0);
   Require(request.audio_join_fade_us >= 0 && request.audio_join_fade_us <= 100000);
+  if (request.sound_balance.enabled) {
+    AudioLoudness validation(1); validation.Finish(request.sound_balance);
+  }
   int64_t total_us = 0;
   std::vector<int64_t> starts;
   for (const auto& range : request.ranges) {
@@ -307,6 +335,8 @@ void RenderLocalVideo(const LocalRenderRequest& request, std::atomic<bool>& canc
       punch.Open(steps, request.punch_spring, width, height, total_us);
     }
     AudioReader audio; const bool has_audio = audio.Open(request.source);
+    const auto sound_gain = has_audio && request.sound_balance.enabled
+        ? BalancedSoundGain(request, starts, total_us, cancel, progress) : 1;
     Compositor compositor; compositor.Open(device.get(), request.width, request.height, !request.camera.empty());
     CaptionOverlay captions;
     CaptionOverlay shortcuts;
@@ -379,17 +409,23 @@ void RenderLocalVideo(const LocalRenderRequest& request, std::atomic<bool>& canc
           const auto count = static_cast<UINT>(std::min(end_sample, range_end) - audio_position);
           Require(count > 0);
           const auto source_sample = SampleAtUs(request.ranges[audio_range].start_us) + audio_position - SampleAtUs(starts[audio_range]);
-          if (audio_range != previous_audio_range) { audio.Reset(request.ranges[audio_range].start_us * 10); previous_audio_range = audio_range; }
+          if (audio_range != previous_audio_range) {
+            if (audio_range == 0 || request.ranges[audio_range - 1].end_us != request.ranges[audio_range].start_us)
+              audio.Reset(request.ranges[audio_range].start_us * 10);
+            previous_audio_range = audio_range;
+          }
           auto pcm = audio.At(source_sample, count, cancel);
           ApplyAudioJoinFade(pcm, audio.channels, audio_position,
             SampleAtUs(starts[audio_range]), range_end, request.audio_join_fade_us * kRate / 2000000,
             audio_range > 0 && request.ranges[audio_range - 1].end_us != request.ranges[audio_range].start_us,
             audio_range + 1 < request.ranges.size() && request.ranges[audio_range].end_us != request.ranges[audio_range + 1].start_us);
+          ApplySoundGain(pcm, sound_gain);
           check_hresult(writer.WriteAudio(pcm.data(), count, audio_position * kSecond / kRate));
           audio_position += count;
         }
       }
-      progress(static_cast<double>(end_ticks) / total_ticks);
+      const auto base = has_audio && request.sound_balance.enabled ? .15 : 0;
+      progress(base + (1 - base) * static_cast<double>(end_ticks) / total_ticks);
     }
     Cancel(cancel); check_hresult(writer.Finish()); Cancel(cancel);
   } catch (...) {

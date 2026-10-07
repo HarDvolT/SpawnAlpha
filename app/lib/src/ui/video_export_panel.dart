@@ -49,6 +49,8 @@ class VideoExportPanel extends StatelessWidget {
     this.hasMotionBlur = false,
     this.motionBlur = true,
     this.onMotionBlur,
+    this.balanceSound = true,
+    this.onBalanceSound,
   });
   final VideoFormat format;
   final ValueChanged<VideoFormat> onFormat;
@@ -82,6 +84,8 @@ class VideoExportPanel extends StatelessWidget {
   final ValueChanged<bool>? onCameraClear;
   final bool hasMotionBlur, motionBlur;
   final ValueChanged<bool>? onMotionBlur;
+  final bool balanceSound;
+  final ValueChanged<bool>? onBalanceSound;
   final List<VideoExport> videos;
   final ValueChanged<VideoExport> onView, onShow;
 
@@ -103,7 +107,8 @@ class VideoExportPanel extends StatelessWidget {
           '${video.screenFrame ? ' · Framed screen' : ''}'
           '${video.cameraPunchCount > 0 ? ' · ${video.cameraPunchCount} camera accents' : ''}'
           '${video.cameraClear ? ' · Camera stays clear' : ''}'
-          '${video.motionBlur ? ' · Soft zoom motion' : ''}',
+          '${video.motionBlur ? ' · Soft zoom motion' : ''}'
+          '${video.balanceSound ? ' · Balanced volume' : ''}',
           style: SaType.signalLabel.copyWith(color: p.ink2),
         ),
         TextButton.icon(
@@ -211,6 +216,18 @@ class VideoExportPanel extends StatelessWidget {
                 : (value) => onSoftAudioJoins?.call(value ?? false),
             title: const Text('Soften sound at cuts'),
             subtitle: const Text('Smooth the joins while keeping word timing.'),
+          ),
+        if (onBalanceSound != null)
+          CheckboxListTile(
+            contentPadding: EdgeInsets.zero,
+            value: balanceSound,
+            onChanged: busy
+                ? null
+                : (value) => onBalanceSound?.call(value ?? false),
+            title: const Text('Balance sound volume'),
+            subtitle: const Text(
+              'Make quiet sound easier to hear. Silent or very short sound keeps its volume.',
+            ),
           ),
         if (hasMotionBlur && autoZoom)
           CheckboxListTile(

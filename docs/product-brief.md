@@ -126,8 +126,12 @@ Revised 2026-09-30 by the owner. Screen recording moves up, and the automatic ed
      keeps the camera, captions and still frames sharp. Optional camera emphasis uses reliable spoken accepted
      Script stress cues, with a subtle centred crop, a separate switch and
      a reduced-motion default. It stays off for takes/cuts under 20 seconds
-     and spaces entrances by eight seconds. Smooth cursor/blur and moving
-     camera polish remain;
+     and spaces entrances by eight seconds. Optional paired-camera placement
+     and directional screen motion blur are connected. Optional sound balance
+     measures retained audio, applies one gain toward -14 LUFS, caps boosts at
+     12dB and protects estimated true peaks with -2dB headroom. The choice can
+     change after recording; originals and earlier videos stay intact. Smooth
+     cursor, noise reduction, light de-essing and room-tone joins remain;
    - 16:9 and 9:16 export;
    - the finish screen.
 5. **Delivery review and section retakes.** The best take is chosen by how well it matches the script.

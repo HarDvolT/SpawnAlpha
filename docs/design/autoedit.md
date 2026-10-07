@@ -164,6 +164,20 @@ is added. Wording edits rebuild proposals with all attempts kept. A performance
 rank is not inferred from word matching: full pitch/loudness/pace scoring remains
 later. Every selection changes video and subtitle clocks together.
 
+### Windows volume balance
+
+Save controls offer **Balance sound volume**, initially on. The choice can be
+changed after recording and on a reopened take. Measure retained mono/stereo
+sound with K weighting and gated 400ms windows on the output clock, then apply
+one fixed gain toward -14 LUFS. Cap amplification at 12dB and reserve a -2dB
+estimated true-peak ceiling using four-times oversampling. Peak protection may
+leave a take quieter than the target. Silence and audio shorter than 400ms
+keep their volume. No compressor pumping, noise-removal claim, added samples,
+timing change or source modification. Existing sound joins are measured and
+applied consistently. The new version and saved choice keep earlier exports
+intact; legacy exports have the choice off. This first sound slice does not
+replace noise reduction, de-essing or room-tone work.
+
 ### Windows sound joins
 
 **Soften sound at cuts** starts enabled when the selected plan joins separated

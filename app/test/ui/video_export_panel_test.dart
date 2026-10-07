@@ -15,6 +15,73 @@ import '../render/export_processor_test.dart' show FakeRenderer;
 import '../storage/screen_take_store_test.dart' show FakeInspector;
 
 void main() {
+  for (final mode in ['choose', 'busy', 'hidden']) {
+    testWidgets('sound balance can change for later exports: $mode', (
+      tester,
+    ) async {
+      final library = ScriptLibrary(MemoryScriptStore()),
+          inspector = FakeInspector();
+      final job = ExportProcessor(
+        FakeRenderer(inspector),
+        VideoExportStore(Directory.systemTemp, library, inspector),
+        CleanCutStore(Directory.systemTemp, library),
+        (_) async => null,
+      );
+      var balanced = true;
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: buildTheme(Brightness.light),
+          home: Scaffold(
+            body: SingleChildScrollView(
+              child: StatefulBuilder(
+                builder: (context, update) => VideoExportPanel(
+                  format: VideoFormat.landscape,
+                  onFormat: (_) {},
+                  onExport: () {},
+                  job: job,
+                  supported: true,
+                  busy: mode == 'busy',
+                  balanceSound: balanced,
+                  onBalanceSound: mode == 'hidden'
+                      ? null
+                      : (v) => update(() => balanced = v),
+                  videos: [
+                    VideoExport(
+                      id: 'generated',
+                      format: VideoFormat.landscape,
+                      duration: const Duration(seconds: 4),
+                      createdAt: DateTime(2026),
+                      balanceSound: true,
+                    ),
+                  ],
+                  onView: (_) {},
+                  onShow: (_) {},
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      final choice = find.widgetWithText(
+        CheckboxListTile,
+        'Balance sound volume',
+      );
+      if (mode == 'hidden') {
+        expect(choice, findsNothing);
+      } else if (mode == 'busy') {
+        expect(tester.widget<CheckboxListTile>(choice).onChanged, isNull);
+      } else {
+        await tester.tap(choice);
+        await tester.pumpAndSettle();
+        expect(balanced, isFalse);
+      }
+      expect(find.textContaining('Balanced volume'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox());
+      job.dispose();
+      library.dispose();
+    });
+  }
   for (final mode in ['choose', 'busy', 'hidden', 'missing']) {
     testWidgets('screen motion blur choice and history: $mode', (tester) async {
       final library = ScriptLibrary(MemoryScriptStore()),

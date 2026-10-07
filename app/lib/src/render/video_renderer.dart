@@ -34,6 +34,7 @@ class VideoRenderRequest {
     this.cameraPunchMain = false,
     this.cameraClear = false,
     this.motionBlur = false,
+    this.balanceSound = false,
     this.cameraTargets,
     List<Caption> captions = const [],
   }) : captions = List.unmodifiable(
@@ -148,6 +149,7 @@ class VideoRenderRequest {
   final bool cameraPunchMain;
   final bool cameraClear;
   final bool motionBlur;
+  final bool balanceSound;
   final CameraTargets? cameraTargets;
   final List<Caption> captions;
   Map<String, Object?> toJson() => {
@@ -163,6 +165,12 @@ class VideoRenderRequest {
         ? SaVideoExport.audioJoinFade.inMicroseconds
         : 0,
     'ranges': plan.ranges.map((r) => r.toJson()).toList(),
+    if (balanceSound)
+      'soundBalance': {
+        'target': SaSoundPolish.loudnessTarget,
+        'ceiling': SaSoundPolish.peakCeiling,
+        'maximumBoost': SaSoundPolish.maximumBoost,
+      },
     if (motionBlur)
       'screenBlur': {
         'maximum': SaScreenFx.blurMax,

@@ -559,6 +559,20 @@ abstract final class SaVideoExport {
   static const Duration cameraClearInterval = Duration(milliseconds: 1400);
 }
 
+/// Local sound balance targets and limits.
+///
+/// Fixed-gain local sound balance; reserve headroom for AAC encoding.
+abstract final class SaSoundPolish {
+  /// Product integrated loudness target in LUFS; peak protection takes priority.
+  static const double loudnessTarget = -14.0;
+  /// Estimated pre-encoding true-peak ceiling in dBTP.
+  static const double peakCeiling = -2.0;
+  /// Maximum fixed amplification in dB to avoid excessive noise gain.
+  static const double maximumBoost = 12.0;
+  /// Minimum retained sound duration for gated loudness measurement.
+  static const Duration minimumDuration = Duration(milliseconds: 400);
+}
+
 /// The four type voices: display, reading, signal and pencil.
 abstract final class SaFonts {
   static const display = 'Anybody';

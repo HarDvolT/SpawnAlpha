@@ -11,6 +11,7 @@
 #include "screen_frame.h"
 #include "camera_placement.h"
 #include "screen_motion_blur.h"
+#include "audio_loudness.h"
 struct RenderRange { int64_t start_us, end_us; };
 struct CameraPunchStep { int64_t time_us = 0; bool zoomed = false; };
 struct LocalRenderRequest {
@@ -36,6 +37,7 @@ struct LocalRenderRequest {
   std::vector<CameraTarget> camera_targets;
   CameraClearLayout camera_clear;
   ScreenBlurLayout screen_blur;
+  SoundBalance sound_balance;
 };
 // COM/MF initialized worker only. Original media is read-only, packets are bounded,
 // output is created exclusively, and failure/cancellation removes only that output.
