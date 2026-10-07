@@ -146,6 +146,11 @@ paid release, a lawyer should review:
   The bounded queue freezes existing source revisions and effects; it adds
   no data collection, package, model, upload or private diagnostic. Finished
   videos remain local and intact; unfinished formats never restart silently.
+- The first local cut editor only restores sound inside existing safe quiet
+  proposals. It adds no new input/media collection, model, dependency, upload
+  or diagnostic text. Drafts are local, Save creates a revision, and public
+  saves preserve original proposal bounds. Original excerpts require an
+  explicit listen action; prior playback pauses when the editor opens.
 - **If FFmpeg is used at all:**
   - use an **LGPL build** without `--enable-gpl` or `--enable-nonfree`, which means no
     x264 or x265;

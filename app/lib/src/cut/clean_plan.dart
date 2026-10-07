@@ -16,7 +16,14 @@ class CutChange {
     this.kind = CutChangeKind.quiet,
     List<int> spokenIndices = const [],
     this.text,
+    this.originalRange,
   }) : spokenIndices = List.unmodifiable(spokenIndices) {
+    if (originalRange != null &&
+        (kind != CutChangeKind.quiet ||
+            range.start < originalRange!.start ||
+            range.end > originalRange!.end)) {
+      throw const FormatException('Invalid quiet edit bounds');
+    }
     if (!RegExp('^${kind.name}-[0-9]+\$').hasMatch(id) ||
         (kind == CutChangeKind.quiet &&
             (spokenIndices.isNotEmpty || text != null)) ||
@@ -42,6 +49,8 @@ class CutChange {
   final CutChangeKind kind;
   final List<int> spokenIndices;
   final String? text;
+  final SourceRange? originalRange;
+  SourceRange get bounds => originalRange ?? range;
   CutChange withEnabled(bool value) => CutChange(
     id: id,
     range: range,
@@ -49,7 +58,20 @@ class CutChange {
     kind: kind,
     spokenIndices: spokenIndices,
     text: text,
+    originalRange: originalRange,
   );
+  CutChange withRange(SourceRange value) {
+    if (kind != CutChangeKind.quiet) {
+      throw const FormatException('Only quiet gaps have handles');
+    }
+    return CutChange(
+      id: id,
+      range: value,
+      enabled: enabled,
+      originalRange: bounds,
+    );
+  }
+
   Map<String, Object?> toJson() => {
     'id': id,
     'range': range.toJson(),
@@ -57,6 +79,7 @@ class CutChange {
     if (kind != CutChangeKind.quiet) 'kind': kind.name,
     if (spokenIndices.isNotEmpty) 'spokenIndices': spokenIndices,
     'text': ?text,
+    'originalRange': ?originalRange?.toJson(),
   };
 }
 
@@ -82,11 +105,11 @@ class CleanPlan {
     final ids = <String>{};
     for (final change in changes) {
       if (!ids.add(change.id) ||
-          change.range.start < previous ||
-          change.range.end > sourceDuration) {
+          change.bounds.start < previous ||
+          change.bounds.end > sourceDuration) {
         throw const FormatException('Invalid cut changes');
       }
-      previous = change.range.end;
+      previous = change.bounds.end;
     }
     final spans = <RetakeOption>[];
     var count = 0;
@@ -158,6 +181,22 @@ class CleanPlan {
     retakesReviewed: retakesReviewed,
     retakes: [for (final r in retakes) r.withSelected(null)],
   );
+  CleanPlan withRange(String id, SourceRange value) {
+    if (!changes.any((c) => c.id == id)) {
+      throw const FormatException('Unknown cut change');
+    }
+    return CleanPlan(
+      takeId: takeId,
+      language: language,
+      sourceDuration: sourceDuration,
+      changes: [for (final c in changes) c.id == id ? c.withRange(value) : c],
+      notice: notice,
+      fillersReviewed: fillersReviewed,
+      retakesReviewed: retakesReviewed,
+      retakes: retakes,
+    );
+  }
+
   CleanPlan withAttempt(String id, int? index) {
     if (!retakes.any((r) => r.id == id)) {
       throw const FormatException('Unknown retake section');
@@ -250,6 +289,11 @@ class CleanPlan {
             if (item is Map &&
                 item['id'] is String &&
                 item['enabled'] is bool &&
+                (item['originalRange'] == null ||
+                    item['originalRange'] is Map &&
+                        (item['originalRange'] as Map).length == 2 &&
+                        (item['originalRange'] as Map)['startUs'] is int &&
+                        (item['originalRange'] as Map)['endUs'] is int) &&
                 (item['kind'] == null ||
                     item['kind'] == 'quiet' ||
                     item['kind'] == 'filler') &&
@@ -279,6 +323,18 @@ class CleanPlan {
                     microseconds: (item['range'] as Map)['endUs'] as int,
                   ),
                 ),
+                originalRange: item['originalRange'] == null
+                    ? null
+                    : SourceRange(
+                        start: Duration(
+                          microseconds:
+                              (item['originalRange'] as Map)['startUs'] as int,
+                        ),
+                        end: Duration(
+                          microseconds:
+                              (item['originalRange'] as Map)['endUs'] as int,
+                        ),
+                      ),
               )
             else
               throw const FormatException('Invalid cut change'),

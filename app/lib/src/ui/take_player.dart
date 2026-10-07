@@ -16,11 +16,13 @@ class TakePlayer extends StatefulWidget {
     this.label = 'Original take',
     this.excerpt,
     this.playRequest = 0,
+    this.active = true,
   });
   final LocalPlayback backend;
   final String path, label;
   final SourceRange? excerpt;
   final int playRequest;
+  final bool active;
   @override
   State<TakePlayer> createState() => _TakePlayerState();
 }
@@ -36,7 +38,8 @@ class _TakePlayerState extends State<TakePlayer>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _pendingExcerpt = widget.excerpt != null && widget.playRequest > 0;
+    _pendingExcerpt =
+        widget.active && widget.excerpt != null && widget.playRequest > 0;
     _create();
   }
 
@@ -47,7 +50,11 @@ class _TakePlayerState extends State<TakePlayer>
   }
 
   void _tryExcerpt() {
-    if (!_pendingExcerpt || !_active || !_player.ready || _player.commanding) {
+    if (!_pendingExcerpt ||
+        !_active ||
+        !widget.active ||
+        !_player.ready ||
+        _player.commanding) {
       return;
     }
     final player = _player, request = widget.playRequest;
@@ -55,6 +62,7 @@ class _TakePlayerState extends State<TakePlayer>
       Future<void>.microtask(() async {
         if (!mounted ||
             !_active ||
+            !widget.active ||
             !_pendingExcerpt ||
             player != _player ||
             request != widget.playRequest ||
@@ -70,14 +78,18 @@ class _TakePlayerState extends State<TakePlayer>
   @override
   void didUpdateWidget(TakePlayer oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (oldWidget.active && !widget.active) {
+      _pendingExcerpt = false;
+      unawaited(_player.pause());
+    }
     final requested = oldWidget.playRequest != widget.playRequest;
     if (oldWidget.path != widget.path || oldWidget.backend != widget.backend) {
       _player.dispose();
       _scrub = null;
-      _pendingExcerpt = requested && widget.excerpt != null;
+      _pendingExcerpt = requested && widget.excerpt != null && widget.active;
       _create();
     } else if (requested) {
-      _pendingExcerpt = widget.excerpt != null;
+      _pendingExcerpt = widget.excerpt != null && widget.active;
       _scrub = null;
       _tryExcerpt();
     }
@@ -107,7 +119,7 @@ class _TakePlayerState extends State<TakePlayer>
       listenable: _player,
       builder: (context, _) {
         final status = _player.status;
-        final enabled = _player.ready && !_player.commanding;
+        final enabled = _player.ready && !_player.commanding && widget.active;
         final duration = status.duration.inMicroseconds.toDouble();
         final position =
             _scrub ??

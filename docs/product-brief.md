@@ -143,6 +143,9 @@ Revised 2026-09-30 by the owner. Screen recording moves up, and the automatic ed
    - 16:9 1080p/4K, 9:16 and 4:5 exports, with optional serial batch saving
      from one frozen cut/effect choice; finished versions survive cancellation;
    - the finish screen.
+     Windows take review now has a local cut editor: restore more of a shortened
+     quiet gap with bounded handles, keep/revert individual changes and save a
+     fresh cut revision. Broader timeline operations and chapter text remain.
 5. **Delivery review and section retakes.** The best take is chosen by how well it matches the script.
 6. **Voice-following scroll.** This needs real-time speech recognition on the device.
 7. **Mobile parity.** Android screen recording (single-app sharing), a companion prompter for iOS, and face reframing.

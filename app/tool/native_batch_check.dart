@@ -29,6 +29,8 @@ bool sameBytes(List<int> a, List<int> b) =>
     a.length == b.length && a.indexed.every((v) => v.$2 == b[v.$1]);
 
 Future<void> main() async {
+  const gapCheck = bool.fromEnvironment('SPAWNALPHA_GAP_CHECK');
+  const kind = gapCheck ? 'gap' : 'batch';
   WidgetsFlutterBinding.ensureInitialized();
   runApp(
     const MaterialApp(
@@ -125,7 +127,7 @@ Future<void> main() async {
       await File(take.wordsPath!).writeAsString(jsonEncode(spoken.toJson()));
       final originalWords = await File(take.wordsPath!).readAsString();
       await library.save(snapshot.copyWith(takes: [take]));
-      final clean = CleanPlan(
+      var clean = CleanPlan(
         takeId: 'generated',
         language: language,
         sourceDuration: take.duration,
@@ -140,6 +142,28 @@ Future<void> main() async {
         ],
       );
       await job.cuts.save(snapshot.id, take, clean);
+      if (gapCheck) {
+        final before = library.byId(snapshot.id)!.takes.single;
+        final oldFile = File(before.cutPath!),
+            oldBytes = await File(before.cutPath!).readAsBytes();
+        clean = clean.withRange(
+          'quiet-0',
+          SourceRange(
+            start: const Duration(milliseconds: 1600),
+            end: const Duration(milliseconds: 2600),
+          ),
+        );
+        await job.cuts.save(snapshot.id, before, clean);
+        await library.load();
+        final reopened = await job.cuts.load(
+          library.byId(snapshot.id)!.takes.single,
+        );
+        require(
+          reopened != null &&
+              jsonEncode(reopened.toJson()) == jsonEncode(clean.toJson()) &&
+              sameBytes(await oldFile.readAsBytes(), oldBytes),
+        );
+      }
       final current = library.byId(snapshot.id)!;
       stage = 'batch ${language.name}';
       final videos = await batch.run(
@@ -172,7 +196,7 @@ Future<void> main() async {
       final savedBytes = <String, List<int>>{};
       for (final video in videos) {
         require(
-          video.duration == const Duration(milliseconds: 2600) &&
+          video.duration == clean.asCutPlan().duration &&
               video.balanceSound &&
               video.reduceNoise &&
               video.softenSharpSound &&
@@ -271,10 +295,10 @@ Future<void> main() async {
             (language == ScriptLanguage.en ? 5 : 4),
       );
     }
-    await File('build/batch-app-check-result.json')
+    await File('build/$kind-app-check-result.json')
         .writeAsString(jsonEncode({'passed': true, 'exports': count}));
     stdout.writeln(
-      'Generated batch app-channel checks passed: $count EN/FR/AR exports, all formats, cancelled second render, exact subtitles, history and original bytes.',
+      'Generated $kind app-channel checks passed: $count EN/FR/AR exports, all formats, cancelled second render, exact subtitles, history and original bytes.',
     );
     batch.dispose();
     job.dispose();

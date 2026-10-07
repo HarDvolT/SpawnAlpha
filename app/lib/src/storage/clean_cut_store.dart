@@ -12,6 +12,11 @@ import '../transcription/script_alignment.dart';
 import '../transcription/speech_processor.dart';
 import 'script_store.dart';
 
+Map<String, Object?> _proposalIdentity(CutChange change) => change.toJson()
+  ..remove('enabled')
+  ..remove('originalRange')
+  ..['range'] = change.bounds.toJson();
+
 CleanPlan _build(Map<String, Object?> args) {
   final spoken = SavedTranscript.fromJson(
     args['spoken']! as Map<String, Object?>,
@@ -108,6 +113,15 @@ class CleanCutStore {
       }
       if (!enrichRetakes) {
         final before = await load(take);
+        if (before != null &&
+            (before.takeId != plan.takeId ||
+                before.language != plan.language ||
+                before.fillersReviewed != plan.fillersReviewed ||
+                before.retakesReviewed != plan.retakesReviewed ||
+                jsonEncode(before.changes.map(_proposalIdentity).toList()) !=
+                    jsonEncode(plan.changes.map(_proposalIdentity).toList()))) {
+          throw const FormatException('Cut proposals changed');
+        }
         // Public switch saves may change selections, never their provenance.
         if ((before?.retakes.isNotEmpty == true || plan.retakes.isNotEmpty) &&
             (before == null ||

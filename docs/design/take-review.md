@@ -102,6 +102,25 @@ comparison. Ordinary repetition written into a script is not a retake.
 Comparison runs off the UI thread, follows saved wording revisions and rejects
 stale results. Nothing is uploaded or cut by listening.
 
+**Open in editor** opens a local draft of the saved cut. A source timeline shows
+kept and removed ranges with text labels as well as colour. It uses Studio
+tokens; time always reads left to right. Tapping a range explicitly plays that
+original excerpt, never the draft automatically. A list has the existing
+gap/filler switches and retake choices. For shortened quiet gaps only, two
+handles adjust which part of the originally safe removal stays removed:
+dragging inward restores sound. Keep the handles within the initial proposal,
+so editing cannot cut an extra word, marked pause or screen activity. Fillers
+and retakes remain whole choices. Keep a gap, or reset its handles to the
+initial proposal. Show the resulting duration immediately. Page long lists.
+
+**Save changes** returns the draft to review and writes a new cut revision;
+**Cancel** or Back discards the draft. Detect changed word/cut revisions before
+saving. Reopening remembers the handles and original safe bounds. Previous
+plans, original media and earlier videos stay intact. Captions, room-tone
+eligibility and later batch exports use the new cut clock. This first editor
+does not extend a removal beyond its measured quiet proposal or add arbitrary
+speech cuts. No new data collection, dependency or upload.
+
 **Save your video** makes a separate local MP4 from the saved cut (or the whole
 take when no cut exists). The first Windows renderer fits the complete picture
 inside 16:9 1080p/4K, 9:16 or 4:5; unused space stays black. Screen/Both with

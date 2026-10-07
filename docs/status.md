@@ -62,6 +62,26 @@ build step 2 (screen recording).
 
 ## Handover (2026-10-05): from here, Codex on the owner's Windows PC
 
+- **Latest checkpoint (2026-10-07, bounded cut editor):** 1005 Flutter tests,
+  308 screenshots and clean analysis. Open in editor shows a local draft,
+  source timeline/explicit original listening, existing cut/retake choices
+  and paged quiet-gap handles. Handles only restore within the original safe
+  proposal; fillers/retakes stay whole. Save writes a fresh revision, Cancel/
+  Back leave the previous plan intact, and changed word/cut revisions refuse
+  saving. Immutable original bounds survive reload; public storage saves now
+  freeze proposal identity/bounds and review flags as well as retake provenance.
+  The previous player pauses on entry and never resumes automatically. EN/FR/
+  AR phone drag/save/cancel/reset/restore/listen/paging, revision/reopening and
+  word/subtitle/timeline coverage pass. Thirteen actual app exports of reopened
+  edited cuts cover all four formats, French Notes and Camera/Screen/Both,
+  exact revised clocks/subtitles, cancelled second render, disk history and
+  unchanged earlier plan/media/export bytes. EN/AR phone PNGs inspected.
+  No native change, dependency, owner media/input, upload or private logging.
+  **Half done:** arbitrary editor operations, chapters/descriptions, smooth
+  cursor, complete delivery review/voice follow and mobile/launch remain.
+  Continue Cut work and explicit cursor-free provenance; owner trials remain
+  deferred. The Claude design artifact trails docs/design.
+
 - **Latest checkpoint (2026-10-07, batch exports):** 961 Flutter tests,
   302 screenshots and clean analysis. Also save other formats starts off;
   explicit chips include 4K and exclude the main format. One queue freezes
@@ -1144,11 +1164,19 @@ build step 2 (screen recording).
    are connected, alongside paired-camera placement, screen motion blur and
    optional sound volume balance, light de-essing and classic background-noise
    reduction. Room-tone joins and batch format exports are connected; smooth
-   cursor, complete coaching and further editor tools remain.
+   cursor, complete coaching and further editor tools remain. The first local
+   cut editor restores quiet-gap handles inside their safe bounds; arbitrary
+   speech cuts, chapters/descriptions and broader timeline operations remain.
    Keep originals intact.
    See OpenScreen in the brief for reusable parts.
 
 ## Decisions
+
+- 2026-10-07, first cut editor: allow quiet handles only inside the original
+  measured safe removal. Editing restores sound rather than extending a cut.
+  Keep fillers/retakes whole, freeze proposal provenance, save a new revision,
+  detect stale words/cuts and discard unsaved drafts on Cancel/Back. Original
+  listening is explicit; pause the previous player when opening the editor.
 
 - 2026-10-07, batch formats: keep the main format mandatory and extras explicit,
   including 4K. Freeze all choices and source revisions once, save serially,
@@ -1447,6 +1475,23 @@ build step 2 (screen recording).
   word lists, not prosody.
 
 ## Session log
+
+- 2026-10-07, bounded cut editor:
+  - Added a pure source timeline, local draft screen, explicit original range
+    listening, paged quiet handles/reset/keep controls and existing reversible
+    filler/retake controls. Immutable original bounds are additive to legacy
+    cut JSON; public saves prohibit replacing the proposals or their evidence.
+  - Save returns a new revision after checking the opening word/cut paths.
+    Cancel/Back discard the draft. Previous playback pauses on entry; return
+    never restarts it. Original/previous plan files and exports remain intact.
+  - 1005 Flutter tests, 308 screenshots and clean analysis. EN/FR/AR model,
+    storage, phone drag/actions/listening/paging, saved-review reopening and
+    stale revision checks pass. Thirteen actual app exports of reopened edits
+    cover all formats/modes/languages and a cancelled second render, preserving
+    exact subtitles/revised clocks/history and previous bytes. EN/AR PNGs checked.
+  - No native change, dependency, owner media/input, upload or private logs.
+    Broader editor/chapters, smooth cursor, full coaching/voice follow and
+    mobile/launch remain. Owner trials are deferred; continue Cut work.
 
 - 2026-10-07, batch exports:
   - Added immutable shared export choices, a serial queue, explicit format

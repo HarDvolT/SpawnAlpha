@@ -23,6 +23,7 @@ import '../transcription/take_processing.dart';
 import 'format.dart';
 import 'home_screen.dart';
 import 'clean_cut_panel.dart';
+import 'cut_editor_screen.dart';
 import 'take_player.dart';
 import 'video_export_panel.dart';
 import 'word_review_panel.dart';
@@ -52,6 +53,7 @@ class _TakeReviewScreenState extends State<TakeReviewScreen> {
   File? _exportFile;
   CleanPlan? _clean;
   bool _planning = false;
+  bool _editingCut = false;
   String? _cutProblem;
   VideoFormat _format = VideoFormat.landscape;
   ExportBatch? _batch;
@@ -337,6 +339,36 @@ class _TakeReviewScreenState extends State<TakeReviewScreen> {
     }
   }
 
+  Future<void> _openCutEditor() async {
+    final app = AppScope.of(context), plan = _clean;
+    if (plan == null || _editingCut) return;
+    final before = _latestTake(app);
+    setState(() => _editingCut = true);
+    final edited = await Navigator.of(context).push<CleanPlan>(
+      MaterialPageRoute(
+        builder: (_) => CutEditorScreen(
+          plan: plan,
+          take: before,
+          playback: app.playback,
+          sections: _sections,
+          title: widget.script.displayTitle,
+        ),
+      ),
+    );
+    if (!mounted) return;
+    setState(() => _editingCut = false);
+    if (edited == null) return;
+    final latest = _latestTake(app);
+    if (latest.wordsPath != before.wordsPath ||
+        latest.cutPath != before.cutPath) {
+      setState(
+        () => _cutProblem = 'The take changed while editing. Reopen it before saving. Your previous cut is safe.',
+      );
+      return;
+    }
+    await _saveCut(edited);
+  }
+
   Future<void> _export() async {
     final spoken = _spoken;
     if (spoken == null || _exporting) return;
@@ -396,6 +428,7 @@ class _TakeReviewScreenState extends State<TakeReviewScreen> {
                 job.busy ||
                 model.busy ||
                 _planning ||
+                _editingCut ||
                 app.exports.busy ||
                 (_batch?.busy ?? false) ||
                 app.processing.busy;
@@ -536,6 +569,7 @@ class _TakeReviewScreenState extends State<TakeReviewScreen> {
                 TakePlayer(
                   key: _playerViewKey,
                   backend: app.playback,
+                  active: !_editingCut,
                   excerpt: _listenRange,
                   playRequest: _listenRequest,
                   path: _viewing == null
@@ -742,6 +776,12 @@ class _TakeReviewScreenState extends State<TakeReviewScreen> {
                           : () => _makeCut(reviewFillers: true),
                       icon: const Icon(Icons.manage_search_rounded),
                       label: const Text('Review fillers'),
+                    ),
+                  if (_clean != null)
+                    OutlinedButton.icon(
+                      onPressed: busy ? null : _openCutEditor,
+                      icon: const Icon(Icons.edit_outlined),
+                      label: const Text('Open in editor'),
                     ),
                   if (_clean != null &&
                       !_clean!.retakesReviewed &&

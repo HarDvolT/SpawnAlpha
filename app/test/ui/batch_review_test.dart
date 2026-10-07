@@ -5,6 +5,8 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:spawnalpha/src/app.dart';
+import 'package:spawnalpha/src/cut/clean_plan.dart';
+import 'package:spawnalpha/src/model/cut_plan.dart';
 import 'package:spawnalpha/src/model/caption_style.dart';
 import 'package:spawnalpha/src/model/script_document.dart';
 import 'package:spawnalpha/src/model/script_language.dart';
@@ -15,6 +17,7 @@ import 'package:spawnalpha/src/storage/settings.dart';
 import 'package:spawnalpha/src/theme/theme.dart';
 import 'package:spawnalpha/src/ui/take_review_screen.dart';
 import 'package:spawnalpha/src/ui/video_export_panel.dart';
+import 'package:spawnalpha/src/ui/cut_editor_screen.dart';
 
 import '../render/export_batch_test.dart' show BatchRenderer;
 import '../storage/screen_take_store_test.dart' show FakeInspector;
@@ -39,8 +42,17 @@ class AttachInspector extends FakeInspector {
 
 void main() {
   for (final language in ScriptLanguage.values) {
-    for (final outcome in ['done', 'cancel', 'saving', 'failed']) {
-      testWidgets('saved review batch $outcome $language', (tester) async {
+    for (final outcome in [
+      'done',
+      'cancel',
+      'saving',
+      'failed',
+      'editor-save',
+      'editor-cancel',
+      'editor-words',
+      'editor-cut',
+    ]) {
+      testWidgets('saved review $outcome $language', (tester) async {
         tester.view.physicalSize = const Size(1280, 2400);
         tester.view.devicePixelRatio = 1;
         addTearDown(tester.view.reset);
@@ -87,6 +99,27 @@ void main() {
           await File(take.wordsPath!).writeAsString(jsonEncode(words.toJson()));
           await library.save(script);
           services.speech.result = words;
+          if (outcome.startsWith('editor')) {
+            await services.cuts.save(
+              script.id,
+              take,
+              CleanPlan(
+                takeId: 'generated',
+                language: language,
+                sourceDuration: take.duration,
+                changes: [
+                  CutChange(
+                    id: 'quiet-0',
+                    range: SourceRange(
+                      start: const Duration(milliseconds: 1400),
+                      end: const Duration(milliseconds: 2800),
+                    ),
+                  ),
+                ],
+              ),
+            );
+            take = library.byId(script.id)!.takes.single;
+          }
           await tester.pumpWidget(
             AppScope(
               services: services,
@@ -99,6 +132,114 @@ void main() {
           await Future<void>.delayed(const Duration(milliseconds: 100));
         });
         await tester.pumpAndSettle();
+        Future<void> closeReview() async {
+          expect(tester.takeException(), isNull);
+          await tester.pumpWidget(const SizedBox());
+          services.processing.dispose();
+          services.speech.dispose();
+          services.speechModels.dispose();
+          services.exports.dispose();
+          library.dispose();
+          await tester.runAsync(() => root.delete(recursive: true));
+        }
+
+        if (outcome.startsWith('editor')) {
+          final originalCut = take.cutPath!;
+          final bytes = (await tester.runAsync(
+            () => File(originalCut).readAsBytes(),
+          ))!;
+          await tester.scrollUntilVisible(
+            find.text('Open in editor'),
+            300,
+            scrollable: find.byType(Scrollable).first,
+          );
+          await tester.ensureVisible(find.text('Open in editor'));
+          await tester.runAsync(() async {
+            await tester.tap(find.text('Open in editor'));
+            await Future<void>.delayed(const Duration(milliseconds: 100));
+          });
+          await tester.pumpAndSettle();
+          expect(find.byType(CutEditorScreen), findsOneWidget);
+          final rect = tester.getRect(find.byType(RangeSlider));
+          await tester.dragFrom(
+            Offset(rect.left + 24, rect.center.dy),
+            Offset(rect.width * .25, 0),
+          );
+          await tester.pumpAndSettle();
+          if (outcome == 'editor-words' || outcome == 'editor-cut') {
+            await tester.runAsync(() async {
+              final current = library.byId(script.id)!;
+              await library.save(
+                current.copyWith(
+                  takes: [
+                    outcome == 'editor-words'
+                        ? current.takes.single.withWords(
+                            '${root.path}/new-words.json',
+                          )
+                        : current.takes.single.withCut(
+                            '${root.path}/new-cut.json',
+                          ),
+                  ],
+                ),
+              );
+            });
+          }
+          await tester.runAsync(() async {
+            await tester.tap(
+              find.text(outcome == 'editor-cancel' ? 'Cancel' : 'Save changes'),
+            );
+            await Future<void>.delayed(const Duration(milliseconds: 100));
+          });
+          await tester.pumpAndSettle();
+          expect(find.byType(CutEditorScreen), findsNothing);
+          if (outcome == 'editor-save') {
+            final latest = library.byId(script.id)!.takes.single;
+            expect(latest.cutPath, isNot(originalCut));
+            final saved = (await tester.runAsync(
+              () => services.cuts.load(latest),
+            ))!;
+            expect(
+              saved.asCutPlan().duration,
+              greaterThan(const Duration(milliseconds: 2600)),
+            );
+            expect(saved.changes.single.originalRange, isNotNull);
+            await tester.scrollUntilVisible(
+              find.text('Open in editor'),
+              300,
+              scrollable: find.byType(Scrollable).first,
+            );
+            await tester.runAsync(() async {
+              await tester.tap(find.text('Open in editor'));
+              await Future<void>.delayed(const Duration(milliseconds: 100));
+            });
+            await tester.pumpAndSettle();
+            expect(
+              tester.widget<RangeSlider>(find.byType(RangeSlider)).values.start,
+              greaterThan(0),
+            );
+            await tester.tap(find.text('Cancel'));
+            await tester.pumpAndSettle();
+          } else if (outcome == 'editor-cancel') {
+            expect(library.byId(script.id)!.takes.single.cutPath, originalCut);
+          } else {
+            await tester.scrollUntilVisible(
+              find.textContaining('The take changed while editing.'),
+              300,
+              scrollable: find.byType(Scrollable).first,
+            );
+            expect(
+              find.textContaining('The take changed while editing.'),
+              findsOneWidget,
+            );
+          }
+          expect(
+            (await tester.runAsync(() => File(originalCut).readAsBytes()))!,
+            bytes,
+          );
+          expect(renderer.requests, isEmpty);
+          await closeReview();
+          return;
+        }
         final more = find.widgetWithText(
           CheckboxListTile,
           'Also save other formats',
@@ -182,14 +323,7 @@ void main() {
             'generated source bytes',
           );
         });
-        expect(tester.takeException(), isNull);
-        await tester.pumpWidget(const SizedBox());
-        services.processing.dispose();
-        services.speech.dispose();
-        services.speechModels.dispose();
-        services.exports.dispose();
-        library.dispose();
-        await tester.runAsync(() => root.delete(recursive: true));
+        await closeReview();
       });
     }
   }

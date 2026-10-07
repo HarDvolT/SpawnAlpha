@@ -9,6 +9,48 @@ import '../playback/playback_controller_test.dart' show FakePlayback;
 
 void main() {
   for (final language in ScriptLanguage.values) {
+    testWidgets('opening the cut editor pauses the previous player $language', (
+      tester,
+    ) async {
+      final fake = FakePlayback();
+      var active = true, request = 0;
+      late StateSetter update;
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: buildTheme(Brightness.light),
+          home: Scaffold(
+            body: StatefulBuilder(
+              builder: (context, setter) {
+                update = setter;
+                return TakePlayer(
+                  backend: fake,
+                  path: 'generated',
+                  active: active,
+                  excerpt: SourceRange(
+                    start: const Duration(seconds: 1),
+                    end: const Duration(seconds: 2),
+                  ),
+                  playRequest: request,
+                );
+              },
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      update(() => ++request);
+      await tester.pumpAndSettle();
+      expect(fake.commands.last, 'play');
+      update(() => active = false);
+      await tester.pumpAndSettle();
+      expect(fake.commands.last, 'pause');
+      final commands = fake.commands.length;
+      update(() => active = true);
+      await tester.pumpAndSettle();
+      expect(fake.commands, hasLength(commands));
+      await tester.pumpWidget(const SizedBox());
+      expect(tester.takeException(), isNull);
+    });
     testWidgets(
       'explicit excerpt requests play once, cancel on file replacement $language',
       (tester) async {

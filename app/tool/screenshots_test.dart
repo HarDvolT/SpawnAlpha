@@ -56,12 +56,14 @@ import 'package:spawnalpha/src/ui/camera_bubble_screen.dart';
 import 'package:spawnalpha/src/ui/notes_editor_screen.dart';
 import 'package:spawnalpha/src/ui/notes_practice_screen.dart';
 import 'package:spawnalpha/src/ui/take_review_screen.dart';
+import 'package:spawnalpha/src/ui/cut_editor_screen.dart';
 import 'package:spawnalpha/src/ui/clean_cut_panel.dart';
 import 'package:spawnalpha/src/ui/retake_review_panel.dart';
 import 'package:spawnalpha/src/review/repeated_sections.dart';
 import 'package:spawnalpha/src/cut/clean_plan.dart';
 import 'package:spawnalpha/src/transcription/speech_models.dart';
 import '../test/cut/clean_plan_test.dart' show cleanFixture, gap;
+import '../test/cut/cut_editor_test.dart' show editorFixture, range;
 import '../test/review/repeated_sections_test.dart' show repeatedScript, repeatedSpeech;
 import '../test/cut/retake_review_test.dart' show retakeWords, retakeScript, retakePlan;
 import '../test/cut/filler_review_test.dart' show fillerFixture, fillerPlan, fillerScript;
@@ -430,6 +432,14 @@ void main() {
               extraFormats: const {VideoFormat.landscape, VideoFormat.feed}, onExtraFormat: (_, _) {},
               videos: const [], onView: (_) {}, onShow: (_) {}),
           ])), [script], brightness: brightness);
+      });
+      testWidgets('gap editor $language $brightness', (tester) async {
+        final script = sampleScripts().firstWhere((s) => s.language == language);
+        final plan = editorFixture(language).withRange('quiet-0', range(1000, 2300));
+        await shoot(tester, 'gap-editor-${language.name}-${brightness.name}', phone,
+          (_) => CutEditorScreen(plan: plan, title: script.displayTitle,
+            take: Take(path: 'generated', recordedAt: DateTime(2026), duration: plan.sourceDuration), playback: FakePlayback()),
+          [script], brightness: brightness);
       });
       testWidgets('camera placement export $language $brightness', (tester) async {
         final script = sampleScripts().firstWhere((s) => s.language == language);

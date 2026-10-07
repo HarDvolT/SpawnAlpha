@@ -608,6 +608,16 @@ actual speech. Screen takes keep visual context until activity review is wired.
 Each quiet removal is immutable and individually reversible. Complementary
 kept ranges produce the portable `CutPlan`; `speechOnCut` moves actual captions
 onto that clock and rejects any cut that would lose or split a spoken word.
+The local cut editor can shrink a quiet removal inside its original measured
+proposal, restoring more source sound. `CutChange.originalRange` is an additive
+immutable bound; legacy plans use their current range as the bound. Filler and
+retake handles are prohibited. Public saves freeze proposal identity/bounds,
+review flags and retake provenance, allowing only quiet handles and switches.
+The source timeline is a pure union/complement of the same EDL. Editor drafts
+do not touch storage until Save changes; the review checks the captured words/
+cut revision before writing a fresh plan. The prior player pauses on entry and
+does not restart on return. Captions and later batch exports share the revised
+clock; earlier plans/media/exports remain intact.
 `cut/filler_review.dart` adds disabled proposals from the normalized shared
 EN/FR/AR lexicon. Camera Script requires added speech absent from its frozen
 script; Notes has no adherence, and Screen remains protected. Candidate and
