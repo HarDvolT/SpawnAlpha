@@ -458,6 +458,8 @@ abstract final class SaScreenFx {
   static const double keycapLineHeight = 42.0;
   /// Shortcut glass badge entrance rise on spring-smooth.
   static const double keycapRise = 10.0;
+  /// Screen picture inset on each output axis before fitting to the Cut backdrop.
+  static const double frameInset = 0.06;
   /// Maximum normalized source-axis distance inside one activity cluster.
   static const double zoomClusterDistance = 0.3;
   /// Anonymous key timings needed to count one typing burst.

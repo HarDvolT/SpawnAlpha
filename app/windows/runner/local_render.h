@@ -8,6 +8,7 @@
 #include "caption_overlay.h"
 #include "screen_zoom.h"
 #include "click_overlay.h"
+#include "screen_frame.h"
 struct RenderRange { int64_t start_us, end_us; };
 struct LocalRenderRequest {
   std::wstring source, camera, output;
@@ -24,6 +25,7 @@ struct LocalRenderRequest {
   ClickLayout click_layout;
   std::vector<RenderCaption> shortcut_badges;
   CaptionLayout shortcut_layout;
+  ScreenFrameLayout screen_frame;
 };
 // COM/MF initialized worker only. Original media is read-only, packets are bounded,
 // output is created exclusively, and failure/cancellation removes only that output.

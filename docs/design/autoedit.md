@@ -208,6 +208,21 @@ discarded attempts cannot supply evidence. A visible click still supplies the
 position. The ordinary Auto-zoom switch controls these targets too, and no
 transcript text is written into portable zoom metadata.
 
+### Windows screen frame
+
+**Frame the screen** starts on for Screen/Both exports and has an independent
+switch, including takes without activity. Fit the complete screen picture
+inside `frame-inset` on every output axis. Do not crop extra source content.
+Keep zoom crops on their existing output clock inside this fixed placement.
+Use radius-md corners scaled by the short output edge, a fixed dark gradient
+from dark surface to dark paper, and the existing dark shadow-float layers.
+The camera stays at its ordinary output corner and size; do not resize it with
+the screen. Click targets map through the inset and stay clipped outside the
+camera and rounded corners. Captions and shortcuts retain their safe positions.
+Turning the frame off restores the full-picture placement with black margins.
+Save the choice with each immutable video; old exports remain unframed.
+The backdrop is generated locally, with no wallpaper assets or downloads.
+
 ### Windows shortcut badges
 
 Screen/Both with local activity offer **Show shortcuts**, initially on and

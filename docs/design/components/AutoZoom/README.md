@@ -22,6 +22,9 @@ Screen recordings, edited from telemetry: zooms that start before the click, a s
   Martian Mono, fixed signal weight, stage-glass/text and spring-smooth;
   the newest chord replaces the badge and cuts clamp its lifetime. Ordinary
   typing is never shown or logged. See autoedit.md for tokens and safe zones.
-- **Backdrop:** the screen is inset 6% on a wallpaper, with rounded corners and a deep shadow.
+- **Backdrop:** Frame the screen starts on, with the complete picture inset
+  `frame-inset` on a locally generated fixed dark surface-to-paper gradient,
+  radius-md corners and dark shadow-float. The camera keeps its ordinary size
+  and corner. Turning it off restores full-picture placement with black margins.
 - **Timeline:** zoom segments in `cue` amber, click dots in `ink`, and shortcuts in `cue-pause`.
 - **Don't** zoom on every click. **Don't** blur text that is being read (a zoom holding still is never blurred). **Don't** show typed text.

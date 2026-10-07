@@ -174,6 +174,7 @@ Future<void> main() async {
           autoZoom: enabled,
           clickHighlights: highlight,
           showShortcuts: keys,
+          screenFrame: choice != 'plain',
         );
         require(
           video != null &&
@@ -181,6 +182,7 @@ Future<void> main() async {
               video.zoomCount == (enabled ? 1 : 0) &&
               video.clickCount == (highlight ? 1 : 0) &&
               video.shortcutCount == (keys ? 1 : 0) &&
+              video.screenFrame == (choice != 'plain') &&
               video.duration == take.duration,
         );
         final metadata =
@@ -239,6 +241,7 @@ Future<void> main() async {
       );
       require(history.where((v) => v.clickCount == 1).length == 2);
       require(history.where((v) => v.shortcutCount == 1).length == 2);
+      require(history.where((v) => v.screenFrame).length == 3);
       final after = await source.readAsBytes();
       require(
         before.length == after.length &&

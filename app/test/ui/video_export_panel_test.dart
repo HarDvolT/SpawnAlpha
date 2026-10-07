@@ -32,6 +32,7 @@ void main() {
       var zoom = true;
       var highlights = true;
       var shortcuts = true;
+      var frame = true;
       await tester.pumpWidget(
         MaterialApp(
           theme: buildTheme(Brightness.light),
@@ -45,6 +46,9 @@ void main() {
                 busy: mode == 'busy',
                 supported: true,
                 hasScreenActivity: mode != 'missing',
+                hasScreen: mode != 'missing',
+                screenFrame: frame,
+                onScreenFrame: (value) => update(() => frame = value),
                 autoZoom: zoom,
                 clickHighlights: highlights,
                 showShortcuts: shortcuts,
@@ -59,6 +63,7 @@ void main() {
                     createdAt: DateTime(2026),
                     zoomCount: 2,
                     shortcutCount: 3,
+                    screenFrame: true,
                   ),
                 ],
                 onView: (_) {},
@@ -80,11 +85,17 @@ void main() {
         CheckboxListTile,
         'Show shortcuts',
       );
+      final frameChoice = find.widgetWithText(
+        CheckboxListTile,
+        'Frame the screen',
+      );
       if (mode == 'missing') {
         expect(choice, findsNothing);
         expect(clickChoice, findsNothing);
         expect(shortcutChoice, findsNothing);
+        expect(frameChoice, findsNothing);
       } else if (mode == 'busy') {
+        expect(tester.widget<CheckboxListTile>(frameChoice).onChanged, isNull);
         expect(tester.widget<CheckboxListTile>(choice).onChanged, isNull);
         expect(tester.widget<CheckboxListTile>(clickChoice).onChanged, isNull);
         expect(
@@ -101,6 +112,10 @@ void main() {
         await tester.pumpAndSettle();
         expect(shortcuts, isFalse);
         expect(zoom, isTrue);
+        await tester.tap(frameChoice);
+        await tester.pumpAndSettle();
+        expect(frame, isFalse);
+        expect(zoom, isTrue);
         expect(find.text('Saves a new MP4 on this device.'), findsOneWidget);
         await tester.tap(choice);
         await tester.pumpAndSettle();
@@ -114,6 +129,7 @@ void main() {
       }
       expect(find.textContaining('2 zooms'), findsOneWidget);
       expect(find.textContaining('3 shortcuts'), findsOneWidget);
+      expect(find.textContaining('Framed screen'), findsOneWidget);
       expect(find.text(job.notice!), findsOneWidget);
       expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox());

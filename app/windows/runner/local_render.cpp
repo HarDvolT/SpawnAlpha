@@ -214,7 +214,7 @@ class Compositor {
     inset_ = inset; margin_ = margin;
   }
   com_ptr<ID3D11Texture2D> Compose(const Frame& main, const Frame& camera,
-      const RECT& main_box, const RECT& camera_box, UINT index, const RECT& main_crop) {
+      const RECT& main_box, const RECT& camera_box, UINT index, const RECT& main_crop, const RECT& picture_bounds) {
     const UINT mw = main_box.right - main_box.left, mh = main_box.bottom - main_box.top;
     const UINT cw = camera_box.right - camera_box.left, ch = camera_box.bottom - camera_box.top;
     const FLOAT black[4] = {0, 0, 0, 1}; context_->ClearRenderTargetView(clear_.get(), black);
@@ -228,7 +228,7 @@ class Compositor {
     const LONG inset_h = std::min(static_cast<LONG>(height_ * inset_), inset_w);
     const RECT inset{full.right - margin - inset_w, full.bottom - margin - inset_h, full.right - margin, full.bottom - margin};
     const RECT sources[] = {main_crop, camera_box};
-    const RECT destinations[] = {Fit(mw, mh, full), camera.image ? Fit(cw, ch, inset) : inset};
+    const RECT destinations[] = {Fit(mw, mh, picture_bounds), camera.image ? Fit(cw, ch, inset) : inset};
     UINT count = 1;
     for (UINT stream = 0; stream < 2; ++stream) {
       if (!frames[stream].image) continue;
@@ -294,6 +294,10 @@ void RenderLocalVideo(const LocalRenderRequest& request, std::atomic<bool>& canc
       request.camera_inset, request.camera_margin);
     CaptionOverlay captions;
     CaptionOverlay shortcuts;
+    const auto picture_bounds = ScreenFrameBounds(request.width, request.height, request.screen_frame);
+    const auto picture = Fit(main.width, main.height, picture_bounds);
+    ScreenFrame screen_frame;
+    screen_frame.Open(device.get(), request.width, request.height, picture, request.screen_frame);
     ClickOverlay clicks;
     clicks.Open(device.get(), request.width, request.height, total_us, request.click_pulses, request.click_layout);
     captions.Open(device.get(), request.width, request.height, total_us, request.captions, request.caption_layout);
@@ -327,9 +331,11 @@ void RenderLocalVideo(const LocalRenderRequest& request, std::atomic<bool>& canc
       const auto camera_frame = request.camera.empty() ? Frame{} : camera.At(source_ticks, false, cancel);
       const RECT camera_box{camera.x, camera.y, camera.x + static_cast<LONG>(camera.width), camera.y + static_cast<LONG>(camera.height)};
       const auto image = compositor.Compose(main.At(source_ticks, true, cancel),
-        camera_frame, main_box, camera_box, frame, main_crop);
+        camera_frame, main_box, camera_box, frame, main_crop, picture_bounds);
+      const auto camera_destination = camera_frame.image ? Fit(camera.width, camera.height, inset) : RECT{};
       clicks.Draw(image.get(), output_ticks / 10, main_box, main_crop,
-        Fit(main.width, main.height, full), camera_frame.image ? Fit(camera.width, camera.height, inset) : RECT{});
+        picture, camera_destination);
+      screen_frame.Draw(image.get(), camera_destination);
       captions.Draw(image.get(), output_ticks / 10);
       shortcuts.Draw(image.get(), output_ticks / 10);
       check_hresult(writer.WriteFrame(image.get(), request.width, request.height, output_ticks, end_ticks - output_ticks));

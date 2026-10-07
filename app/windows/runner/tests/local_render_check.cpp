@@ -137,6 +137,29 @@ std::vector<BYTE> FramePixels(const std::wstring& path, UINT width, UINT height,
   }
 }
 
+ScreenFrameLayout FrameFixture() {
+  return {true, .06, 12, 0xff171a20, 0xff0f1115, {{0x80000000, 0, 8, 14.356406}, {0x66000000, 0, 1, 1.654701}}};
+}
+void VerifyFramePixels(const LocalRenderRequest& request) {
+  const auto pixels = FramePixels(request.output, request.width, request.height, 0);
+  const RECT box = request.height > request.width ? RECT{64, 692, 1016, 1227} : RECT{115, 65, 1805, 1015};
+  auto pixel = [&](LONG x, LONG y) { return pixels.data() + (y * request.width + x) * 4; };
+  const auto* corner = pixel(box.left, box.top);
+  Require(corner[0] < 60 && corner[1] < 60 && corner[2] < 60); // Rounded source corner is masked.
+  for (const auto fraction : {.2, .5, .8}) {
+    const auto* value = pixel(box.left + static_cast<LONG>((box.right - box.left) * fraction), (box.top + box.bottom) / 2);
+    if (fraction == .2) Require(value[0] > value[2] + 80);
+    if (fraction == .5) Require(value[1] > value[2] + 80);
+    if (fraction == .8) Require(value[2] > value[1] + 80);
+  }
+  const auto* outer = pixel(10, 10);
+  Require(outer[0] > 15 && outer[0] < 45 && outer[2] > 8 && outer[2] < 35); // Generated dark backdrop, not black.
+  SaveCaptionPng(request.output + L".frame.png", request.width, request.height, pixels.data());
+  const auto late = FramePixels(request.output, request.width, request.height, 30);
+  const auto center = ((box.top + box.bottom) / 2 * request.width + (box.left + box.right) / 2) * 4;
+  Require(late[center + 2] > late[center + 1] + 80); // Zoom inside the fixed inset.
+}
+
 void VerifyShortcutPixels(const LocalRenderRequest& request) {
   UINT early_top = request.height, settled_top = request.height;
   for (const auto frame : {18, 21, 30, 53, 55}) {
@@ -174,8 +197,21 @@ void VerifyClickPixels(const LocalRenderRequest& request, bool visible, const st
       if (frames == 18 || frames == 25 || frames == 35) {
         const auto pixels = CaptionPixels(reader.get(), sample.get(), request.width, request.height);
         size_t amber = 0;
-        for (size_t i = 0; i < pixels.size(); i += 4)
+        RECT region{0, 0, static_cast<LONG>(request.width), static_cast<LONG>(request.height)};
+        if (request.screen_frame.enabled) {
+          // Inset resampling blends unrelated bar boundaries into amber. Inspect
+          // only the real retained click's neighborhood on its current crop.
+          ScreenZoom zoom; zoom.Open(request.zoom_steps, request.zoom_spring, kWidth, kHeight, 4000000);
+          const auto crop = zoom.Crop({0, 0, static_cast<LONG>(kWidth), static_cast<LONG>(kHeight)}, time / 10);
+          const RECT box = request.height > request.width ? RECT{64, 692, 1016, 1227} : RECT{115, 65, 1805, 1015};
+          const auto x = box.left + static_cast<LONG>((kWidth * .8 - crop.left) / (crop.right - crop.left) * (box.right - box.left));
+          const auto y = box.top + static_cast<LONG>((kHeight * .5 - crop.top) / (crop.bottom - crop.top) * (box.bottom - box.top));
+          region = {x - 60, y - 60, x + 60, y + 60};
+        }
+        for (LONG y = region.top; y < region.bottom; ++y) for (LONG x = region.left; x < region.right; ++x) {
+          const size_t i = (y * request.width + x) * 4;
           if (pixels[i + 2] > 170 && pixels[i + 1] > 100 && pixels[i + 1] < 210 && pixels[i] < 110) ++amber;
+        }
         if (!visible) {
           Require(!baseline.empty() && pixels == FramePixels(baseline, request.width, request.height, frames));
         } else if (frames == 25) {
@@ -555,6 +591,22 @@ int wmain(int count, wchar_t** args) {
         zoomed.zoom_spring = {1, 90, 19};
         stage = "render spatial screen zoom"; RenderLocalVideo(zoomed, cancel, [](double) {});
         stage = "verify zoom and restored whole-picture pixels"; VerifyZoomPixels(zoomed);
+        auto framed = zoomed; framed.screen_frame = FrameFixture();
+        framed.output = prefix + (vertical ? L"-frame-portrait.mp4" : L"-frame-wide.mp4");
+        framed.click_pulses = {{700000, 1120000, .8, .5, kWidth, kHeight}};
+        framed.click_layout = {10, 4.4, 3, .12, 1, 260, 32, 0xfff2b84b};
+        stage = "render generated inset backdrop and shadow"; RenderLocalVideo(framed, cancel, [](double) {});
+        stage = "verify rounded corners, whole picture and inset zoom"; VerifyFramePixels(framed);
+        stage = "verify click stays mapped inside screen frame"; VerifyClickPixels(framed, true);
+        if (!vertical) {
+          framed.camera = zoom_source; framed.camera_inset = .28; framed.camera_margin = .04;
+          framed.output = prefix + L"-frame-camera.mp4";
+          stage = "render framed screen with fixed camera"; RenderLocalVideo(framed, cancel, [](double) {});
+          const auto pixels = FramePixels(framed.output, framed.width, framed.height, 30);
+          const auto cw = static_cast<LONG>(framed.width * .28), ch = static_cast<LONG>(framed.height * .28), margin = static_cast<LONG>(framed.height * .04);
+          const auto center = ((framed.height - margin - ch / 2) * framed.width + framed.width - margin - cw / 2) * 4;
+          Require(pixels[center + 1] > pixels[center + 2] + 80); // Unzoomed camera remains green at its original corner.
+        }
         auto shortcut = zoomed;
         shortcut.output = prefix + (vertical ? L"-shortcut-portrait.mp4" : L"-shortcut-wide.mp4");
         shortcut.shortcut_badges = {{700000, 1800000, L"Ctrl+Shift+Z"}};

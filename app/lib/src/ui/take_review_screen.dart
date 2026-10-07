@@ -61,6 +61,7 @@ class _TakeReviewScreenState extends State<TakeReviewScreen> {
   bool _autoZoom = true;
   bool _clickHighlights = true;
   bool _showShortcuts = true;
+  bool _screenFrame = true;
   List<VideoExport> _videos = [];
   VideoExport? _viewing;
   final _reviewScroll = ScrollController();
@@ -196,6 +197,7 @@ class _TakeReviewScreenState extends State<TakeReviewScreen> {
       autoZoom: _autoZoom,
       clickHighlights: _clickHighlights,
       showShortcuts: _showShortcuts,
+      screenFrame: _screenFrame,
     );
     final saved = await app.videoExports.load(_latestTake(app));
     if (mounted) {
@@ -587,6 +589,10 @@ class _TakeReviewScreenState extends State<TakeReviewScreen> {
                   hasScreenActivity:
                       widget.take.mode != TakeMode.camera &&
                       widget.take.activityPath != null,
+                  hasScreen: widget.take.mode != TakeMode.camera,
+                  screenFrame: _screenFrame,
+                  onScreenFrame: (value) =>
+                      setState(() => _screenFrame = value),
                   autoZoom: _autoZoom,
                   onAutoZoom: (value) => setState(() => _autoZoom = value),
                   clickHighlights: _clickHighlights,

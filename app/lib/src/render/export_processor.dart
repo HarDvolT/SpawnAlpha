@@ -80,6 +80,7 @@ class ExportProcessor extends ChangeNotifier {
     bool autoZoom = true,
     bool clickHighlights = true,
     bool showShortcuts = true,
+    bool screenFrame = true,
   }) async {
     if (busy) return null;
     source = take.path;
@@ -187,6 +188,7 @@ class ExportProcessor extends ChangeNotifier {
         zoomCount: zooms.zooms.count,
         clickCount: zooms.clicks?.count ?? 0,
         shortcutCount: zooms.shortcuts?.count ?? 0,
+        screenFrame: screenFrame && take.mode != TakeMode.camera,
       );
       final captionTracks = video.captions
           ? await compute(
@@ -223,6 +225,7 @@ class ExportProcessor extends ChangeNotifier {
           screenZooms: zooms.zooms,
           screenClicks: zooms.clicks,
           screenShortcuts: zooms.shortcuts,
+          screenFrame: video.screenFrame,
         ),
         (amount) {
           progress = amount;

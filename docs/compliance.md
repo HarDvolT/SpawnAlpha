@@ -101,6 +101,12 @@ paid release, a lawyer should review:
   and history count use installed DirectWrite/Direct2D and already bundled
   OFL Martian Mono through a private font collection. No font installation,
   download, new package/model, copied code, upload or private diagnostic.
+- Optional screen frames fit the original picture inside a fixed inset, with
+  rounded corners, a locally generated dark gradient and the existing shadow
+  tokens. Installed Direct2D/Gaussian blur draws only the decorative shadow,
+  never a downloaded wallpaper or a face model. Camera placement and caption
+  clocks stay independent. The switch/legacy-compatible history remains local;
+  original media is read-only. No new package, asset, copied code or upload.
 - Optional captions on video use installed DirectWrite/Direct2D and the already
   bundled OFL Anybody/Reem Kufi fonts through a private local font collection.
   No font installation/download, new package, copied code or network service.
@@ -252,6 +258,7 @@ person using the app.
 | Spoken pointing zooms | Checked 2026-10-06 with normalized EN/FR/AR phrases, full frozen Script alignment, exact reliable/corrected wording, Notes/uncertain/unsaid protection and whole-phrase source-cut provenance. Ordinary click evidence survives loss of its phrase bonus. Real app-channel one-click exports preserve subtitles/history/target clocks and source/activity bytes. No owner input, model, dependency, upload or private logs; real speech quality and launch legal work remain |
 | Optional Windows click highlights | Checked 2026-10-06 with pure EN/FR/AR retained/reordered/continuous ranges, hidden/key protection, clipped lifetimes, bounded malformed tracks, independent switches and frozen recovery after activity removal. Generated native wide/portrait decoded pixels pass onset/fade under zoom, and camera-covered pulses decode identically to the no-ring baseline. Actual app-channel independent zoom/click on/off exports preserve timing/history/original bytes. Uses installed Direct2D and existing palette/spring tokens; no owner media/input, package, model, copied code, upload or private logs. Cursor/frame/keycap polish and hardware/launch trials remain |
 | Optional Windows shortcut badges | Checked 2026-10-07 with EN/FR/AR cut/reorder/continuous clocks, latest-wins badges, hidden plain typing, bounded allowlisted labels, independent switches, legacy count compatibility and frozen recovery after activity removal. Native decoded wide/portrait safe-edge/onset/rise/fade and private-label rejection pass; actual app-channel 12 independent choices preserve exact subtitle clocks/history/original bytes. Installed DirectWrite/Direct2D and already bundled private OFL Martian Mono only; no owner input/media, dependency, model, upload or private logs. Screen frame/cursor/sound and hardware/launch work remain |
+| Optional Windows screen frame | Checked 2026-10-07 with EN/FR/AR Screen/Both on/off without activity, Camera protection, legacy compatibility and completed-job recovery. Native decoded wide/portrait corners/full picture/inset zoom/click and unchanged camera placement pass; actual app-channel 12 frame on/off exports retain exact captions/history/original bytes. Uses installed Direct2D Gaussian shadows and a locally generated gradient with existing tokens; no owner media/input, wallpaper, package, copied code, model, upload or private logs. Smooth cursor/blur/camera/sound and hardware/launch work remain |
 | "What leaves your device" explained in Settings | Done |
 | iOS export-compliance flag | Done |
 | No secrets in the repository (scanned 2026-09-30) | Done |

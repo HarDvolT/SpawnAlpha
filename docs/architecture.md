@@ -870,3 +870,17 @@ decoded wide/portrait pixels verify onset, safe bounds, rise, fade and rejected
 private labels; app-channel EN/FR/AR exports exercise independent choices and
 exact caption/history/original-byte preservation. No new collection, font
 installation, package, model, copied code or upload.
+
+Optional `screenFrame` starts on for Screen/Both even without activity, and
+defaults false for legacy exports. The renderer fits the complete source into
+the token inset before composing it; zooms keep their source crop/output clock.
+Click positions map through that same fixed fitted picture. Native
+`ScreenFrame` uses installed Direct2D geometry to mask only the area outside
+the rounded screen and outside the independently composed camera rectangle.
+The mask receives a locally generated fixed dark gradient and cached Gaussian
+shadow effects from the existing shadow-float layers. It draws after click
+rings, keeping corners/margins clear, then captions/shortcuts draw above it.
+GPU targets, geometry and shadow sources are cached and bounded; camera end
+invalidates only the exclusion mask. The installed SDK dxguid library supplies
+the Gaussian effect identifier; no dependency or wallpaper asset was added.
+Choice/history and recovery preserve originals and exact subtitle clocks.

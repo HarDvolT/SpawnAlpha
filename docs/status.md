@@ -26,6 +26,8 @@ an on/off export choice and frozen target history. Independent optional amber
 click highlights follow retained visible clicks and leave the camera clear.
 Independent optional glass shortcut badges show only allowlisted modifier
 chords; ordinary typing stays hidden and badges stop at source cuts.
+Optional rounded screen frames fit the picture on a local dark gradient with
+soft shadows, keeping camera, captions and click targets independent.
 Optional sound-join fades
 soften internal cut edges without shifting words. Optional Readable/Cue/Punch/Karaoke captions
 follow saved actual words/corrections and the cut clock. Reversible filler
@@ -56,6 +58,26 @@ dot to grow and act out each cue in the cue's colour, and for the next features.
 build step 2 (screen recording).
 
 ## Handover (2026-10-05): from here, Codex on the owner's Windows PC
+
+- **Latest checkpoint (2026-10-07, rounded screen frame):** 774 Flutter tests,
+  254 screenshots and clean analysis. Frame the screen starts on for Screen/
+  Both, including takes without activity; Camera remains unframed. Full
+  source content fits inside a fixed 6% inset with radius-md corners, a local
+  fixed dark gradient and the existing soft shadow tokens. Zoom crops retain
+  their clock; click targets map through the same inset. The native GPU mask
+  clears rounded corners/margins, protects the independently composed camera
+  and leaves caption/shortcut placement intact. Choice/history/recovery are
+  backward compatible (old videos unframed), with unchanged originals.
+  Native decoded wide/portrait corners, full-picture bars, inset zooms/clicks
+  and fixed camera placement pass; the full render suite passes. Actual
+  app-channel 12 EN/FR/AR wide/feed/portrait frame on/off exports preserve
+  exact subtitles, independent effects/history and source/activity bytes.
+  EN/AR phone and native wide/portrait PNGs inspected. No owner media/input,
+  package, wallpaper asset, copied code or upload. Normal Release restored.
+  **Half done:** smooth cursor, directional blur, camera
+  movement, further sound/coaching and editor/export tools remain. Continue
+  these Cut tracks before real voice-follow/mobile. Owner trials stay deferred;
+  mobile/paid-launch work remains and the product is unfinished.
 
 - **Latest checkpoint (2026-10-07, shortcut badges):** 754 Flutter tests,
   254 screenshots and clean analysis. Show shortcuts starts on for existing
@@ -923,11 +945,18 @@ build step 2 (screen recording).
    Automatic best-performance ranking is still pending. Next
    cursor/frame effects and remaining sound polish/delivery
    coaching; optional activity zooms, click rings, shortcut badges and short
-   sound-join fades are connected.
+   sound-join fades and rounded local screen frames are connected.
    Keep originals intact.
    See OpenScreen in the brief for reusable parts.
 
 ## Decisions
+
+- 2026-10-07, screen frame: offer a separate default-on Frame the screen export
+  choice for Screen/Both, with or without activity. Fit the full picture in a
+  token 6% inset, radius-md and existing soft shadows over a generated fixed
+  dark gradient. Keep camera size/position and caption clocks independent;
+  map clicks through the same inset. Save the boolean per immutable video;
+  old exports remain unframed. No wallpaper assets or downloads.
 
 - 2026-10-07, shortcut badges: offer an independent default-on Show shortcuts
   export choice for existing Screen/Both activity. Use only the disclosed
@@ -1155,6 +1184,22 @@ build step 2 (screen recording).
   word lists, not prosody.
 
 ## Session log
+
+- 2026-10-07, rounded screen frame:
+  - Added the independent Screen/Both export switch and backward-compatible
+    immutable choice/history/recovery. Frame fitting uses design tokens;
+    original media, cut/caption clocks and camera geometry remain independent.
+  - Native Direct2D masks the area outside the rounded picture/camera, drawing
+    a local fixed dark gradient and cached Gaussian shadows. Clicks map through
+    the inset and corner masks; captions/shortcuts draw above. Uses installed
+    SDK dxguid identifiers; no new package, asset or copied code.
+  - Clean analysis, all 774 tests and 254 screenshots pass. Native decoded
+    wide/portrait full-picture/corner/inset zoom/click and fixed-camera checks,
+    plus the full render regression, pass. Actual app-channel 12 EN/FR/AR
+    frame on/off exports preserve exact subtitles, independent effects/history
+    and original source/activity bytes. EN/AR UI and native PNGs inspected;
+    normal Release restored. Smooth cursor/blur, camera
+    movement, further sound/coaching/editor and mobile/launch work remain.
 
 - 2026-10-07, shortcut badges:
   - Added the bounded allowlisted shortcut collector, cut/reorder retiming,

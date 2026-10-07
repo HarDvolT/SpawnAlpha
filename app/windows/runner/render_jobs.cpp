@@ -55,6 +55,24 @@ LocalRenderRequest Request(const Map& args) {
     if (!range) throw std::runtime_error("Invalid render range");
     request.ranges.push_back({Integer(*range, "startUs"), Integer(*range, "endUs")});
   }
+  if (const auto found = args.find(Value("screenFrame")); found != args.end()) {
+    const auto* frame = std::get_if<Map>(&found->second);
+    if (!frame) throw std::runtime_error("Invalid screen frame");
+    auto& layout = request.screen_frame; layout.enabled = true;
+    layout.inset = Number(*frame, "inset"); layout.radius = Number(*frame, "radius");
+    const auto top = Integer(*frame, "topColor"), bottom = Integer(*frame, "bottomColor");
+    if (top < 0 || top > UINT32_MAX || bottom < 0 || bottom > UINT32_MAX) throw std::runtime_error("Invalid screen frame");
+    layout.top_color = static_cast<uint32_t>(top); layout.bottom_color = static_cast<uint32_t>(bottom);
+    const auto* shadows = std::get_if<flutter::EncodableList>(&Field(*frame, "shadows"));
+    if (!shadows || shadows->size() > 4) throw std::runtime_error("Invalid screen shadow");
+    for (const auto& value : *shadows) {
+      const auto* shadow = std::get_if<Map>(&value);
+      if (!shadow) throw std::runtime_error("Invalid screen shadow");
+      const auto color = Integer(*shadow, "color");
+      if (color < 0 || color > UINT32_MAX) throw std::runtime_error("Invalid screen shadow");
+      layout.shadows.push_back({static_cast<uint32_t>(color), Number(*shadow, "x"), Number(*shadow, "y"), Number(*shadow, "sigma")});
+    }
+  }
   if (const auto found = args.find(Value("zoomSteps")); found != args.end()) {
     const auto* steps = std::get_if<flutter::EncodableList>(&found->second);
     const auto* spring = std::get_if<Map>(&Field(args, "zoomSpring"));

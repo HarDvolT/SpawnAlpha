@@ -62,7 +62,7 @@ target_link_libraries(${BINARY_NAME} PRIVATE flutter flutter_wrapper_app flutter
 target_link_libraries(${BINARY_NAME} PRIVATE whisper bcrypt)
 target_link_libraries(${BINARY_NAME} PRIVATE "dwmapi.lib")
 target_link_libraries(${BINARY_NAME} PRIVATE "d3d11.lib" "dxgi.lib" "windowsapp.lib")
-target_link_libraries(${BINARY_NAME} PRIVATE "d2d1.lib" "dwrite.lib")
+target_link_libraries(${BINARY_NAME} PRIVATE "d2d1.lib" "dwrite.lib" "dxguid.lib")
 target_link_libraries(${BINARY_NAME} PRIVATE "mf.lib" "mfplat.lib" "mfreadwrite.lib" "mfuuid.lib" "oleaut32.lib")
 target_include_directories(${BINARY_NAME} PRIVATE "${CMAKE_SOURCE_DIR}")
 
@@ -196,4 +196,4 @@ add_executable(local_render_check EXCLUDE_FROM_ALL "local_render.cpp" "caption_o
 target_compile_features(local_render_check PRIVATE cxx_std_17)
 target_compile_options(local_render_check PRIVATE /W4 /WX /EHsc /wd"4100")
 target_compile_definitions(local_render_check PRIVATE "NOMINMAX")
-target_link_libraries(local_render_check PRIVATE "windowscodecs.lib" "d2d1.lib" "dwrite.lib" "d3d11.lib" "dxgi.lib" "mf.lib" "mfplat.lib" "mfreadwrite.lib" "mfuuid.lib" "ole32.lib" "oleaut32.lib" "windowsapp.lib")
+target_link_libraries(local_render_check PRIVATE "windowscodecs.lib" "d2d1.lib" "dwrite.lib" "dxguid.lib" "d3d11.lib" "dxgi.lib" "mf.lib" "mfplat.lib" "mfreadwrite.lib" "mfuuid.lib" "ole32.lib" "oleaut32.lib" "windowsapp.lib")

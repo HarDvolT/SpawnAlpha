@@ -27,6 +27,7 @@ class VideoRenderRequest {
     this.screenZooms,
     this.screenClicks,
     this.screenShortcuts,
+    this.screenFrame = false,
     List<Caption> captions = const [],
   }) : captions = List.unmodifiable(
          captions.map(
@@ -110,6 +111,7 @@ class VideoRenderRequest {
   final ScreenZooms? screenZooms;
   final ScreenClicks? screenClicks;
   final ScreenShortcuts? screenShortcuts;
+  final bool screenFrame;
   final List<Caption> captions;
   Map<String, Object?> toJson() => {
     'source': source,
@@ -124,6 +126,22 @@ class VideoRenderRequest {
         ? SaVideoExport.audioJoinFade.inMicroseconds
         : 0,
     'ranges': plan.ranges.map((r) => r.toJson()).toList(),
+    if (screenFrame)
+      'screenFrame': {
+        'inset': SaScreenFx.frameInset,
+        'radius': SaRadius.md,
+        'topColor': SaPalette.dark.surface.toARGB32(),
+        'bottomColor': SaPalette.dark.paper.toARGB32(),
+        'shadows': [
+          for (final shadow in SaPalette.dark.shadowFloat)
+            {
+              'color': shadow.color.toARGB32(),
+              'x': shadow.offset.dx,
+              'y': shadow.offset.dy,
+              'sigma': shadow.blurSigma,
+            },
+        ],
+      },
     if (screenShortcuts != null && screenShortcuts!.count > 0) ...{
       'shortcutBadges': screenShortcuts!.badges.map((b) => b.toJson()).toList(),
       'shortcutLayout': {

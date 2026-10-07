@@ -38,6 +38,9 @@ class VideoExportPanel extends StatelessWidget {
     this.onClickHighlights,
     this.showShortcuts = true,
     this.onShowShortcuts,
+    this.hasScreen = false,
+    this.screenFrame = true,
+    this.onScreenFrame,
   });
   final VideoFormat format;
   final ValueChanged<VideoFormat> onFormat;
@@ -63,6 +66,8 @@ class VideoExportPanel extends StatelessWidget {
   final ValueChanged<bool>? onClickHighlights;
   final bool showShortcuts;
   final ValueChanged<bool>? onShowShortcuts;
+  final bool hasScreen, screenFrame;
+  final ValueChanged<bool>? onScreenFrame;
   final List<VideoExport> videos;
   final ValueChanged<VideoExport> onView, onShow;
 
@@ -80,7 +85,8 @@ class VideoExportPanel extends StatelessWidget {
           '${video.softAudioJoins ? ' · Soft sound joins' : ''}'
           '${video.zoomCount > 0 ? ' · ${video.zoomCount} zooms' : ''}'
           '${video.clickCount > 0 ? ' · ${video.clickCount} click highlights' : ''}'
-          '${video.shortcutCount > 0 ? ' · ${video.shortcutCount} shortcuts' : ''}',
+          '${video.shortcutCount > 0 ? ' · ${video.shortcutCount} shortcuts' : ''}'
+          '${video.screenFrame ? ' · Framed screen' : ''}',
           style: SaType.signalLabel.copyWith(color: p.ink2),
         ),
         TextButton.icon(
@@ -140,6 +146,16 @@ class VideoExportPanel extends StatelessWidget {
               : 'Keeps the whole picture and saves a new MP4 on this device.',
           style: SaType.bodySm.copyWith(color: p.ink2),
         ),
+        if (hasScreen)
+          CheckboxListTile(
+            contentPadding: EdgeInsets.zero,
+            value: screenFrame,
+            onChanged: busy
+                ? null
+                : (value) => onScreenFrame?.call(value ?? false),
+            title: const Text('Frame the screen'),
+            subtitle: const Text('Add rounded corners and a soft background.'),
+          ),
         if (hasAudioJoins)
           CheckboxListTile(
             contentPadding: EdgeInsets.zero,
