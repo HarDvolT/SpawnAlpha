@@ -36,6 +36,7 @@ class VideoExport {
     this.motionBlur = false,
     this.balanceSound = false,
     this.softenSharpSound = false,
+    this.reduceNoise = false,
   }) {
     if (motionBlur && zoomCount == 0 ||
         cameraClear && !camera ||
@@ -72,6 +73,7 @@ class VideoExport {
   final bool motionBlur;
   final bool balanceSound;
   final bool softenSharpSound;
+  final bool reduceNoise;
   Map<String, Object?> toJson() => {
     'id': id,
     'format': format.name,
@@ -94,6 +96,7 @@ class VideoExport {
     'motionBlur': motionBlur,
     'balanceSound': balanceSound,
     'softenSharpSound': softenSharpSound,
+    'reduceNoise': reduceNoise,
   };
   factory VideoExport.fromJson(Map<String, Object?> json) {
     final format = VideoFormat.values
@@ -129,7 +132,8 @@ class VideoExport {
         (json['motionBlur'] != null && json['motionBlur'] is! bool) ||
         (json['balanceSound'] != null && json['balanceSound'] is! bool) ||
         (json['softenSharpSound'] != null &&
-            json['softenSharpSound'] is! bool)) {
+            json['softenSharpSound'] is! bool) ||
+        (json['reduceNoise'] != null && json['reduceNoise'] is! bool)) {
       throw const FormatException('Invalid video export');
     }
     try {
@@ -155,6 +159,7 @@ class VideoExport {
         motionBlur: json['motionBlur'] as bool? ?? false,
         balanceSound: json['balanceSound'] as bool? ?? false,
         softenSharpSound: json['softenSharpSound'] as bool? ?? false,
+        reduceNoise: json['reduceNoise'] as bool? ?? false,
       );
     } on ArgumentError {
       throw const FormatException('Invalid video export');

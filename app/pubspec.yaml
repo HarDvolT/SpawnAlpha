@@ -73,6 +73,7 @@ flutter:
   assets:
     - assets/licenses/whisper-cpp.txt
     - assets/licenses/whisper-model.txt
+    - assets/licenses/speexdsp.txt
     - assets/fonts/OFL-anybody.txt
     - assets/fonts/OFL-arefruqaa.txt
     - assets/fonts/OFL-caveat.txt

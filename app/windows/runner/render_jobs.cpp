@@ -66,6 +66,11 @@ LocalRenderRequest Request(const Map& args) {
     request.de_ess = {true, Number(*policy, "cutoff"), Number(*policy, "ratio"), Number(*policy, "knee"),
       Number(*policy, "floor"), Number(*policy, "reduction"), Integer(*policy, "detectorUs"), Integer(*policy, "attackUs"), Integer(*policy, "releaseUs")};
   }
+  if (const auto found = args.find(Value("noiseReduction")); found != args.end()) {
+    const auto* policy = std::get_if<Map>(&found->second);
+    if (!policy || policy->size() != 2) throw std::runtime_error("Invalid noise reduction");
+    request.noise = {true, Number(*policy, "suppression"), Number(*policy, "strength")};
+  }
   if (const auto found = args.find(Value("screenBlur")); found != args.end()) {
     const auto* layout = std::get_if<Map>(&found->second);
     if (!layout || layout->size() != 3) throw std::runtime_error("Invalid screen blur");

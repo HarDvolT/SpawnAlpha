@@ -587,6 +587,10 @@ abstract final class SaSoundPolish {
   static const Duration essAttack = Duration(milliseconds: 2);
   /// Gain reduction release time constant.
   static const Duration essRelease = Duration(milliseconds: 80);
+  /// Classic spectral noise suppression floor in dB.
+  static const double noiseSuppression = -12.0;
+  /// Treated share mixed with time-aligned original sound.
+  static const double noiseStrength = 0.65;
 }
 
 /// The four type voices: display, reading, signal and pencil.

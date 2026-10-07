@@ -65,7 +65,7 @@ void _registerFontLicenses() {
     'Reem Kufi': 'reemkufi',
   };
   LicenseRegistry.addLicense(() async* {
-    for (final name in ['whisper-cpp', 'whisper-model']) {
+    for (final name in ['whisper-cpp', 'whisper-model', 'speexdsp']) {
       yield LicenseEntryWithLineBreaks([
         name,
       ], await rootBundle.loadString('assets/licenses/$name.txt'));

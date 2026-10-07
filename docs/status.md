@@ -62,6 +62,26 @@ build step 2 (screen recording).
 
 ## Handover (2026-10-05): from here, Codex on the owner's Windows PC
 
+- **Latest checkpoint (2026-10-07, background-noise reduction):** 895 Flutter
+  tests, 290 screenshots and clean analysis. Reduce background noise is an
+  independent saved-take choice, initially off, with whole-mix scope explained.
+  Audited/pinned unmodified SpeexDSP 1.2.1 BSD-3 preprocessing/smallft subset
+  and every compiled/header notice are bundled; no learned weights or RNNoise.
+  Ten-millisecond mono/stereo blocks mix 65% treated/35% aligned original at
+  -12dB suppression. Startup/tail compensation preserves exact sample counts;
+  lookahead stops at retained source-group edges and resets at source cuts.
+  Adjacent fractional/zero-sample ranges now share one canonical sample anchor,
+  also when treatment is disabled. Noise precedes de-essing, joins and the
+  identical gain prepass/render. Generated reduction/tone/impulse/tail/zero
+  tests, native decoded clocks, fractional identity, removed-tone protection,
+  44.1kHz stereo resampling, short/video-only gates, cancellation/invalid policy
+  and combined sound target pass with the full native suite. Six actual app
+  EN/FR/AR Camera/Screen/Both on/off exports preserve exact subtitles/history/
+  original bytes. EN/AR phone PNGs inspected; see noise-runtime.md.
+  **Half done:** room-tone joins are designed next; smooth cursor, full
+  coaching/editor and mobile/launch remain. No owner media/input, extra model,
+  upload or private logging. Owner listening/hardware trials stay deferred.
+
 - **Latest checkpoint (2026-10-07, light de-essing):** 879 Flutter tests,
   284 screenshots and clean analysis. Soften harsh S sounds is an independent
   optional saved-take export choice, initially off, with whole-mix scope
@@ -1082,11 +1102,20 @@ build step 2 (screen recording).
    coaching; optional activity zooms, click rings, shortcut badges and short
    sound-join fades, rounded local screen frames and gentle camera emphasis
    are connected, alongside paired-camera placement, screen motion blur and
-   optional sound volume balance.
+   optional sound volume balance, light de-essing and classic background-noise
+   reduction. Room-tone joins are next; smooth cursor, complete coaching and
+   editor tools remain.
    Keep originals intact.
    See OpenScreen in the brief for reusable parts.
 
 ## Decisions
+
+- 2026-10-07, background noise: use the commercially audited/pinned SpeexDSP
+  1.2.1 classic preprocessing subset without learned weights. Keep the separate
+  choice off pending listening, explain whole-mix scope, compensate its 10ms
+  overlap delay and preserve retained sample clocks. Limit suppression to
+  -12dB at 65% treated strength; AGC/echo/reverb/VAD removal stay off. Bundle
+  complete BSD-3 notices. RNNoise separate-weight licensing remains unresolved.
 
 - 2026-10-07, light de-essing: offer a separate reversible Soften harsh S
   sounds export choice, initially off pending owner listening. Use a detector
@@ -1366,6 +1395,24 @@ build step 2 (screen recording).
   word lists, not prosody.
 
 ## Session log
+
+- 2026-10-07, background-noise reduction:
+  - Added independent saved-take control, strict additive metadata/recovery and
+    bounded native preprocessing with exact delay/tail compensation. Unified
+    continuous source/output sample anchors prevent rounding duplication and
+    preserve fractional/zero-sample split identity even with treatment off.
+  - Audited official SpeexDSP 1.2.1 archive hash, compiled/included BSD-3 source
+    subset and complete copyright/notices; unmodified source only. No neural
+    weights, RNNoise, FFTW/GPL, device/network input or additional audio asset.
+  - 895 Flutter tests, 290 screenshots and clean analysis. Generated noise,
+    impulse/tails and native mono/stereo attenuation/retained tones, cut clocks,
+    discarded-word protection, 44.1kHz resampling, short/no-audio gates, invalid
+    policies and prepass cancellation pass with the full native suite. Six
+    actual Windows EN/FR/AR exports combine noise/de-essing/volume choices and
+    preserve exact subtitles/history/original media/words. EN/AR PNGs inspected.
+  - No owner media/input, upload or private logs. Room-tone design is added;
+    its implementation, cursor, coaching/editor and mobile/launch remain.
+    Owner trials stay deferred.
 
 - 2026-10-07, light de-essing:
   - Added optional after-recording control and additive choice/history with

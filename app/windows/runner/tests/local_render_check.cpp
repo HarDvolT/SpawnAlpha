@@ -1016,14 +1016,139 @@ void CheckDeEssExports(ID3D11Device* device, const std::wstring& prefix, const c
     Require(Audio(request.output, channels) == short_soft);
   }
 }
+std::vector<int16_t> NoiseBlocks(const std::vector<int16_t>& pcm, UINT channels, NoisePolicy policy) {
+  AudioNoise processor(channels, policy); std::vector<int16_t> result;
+  for (size_t first = 0; first < pcm.size() + AudioNoise::kFrame * channels; first += AudioNoise::kFrame * channels) {
+    std::vector<int16_t> block(AudioNoise::kFrame * channels, 0);
+    if (first < pcm.size()) std::copy_n(pcm.begin() + first, std::min(block.size(), pcm.size() - first), block.begin());
+    const auto processed = processor.Process(block);
+    if (first > 0) result.insert(result.end(), processed.begin(), processed.end());
+  }
+  result.resize(pcm.size()); return result;
+}
+void CheckNoiseBlocks() {
+  for (UINT channels : {1u, 2u}) {
+    uint32_t seed = 64321; std::vector<int16_t> white(192000 * channels);
+    for (auto& value : white) { seed = seed * 1664525 + 1013904223; value = static_cast<int16_t>((static_cast<int>(seed >> 16) - 32768) / 24); }
+    const auto dry = NoiseBlocks(white, channels, {true, -12, 0}); Require(dry == white);
+    const auto reduced = NoiseBlocks(white, channels, {true});
+    const auto ratio = WindowRms(reduced, 144000 * channels, 24000 * channels) / WindowRms(white, 144000 * channels, 24000 * channels);
+    if (!(ratio < .8 && ratio > .35)) std::cout << "Generated stationary-noise ratio=" << ratio << "\n";
+    Require(ratio < .8 && ratio > .35);
+    std::vector<int16_t> impulse(48000 * channels, 0);
+    for (UINT c = 0; c < channels; ++c) impulse[12345 * channels + c] = c ? 8000 : 16000;
+    const auto impulse_out = NoiseBlocks(impulse, channels, {true});
+    for (UINT c = 0; c < channels; ++c) {
+      size_t peak_at = 0; int peak = 0;
+      for (size_t f = 0; f < 48000; ++f) if (std::abs(impulse_out[f * channels + c]) > peak) { peak = std::abs(impulse_out[f * channels + c]); peak_at = f; }
+      Require(peak_at == 12345 && peak > (c ? 3000 : 6000));
+    }
+    Require(NoiseBlocks(std::vector<int16_t>(961 * channels, 0), channels, {true}) == std::vector<int16_t>(961 * channels, 0));
+    const std::vector<int16_t> tail(997 * channels, 1234);
+    Require(NoiseBlocks(tail, channels, {true, -12, 0}) == tail);
+  }
+  for (double invalid : {0.0, -30.0, std::numeric_limits<double>::quiet_NaN()}) {
+    bool caught = false; try { AudioNoise bad(1, {true, invalid}); } catch (...) { caught = true; } Require(caught);
+  }
+}
+void GenerateNoiseSource(ID3D11Device* device, const std::wstring& path, UINT channels) {
+  GpuVideoWriter writer; check_hresult(writer.Start(device, path, kWidth, kHeight, 30, {48000, channels}));
+  std::vector<uint32_t> pixels(kWidth * kHeight, 0xff25b64a);
+  D3D11_TEXTURE2D_DESC desc{}; desc.Width = kWidth; desc.Height = kHeight;
+  desc.MipLevels = desc.ArraySize = 1; desc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
+  desc.SampleDesc.Count = 1; desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+  D3D11_SUBRESOURCE_DATA data{pixels.data(), kWidth * 4, 0}; com_ptr<ID3D11Texture2D> texture;
+  check_hresult(device->CreateTexture2D(&desc, &data, texture.put())); uint32_t seed = 64321;
+  for (UINT frame = 0; frame < 120; ++frame) {
+    check_hresult(writer.WriteFrame(texture.get(), kWidth, kHeight, frame * kSecond / 30));
+    std::vector<int16_t> pcm(1600 * channels);
+    for (UINT f = 0; f < 1600; ++f) for (UINT c = 0; c < channels; ++c) {
+      const auto at = frame * 1600 + f;
+      const bool removed = at >= 74400 && at < 81600;
+      const bool first = at >= 48000 && at < 62400, second = at >= 96000 && at < 129600, third = at >= 144000 && at < 177600;
+      const auto hz = (removed ? 770 : third ? 990 : 330) * (c ? 2 : 1);
+      const auto amplitude = removed ? 12000 : first || second || third ? 8000 : 0;
+      seed = seed * 1664525 + 1013904223;
+      const auto noise = (static_cast<int>(seed >> 16) - 32768) / 24;
+      pcm[f * channels + c] = static_cast<int16_t>(noise + amplitude * std::sin(at * hz * 6.283185307179586 / 48000));
+    }
+    check_hresult(writer.WriteAudio(pcm.data(), 1600, frame * kSecond / 30));
+  }
+  check_hresult(writer.Finish());
+}
+void CheckNoiseExports(ID3D11Device* device, const std::wstring& prefix, const char*& stage) {
+  std::atomic<bool> cancel{false};
+  for (UINT channels : {1u, 2u}) {
+    const auto source = prefix + L"-noise-source-" + std::to_wstring(channels) + L".mp4";
+    stage = "generate stationary noise and isolated source tones"; GenerateNoiseSource(device, source, channels);
+    LocalRenderRequest request{source, L"", prefix + L"-noise-raw-" + std::to_wstring(channels) + L".mp4", 4000000, 640, 360, {{0, 4000000}}};
+    stage = "render noise reference"; RenderLocalVideo(request, cancel, [](double) {}); const auto raw = Audio(request.output, channels);
+    request.noise = {true}; request.output = prefix + L"-noise-reduced-" + std::to_wstring(channels) + L".mp4";
+    stage = "render compensated classic noise reduction"; RenderLocalVideo(request, cancel, [](double) {}); const auto reduced = Audio(request.output, channels);
+    Require(raw.size() == reduced.size()); VerifyLocalCut(request, 120, 4000000, false, false, true);
+    stage = "verify decoded noise reduction and retained signal";
+    Require(WindowRms(reduced, 24000 * channels, 12000 * channels) < WindowRms(raw, 24000 * channels, 12000 * channels) * .85);
+    for (UINT c = 0; c < channels; ++c) {
+      std::vector<int16_t> mono; for (size_t f = 0; f < reduced.size() / channels; ++f) mono.push_back(reduced[f * channels + c]);
+      Require(ToneAt(mono, 50400, 330 * (c ? 2 : 1)) > 3000 && ToneAt(mono, 151200, 990 * (c ? 2 : 1)) > 3000);
+    }
+    request.ranges = {{0, 499999}, {499999, 1100001}, {1100001, 4000000}};
+    request.output = prefix + L"-noise-continuous-" + std::to_wstring(channels) + L".mp4";
+    stage = "verify fractional continuous split identity"; RenderLocalVideo(request, cancel, [](double) {}); Require(Audio(request.output, channels) == reduced);
+    request.ranges = {{0, 1}, {1, 499999}, {499999, 4000000}};
+    request.output = prefix + L"-noise-tiny-continuous-" + std::to_wstring(channels) + L".mp4";
+    stage = "verify zero-sample first span preserves common clock"; RenderLocalVideo(request, cancel, [](double) {}); Require(Audio(request.output, channels) == reduced);
+    request.ranges = {{0, 1500000}, {2200000, 4000000}}; request.audio_join_fade_us = 20000;
+    request.output = prefix + L"-noise-cut-" + std::to_wstring(channels) + L".mp4";
+    stage = "verify lookahead cannot borrow removed source words"; RenderLocalVideo(request, cancel, [](double) {}); const auto cut = Audio(request.output, channels);
+    VerifyLocalCut(request, 99, 3300000, false, false, true);
+    for (UINT c = 0; c < channels; ++c) {
+      std::vector<int16_t> mono; for (size_t f = 0; f < cut.size() / channels; ++f) mono.push_back(cut[f * channels + c]);
+      for (size_t first = 0; first + 12000 < mono.size(); first += 4000) Require(ToneAt(mono, first, 770 * (c ? 2 : 1)) < 800);
+    }
+    request.de_ess = {true}; request.sound_balance = {true}; request.output = prefix + L"-noise-balanced-" + std::to_wstring(channels) + L".mp4";
+    stage = "verify combined sound prepass matches final treatment"; RenderLocalVideo(request, cancel, [](double) {});
+    Require(std::abs(MeasureSound(Audio(request.output, channels), channels) + 14) < .4);
+    request.sound_balance.enabled = request.de_ess.enabled = false;
+    request.ranges = {{1250000, 1450000}}; request.output = prefix + L"-noise-short-" + std::to_wstring(channels) + L".mp4";
+    RenderLocalVideo(request, cancel, [](double) {}); const auto short_noise = Audio(request.output, channels);
+    request.noise.enabled = false; request.output = prefix + L"-noise-short-raw-" + std::to_wstring(channels) + L".mp4"; RenderLocalVideo(request, cancel, [](double) {});
+    Require(Audio(request.output, channels) == short_noise);
+    request.ranges = {{0, 1}, {1, 499999}, {499999, 4000000}}; request.audio_join_fade_us = 0;
+    request.output = prefix + L"-noise-disabled-split-" + std::to_wstring(channels) + L".mp4";
+    stage = "verify disabled processing preserves fractional continuous clock"; RenderLocalVideo(request, cancel, [](double) {}); Require(Audio(request.output, channels) == raw);
+    request.ranges = {{0, 4000000}}; request.noise = {true}; request.sound_balance = {true};
+    request.output = prefix + L"-noise-cancel-prepass-" + std::to_wstring(channels) + L".mp4";
+    stage = "cancel noise measurement before output creation";
+    bool stopped = false; try { RenderLocalVideo(request, cancel, [&](double value) { if (value > .02) cancel = true; }); } catch (...) { stopped = true; }
+    Require(stopped && GetFileAttributesW(request.output.c_str()) == INVALID_FILE_ATTRIBUTES); cancel = false;
+    request.noise.strength = NAN; request.output = prefix + L"-noise-invalid-" + std::to_wstring(channels) + L".mp4";
+    bool rejected = false; try { RenderLocalVideo(request, cancel, [](double) {}); } catch (...) { rejected = true; }
+    Require(rejected && GetFileAttributesW(request.output.c_str()) == INVALID_FILE_ATTRIBUTES);
+  }
+  const auto extra = prefix + L"-noise-resample-source.mp4";
+  GenerateExtra(device, extra, 2, 44100, 0xff25b64a, 8000);
+  LocalRenderRequest resample{extra, L"", prefix + L"-noise-resample-raw.mp4", 1000000, 640, 360, {{0, 1000000}}};
+  stage = "verify noise alignment after stereo 44.1kHz resampling";
+  RenderLocalVideo(resample, cancel, [](double) {}); const auto reference = Audio(resample.output, 2);
+  resample.noise = {true, -12, 0}; resample.ranges = {{0, 1}, {1, 499999}, {499999, 1000000}};
+  resample.output = prefix + L"-noise-resample-aligned.mp4"; RenderLocalVideo(resample, cancel, [](double) {});
+  Require(Audio(resample.output, 2) == reference); VerifyLocalCut(resample, 30, 1000000);
+  const auto silent = prefix + L"-noise-silent-source.mp4";
+  GenerateExtra(device, silent, 0, 0, 0xff25b64a);
+  resample.source = silent; resample.noise = {true}; resample.output = prefix + L"-noise-silent.mp4";
+  stage = "verify noise reduction does not invent a silent video soundtrack";
+  RenderLocalVideo(resample, cancel, [](double) {}); Require(!ProbeRecording(resample.output, cancel).has_audio);
+}
 int wmain(int count, wchar_t** args) {
-  if (count != 2 && (count != 3 || (std::wstring(args[2]) != L"--camera-only" && std::wstring(args[2]) != L"--cleanup-only" && std::wstring(args[2]) != L"--placement-only" && std::wstring(args[2]) != L"--blur-only" && std::wstring(args[2]) != L"--sound-only" && std::wstring(args[2]) != L"--ess-only"))) return 2;
+  if (count != 2 && (count != 3 || (std::wstring(args[2]) != L"--camera-only" && std::wstring(args[2]) != L"--cleanup-only" && std::wstring(args[2]) != L"--placement-only" && std::wstring(args[2]) != L"--blur-only" && std::wstring(args[2]) != L"--sound-only" && std::wstring(args[2]) != L"--ess-only" && std::wstring(args[2]) != L"--noise-only"))) return 2;
   const auto com = CoInitializeEx(nullptr, COINIT_MULTITHREADED); if (FAILED(com)) return 3;
   const char* stage = "initialize";
   try {
     stage = "pure packet-independent sound join envelope"; CheckAudioJoinEnvelope();
     stage = "calibrated packet-independent loudness, gating and oversampled peak"; CheckSoundMeter();
     stage = "linked de-essing detection, cap, floor and packet independence"; CheckDeEsser();
+    stage = "classic noise floor, exact overlap compensation and partial tails"; CheckNoiseBlocks();
     stage = "screen zoom springs, resize fit and cut reset"; CheckScreenZoomCrop();
     check_hresult(MFStartup(MF_VERSION));
     {
@@ -1262,6 +1387,7 @@ int wmain(int count, wchar_t** args) {
       if (count == 2 || std::wstring(args[2]) == L"--blur-only") CheckScreenMotionBlur(device.get(), prefix, stage);
       if (count == 2 || std::wstring(args[2]) == L"--sound-only") CheckSoundBalance(device.get(), prefix, stage);
       if (count == 2 || std::wstring(args[2]) == L"--ess-only") CheckDeEssExports(device.get(), prefix, stage);
+      if (count == 2 || std::wstring(args[2]) == L"--noise-only") CheckNoiseExports(device.get(), prefix, stage);
     }
     if (count == 3) std::cout << "Focused local render check passed: " <<
       (std::wstring(args[2]) == L"--cleanup-only" ? "injected zero/one-sample failure cleanup" :
@@ -1269,6 +1395,7 @@ int wmain(int count, wchar_t** args) {
        std::wstring(args[2]) == L"--blur-only" ? "screen blur direction/cap, sharp camera/still frames and source resets" :
        std::wstring(args[2]) == L"--sound-only" ? "loudness/gating/peak calibration, mono/stereo clocks, resampling, retained joins and cancellation" :
        std::wstring(args[2]) == L"--ess-only" ? "linked de-essing caps/floor/stereo, continuous/source-cut clocks, decoded attenuation and balanced volume" :
+       std::wstring(args[2]) == L"--noise-only" ? "classic noise reduction, delay/tails, fractional continuous clock, discarded-word protection and combined sound balance" :
        "camera crops/cut resets and failure cleanup") << ".\n";
     else std::cout << "Local render check passed: streaming PCM/GPU pair, source selection/reordering, reviewed filler and retake tone/picture removal, silent input, stereo resampling, EN/FR/AR Readable/Karaoke/Cue/Punch timing and safe pixels, word reveal, emphasis, spring motion and Still, RTL underline, gaps, vertical Arabic, no clipped words, camera inset/end, exact portrait duration, cancel cleanup, damaged input, overwrite protection, centred main/paired camera crops/cut resets, camera placement, screen motion blur, volume balance/gates/peaks/mono/stereo/joins and injected zero/one-sample failure cleanup.\n";
     MFShutdown(); CoUninitialize(); return 0;

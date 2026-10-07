@@ -16,11 +16,12 @@ import '../storage/screen_take_store_test.dart'
     show FakeInspector, FailingStore;
 
 void main() {
-  for (final soften in [false, true]) {
+  for (final effect in ['volume', 'softening', 'noise']) {
+    final soften = effect == 'softening', noise = effect == 'noise';
     for (final language in ScriptLanguage.values) {
       for (final mode in TakeMode.values) {
         test(
-          'saved sound choices can change without changing earlier versions $language $mode soften=$soften',
+          'saved sound choices can change without changing earlier versions $language $mode effect=$effect',
           () async {
             final root = await Directory.systemTemp.createTemp(
               'spawnalpha-sound-',
@@ -66,13 +67,25 @@ void main() {
                   current,
                   current.takes.single,
                   VideoFormat.feed,
-                  balanceSound: balance && !soften,
+                  balanceSound: balance && !soften && !noise,
                   softenSharpSound: balance && soften,
+                  reduceNoise: balance && noise,
                 ))!;
-                expect(video.balanceSound, balance && !soften);
+                expect(video.balanceSound, balance && !soften && !noise);
                 expect(video.softenSharpSound, balance && soften);
-                expect(renderer.request!.balanceSound, balance && !soften);
+                expect(video.reduceNoise, balance && noise);
+                expect(
+                  renderer.request!.balanceSound,
+                  balance && !soften && !noise,
+                );
                 expect(renderer.request!.softenSharpSound, balance && soften);
+                expect(renderer.request!.reduceNoise, balance && noise);
+                expect(
+                  renderer.request!.toJson()['noiseReduction'],
+                  balance && noise
+                      ? {'suppression': -12.0, 'strength': .65}
+                      : null,
+                );
                 expect(
                   renderer.request!.toJson()['deEss'],
                   balance && soften
@@ -90,7 +103,7 @@ void main() {
                 );
                 expect(
                   renderer.request!.toJson()['soundBalance'],
-                  balance && !soften
+                  balance && !soften && !noise
                       ? {'target': -14.0, 'ceiling': -2.0, 'maximumBoost': 12.0}
                       : null,
                 );
@@ -107,11 +120,15 @@ void main() {
                 ) as Map;
                 expect(
                   (metadata['video'] as Map)['balanceSound'],
-                  balance && !soften,
+                  balance && !soften && !noise,
                 );
                 expect(
                   (metadata['video'] as Map)['softenSharpSound'],
                   balance && soften,
+                );
+                expect(
+                  (metadata['video'] as Map)['reduceNoise'],
+                  balance && noise,
                 );
                 expect(
                   await source.readAsString(),
@@ -128,11 +145,15 @@ void main() {
               expect(history, hasLength(3));
               expect(
                 history.where((v) => v.balanceSound),
-                hasLength(soften ? 0 : 1),
+                hasLength(soften || noise ? 0 : 1),
               );
               expect(
                 history.where((v) => v.softenSharpSound),
                 hasLength(soften ? 1 : 0),
+              );
+              expect(
+                history.where((v) => v.reduceNoise),
+                hasLength(noise ? 1 : 0),
               );
             } finally {
               job?.dispose();
@@ -144,7 +165,7 @@ void main() {
       }
     }
     for (final kind in ['silent', 'short', 'disabled', 'recovery']) {
-      test('sound choices protect $kind exports soften=$soften', () async {
+      test('sound choices protect $kind exports effect=$effect', () async {
         final root = await Directory.systemTemp.createTemp('spawnalpha-sound-');
         final disk = FailingStore();
         // A failed final attachment can be retried from the completed local journal.
@@ -181,14 +202,19 @@ void main() {
             document,
             take,
             VideoFormat.landscape,
-            balanceSound: kind != 'disabled' && !soften,
+            balanceSound: kind != 'disabled' && !soften && !noise,
             softenSharpSound: kind != 'disabled' && soften,
+            reduceNoise: kind != 'disabled' && noise,
           );
-          expect(renderer.request!.balanceSound, kind == 'recovery' && !soften);
+          expect(
+            renderer.request!.balanceSound,
+            kind == 'recovery' && !soften && !noise,
+          );
           expect(
             renderer.request!.softenSharpSound,
             kind == 'recovery' && soften,
           );
+          expect(renderer.request!.reduceNoise, kind == 'recovery' && noise);
           if (kind == 'recovery') {
             expect(video, isNull);
             disk.fail = false;
@@ -197,7 +223,7 @@ void main() {
               (await store.load(active.byId(document.id)!.takes.single))
                   .single
                   .balanceSound,
-              !soften,
+              !soften && !noise,
             );
             expect(
               (await store.load(active.byId(document.id)!.takes.single))
@@ -205,9 +231,16 @@ void main() {
                   .softenSharpSound,
               soften,
             );
+            expect(
+              (await store.load(active.byId(document.id)!.takes.single))
+                  .single
+                  .reduceNoise,
+              noise,
+            );
           } else {
             expect(video!.balanceSound, isFalse);
             expect(video.softenSharpSound, isFalse);
+            expect(video.reduceNoise, isFalse);
           }
           if (kind == 'short' || kind == 'disabled') {
             expect(inspector.inspected.where((p) => p == take.path), isEmpty);
@@ -232,6 +265,10 @@ void main() {
       );
       expect(VideoExport.fromJson(video.toJson()).balanceSound, isTrue);
       expect(
+        VideoExport.fromJson(video.toJson()..remove('reduceNoise')).reduceNoise,
+        isFalse,
+      );
+      expect(
         VideoExport.fromJson(video.toJson()..remove('softenSharpSound'))
             .softenSharpSound,
         isFalse,
@@ -242,6 +279,10 @@ void main() {
         isFalse,
       );
       for (final invalid in ['yes', 1, <String, Object?>{}]) {
+        expect(
+          () => VideoExport.fromJson(video.toJson()..['reduceNoise'] = invalid),
+          throwsFormatException,
+        );
         expect(
           () =>
               VideoExport.fromJson(video.toJson()..['balanceSound'] = invalid),

@@ -53,6 +53,8 @@ class VideoExportPanel extends StatelessWidget {
     this.onBalanceSound,
     this.softenSharpSound = false,
     this.onSoftenSharpSound,
+    this.reduceNoise = false,
+    this.onReduceNoise,
   });
   final VideoFormat format;
   final ValueChanged<VideoFormat> onFormat;
@@ -90,6 +92,8 @@ class VideoExportPanel extends StatelessWidget {
   final ValueChanged<bool>? onBalanceSound;
   final bool softenSharpSound;
   final ValueChanged<bool>? onSoftenSharpSound;
+  final bool reduceNoise;
+  final ValueChanged<bool>? onReduceNoise;
   final List<VideoExport> videos;
   final ValueChanged<VideoExport> onView, onShow;
 
@@ -113,7 +117,8 @@ class VideoExportPanel extends StatelessWidget {
           '${video.cameraClear ? ' · Camera stays clear' : ''}'
           '${video.motionBlur ? ' · Soft zoom motion' : ''}'
           '${video.balanceSound ? ' · Balanced volume' : ''}'
-          '${video.softenSharpSound ? ' · Softer S sounds' : ''}',
+          '${video.softenSharpSound ? ' · Softer S sounds' : ''}'
+          '${video.reduceNoise ? ' · Reduced noise' : ''}',
           style: SaType.signalLabel.copyWith(color: p.ink2),
         ),
         TextButton.icon(
@@ -221,6 +226,18 @@ class VideoExportPanel extends StatelessWidget {
                 : (value) => onSoftAudioJoins?.call(value ?? false),
             title: const Text('Soften sound at cuts'),
             subtitle: const Text('Smooth the joins while keeping word timing.'),
+          ),
+        if (onReduceNoise != null)
+          CheckboxListTile(
+            contentPadding: EdgeInsets.zero,
+            value: reduceNoise,
+            onChanged: busy
+                ? null
+                : (value) => onReduceNoise?.call(value ?? false),
+            title: const Text('Reduce background noise'),
+            subtitle: const Text(
+              'Best for steady hiss or fan noise. This also affects any computer sound.',
+            ),
           ),
         if (onSoftenSharpSound != null)
           CheckboxListTile(

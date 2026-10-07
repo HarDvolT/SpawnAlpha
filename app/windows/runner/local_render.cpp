@@ -104,7 +104,7 @@ class VideoReader {
   bool eos_ = false;
 };
 
-class AudioReader {
+class RawAudioReader {
  public:
   bool Open(const std::wstring& path) {
     check_hresult(MFCreateSourceReaderFromURL(path.c_str(), nullptr, reader_.put()));
@@ -180,24 +180,88 @@ class AudioReader {
   bool eos_ = false;
 };
 
+// Bounded lookahead compensates SpeexDSP's one-block overlap delay. A source
+// cut resets state and limits lookahead to that retained continuous group;
+// its tail is flushed with zeros, never discarded speech. No output is added.
+class AudioReader {
+ public:
+  bool Open(const std::wstring& path, NoisePolicy policy = {}) {
+    if (!raw_.Open(path)) return false;
+    channels = raw_.channels; enabled_ = policy.enabled;
+    if (enabled_) noise_ = std::make_unique<AudioNoise>(channels, policy);
+    return true;
+  }
+  void Reset(int64_t source_sample, int64_t logical_end, int64_t clip_end) {
+    raw_.Reset(source_sample * kSecond / kRate);
+    if (!enabled_) return;
+    position_ = feed_ = source_sample; end_ = logical_end; clip_ = clip_end;
+    Require(end_ > position_ && clip_ >= position_ && clip_ <= end_);
+    noise_->Reset(); queue_.clear(); offset_ = 0; primed_ = false;
+  }
+  std::vector<int16_t> At(int64_t wanted, UINT count, std::atomic<bool>& cancel) {
+    if (!enabled_) return raw_.At(wanted, count, cancel);
+    Require(wanted == position_ && count <= kRate && wanted + count <= end_);
+    std::vector<int16_t> result; result.reserve(static_cast<size_t>(count) * channels);
+    while (result.size() < static_cast<size_t>(count) * channels) {
+      Cancel(cancel);
+      if (offset_ == queue_.size()) {
+        std::vector<int16_t> block(AudioNoise::kFrame * channels, 0);
+        if (feed_ < clip_) {
+          const auto amount = static_cast<UINT>(std::min<int64_t>(AudioNoise::kFrame, clip_ - feed_));
+          const auto source = raw_.At(feed_, amount, cancel); std::copy(source.begin(), source.end(), block.begin());
+        }
+        feed_ += AudioNoise::kFrame; queue_ = noise_->Process(block); offset_ = 0;
+        if (!primed_) { primed_ = true; queue_.clear(); continue; }
+      }
+      const auto amount = std::min(queue_.size() - offset_, static_cast<size_t>(count) * channels - result.size());
+      result.insert(result.end(), queue_.begin() + offset_, queue_.begin() + offset_ + amount); offset_ += amount;
+    }
+    position_ += count; return result;
+  }
+  UINT channels = 0;
+ private:
+  RawAudioReader raw_; std::unique_ptr<AudioNoise> noise_;
+  bool enabled_ = false, primed_ = false;
+  int64_t position_ = 0, feed_ = 0, end_ = 0, clip_ = 0;
+  std::vector<int16_t> queue_; size_t offset_ = 0;
+};
+struct AudioRangeClock { int64_t source = 0, output = 0, end = 0, clip = 0; };
+std::vector<AudioRangeClock> AudioClocks(const LocalRenderRequest& request, const std::vector<int64_t>& starts, int64_t total_samples) {
+  std::vector<AudioRangeClock> result(request.ranges.size());
+  for (size_t first = 0; first < result.size();) {
+    auto last = first;
+    while (last + 1 < result.size() && request.ranges[last].end_us == request.ranges[last + 1].start_us) ++last;
+    const auto source = SampleAtUs(request.ranges[first].start_us), output = SampleAtUs(starts[first]);
+    const auto end = source + (last + 1 < starts.size() ? SampleAtUs(starts[last + 1]) : total_samples) - output;
+    const AudioRangeClock clock{source, output, end, std::min(end, SampleAtUs(request.ranges[last].end_us))};
+    for (size_t i = first; i <= last; ++i) result[i] = clock;
+    first = last + 1;
+  }
+  return result;
+}
 double BalancedSoundGain(const LocalRenderRequest& request, const std::vector<int64_t>& starts,
     int64_t total_us, std::atomic<bool>& cancel, const std::function<void(double)>& progress) {
-  AudioReader reader; if (!reader.Open(request.source)) return 1;
+  auto noise_policy = request.noise; if (total_us < 400000) noise_policy.enabled = false;
+  AudioReader reader; if (!reader.Open(request.source, noise_policy)) return 1;
   AudioLoudness meter(reader.channels);
   AudioDeEsser de_ess(reader.channels, total_us >= 400000 ? request.de_ess : DeEssPolicy{});
   const auto total_samples = SampleAtUs(total_us);
+  const auto clocks = AudioClocks(request, starts, total_samples);
+  size_t previous_range = request.ranges.size();
   for (size_t range = 0; range < request.ranges.size(); ++range) {
     Cancel(cancel);
-    if (range == 0 || request.ranges[range - 1].end_us != request.ranges[range].start_us) {
-      reader.Reset(request.ranges[range].start_us * 10);
-      de_ess.Reset();
-    }
     const auto begin = SampleAtUs(starts[range]);
     const auto end = range + 1 < starts.size() ? SampleAtUs(starts[range + 1]) : total_samples;
+    if (begin == end) continue;
+    if (previous_range == request.ranges.size() || clocks[range].source != clocks[previous_range].source || clocks[range].output != clocks[previous_range].output) {
+      reader.Reset(clocks[range].source, clocks[range].end, clocks[range].clip);
+      de_ess.Reset();
+    }
+    previous_range = range;
     for (auto position = begin; position < end;) {
       Cancel(cancel);
       const auto count = static_cast<UINT>(std::min<int64_t>(1024, end - position));
-      auto pcm = reader.At(SampleAtUs(request.ranges[range].start_us) + position - begin, count, cancel);
+      auto pcm = reader.At(clocks[range].source + position - clocks[range].output, count, cancel);
       de_ess.Apply(pcm);
       ApplyAudioJoinFade(pcm, reader.channels, position, begin, end, request.audio_join_fade_us * kRate / 2000000,
         range > 0 && request.ranges[range - 1].end_us != request.ranges[range].start_us,
@@ -300,6 +364,8 @@ void RenderLocalVideo(const LocalRenderRequest& request, std::atomic<bool>& canc
     AudioLoudness validation(1); validation.Finish(request.sound_balance);
   }
   AudioDeEsser de_ess_validation(1, request.de_ess);
+  auto noise_validation_policy = request.noise; noise_validation_policy.enabled = false;
+  AudioNoise noise_validation(1, noise_validation_policy);
   int64_t total_us = 0;
   std::vector<int64_t> starts;
   for (const auto& range : request.ranges) {
@@ -339,7 +405,8 @@ void RenderLocalVideo(const LocalRenderRequest& request, std::atomic<bool>& canc
       }
       punch.Open(steps, request.punch_spring, width, height, total_us);
     }
-    AudioReader audio; const bool has_audio = audio.Open(request.source);
+    auto noise_policy = request.noise; if (total_us < 400000) noise_policy.enabled = false;
+    AudioReader audio; const bool has_audio = audio.Open(request.source, noise_policy);
     AudioDeEsser de_ess(has_audio ? audio.channels : 1, total_us >= 400000 ? request.de_ess : DeEssPolicy{});
     const auto sound_gain = has_audio && request.sound_balance.enabled
         ? BalancedSoundGain(request, starts, total_us, cancel, progress) : 1;
@@ -369,6 +436,7 @@ void RenderLocalVideo(const LocalRenderRequest& request, std::atomic<bool>& canc
     size_t previous_video_range = request.ranges.size(), previous_audio_range = request.ranges.size();
     int64_t audio_position = 0;
     const auto total_samples = SampleAtUs(total_us);
+    const auto audio_clocks = AudioClocks(request, starts, total_samples);
     const auto total_ticks = total_us * 10;
     for (UINT frame = 0; static_cast<int64_t>(frame) * kSecond / 30 < total_ticks; ++frame) {
       Cancel(cancel);
@@ -414,10 +482,12 @@ void RenderLocalVideo(const LocalRenderRequest& request, std::atomic<bool>& canc
           const auto range_end = audio_range + 1 < starts.size() ? SampleAtUs(starts[audio_range + 1]) : total_samples;
           const auto count = static_cast<UINT>(std::min(end_sample, range_end) - audio_position);
           Require(count > 0);
-          const auto source_sample = SampleAtUs(request.ranges[audio_range].start_us) + audio_position - SampleAtUs(starts[audio_range]);
+          const auto source_sample = audio_clocks[audio_range].source + audio_position - audio_clocks[audio_range].output;
           if (audio_range != previous_audio_range) {
-            if (audio_range == 0 || request.ranges[audio_range - 1].end_us != request.ranges[audio_range].start_us) {
-              audio.Reset(request.ranges[audio_range].start_us * 10);
+            if (previous_audio_range == request.ranges.size() ||
+                audio_clocks[audio_range].source != audio_clocks[previous_audio_range].source ||
+                audio_clocks[audio_range].output != audio_clocks[previous_audio_range].output) {
+              audio.Reset(audio_clocks[audio_range].source, audio_clocks[audio_range].end, audio_clocks[audio_range].clip);
               de_ess.Reset();
             }
             previous_audio_range = audio_range;

@@ -23,7 +23,12 @@ bool sameBytes(List<int> a, List<int> b) =>
     a.length == b.length && a.indexed.every((v) => v.$2 == b[v.$1]);
 Future<void> main() async {
   const essCheck = bool.fromEnvironment('SPAWNALPHA_ESS_CHECK');
-  const kind = essCheck ? 'ess' : 'sound';
+  const noiseCheck = bool.fromEnvironment('SPAWNALPHA_NOISE_CHECK');
+  const kind = noiseCheck
+      ? 'noise'
+      : essCheck
+      ? 'ess'
+      : 'sound';
   WidgetsFlutterBinding.ensureInitialized();
   runApp(
     const MaterialApp(
@@ -64,7 +69,7 @@ Future<void> main() async {
     for (final language in ScriptLanguage.values) {
       stage = 'prepare generated sound';
       final source = await File(
-        '$prefix${essCheck ? '-ess-source-${language == ScriptLanguage.ar ? 2 : 1}.mp4' : '-sound-source.mp4'}',
+        '$prefix${noiseCheck || essCheck ? '-$kind-source-${language == ScriptLanguage.ar ? 2 : 1}.mp4' : '-sound-source.mp4'}',
       ).copy('${root.absolute.path}/${language.name}.mp4');
       final original = await source.readAsBytes();
       final snapshot = ScriptDocument.create(
@@ -117,7 +122,7 @@ Future<void> main() async {
       final formats = switch (language) {
         ScriptLanguage.en => [
           VideoFormat.landscape,
-          if (!essCheck) VideoFormat.landscape4k,
+          if (!essCheck && !noiseCheck) VideoFormat.landscape4k,
         ],
         ScriptLanguage.fr => [VideoFormat.feed],
         ScriptLanguage.ar => [VideoFormat.portrait],
@@ -131,8 +136,9 @@ Future<void> main() async {
             current,
             current.takes.single,
             format,
-            balanceSound: essCheck || enabled,
-            softenSharpSound: essCheck && enabled,
+            balanceSound: essCheck || noiseCheck || enabled,
+            softenSharpSound: noiseCheck || (essCheck && enabled),
+            reduceNoise: noiseCheck && enabled,
             cameraClear: false,
             autoZoom: false,
             motionBlur: false,
@@ -142,19 +148,26 @@ Future<void> main() async {
           );
           require(
             video != null &&
-                video.balanceSound == (essCheck || enabled) &&
-                video.softenSharpSound == (essCheck && enabled) &&
+                video.balanceSound == (essCheck || noiseCheck || enabled) &&
+                video.softenSharpSound ==
+                    (noiseCheck || (essCheck && enabled)) &&
+                video.reduceNoise == (noiseCheck && enabled) &&
                 video.duration == words.duration,
           );
           final metadata = jsonDecode(
             await store.file(video!, 'json').readAsString(),
           ) as Map;
           require(
-            (metadata['video'] as Map)['balanceSound'] == (essCheck || enabled),
+            (metadata['video'] as Map)['balanceSound'] ==
+                (essCheck || noiseCheck || enabled),
           );
           require(
             (metadata['video'] as Map)['softenSharpSound'] ==
-                (essCheck && enabled),
+                (noiseCheck || (essCheck && enabled)),
+          );
+          require(
+            (metadata['video'] as Map)['reduceNoise'] ==
+                (noiseCheck && enabled),
           );
           final subtitle = await store.file(video, 'srt').readAsString();
           require(srt == null || srt == subtitle);
@@ -180,7 +193,11 @@ Future<void> main() async {
         history.length == formats.length * 2 &&
             history
                     .where(
-                      (v) => essCheck ? v.softenSharpSound : v.balanceSound,
+                      (v) => noiseCheck
+                          ? v.reduceNoise
+                          : essCheck
+                          ? v.softenSharpSound
+                          : v.balanceSound,
                     )
                     .length ==
                 formats.length,

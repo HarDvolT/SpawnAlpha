@@ -164,6 +164,28 @@ is added. Wording edits rebuild proposals with all attempts kept. A performance
 rank is not inferred from word matching: full pitch/loudness/pace scoring remains
 later. Every selection changes video and subtitle clocks together.
 
+### Windows room-tone joins
+
+**Use room tone at cuts** is a separate saved-take export choice, initially off.
+It is offered when the current cut has internal joins and frozen measured quiet
+audio has a retained 100ms sample clear of every recognized word by 100ms.
+Choose the first eligible source sample deterministically. Removed ranges,
+uncertain wording, a script gap alone and an unavailable quiet analysis never
+supply sound. Notes and Script use the same actual-speech protection.
+
+Mix that same quiet sample under the existing 20ms join envelope, returning to
+the retained sound outside its edges. Keep the source and output clocks fixed;
+never overlap speech, add duration or put words back into a discarded section.
+Both the final renderer and volume prepass use the same bounded sample and mix.
+Treat the quiet sample with the selected noise and de-essing stages first.
+Native decoding rechecks the conservative -60dBFS peak/RMS quiet gate; an
+unusable sample leaves the ordinary fade in place. A missing or disabled choice
+keeps the ordinary join behavior. Save the immutable source sample coordinates
+and choice with the video; originals and earlier versions remain intact.
+
+The control says **Uses quiet sound from the parts you keep. Words and timing
+stay the same.** Actual listening remains needed before making it a default.
+
 ### Windows volume balance
 
 Save controls offer **Balance sound volume**, initially on. The choice can be
@@ -193,6 +215,22 @@ reset the detector; contiguous ranges preserve it. It adds no samples/delay,
 leaves silent/short takes unchanged and never modifies originals/earlier videos.
 An explicit choice affects the whole saved mix, including computer sound.
 Noise reduction and room-tone joins remain separate work.
+
+### Windows steady-noise reduction
+
+**Reduce background noise** is an independent saved-take export choice,
+initially off. Explain that it is best for steady hiss/fan noise and affects
+the whole mix, including computer sound. Use the classic SpeexDSP noise
+estimator with AGC, echo cancellation, reverb and VAD audio removal disabled.
+Limit suppression to -12dB and blend 65% treated sound with the aligned
+original. It is not a neural model or a promise to remove other voices/music.
+Process bounded 10ms mono/stereo blocks and compensate the processor's 10ms
+overlap delay, including first/last partial blocks. Never borrow samples from
+discarded ranges: reset at source cuts and flush with silence. Contiguous
+ranges preserve state and a common rounded audio clock. Noise treatment
+precedes S softening, join fades and volume measurement/final gain, using
+the identical pipeline twice. Shorter-than-400ms/silent-source takes stay
+unchanged. Earlier videos/originals stay intact; legacy exports remain off.
 
 ### Windows sound joins
 

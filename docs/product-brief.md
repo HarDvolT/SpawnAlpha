@@ -131,7 +131,11 @@ Revised 2026-09-30 by the owner. Screen recording moves up, and the automatic ed
      measures retained audio, applies one gain toward -14 LUFS, caps boosts at
      12dB and protects estimated true peaks with -2dB headroom. The choice can
      change after recording; originals and earlier videos stay intact. Smooth
-     cursor, noise reduction and room-tone joins remain. Optional light
+     cursor and room-tone joins remain. Optional classic background-noise
+     reduction is connected, initially off, using a commercial BSD-3 backend
+     without learned weights. It targets steady hiss/fans, preserves the
+     output clock and explains whole-mix scope; see [noise-runtime.md](noise-runtime.md).
+     Optional light
      wideband S sound softening is connected, starts off, and limits gain
      reduction to 3dB without filtering the audible output or adding delay;
    - 16:9 and 9:16 export;

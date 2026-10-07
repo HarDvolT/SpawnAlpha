@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 3.14)
 project(runner LANGUAGES CXX)
 include("${CMAKE_CURRENT_SOURCE_DIR}/../speech_runtime.cmake")
+include("${CMAKE_CURRENT_SOURCE_DIR}/../noise_runtime.cmake")
 
 # Define the application target. To change its name, change BINARY_NAME in the
 # top-level CMakeLists.txt, not the value here, or `flutter run` will no longer
@@ -59,7 +60,7 @@ target_compile_definitions(${BINARY_NAME} PRIVATE "NOMINMAX")
 # Add dependency libraries and include directories. Add any application-specific
 # dependencies here.
 target_link_libraries(${BINARY_NAME} PRIVATE flutter flutter_wrapper_app flutter_wrapper_plugin)
-target_link_libraries(${BINARY_NAME} PRIVATE whisper bcrypt)
+target_link_libraries(${BINARY_NAME} PRIVATE whisper bcrypt spawnalpha_noise)
 target_link_libraries(${BINARY_NAME} PRIVATE "dwmapi.lib")
 target_link_libraries(${BINARY_NAME} PRIVATE "d3d11.lib" "dxgi.lib" "windowsapp.lib")
 target_link_libraries(${BINARY_NAME} PRIVATE "d2d1.lib" "dwrite.lib" "dxguid.lib")
@@ -196,4 +197,5 @@ add_executable(local_render_check EXCLUDE_FROM_ALL "local_render.cpp" "caption_o
 target_compile_features(local_render_check PRIVATE cxx_std_17)
 target_compile_options(local_render_check PRIVATE /W4 /WX /EHsc /wd"4100")
 target_compile_definitions(local_render_check PRIVATE "NOMINMAX")
+target_link_libraries(local_render_check PRIVATE spawnalpha_noise)
 target_link_libraries(local_render_check PRIVATE "windowscodecs.lib" "d2d1.lib" "dwrite.lib" "dxguid.lib" "d3d11.lib" "dxgi.lib" "mf.lib" "mfplat.lib" "mfreadwrite.lib" "mfuuid.lib" "ole32.lib" "oleaut32.lib" "windowsapp.lib")

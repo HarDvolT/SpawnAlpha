@@ -13,6 +13,7 @@
 #include "screen_motion_blur.h"
 #include "audio_loudness.h"
 #include "audio_deesser.h"
+#include "audio_noise.h"
 struct RenderRange { int64_t start_us, end_us; };
 struct CameraPunchStep { int64_t time_us = 0; bool zoomed = false; };
 struct LocalRenderRequest {
@@ -40,6 +41,7 @@ struct LocalRenderRequest {
   ScreenBlurLayout screen_blur;
   SoundBalance sound_balance;
   DeEssPolicy de_ess;
+  NoisePolicy noise;
 };
 // COM/MF initialized worker only. Original media is read-only, packets are bounded,
 // output is created exclusively, and failure/cancellation removes only that output.
