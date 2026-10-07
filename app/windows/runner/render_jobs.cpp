@@ -55,6 +55,21 @@ LocalRenderRequest Request(const Map& args) {
     if (!range) throw std::runtime_error("Invalid render range");
     request.ranges.push_back({Integer(*range, "startUs"), Integer(*range, "endUs")});
   }
+  if (const auto found = args.find(Value("punchSteps")); found != args.end()) {
+    const auto* steps = std::get_if<flutter::EncodableList>(&found->second);
+    const auto* main = std::get_if<bool>(&Field(args, "punchMain"));
+    const auto* spring = std::get_if<Map>(&Field(args, "punchSpring"));
+    if (!steps || steps->size() > 20000 || !main || !spring) throw std::runtime_error("Invalid camera emphasis");
+    request.punch_main = *main; request.punch_factor = Number(args, "punchFactor");
+    request.punch_spring = {Number(*spring, "mass"), Number(*spring, "stiffness"), Number(*spring, "damping")};
+    for (const auto& value : *steps) {
+      const auto* step = std::get_if<Map>(&value);
+      if (!step || step->size() != 2) throw std::runtime_error("Invalid camera emphasis");
+      const auto* zoomed = std::get_if<bool>(&Field(*step, "zoomed"));
+      if (!zoomed) throw std::runtime_error("Invalid camera emphasis");
+      request.punch_steps.push_back({Integer(*step, "timeUs"), *zoomed});
+    }
+  }
   if (const auto found = args.find(Value("screenFrame")); found != args.end()) {
     const auto* frame = std::get_if<Map>(&found->second);
     if (!frame) throw std::runtime_error("Invalid screen frame");

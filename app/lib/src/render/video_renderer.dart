@@ -13,6 +13,7 @@ import '../transcription/captions.dart';
 import 'screen_zooms.dart';
 import 'screen_clicks.dart';
 import 'screen_shortcuts.dart';
+import 'camera_punches.dart';
 
 class VideoRenderRequest {
   VideoRenderRequest({
@@ -28,6 +29,8 @@ class VideoRenderRequest {
     this.screenClicks,
     this.screenShortcuts,
     this.screenFrame = false,
+    this.cameraPunches,
+    this.cameraPunchMain = false,
     List<Caption> captions = const [],
   }) : captions = List.unmodifiable(
          captions.map(
@@ -39,6 +42,22 @@ class VideoRenderRequest {
            ),
          ),
        ) {
+    cameraPunches?.validateClock(
+      plan,
+      minimum: SaVideoExport.cameraPunchMinimum,
+      interval: SaVideoExport.cameraPunchInterval,
+    );
+    if ((cameraPunches?.steps.any((s) => s.time > plan.duration) ?? false) ||
+        ((cameraPunches?.count ?? 0) > 0 &&
+            (plan.duration < SaVideoExport.cameraPunchMinimum ||
+                plan.sourceDuration < SaVideoExport.cameraPunchMinimum ||
+                cameraPunchMain &&
+                    (camera != null ||
+                        screenFrame ||
+                        (screenZooms?.count ?? 0) > 0) ||
+                !cameraPunchMain && camera == null))) {
+      throw const FormatException('Invalid camera emphasis clock');
+    }
     if (screenShortcuts?.badges.any((b) => b.end > plan.duration) ?? false) {
       throw const FormatException('Invalid shortcut clock');
     }
@@ -112,6 +131,8 @@ class VideoRenderRequest {
   final ScreenClicks? screenClicks;
   final ScreenShortcuts? screenShortcuts;
   final bool screenFrame;
+  final CameraPunches? cameraPunches;
+  final bool cameraPunchMain;
   final List<Caption> captions;
   Map<String, Object?> toJson() => {
     'source': source,
@@ -126,6 +147,16 @@ class VideoRenderRequest {
         ? SaVideoExport.audioJoinFade.inMicroseconds
         : 0,
     'ranges': plan.ranges.map((r) => r.toJson()).toList(),
+    if (cameraPunches != null && cameraPunches!.count > 0) ...{
+      'punchSteps': cameraPunches!.steps.map((s) => s.toJson()).toList(),
+      'punchMain': cameraPunchMain,
+      'punchFactor': SaVideoExport.cameraPunch,
+      'punchSpring': {
+        'mass': SaSprings.camera.mass,
+        'stiffness': SaSprings.camera.stiffness,
+        'damping': SaSprings.camera.damping,
+      },
+    },
     if (screenFrame)
       'screenFrame': {
         'inset': SaScreenFx.frameInset,

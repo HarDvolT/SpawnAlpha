@@ -10,6 +10,7 @@
 #include "click_overlay.h"
 #include "screen_frame.h"
 struct RenderRange { int64_t start_us, end_us; };
+struct CameraPunchStep { int64_t time_us = 0; bool zoomed = false; };
 struct LocalRenderRequest {
   std::wstring source, camera, output;
   int64_t source_duration_us = 0;
@@ -26,6 +27,10 @@ struct LocalRenderRequest {
   std::vector<RenderCaption> shortcut_badges;
   CaptionLayout shortcut_layout;
   ScreenFrameLayout screen_frame;
+  std::vector<CameraPunchStep> punch_steps;
+  bool punch_main = false;
+  double punch_factor = 0;
+  ZoomSpring punch_spring;
 };
 // COM/MF initialized worker only. Original media is read-only, packets are bounded,
 // output is created exclusively, and failure/cancellation removes only that output.

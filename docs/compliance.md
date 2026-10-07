@@ -107,6 +107,13 @@ paid release, a lawyer should review:
   never a downloaded wallpaper or a face model. Camera placement and caption
   clocks stay independent. The switch/legacy-compatible history remains local;
   original media is read-only. No new package, asset, copied code or upload.
+- Optional camera emphasis uses only saved reliable/corrected frozen Script
+  stress cues, with a centred installed-Direct3D crop and existing camera spring.
+  Bounded local tracks contain entrance/return times, never faces, words or
+  private paths. Short takes, missing/uncertain speech and short partial camera
+  recordings get no effect. Reduced motion disables its starting choice. This
+  is a reversible export effect, without a new model, delivery score, copied
+  code, package, data collection or upload. Original media remains read-only.
 - Optional captions on video use installed DirectWrite/Direct2D and the already
   bundled OFL Anybody/Reem Kufi fonts through a private local font collection.
   No font installation/download, new package, copied code or network service.
@@ -259,6 +266,7 @@ person using the app.
 | Optional Windows click highlights | Checked 2026-10-06 with pure EN/FR/AR retained/reordered/continuous ranges, hidden/key protection, clipped lifetimes, bounded malformed tracks, independent switches and frozen recovery after activity removal. Generated native wide/portrait decoded pixels pass onset/fade under zoom, and camera-covered pulses decode identically to the no-ring baseline. Actual app-channel independent zoom/click on/off exports preserve timing/history/original bytes. Uses installed Direct2D and existing palette/spring tokens; no owner media/input, package, model, copied code, upload or private logs. Cursor/frame/keycap polish and hardware/launch trials remain |
 | Optional Windows shortcut badges | Checked 2026-10-07 with EN/FR/AR cut/reorder/continuous clocks, latest-wins badges, hidden plain typing, bounded allowlisted labels, independent switches, legacy count compatibility and frozen recovery after activity removal. Native decoded wide/portrait safe-edge/onset/rise/fade and private-label rejection pass; actual app-channel 12 independent choices preserve exact subtitle clocks/history/original bytes. Installed DirectWrite/Direct2D and already bundled private OFL Martian Mono only; no owner input/media, dependency, model, upload or private logs. Screen frame/cursor/sound and hardware/launch work remain |
 | Optional Windows screen frame | Checked 2026-10-07 with EN/FR/AR Screen/Both on/off without activity, Camera protection, legacy compatibility and completed-job recovery. Native decoded wide/portrait corners/full picture/inset zoom/click and unchanged camera placement pass; actual app-channel 12 frame on/off exports retain exact captions/history/original bytes. Uses installed Direct2D Gaussian shadows and a locally generated gradient with existing tokens; no owner media/input, wallpaper, package, copied code, model, upload or private logs. Smooth cursor/blur/camera/sound and hardware/launch work remain |
+| Optional Windows camera emphasis | Checked 2026-10-07 with EN/FR/AR trusted/corrected frozen stress, uncertain/changed/Notes/unaligned protection, cut/reorder/continuous clocks, short and partial-camera gates, independent switch, reduced motion and strict frozen recovery. Generated native wide/portrait main/paired decoded crop and source-cut return pass; actual app-channel six Camera/Both wide/feed/portrait on/off exports preserve exact subtitles, history and original bytes. Installed Direct3D/Media Foundation and existing camera spring only; no owner media/input, face inference, score, package, copied code, model, upload or private logs. Remaining cursor/blur/camera movement, sound/coaching, mobile and launch work stay open |
 | "What leaves your device" explained in Settings | Done |
 | iOS export-compliance flag | Done |
 | No secrets in the repository (scanned 2026-09-30) | Done |

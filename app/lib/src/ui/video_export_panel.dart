@@ -41,6 +41,9 @@ class VideoExportPanel extends StatelessWidget {
     this.hasScreen = false,
     this.screenFrame = true,
     this.onScreenFrame,
+    this.hasCameraEmphasis = false,
+    this.cameraPunch = true,
+    this.onCameraPunch,
   });
   final VideoFormat format;
   final ValueChanged<VideoFormat> onFormat;
@@ -68,6 +71,8 @@ class VideoExportPanel extends StatelessWidget {
   final ValueChanged<bool>? onShowShortcuts;
   final bool hasScreen, screenFrame;
   final ValueChanged<bool>? onScreenFrame;
+  final bool hasCameraEmphasis, cameraPunch;
+  final ValueChanged<bool>? onCameraPunch;
   final List<VideoExport> videos;
   final ValueChanged<VideoExport> onView, onShow;
 
@@ -86,7 +91,8 @@ class VideoExportPanel extends StatelessWidget {
           '${video.zoomCount > 0 ? ' · ${video.zoomCount} zooms' : ''}'
           '${video.clickCount > 0 ? ' · ${video.clickCount} click highlights' : ''}'
           '${video.shortcutCount > 0 ? ' · ${video.shortcutCount} shortcuts' : ''}'
-          '${video.screenFrame ? ' · Framed screen' : ''}',
+          '${video.screenFrame ? ' · Framed screen' : ''}'
+          '${video.cameraPunchCount > 0 ? ' · ${video.cameraPunchCount} camera accents' : ''}',
           style: SaType.signalLabel.copyWith(color: p.ink2),
         ),
         TextButton.icon(
@@ -146,6 +152,18 @@ class VideoExportPanel extends StatelessWidget {
               : 'Keeps the whole picture and saves a new MP4 on this device.',
           style: SaType.bodySm.copyWith(color: p.ink2),
         ),
+        if (hasCameraEmphasis)
+          CheckboxListTile(
+            contentPadding: EdgeInsets.zero,
+            value: cameraPunch,
+            onChanged: busy
+                ? null
+                : (value) => onCameraPunch?.call(value ?? false),
+            title: const Text('Emphasize the camera'),
+            subtitle: const Text(
+              'Gently zoom in on marked emphasis in takes of 20 seconds or more.',
+            ),
+          ),
         if (hasScreen)
           CheckboxListTile(
             contentPadding: EdgeInsets.zero,

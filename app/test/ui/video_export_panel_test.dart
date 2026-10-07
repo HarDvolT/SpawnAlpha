@@ -16,6 +16,70 @@ import '../storage/screen_take_store_test.dart' show FakeInspector;
 
 void main() {
   for (final mode in ['choose', 'busy', 'missing']) {
+    testWidgets('camera emphasis controls and history: $mode', (tester) async {
+      final library = ScriptLibrary(MemoryScriptStore()),
+          inspector = FakeInspector();
+      final job = ExportProcessor(
+        FakeRenderer(inspector),
+        VideoExportStore(Directory.systemTemp, library, inspector),
+        CleanCutStore(Directory.systemTemp, library),
+        (_) async => null,
+      );
+      var emphasis = true;
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: buildTheme(Brightness.light),
+          home: Scaffold(
+            body: StatefulBuilder(
+              builder: (context, update) => VideoExportPanel(
+                format: VideoFormat.landscape,
+                onFormat: (_) {},
+                onExport: () {},
+                job: job,
+                busy: mode == 'busy',
+                supported: true,
+                hasCameraEmphasis: mode != 'missing',
+                cameraPunch: emphasis,
+                onCameraPunch: (v) => update(() => emphasis = v),
+                videos: [
+                  VideoExport(
+                    id: 'generated',
+                    format: VideoFormat.landscape,
+                    duration: const Duration(seconds: 25),
+                    createdAt: DateTime(2026),
+                    cameraPunchCount: 2,
+                  ),
+                ],
+                onView: (_) {},
+                onShow: (_) {},
+              ),
+            ),
+          ),
+        ),
+      );
+      final choice = find.widgetWithText(
+        CheckboxListTile,
+        'Emphasize the camera',
+      );
+      if (mode == 'missing') {
+        expect(choice, findsNothing);
+      } else if (mode == 'busy') {
+        expect(tester.widget<CheckboxListTile>(choice).onChanged, isNull);
+      } else {
+        expect(tester.widget<CheckboxListTile>(choice).value, isTrue);
+        await tester.tap(choice);
+        await tester.pumpAndSettle();
+        expect(emphasis, isFalse);
+        expect(find.textContaining('20 seconds'), findsOneWidget);
+      }
+      expect(find.textContaining('2 camera accents'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox());
+      job.dispose();
+      library.dispose();
+    });
+  }
+  for (final mode in ['choose', 'busy', 'missing']) {
     testWidgets('screen zoom controls, fallback and history: $mode', (
       tester,
     ) async {

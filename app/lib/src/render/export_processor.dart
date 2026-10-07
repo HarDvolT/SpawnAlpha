@@ -18,19 +18,29 @@ import '../transcription/speech_processor.dart';
 import 'video_renderer.dart';
 import 'screen_zooms.dart';
 import 'screen_zoom_loader.dart';
+import 'camera_punches.dart';
 import '../theme/tokens.g.dart';
 
 enum ExportPhase { idle, preparing, rendering, saving, done, cancelled, failed }
 
 class _CaptionJob {
-  const _CaptionJob(this.source, this.kept, this.plan, this.style);
+  const _CaptionJob(
+    this.source,
+    this.kept,
+    this.plan,
+    this.style,
+    this.punchPolicy,
+    this.cameraDuration,
+  );
   final SavedTranscript source;
   final WordTranscript kept;
   final CutPlan plan;
   final CaptionStyle style;
+  final CameraPunchPolicy? punchPolicy;
+  final Duration? cameraDuration;
 }
 
-(List<Caption>, List<Caption>) _exportCaptions(_CaptionJob job) {
+(List<Caption>, List<Caption>, CameraPunches) _exportCaptions(_CaptionJob job) {
   final cues = captionCuesOnCut(
     source: job.source.transcript,
     kept: job.kept,
@@ -44,6 +54,14 @@ class _CaptionJob {
     job.style == CaptionStyle.punch
         ? captionsFromSpeech(job.kept, cues: cues, punch: true)
         : phrases,
+    job.punchPolicy == null
+        ? CameraPunches(const [])
+        : cameraPunchesOnCut(
+            job.plan,
+            phrases,
+            job.punchPolicy!,
+            cameraDuration: job.cameraDuration,
+          ),
   );
 }
 
@@ -81,6 +99,7 @@ class ExportProcessor extends ChangeNotifier {
     bool clickHighlights = true,
     bool showShortcuts = true,
     bool screenFrame = true,
+    bool cameraPunch = true,
   }) async {
     if (busy) return null;
     source = take.path;
@@ -171,6 +190,35 @@ class ExportProcessor extends ChangeNotifier {
           : LoadedScreenZooms(ScreenZooms(0, const []));
       if (_cancelled) throw const RenderCancelled();
       if (zooms.unavailable) notice = 'Screen activity is unavailable. This video keeps the whole picture.';
+      final pairedCamera =
+          camera && take.mode == TakeMode.both && take.cameraPath != null;
+      Duration? cameraDuration;
+      if (cameraPunch && pairedCamera) {
+        final info = await store.inspector.inspect(take.cameraPath!);
+        cameraDuration = info.readable
+            ? (info.duration < take.duration ? info.duration : take.duration)
+            : Duration.zero;
+      }
+      final captionTracks = timed != null && timed.words.isNotEmpty
+          ? await compute(
+              _exportCaptions,
+              _CaptionJob(
+                spoken!,
+                timed,
+                plan,
+                burnedCaptions ? captionStyle : CaptionStyle.readable,
+                cameraPunch && (take.mode == TakeMode.camera || pairedCamera)
+                    ? CameraPunchPolicy(
+                        minimum: SaVideoExport.cameraPunchMinimum,
+                        interval: SaVideoExport.cameraPunchInterval,
+                        hold: SaVideoExport.cameraPunchHold,
+                      )
+                    : null,
+                cameraDuration,
+              ),
+            )
+          : null;
+      final punches = captionTracks?.$3;
       final video = VideoExport(
         id: newId(),
         format: format,
@@ -179,7 +227,7 @@ class ExportProcessor extends ChangeNotifier {
         wordsPath: take.wordsPath,
         cutPath: take.cutPath,
         captions: timed != null && timed.words.isNotEmpty,
-        camera: camera && take.mode == TakeMode.both && take.cameraPath != null,
+        camera: pairedCamera,
         burnedCaptions:
             burnedCaptions && timed != null && timed.words.isNotEmpty,
         captionStyle: burnedCaptions ? captionStyle : CaptionStyle.readable,
@@ -189,13 +237,8 @@ class ExportProcessor extends ChangeNotifier {
         clickCount: zooms.clicks?.count ?? 0,
         shortcutCount: zooms.shortcuts?.count ?? 0,
         screenFrame: screenFrame && take.mode != TakeMode.camera,
+        cameraPunchCount: punches?.count ?? 0,
       );
-      final captionTracks = video.captions
-          ? await compute(
-              _exportCaptions,
-              _CaptionJob(spoken!, timed!, plan, video.captionStyle),
-            )
-          : null;
       final captions = captionTracks?.$1;
       final reservation = await store.reserve(
         script.id,
@@ -207,6 +250,7 @@ class ExportProcessor extends ChangeNotifier {
         screenZooms: zooms.zooms,
         screenClicks: zooms.clicks,
         screenShortcuts: zooms.shortcuts,
+        cameraPunches: punches,
       );
       reserved = reservation;
       if (_cancelled) throw const RenderCancelled();
@@ -226,6 +270,8 @@ class ExportProcessor extends ChangeNotifier {
           screenClicks: zooms.clicks,
           screenShortcuts: zooms.shortcuts,
           screenFrame: video.screenFrame,
+          cameraPunches: punches,
+          cameraPunchMain: take.mode == TakeMode.camera,
         ),
         (amount) {
           progress = amount;

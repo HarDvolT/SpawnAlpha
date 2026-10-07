@@ -884,3 +884,33 @@ GPU targets, geometry and shadow sources are cached and bounded; camera end
 invalidates only the exclusion mask. The installed SDK dxguid library supplies
 the Gaussian effect identifier; no dependency or wallpaper asset was added.
 Choice/history and recovery preserve originals and exact subtitle clocks.
+
+`cameraPunchesOnCut` derives optional centre-camera accents from already verified
+frozen Script caption cues, independently of burned captions and their style.
+Only exact reliable/corrected actually spoken accepted stress words qualify.
+Notes, missing alignment, changed/added/unsaid words and uncertain speech do not.
+Original/output duration and original/retained paired-camera availability must
+reach 20 seconds. Entrances stay at least eight output seconds apart; the hold
+ends at the word plus 1.4 seconds or a source/camera boundary. Adjacent continuous
+source splits merge. Immutable `CameraPunches` contain bounded alternating
+entrance/return times only, with no text, face coordinates or private paths.
+Additive `cameraPunchCount` defaults zero for old history. Reservation, recovery
+and render requests validate the count, duration, spacing and output clock.
+Recovery uses the frozen track without rereading later words or camera metadata.
+
+The native renderer reuses the analytic camera spring with a fixed centred
+1.12x source crop, separately for the Camera main picture or the Both inset.
+The camera's fitted destination rectangle, screen frame/targets and captions
+stay fixed. Source discontinuities reset the crop; absent camera frames remain
+absent. Direct3D/Media Foundation still stream bounded frames into a fresh local
+file. The separate Emphasize the camera choice starts off under system reduced
+motion and supports an explicit override. No guessed face tracking, recognition
+model, performance score, dependency or upload is introduced.
+
+Failed or cancelled render unwinding shuts down the writer's owned sink before
+releasing it, rather than synchronously finalizing an unfinished encoder queue.
+Successful recording Stop/export completion still explicitly finalizes samples.
+An empty writer has no video to finalize. Generated zero/one-sample exceptions
+verify bounded cleanup; only the render's exclusively created output is removed.
+Microsoft references: [Finalize can block until completion](https://learn.microsoft.com/en-us/windows/win32/api/mfreadwrite/nf-mfreadwrite-imfsinkwriter-finalize)
+and [the creating client owns sink Shutdown](https://learn.microsoft.com/en-us/windows/win32/api/mfidl/nf-mfidl-imfmediasink-shutdown).

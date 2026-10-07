@@ -537,6 +537,14 @@ abstract final class SaVideoExport {
   /// Total de-click envelope at an internal discontinuous sound join; half on each side, with no
   /// clock overlap.
   static const Duration audioJoinFade = Duration(milliseconds: 20);
+  /// Subtle centred camera zoom on reliable accepted Script emphasis.
+  static const double cameraPunch = 1.12;
+  /// Minimum original and retained duration for optional camera emphasis.
+  static const Duration cameraPunchMinimum = Duration(milliseconds: 20000);
+  /// Minimum output-clock spacing between camera emphasis entrances.
+  static const Duration cameraPunchInterval = Duration(milliseconds: 8000);
+  /// Camera emphasis hold after the stressed word; clamp at the source cut.
+  static const Duration cameraPunchHold = Duration(milliseconds: 1400);
 }
 
 /// The four type voices: display, reading, signal and pencil.

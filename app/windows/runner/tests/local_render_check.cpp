@@ -80,7 +80,7 @@ void CheckScreenZoomCrop() {
   Require(rejected);
 }
 
-void GenerateZoomSource(ID3D11Device* device, const std::wstring& path) {
+void GenerateZoomSource(ID3D11Device* device, const std::wstring& path, UINT frames = 120) {
   GpuVideoWriter writer; check_hresult(writer.Start(device, path, kWidth, kHeight, 30));
   std::vector<uint32_t> pixels(kWidth * kHeight);
   for (UINT y = 0; y < kHeight; ++y) for (UINT x = 0; x < kWidth; ++x)
@@ -90,7 +90,7 @@ void GenerateZoomSource(ID3D11Device* device, const std::wstring& path) {
   desc.SampleDesc.Count = 1; desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
   D3D11_SUBRESOURCE_DATA data{pixels.data(), kWidth * 4, 0}; com_ptr<ID3D11Texture2D> texture;
   check_hresult(device->CreateTexture2D(&desc, &data, texture.put()));
-  for (UINT frame = 0; frame < 120; ++frame)
+  for (UINT frame = 0; frame < frames; ++frame)
     check_hresult(writer.WriteFrame(texture.get(), kWidth, kHeight, frame * kSecond / 30));
   check_hresult(writer.Finish());
 }
@@ -566,8 +566,108 @@ void VerifyLocalCut(const LocalRenderRequest& request, int expected_frames, int6
   }
   Require(frames == expected_frames && std::abs(end - expected_us * 10) <= 10000);
 }
+RECT PunchPicture(const LocalRenderRequest& request) {
+  RECT box{0, 0, static_cast<LONG>(request.width), static_cast<LONG>(request.height)};
+  if (!request.punch_main) {
+    const LONG margin = static_cast<LONG>(std::min(request.width, request.height) * request.camera_margin);
+    const LONG width = static_cast<LONG>(request.width * request.camera_inset);
+    const LONG height = std::min(static_cast<LONG>(request.height * request.camera_inset), width);
+    box = {box.right - margin - width, box.bottom - margin - height, box.right - margin, box.bottom - margin};
+  }
+  const auto scale = std::min(static_cast<double>(box.right - box.left) / kWidth,
+    static_cast<double>(box.bottom - box.top) / kHeight);
+  const LONG width = static_cast<LONG>(kWidth * scale), height = static_cast<LONG>(kHeight * scale);
+  const LONG x = box.left + (box.right - box.left - width) / 2, y = box.top + (box.bottom - box.top - height) / 2;
+  return {x, y, x + width, y + height};
+}
+int GreenWidth(const std::vector<BYTE>& pixels, UINT width, const RECT& box) {
+  const auto y = (box.top + box.bottom) / 2; int green = 0;
+  for (LONG x = box.left; x < box.right; ++x) {
+    const auto* value = pixels.data() + (y * width + x) * 4;
+    if (value[1] > value[0] + 60 && value[1] > value[2] + 60) ++green;
+  }
+  return green;
+}
+void CheckCameraPunch(ID3D11Device* device, const std::wstring& prefix, const char*& stage) {
+  const auto source = prefix + L"-punch-source.mp4";
+  stage = "generate 25-second camera emphasis bars"; GenerateZoomSource(device, source, 750);
+  std::atomic<bool> cancel{false};
+  for (bool main : {true, false}) for (bool portrait : {false, true}) {
+    LocalRenderRequest request{source, main ? L"" : source, L"", 25000000,
+      portrait ? 540u : 960u, portrait ? 960u : 540u, {{0, 25000000}}};
+    request.camera_inset = .28; request.camera_margin = .04;
+    request.punch_main = main; request.punch_factor = 1.12; request.punch_spring = {1, 90, 19};
+    request.punch_steps = {{1000000, true}, {2600000, false}, {9000000, true}, {10600000, false}};
+    if (!main) request.screen_frame = FrameFixture();
+    request.output = prefix + (main ? L"-punch-main" : L"-punch-pair") + (portrait ? L"-portrait.mp4" : L"-wide.mp4");
+    stage = "render centre camera emphasis on a fixed rectangle";
+    std::cout << "Generated camera render: " << (main ? "main" : "pair") << (portrait ? " portrait" : " wide") << std::endl;
+    RenderLocalVideo(request, cancel, [](double) {});
+    const auto before = FramePixels(request.output, request.width, request.height, 0);
+    const auto during = FramePixels(request.output, request.width, request.height, 60);
+    const auto after = FramePixels(request.output, request.width, request.height, 120);
+    const auto box = PunchPicture(request);
+    stage = "verify subtle camera crop and full-picture return";
+    const auto original = GreenWidth(before, request.width, box), zoomed = GreenWidth(during, request.width, box);
+    Require(original > 20 && zoomed >= original * 1.08 && zoomed <= original * 1.18);
+    Require(std::abs(GreenWidth(after, request.width, box) - original) <= 2);
+    const auto center = ((box.top + box.bottom) / 2 * request.width + (box.left + box.right) / 2) * 4;
+    Require(during[center + 1] > during[center] + 60 && during[center + 1] > during[center + 2] + 60);
+    if (!main) {
+      const auto bounds = ScreenFrameBounds(request.width, request.height, request.screen_frame);
+      RECT screen{bounds.left, static_cast<LONG>(request.height / 2), bounds.right, static_cast<LONG>(request.height / 2 + 2)};
+      Require(GreenWidth(before, request.width, screen) == GreenWidth(during, request.width, screen));
+      for (const auto fraction : {.1, .9}) {
+        const auto location = ((box.top + box.bottom) / 2 * request.width + box.left + static_cast<LONG>((box.right - box.left) * fraction)) * 4;
+        Require(std::abs(static_cast<int>(before[location]) - during[location]) < 12 &&
+          std::abs(static_cast<int>(before[location + 2]) - during[location + 2]) < 12);
+      }
+    }
+    SaveCaptionPng(request.output + L".png", request.width, request.height, during.data());
+    auto cut = request; cut.output = request.output + L"-cut.mp4"; cut.ranges = {{0, 2000000}, {4000000, 25000000}};
+    cut.punch_steps[1].time_us = 2000000;
+    stage = "render camera return at source cut"; RenderLocalVideo(cut, cancel, [](double) {});
+    const auto reset = FramePixels(cut.output, cut.width, cut.height, 60);
+    Require(std::abs(GreenWidth(reset, cut.width, box) - original) <= 2);
+    const auto probe = ProbeRecording(cut.output, cancel);
+    Require(probe.readable && std::abs(probe.duration_100ns - 230000000) < 100000);
+  }
+  LocalRenderRequest invalid{source, L"", prefix + L"-punch-invalid.mp4", 25000000, 640, 360, {{0, 25000000}}};
+  invalid.punch_main = true; invalid.punch_factor = 1.12; invalid.punch_spring = {1, 90, 19};
+  invalid.punch_steps = {{1000000, true}, {2600000, false}};
+  for (int variation = 0; variation < 5; ++variation) {
+    auto bad = invalid;
+    if (variation == 0) bad.ranges = {{0, 19000000}};
+    if (variation == 1) bad.punch_factor = 2;
+    if (variation == 2) bad.punch_steps.push_back({3000000, true});
+    if (variation == 3) { bad.punch_steps.push_back({4000000, true}); bad.punch_steps.push_back({5000000, false}); }
+    if (variation == 4) bad.punch_main = false;
+    stage = "reject short or malformed camera emphasis before creating output";
+    bool rejected = false; try { RenderLocalVideo(bad, cancel, [](double) {}); } catch (...) { rejected = true; }
+    Require(rejected && GetFileAttributesW(bad.output.c_str()) == INVALID_FILE_ATTRIBUTES);
+  }
+}
+void CheckWriterUnwind(ID3D11Device* device, const std::wstring& prefix) {
+  for (bool queued : {false, true}) {
+    const auto output = prefix + (queued ? L"-failed-queued.mp4" : L"-failed-empty.mp4");
+    const auto started = GetTickCount64(); bool caught = false, injected = false;
+    try {
+      GpuVideoWriter writer; check_hresult(writer.Start(device, output, kWidth, kHeight, 30, {}, nullptr, false));
+      if (queued) {
+        std::vector<uint32_t> pixels(kWidth * kHeight, 0xff25b64a);
+        D3D11_TEXTURE2D_DESC desc{}; desc.Width = kWidth; desc.Height = kHeight; desc.MipLevels = desc.ArraySize = 1;
+        desc.Format = DXGI_FORMAT_B8G8R8A8_UNORM; desc.SampleDesc.Count = 1; desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+        D3D11_SUBRESOURCE_DATA data{pixels.data(), kWidth * 4, 0}; com_ptr<ID3D11Texture2D> texture;
+        check_hresult(device->CreateTexture2D(&desc, &data, texture.put()));
+        check_hresult(writer.WriteFrame(texture.get(), kWidth, kHeight, 0));
+      }
+      injected = true; throw std::runtime_error("Generated failure after startup");
+    } catch (...) { caught = true; }
+    Require(caught && injected && GetTickCount64() - started < 5000 && DeleteFileW(output.c_str()));
+  }
+}
 int wmain(int count, wchar_t** args) {
-  if (count != 2) return 2;
+  if (count != 2 && (count != 3 || (std::wstring(args[2]) != L"--camera-only" && std::wstring(args[2]) != L"--cleanup-only"))) return 2;
   const auto com = CoInitializeEx(nullptr, COINIT_MULTITHREADED); if (FAILED(com)) return 3;
   const char* stage = "initialize";
   try {
@@ -581,6 +681,8 @@ int wmain(int count, wchar_t** args) {
         nullptr, 0, D3D11_SDK_VERSION, device.put(), nullptr, nullptr));
       const std::wstring prefix(args[1]), source = prefix + L"-source.mp4";
       std::atomic<bool> cancel{false};
+      stage = "failed encoder cleanup without blocking finalization"; CheckWriterUnwind(device.get(), prefix);
+      if (count == 2) {
       stage = "generate"; Generate(device.get(), source);
       const auto zoom_source = prefix + L"-zoom-source.mp4";
       stage = "generate spatial zoom source"; GenerateZoomSource(device.get(), zoom_source);
@@ -802,8 +904,11 @@ int wmain(int count, wchar_t** args) {
       stage = "reject damaged media"; rejected = false;
       try { RenderLocalVideo(request, cancel, [](double) {}); } catch (...) { rejected = true; }
       Require(rejected && GetFileAttributesW(request.output.c_str()) == INVALID_FILE_ATTRIBUTES);
+      }
+      if (count == 2 || std::wstring(args[2]) == L"--camera-only") CheckCameraPunch(device.get(), prefix, stage);
     }
-    std::cout << "Local render check passed: streaming PCM/GPU pair, source selection/reordering, reviewed filler and retake tone/picture removal, silent input, stereo resampling, EN/FR/AR Readable/Karaoke/Cue/Punch timing and safe pixels, word reveal, emphasis, spring motion and Still, RTL underline, gaps, vertical Arabic, no clipped words, camera inset/end, exact portrait duration, cancel cleanup, damaged input and overwrite protection.\n";
+    if (count == 3) std::cout << "Focused local render check passed: " << (std::wstring(args[2]) == L"--cleanup-only" ? "injected zero/one-sample failure cleanup" : "camera crops/cut resets and failure cleanup") << ".\n";
+    else std::cout << "Local render check passed: streaming PCM/GPU pair, source selection/reordering, reviewed filler and retake tone/picture removal, silent input, stereo resampling, EN/FR/AR Readable/Karaoke/Cue/Punch timing and safe pixels, word reveal, emphasis, spring motion and Still, RTL underline, gaps, vertical Arabic, no clipped words, camera inset/end, exact portrait duration, cancel cleanup, damaged input, overwrite protection, centred main/paired camera crops/cut resets and injected zero/one-sample failure cleanup.\n";
     MFShutdown(); CoUninitialize(); return 0;
   } catch (...) {
     std::cerr << "Local render check failed at " << stage << ": 0x" << std::hex << static_cast<unsigned long>(winrt::to_hresult()) << "\n";

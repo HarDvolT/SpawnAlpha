@@ -337,9 +337,9 @@ void main() {
                   const SizedBox(height: SaSpace.s5),
                   VideoExportPanel(format: VideoFormat.portrait, onFormat: (_) {}, onExport: () {},
                     job: app.exports, busy: working, supported: true, hasCamera: true, hasCaptions: true,
-                    captionStyle: captionStyle, hasAudioJoins: true, hasScreenActivity: true, hasScreen: true,
+                    captionStyle: captionStyle, hasAudioJoins: true, hasScreenActivity: true, hasScreen: true, hasCameraEmphasis: true,
                     videos: [VideoExport(id: 'generated', format: VideoFormat.portrait,
-                      captions: true, burnedCaptions: true, softAudioJoins: true, zoomCount: 3, clickCount: 8, shortcutCount: 4, screenFrame: true,
+                      captions: true, burnedCaptions: true, softAudioJoins: true, zoomCount: 3, clickCount: 8, shortcutCount: 4, screenFrame: true, cameraPunchCount: 2,
                       captionStyle: captionStyle,
                       duration: const Duration(seconds: 25), createdAt: DateTime(2026, 10, 6, 18, 30))],
                     onView: (_) {}, onShow: (_) {}),
@@ -348,6 +348,21 @@ void main() {
         });
       }
       }
+    }
+    for (final brightness in [Brightness.light, Brightness.dark]) {
+      testWidgets('camera emphasis export $language $brightness', (tester) async {
+        final script = sampleScripts().firstWhere((s) => s.language == language);
+        await shoot(tester, 'camera-emphasis-${language.name}-${brightness.name}', phone, (app) => Scaffold(
+          appBar: AppBar(title: const Text('Your take')), body: ListView(padding: const EdgeInsets.all(SaSpace.s5), children: [
+            Directionality(textDirection: language.isRtl ? TextDirection.rtl : TextDirection.ltr,
+              child: Text(script.displayTitle, style: SaType.body)),
+            const SizedBox(height: SaSpace.s5),
+            VideoExportPanel(format: VideoFormat.portrait, onFormat: (_) {}, onExport: () {},
+              job: app.exports, busy: false, supported: true, hasCameraEmphasis: true, onCameraPunch: (_) {},
+              videos: [VideoExport(id: 'generated', format: VideoFormat.portrait, cameraPunchCount: 2,
+                duration: const Duration(seconds: 25), createdAt: DateTime(2026, 10, 7, 8, 30))], onView: (_) {}, onShow: (_) {}),
+          ])), [script], brightness: brightness);
+      });
     }
     for (final brightness in [Brightness.light, Brightness.dark]) {
       for (final chosen in [false, true]) {

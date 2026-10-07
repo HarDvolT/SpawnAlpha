@@ -214,7 +214,7 @@ class Compositor {
     inset_ = inset; margin_ = margin;
   }
   com_ptr<ID3D11Texture2D> Compose(const Frame& main, const Frame& camera,
-      const RECT& main_box, const RECT& camera_box, UINT index, const RECT& main_crop, const RECT& picture_bounds) {
+      const RECT& main_box, const RECT& camera_box, UINT index, const RECT& main_crop, const RECT& picture_bounds, const RECT& camera_crop) {
     const UINT mw = main_box.right - main_box.left, mh = main_box.bottom - main_box.top;
     const UINT cw = camera_box.right - camera_box.left, ch = camera_box.bottom - camera_box.top;
     const FLOAT black[4] = {0, 0, 0, 1}; context_->ClearRenderTargetView(clear_.get(), black);
@@ -227,7 +227,7 @@ class Compositor {
     const LONG inset_w = static_cast<LONG>(width_ * inset_);
     const LONG inset_h = std::min(static_cast<LONG>(height_ * inset_), inset_w);
     const RECT inset{full.right - margin - inset_w, full.bottom - margin - inset_h, full.right - margin, full.bottom - margin};
-    const RECT sources[] = {main_crop, camera_box};
+    const RECT sources[] = {main_crop, camera_crop};
     const RECT destinations[] = {Fit(mw, mh, picture_bounds), camera.image ? Fit(cw, ch, inset) : inset};
     UINT count = 1;
     for (UINT stream = 0; stream < 2; ++stream) {
@@ -289,6 +289,25 @@ void RenderLocalVideo(const LocalRenderRequest& request, std::atomic<bool>& canc
     ScreenZoom zoom;
     zoom.Open(request.zoom_steps, request.zoom_spring, main.width, main.height, total_us);
     if (!request.camera.empty()) camera.Open(request.camera, manager.get());
+    ScreenZoom punch;
+    if (!request.punch_steps.empty()) {
+      Require(request.punch_steps.size() <= 20000 && request.punch_steps.size() % 2 == 0 &&
+        total_us >= 20000000 && request.source_duration_us >= 20000000 &&
+        std::isfinite(request.punch_factor) && request.punch_factor >= 1.01 && request.punch_factor <= 1.2 &&
+        (request.punch_main ? request.camera.empty() && request.zoom_steps.empty() && !request.screen_frame.enabled : !request.camera.empty()));
+      const auto width = request.punch_main ? main.width : camera.width, height = request.punch_main ? main.height : camera.height;
+      std::vector<ScreenZoomStep> steps;
+      int64_t previous = 0, entered = -1;
+      for (size_t i = 0; i < request.punch_steps.size(); ++i) {
+        const auto& step = request.punch_steps[i];
+        Require(step.time_us >= previous && step.time_us <= total_us && step.zoomed == (i % 2 == 0));
+        if (step.zoomed) { Require(entered < 0 || step.time_us - entered >= 8000000); entered = step.time_us; }
+        else Require(step.time_us > previous);
+        steps.push_back({step.time_us, .5, .5, step.zoomed ? request.punch_factor : 1, width, height});
+        previous = step.time_us;
+      }
+      punch.Open(steps, request.punch_spring, width, height, total_us);
+    }
     AudioReader audio; const bool has_audio = audio.Open(request.source);
     Compositor compositor; compositor.Open(device.get(), request.width, request.height, !request.camera.empty(),
       request.camera_inset, request.camera_margin);
@@ -319,10 +338,10 @@ void RenderLocalVideo(const LocalRenderRequest& request, std::atomic<bool>& canc
       if (video_range != previous_video_range) {
         main.Reset(source_ticks); if (!request.camera.empty()) camera.Reset(source_ticks); previous_video_range = video_range;
         if (video_range == 0 || request.ranges[video_range - 1].end_us != request.ranges[video_range].start_us)
-          zoom.Reset(starts[video_range]);
+          { zoom.Reset(starts[video_range]); punch.Reset(starts[video_range]); }
       }
       const RECT main_box{main.x, main.y, main.x + static_cast<LONG>(main.width), main.y + static_cast<LONG>(main.height)};
-      const auto main_crop = zoom.Crop(main_box, output_ticks / 10);
+      const auto main_crop = request.punch_main ? punch.Crop(main_box, output_ticks / 10) : zoom.Crop(main_box, output_ticks / 10);
       const RECT full{0, 0, static_cast<LONG>(request.width), static_cast<LONG>(request.height)};
       const LONG margin = static_cast<LONG>(std::min(request.width, request.height) * request.camera_margin);
       const LONG inset_w = static_cast<LONG>(request.width * request.camera_inset);
@@ -330,8 +349,9 @@ void RenderLocalVideo(const LocalRenderRequest& request, std::atomic<bool>& canc
       const RECT inset{full.right - margin - inset_w, full.bottom - margin - inset_h, full.right - margin, full.bottom - margin};
       const auto camera_frame = request.camera.empty() ? Frame{} : camera.At(source_ticks, false, cancel);
       const RECT camera_box{camera.x, camera.y, camera.x + static_cast<LONG>(camera.width), camera.y + static_cast<LONG>(camera.height)};
+      const auto camera_crop = request.punch_main ? camera_box : punch.Crop(camera_box, output_ticks / 10);
       const auto image = compositor.Compose(main.At(source_ticks, true, cancel),
-        camera_frame, main_box, camera_box, frame, main_crop, picture_bounds);
+        camera_frame, main_box, camera_box, frame, main_crop, picture_bounds, camera_crop);
       const auto camera_destination = camera_frame.image ? Fit(camera.width, camera.height, inset) : RECT{};
       clicks.Draw(image.get(), output_ticks / 10, main_box, main_crop,
         picture, camera_destination);

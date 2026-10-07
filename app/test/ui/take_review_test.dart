@@ -16,6 +16,7 @@ import 'package:spawnalpha/src/transcription/speech_processor.dart';
 import 'package:spawnalpha/src/transcription/word_timing.dart';
 import 'package:spawnalpha/src/transcription/take_processing.dart';
 import 'package:spawnalpha/src/ui/take_review_screen.dart';
+import 'package:spawnalpha/src/ui/video_export_panel.dart';
 import 'package:spawnalpha/src/playback/local_playback.dart';
 
 import '../cut/filler_review_test.dart'
@@ -27,6 +28,10 @@ import '../review/repeated_sections_test.dart'
     show repeatedScript, repeatedSpeech;
 import '../cut/retake_review_test.dart'
     show retakeWords, retakeScript, retakeQuiet;
+import '../render/camera_punches_test.dart' as punch;
+import '../transcription/caption_cues_test.dart' show cueScript;
+import '../render/export_processor_test.dart' show FakeRenderer;
+import '../storage/screen_take_store_test.dart' show FakeInspector;
 
 SavedTranscript reviewFixture(
   ScriptLanguage language,
@@ -71,6 +76,74 @@ SavedTranscript reviewFixture(
 
 void main() {
   for (final language in ScriptLanguage.values) {
+    for (final reduced in [false, true]) {
+      testWidgets(
+        'camera emphasis honors reduced motion and explicit choice $language $reduced',
+        (tester) async {
+          tester.view.physicalSize = const Size(1280, 4000);
+          tester.view.devicePixelRatio = 1;
+          addTearDown(tester.view.reset);
+          final library = ScriptLibrary(MemoryScriptStore());
+          final frozen = cueScript(language),
+              words = punch.speech(cueScript(language));
+          final take = Take(
+            path: 'generated.mp4',
+            recordedAt: DateTime(2026),
+            duration: words.duration,
+          );
+          final doc = frozen.copyWith(takes: [take]);
+          await library.save(doc);
+          final services = AppServices(
+            library: library,
+            settings: Settings(secrets: MemorySecretStore()),
+            recordingsDir: Directory.systemTemp,
+            playback: FakePlayback(),
+            speechBackend: FakeSpeech('unused'),
+            renderer: FakeRenderer(FakeInspector()),
+          );
+          services.speech.result = SavedTranscript(
+            sourcePath: take.path,
+            snapshot: frozen,
+            transcript: words,
+            alignment: {'attemptCount': 4},
+          );
+          await tester.pumpWidget(
+            AppScope(
+              services: services,
+              child: MaterialApp(
+                theme: buildTheme(Brightness.light),
+                home: MediaQuery(
+                  data: MediaQueryData(disableAnimations: reduced),
+                  child: TakeReviewScreen(script: doc, take: take),
+                ),
+              ),
+            ),
+          );
+          await tester.runAsync(
+            () => Future<void>.delayed(const Duration(milliseconds: 50)),
+          );
+          await tester.pumpAndSettle();
+          final panel = find.byType(VideoExportPanel);
+          expect(tester.widget<VideoExportPanel>(panel).cameraPunch, !reduced);
+          expect(
+            tester.widget<VideoExportPanel>(panel).hasCameraEmphasis,
+            isTrue,
+          );
+          await tester.tap(
+            find.widgetWithText(CheckboxListTile, 'Emphasize the camera'),
+          );
+          await tester.pumpAndSettle();
+          expect(tester.widget<VideoExportPanel>(panel).cameraPunch, reduced);
+          expect(tester.takeException(), isNull);
+          await tester.pumpWidget(const SizedBox());
+          services.processing.dispose();
+          services.speech.dispose();
+          services.speechModels.dispose();
+          services.exports.dispose();
+          library.dispose();
+        },
+      );
+    }
     testWidgets(
       'whole review persists and restores a retake choice $language',
       (tester) async {

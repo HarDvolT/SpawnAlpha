@@ -208,6 +208,27 @@ discarded attempts cannot supply evidence. A visible click still supplies the
 position. The ordinary Auto-zoom switch controls these targets too, and no
 transcript text is written into portable zoom metadata.
 
+### Windows camera emphasis
+
+Scripted Camera/Both exports offer **Emphasize the camera**, initially on
+unless system reduced motion is requested. Zoom the camera's centre to
+`camera-punch` on spring-camera at reliable actually spoken accepted stress
+words. Use the frozen Script and retained source-word identity, independently
+of caption style and whether captions are burned in. Notes, absent alignment,
+uncertain/changed/added/unsaid words and unaccepted cues never trigger it.
+No face target is guessed and this is visual emphasis, not a delivery score.
+
+Both the original and edited duration must reach `camera-punch-minimum`.
+For a partial paired recording, the available original camera and its retained
+intervals must also reach that minimum; never emphasize a missing camera frame.
+Space entrances by `camera-punch-interval` on the output clock; return after
+the word plus `camera-punch-hold`, clamped at discontinuous source cuts.
+Continuous source splits preserve the effect. Keep the camera rectangle,
+screen/zoom targets and subtitle clock fixed. The separate switch disables
+the effect; hiding the paired camera removes its emphasis track too. Save
+bounded immutable entrance/return times and count without transcript text.
+The camera follows the existing centre crop; face reframing remains later.
+
 ### Windows screen frame
 
 **Frame the screen** starts on for Screen/Both exports and has an independent

@@ -28,6 +28,9 @@ Independent optional glass shortcut badges show only allowlisted modifier
 chords; ordinary typing stays hidden and badges stop at source cuts.
 Optional rounded screen frames fit the picture on a local dark gradient with
 soft shadows, keeping camera, captions and click targets independent.
+Optional gentle camera emphasis follows reliable actually spoken accepted
+Script stress cues, independently of captions. Short takes/cuts and short
+partial camera tracks stay unchanged; reduced motion starts it off.
 Optional sound-join fades
 soften internal cut edges without shifting words. Optional Readable/Cue/Punch/Karaoke captions
 follow saved actual words/corrections and the cut clock. Reversible filler
@@ -58,6 +61,35 @@ dot to grow and act out each cue in the cue's colour, and for the next features.
 build step 2 (screen recording).
 
 ## Handover (2026-10-05): from here, Codex on the owner's Windows PC
+
+- **Latest checkpoint (2026-10-07, camera emphasis):** 812 Flutter tests,
+  260 screenshots and clean analysis. Emphasize the camera starts on for
+  aligned Script Camera/Both exports unless system reduced motion is set;
+  an explicit switch overrides it. Accepted exact reliable/corrected spoken
+  stress triggers a centred 1.12x camera crop on the existing camera spring.
+  Original/output and original/retained paired-camera duration must reach
+  20 seconds; entrances stay eight output seconds apart. Holds clamp at
+  source/camera boundaries and continuous splits stay identical. Notes,
+  unaligned/changed/uncertain/unsaid speech and unaccepted cues get no effect.
+  Bounded text-free tracks/counts survive local history/recovery without
+  rereading later words/camera metadata; hiding the paired camera removes
+  its track. Subtitle clocks, screen/frame/targets and camera size/position
+  remain independent. Native main/paired wide/portrait decoded crop/return,
+  source-cut resets and malformed/short-track rejection pass, along with the
+  full render suite. Actual app-channel six EN/FR/AR Camera/Both wide/feed/
+  portrait on/off exports preserve exact subtitles/history/original bytes.
+  Fixed a discovered native failure-cleanup hang: exception unwinding
+  shuts down the owned sink instead of finalizing a broken queue. Generated
+  zero/one-sample failures close promptly, and mono/stereo fragmented AAC
+  recording checks pass. EN/AR phone and native main/paired PNGs inspected.
+  No owner media/input, face guessing, score, dependency, asset or upload.
+  Normal Windows Release app restored with the verified cleanup fix.
+  **Half done:** camera movement away from targets, directional blur,
+  smooth cursor, remaining sound/coaching and editor/export tools remain.
+  Next keep the paired camera clear of activity/zoom targets, then continue
+  the other Cut tracks. Existing WGC videos have a baked-in cursor: design
+  explicit cursor-free capture provenance before drawing a replacement.
+  Owner trials stay deferred; mobile and paid launch remain unfinished.
 
 - **Latest checkpoint (2026-10-07, rounded screen frame):** 774 Flutter tests,
   254 screenshots and clean analysis. Frame the screen starts on for Screen/
@@ -943,13 +975,24 @@ build step 2 (screen recording).
    automatic processing after Stop. Repeated sections now offer a paged
    comparison, original listening and safe reversible Keep attempt choices.
    Automatic best-performance ranking is still pending. Next
-   cursor/frame effects and remaining sound polish/delivery
+   remaining camera/cursor/blur effects and sound polish/delivery
    coaching; optional activity zooms, click rings, shortcut badges and short
-   sound-join fades and rounded local screen frames are connected.
+   sound-join fades, rounded local screen frames and gentle camera emphasis
+   are connected.
    Keep originals intact.
    See OpenScreen in the brief for reusable parts.
 
 ## Decisions
+
+- 2026-10-07, camera emphasis: offer a separate Emphasize the camera choice
+  for aligned Script Camera/Both exports, initially on unless system reduced
+  motion is requested. Use accepted actually spoken exact reliable/corrected
+  stress, a centred 1.12x existing camera spring, minimum original/output
+  duration of 20 seconds and eight seconds between entrances. Partial paired
+  camera original/retained duration must also reach 20 seconds. Clamp returns
+  to source/camera boundaries; keep rectangle, screen and captions independent.
+  Save bounded immutable time/zoom pairs/count without words or face targets;
+  old exports have zero camera accents. Notes remain unscored.
 
 - 2026-10-07, screen frame: offer a separate default-on Frame the screen export
   choice for Screen/Both, with or without activity. Fit the full picture in a
@@ -1184,6 +1227,27 @@ build step 2 (screen recording).
   word lists, not prosody.
 
 ## Session log
+
+- 2026-10-07, camera emphasis and failed-export cleanup:
+  - Added trusted frozen Script stress planning, cut/reorder/continuous clocks,
+    short/partial-camera gates, independent export choice and reduced motion.
+    No Notes/uncertain/changed/unaligned speech borrows emphasis. Bounded local
+    tracks/count history/recovery preserve originals and exact subtitles.
+  - Native separate centred camera crops reuse camera springs, leaving the
+    main screen frame/targets and fitted camera rectangle fixed. Source cuts
+    reset the crop; missing camera frames stay missing. A concurrent generated
+    regression exposed a failed-encoder cleanup hang; exception unwinding now
+    shuts down the owned sink without blocking finalization. Successful Stop
+    and export completion retain explicit finalization.
+  - Clean analysis, all 812 tests and 260 screenshots pass. Full native render
+    regression and generated main/paired wide/portrait crops/cut resets pass;
+    injected zero/one-sample failures and mono/stereo fragmented AAC checks
+    pass. Actual app-channel six EN/FR/AR Camera/Both wide/feed/portrait on/off
+    exports preserve captions/history and original bytes. EN/AR UI and native
+    main/paired PNGs inspected. No owner input/media, guessed face, score,
+    dependency, copied code or upload. Normal Windows Release restored.
+    Camera movement, blur/cursor, sound,
+    coaching/editor and mobile/launch remain; owner trials stay deferred.
 
 - 2026-10-07, rounded screen frame:
   - Added the independent Screen/Both export switch and backward-compatible

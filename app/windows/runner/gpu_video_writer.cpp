@@ -9,6 +9,7 @@
 #include <winrt/base.h>
 #include <algorithm>
 #include <cstring>
+#include <exception>
 
 namespace {
 using winrt::com_ptr;
@@ -52,7 +53,7 @@ com_ptr<IMFMediaType> AudioType(GUID subtype, const GpuAudioFormat& audio) {
 }  // namespace
 
 struct GpuVideoWriter::Impl {
-  ~Impl() { Finish(); }
+  ~Impl() { Finish(std::uncaught_exceptions() == 0); }
   HRESULT Start(ID3D11Device* given_device, const std::wstring& path, UINT given_width, UINT given_height, UINT given_fps,
                 const GpuAudioFormat& given_audio, bool* created_file, bool fragmented) {
     if (created_file) *created_file = false;
@@ -110,7 +111,7 @@ struct GpuVideoWriter::Impl {
       last_time = -1;
       audio_end = -1;
       return S_OK;
-    } catch (...) { const HRESULT error = winrt::to_hresult(); Finish(); return error; }
+    } catch (...) { const HRESULT error = winrt::to_hresult(); Finish(false); return error; }
   }
 
   void PrepareInput(ID3D11Texture2D* source, UINT content_width, UINT content_height) {
@@ -220,10 +221,14 @@ struct GpuVideoWriter::Impl {
     } catch (...) { return winrt::to_hresult(); }
   }
 
-  HRESULT Finish() {
+  HRESULT Finish(bool finalize = true) {
     HRESULT result = S_OK;
-    if (writer && writing) result = writer->Finalize();
+    // A failed/cancelled render may have an unfinished encoder queue. Never
+    // synchronously finalize it during exception unwinding: that can wait
+    // forever for a sample that failed. The owner discards that fresh output.
+    if (writer && writing && finalize && frames > 0) result = writer->Finalize();
     writing = false;
+    if (!finalize && sink) { result = sink->Shutdown(); sink = nullptr; }
     writer = nullptr;
     if (sink) {
       const HRESULT closed = sink->Shutdown();

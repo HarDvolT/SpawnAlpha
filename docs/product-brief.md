@@ -115,7 +115,11 @@ Revised 2026-09-30 by the owner. Screen recording moves up, and the automatic ed
      are connected too, along with optional glass shortcut badges for
      allowlisted modifier chords. Ordinary typing stays hidden.
      Optional rounded screen frames, local dark backdrops and soft shadows
-     are connected. Smooth cursor/blur and moving camera polish remain;
+     are connected. Optional camera emphasis uses reliable spoken accepted
+     Script stress cues, with a subtle centred crop, a separate switch and
+     a reduced-motion default. It stays off for takes/cuts under 20 seconds
+     and spaces entrances by eight seconds. Smooth cursor/blur and moving
+     camera polish remain;
    - 16:9 and 9:16 export;
    - the finish screen.
 5. **Delivery review and section retakes.** The best take is chosen by how well it matches the script.
